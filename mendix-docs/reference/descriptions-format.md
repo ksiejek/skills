@@ -1,0 +1,136 @@
+# The descriptions file (`mxscout-descriptions` 1)
+
+JSON. MxScout imports it in a project's Documentation section and shows every
+sentence as an agent's: marked **✦ AI**, or under a line saying an agent wrote
+it. MxScout keeps only what is listed here, as plain
+text — anything else in the file is ignored.
+
+```json
+{
+  "format": "mxscout-descriptions",
+  "version": 1,
+  "project": "Sales",
+  "language": "en",
+  "by": "Claude, mendix-describe skill",
+  "written": "2026-10-08",
+
+  "app": {
+    "summary": "Sales is the order desk of … Two to four sentences: what it is for, who works in it, what it achieves.",
+    "story": "The long description, several paragraphs.
+
+Paragraphs are separated by a blank line …",
+    "audience": [
+      { "who": "Customers", "what": "Place orders and follow them until they are delivered." },
+      { "who": "Clerks", "what": "Check and confirm the orders, in teams per region." },
+      { "who": "Managers", "what": "Watch the delivery dates of their region." }
+    ],
+    "processes": [
+      {
+        "name": "Confirming an order",
+        "summary": "A clerk takes an order from the region's queue, checks it and confirms it.",
+        "story": "What happens to an order from the moment it is placed, in a few paragraphs …",
+        "steps": ["The order arrives in the region's queue", "A clerk takes it", "…"],
+        "flows": ["Orders.ACT_TakeOrder", "Orders.ACT_ConfirmOrder"],
+        "diagram": [
+          { "step": "The order arrives in the region's queue", "by": "app" },
+          { "decision": "Is everything in stock?", "ways": [
+            { "label": "no", "then": [{ "step": "Asks the customer about a later delivery", "who": "Clerk" }], "end": "Waits for the customer" },
+            { "label": "yes" }
+          ] },
+          { "step": "Confirms it and sets the delivery date", "who": "Clerk" },
+          { "end": "Confirmed" }
+        ]
+      }
+    ]
+  },
+
+  "modules": {
+    "Orders": {
+      "summary": "The heart of the app: orders, their lines, delivery dates and history.",
+      "story": "What the module does for the people using it, in a few paragraphs …",
+      "notes": [
+        { "title": "Key entities", "table": { "columns": ["Entity", "Role in the business"], "rows": [["Orders.Order", "What a customer ordered"]] } },
+        { "title": "Naming and layout", "items": ["ACT_ flows are started from a page by a button."] }
+      ]
+    }
+  },
+  "microflows": {
+    "Orders.ACT_ConfirmOrder": {
+      "hash": "5c0e7d21",
+      "text": "Confirms an order: checks that it has lines, records the confirmation and asks for the confirmation note when the customer's region requires one. Only a clerk may do it."
+    }
+  },
+  "nanoflows": {
+    "Orders.ACT_ConfirmOrderStart": { "hash": "…", "text": "…" }
+  },
+  "pages": {
+    "Orders.Order_Edit": { "text": "The order screen clerks work in." }
+  },
+  "entities": {
+    "Orders.Order": { "hash": "…", "text": "What a customer ordered, from placing to delivery." }
+  },
+
+  "risks": [
+    {
+      "level": "P1",
+      "theme": "access",
+      "title": "Every clerk can read every order",
+      "detail": "The read rule on Order for Clerk has no XPath, while every page a clerk reaches lists only the orders of their own region. The client can still fetch the rest.",
+      "where": ["Orders.Order", "Orders.Order_Overview_Clerk"],
+      "fix": "Add the region constraint to the entity access rule, so the database holds the line the pages draw."
+    }
+  ],
+
+  "c4": {
+    "context": { "nodes": [{ "id": "app", "name": "Sales", "kind": "app" }], "links": [] },
+    "containers": { "nodes": [], "links": [] },
+    "open": ["Where the application is hosted cannot be told from the model."]
+  },
+
+  "context": {
+    "where": [
+      { "topic": "Where an order's delivery date is set", "place": "Orders.SUB_Order_SetDeliveryDate, called on every status change, not on create." }
+    ],
+    "conventions": [
+      { "pattern": "ACT_", "meaning": "Started from a page by a button." }
+    ],
+    "pitfalls": [
+      "Changing Order.Status outside Orders.ACT_ChangeStatus skips the history record and the delivery date."
+    ]
+  }
+}
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `format`, `version` | yes | exactly as above, or MxScout refuses the file |
+| `add` | no | `true`: the file adds to the descriptions MxScout keeps instead of replacing them — one more process, or flows described since. A process of the same name is replaced and a new one added at the end; a flow, page, entity or module in the file replaces its old description; a risk whose title is already kept is not added twice; everything else stays. Without it, an import replaces what was kept |
+| `replace` | no | with `"add": true` only: `["app"]` — the file's `app` (summary, story, who uses it, every process) replaces the overview kept, as when the overview was written again from the start; flows, modules, risks and the rest are still added to |
+| `project`, `language`, `by`, `written` | no | `by` is shown as who wrote the descriptions |
+| `app.summary` | no, but write it | the first thing a business reader sees: 2–4 sentences, always shown |
+| `app.story` | no, but write it | the long description, paragraphs separated by a blank line; shown under the summary, folded |
+| `app.audience` | no | the groups of people who use the app, as many as there are: `{ "who", "what" }`, a short name and one sentence. The documentation's overview shows each group on a line of its own. A single sentence, as files before this were written, is still read and shown as one paragraph |
+| `app.processes[]` | no | every main process the application has, each with `name`, `summary` and `story` (one case, stage by stage, 200–400 words — `business-narrative.md`, "A process"); `steps`: one sentence each, naming who does what, as many as the case has; `diagram`, only when the process branches (`business-narrative.md`): a list of `{ "step", "who", "by": "person" \| "app" }`, `{ "decision", "ways": [{ "label", "then": [ … ], "end" }] }` and `{ "end" }` — a way with an `end` finishes there, one with `"join": "<a step's text>"` goes on at that step further on (rules tried in turn that all lead to the same next step), one with neither rejoins the main path, and `then` holds steps and decisions of its own; `flows` are qualified names from the pack and become links |
+| `modules` | no | module name → `{ "summary", "story", "notes" }`; a plain string is read as the summary. `notes`: sections for a developer, see `module-notes.md` |
+| `c4` | no | the architecture, levels 1 and 2: `context` and `containers` (nodes and links) and `open` (what the model does not show), see `c4.md` |
+| `microflows`, `nanoflows`, `pages`, `entities` | no | qualified name → `{ "hash", "text" }`, or just the text |
+| `risks[]` | no, but write it | `level` (`P1`, `P2` or `P3`, by `risk-levels.md`) and `title` are required, or MxScout drops the risk; `detail`, `where` (qualified names, they become links) and `fix` are what make it useful; `theme` is its pattern, one of the ten keys in `risk-levels.md` — the Risks page groups and filters by it, and guesses it from the title when it is missing |
+| `context.where[]` | no | `{ "topic", "place" }`: what a developer looks for, and where it is when the name does not say |
+| `context.conventions[]` | no | `{ "pattern", "meaning" }`: a prefix or naming rule the modules follow |
+| `context.pitfalls[]` | no | sentences: what breaks easily, and what to check before a change |
+
+What goes into a `summary` and a `story`, and how long each is, is defined in
+`business-narrative.md`, for both skills that write this file. Both are plain text: no markup, no lists; a blank line
+starts a new paragraph.
+
+Keys are **qualified names exactly as in the pack** (`Module.Name`). They are
+in separate tables because a microflow and a page can share a name.
+
+Risks and context are not tied to a fingerprint: they describe the model as a
+whole, and are written again with the application's part when the model
+changes. A qualified name in `where`, or inside a `place` or a pitfall, links to
+that flow, page or entity in the documentation when the model has it.
+
+A description without `hash` is shown but never marked out of date; with one,
+MxScout compares it to the flow's current fingerprint each time it builds the
+documentation, and flags the ones that changed since.

@@ -1,0 +1,17 @@
+# OS and tooling
+.DS_Store
+node_modules/
+
+# Client data: never committed. Models, packages, AI packs and generated reports.
+*.mpr
+*.mpr.bak
+*.mpr.lock
+mprcontents/
+*.mxscout
+*.mxscout-ai-pack.md
+*-documentation.html
+
+# Descriptions files written while documenting an app. The examples inside
+# reference/ folders are part of the skills and stay tracked.
+descriptions*.json
+!**/reference/**/descriptions*.json
