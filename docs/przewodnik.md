@@ -330,3 +330,27 @@ publiczna, a do tego obsługa ryzyk:
 `agent.js` łączy się domyślnie z Dev (4288). Do publicznego MxScout:
 `MXSCOUT_URL=http://127.0.0.1:4289`. `./sync.sh` bierze mendix-describe z
 `~/Projects/MxScout-Dev`, a silnik mendix-docs z publicznego `~/Projects/MxScout`.
+
+### Zmiana 2026-10-14: procesy śledzone, nie streszczane
+
+Pierwsze uruchomienie dało krótkie, ogólne procesy. Skill pisał je z opisów modułów,
+„bez ponownego czytania pakietu”. Teraz wygląda to tak (mendix-describe, a w
+mendix-docs od 3.1.0):
+- **W trakcie czytania modułu** agent zapisuje w `work.<Moduł>.md`, z czego są zrobione
+  procesy:
+  - gdzie zaczyna się przypadek (przycisk, harmonogram, REST, workflow, zdarzenie),
+  - statusy,
+  - decyzje i dane, od których zależą,
+  - rekordy szukane **po nazwie** (np. zespół znaleziony po nazwie w XPath),
+  - komunikaty i e-maile,
+  - terminy i strefy czasowe,
+  - wywołania innych modułów.
+- **Każdy główny proces jest śledzony przez flow, także między modułami**, tak jak przy
+  „jeszcze jednym procesie”. Dostaje diagram zawsze, gdy przypadek może pójść więcej niż
+  jedną drogą. Przed scaleniem agent czyta procesy jeszcze raz oczami czytelnika.
+- **Checker ostrzega**, gdy:
+  - opis procesu ma mniej niż 150 słów,
+  - opis aplikacji ma mniej niż 300 słów,
+  - proces wymienia mniej niż dwa flow.
+- **Język:** ten, w którym piszesz, jeśli go nie podasz. Agent pyta, gdy nie jest pewny.
+  Wcześniej domyślnie był angielski.
