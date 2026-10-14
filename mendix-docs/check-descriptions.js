@@ -114,13 +114,16 @@ function check(pack, desc) {
   const err = (text) => problems.push({ level: 'error', text });
   const warn = (text) => problems.push({ level: 'warning', text });
   // The two layers of reference/business-narrative.md, on the application, a process or a module.
-  function layers(what, v) {
+  // min: the fewest words a story of this kind should have (reference/business-narrative.md, "Where the two layers apply").
+  function layers(what, v, min) {
     const summary = typeof v === 'string' ? v : v && typeof v.summary === 'string' ? v.summary : null;
     const story = storyOf(v);
     if (summary && summary.length > LIMITS.summary) warn(what + ': the summary is ' + summary.length + ' characters — a summary is two to four sentences; the rest belongs in "story".');
     if (summary && markupIn(summary)) warn(what + ': the summary carries markup or a list — it is shown as plain text.');
     if (!story) { warn(what + ': no "story" — the long description is half of the business layer (reference/business-narrative.md).'); return; }
+    const words = story.split(/\s+/).filter(Boolean).length;
     if (story.length < LIMITS.storyMin) warn(what + ': the story is ' + story.length + ' characters — a description is several paragraphs, not a second summary.');
+    else if (min && words < min.words) warn(what + ': the story is ' + words + ' words — ' + min.why);
     if (story.length > LIMITS.story) warn(what + ': the story is ' + story.length + ' characters; aim for under ' + LIMITS.story + '.');
     if (markupIn(story)) warn(what + ': the story carries markup, a list or a heading — it is shown as text; write paragraphs, a blank line between them.');
   }
@@ -242,7 +245,7 @@ function check(pack, desc) {
       // A file that adds (one more process, say) to what MxScout keeps leaves the application's own layers as they are.
       if (desc.add !== true || (Array.isArray(desc.replace) && desc.replace.indexOf('app') !== -1)) {
         if (typeof a.summary !== 'string' || !a.summary.trim()) warn('app.summary is empty — it is the first thing a business reader sees.');
-        layers('app', a);
+        layers('app', a, { words: 300, why: 'the application\'s description is about 400–1,200 words: what it is for, who works in it, how a case goes, how it connects.' });
       }
       // Who uses it: groups of { who, what } (reference/descriptions-format.md); one sentence is still read.
       if (Array.isArray(a.audience)) {
@@ -252,7 +255,8 @@ function check(pack, desc) {
       else if (a.audience !== undefined) err('app.audience must be a list of { "who", "what" }.');
       (Array.isArray(a.processes) ? a.processes : []).forEach((p, i) => {
         if (!p || typeof p.name !== 'string' || !p.name.trim()) { err('app.processes[' + i + '] has no name.'); return; }
-        layers('process "' + p.name + '"', p);
+        layers('process "' + p.name + '"', p, { words: 150, why: 'a process follows one case stage by stage, about 200–400 words, naming statuses, roles and messages. Trace it through its flows (SKILL.md, step 4), do not summarise it.' });
+        if (!Array.isArray(p.flows) || p.flows.length < 2) warn('process "' + p.name + '": ' + (Array.isArray(p.flows) ? p.flows.length : 0) + ' flow' + ((Array.isArray(p.flows) && p.flows.length === 1) ? '' : 's') + ' listed — a process is carried by the flows on its way; list each one you followed.');
         // Steps a reader follows, each saying who does what (reference/business-narrative.md, "A process"):
         // as many as the case has (Karol, 2026-10-14: a count here only cut real processes short).
         const steps = Array.isArray(p.steps) ? p.steps.filter((x) => typeof x === 'string' && x.trim()) : [];

@@ -342,14 +342,13 @@
   function pagePreview(p, model) {
     if (!p.structure) return null;
     model = model || {};
-    var snippetsByName = {};
-    (model.snippets || []).forEach(function (s) { snippetsByName[s.qualifiedName] = s; });
+    var ix = indexOf(model);
     var snippets = {};
     (function place(structure) {
       (function walk(nodes) {
         (nodes || []).forEach(function (n) {
-          if (n.kind === 'snippet' && n.snippet && !snippets[n.snippet] && snippetsByName[n.snippet] && snippetsByName[n.snippet].structure) {
-            var s = snippetsByName[n.snippet];
+          if (n.kind === 'snippet' && n.snippet && !snippets[n.snippet] && ix.snippets[n.snippet] && ix.snippets[n.snippet].structure) {
+            var s = ix.snippets[n.snippet];
             snippets[n.snippet] = { parameters: (s.parameters || []).map(function (x) { return { name: x.name, type: x.entityQualifiedName || x.type || 'value' }; }), structure: s.structure };
             place(s.structure);
           }
@@ -357,22 +356,57 @@
         });
       })((structure.regions || []).reduce(function (all, r) { return all.concat(r.widgets || []); }, []));
     })(p.structure);
+    // Every name the page and its snippets mention, read once: each run of
+    // text between two quotes of the JSON (a quote opens the next run as well
+    // as closing this one), so a name counts exactly when '"' + name + '"'
+    // is in the text. Looked up by name, not searched for once per entity and
+    // attribute of the model — that made a large project's documentation
+    // take seconds to build.
     var text = JSON.stringify(p.structure) + JSON.stringify(snippets) + JSON.stringify(p.parameters || []);
-    var enums = {};
-    (model.enumerations || []).forEach(function (e) { enums[e.qualifiedName] = e.values || []; });
+    var named = Object.create(null), m, quoted = /"([^"\\]+)(?=")/g;
+    while ((m = quoted.exec(text))) named[m[1]] = true;
+    var hit = [];
+    Object.keys(named).forEach(function (n) {
+      var at = ix.byName[n];
+      if (at) at.forEach(function (i) { hit[i] = true; });
+    });
     var attributes = {}, entities = {};
-    (model.entities || []).forEach(function (e) {
-      if (text.indexOf('"' + e.qualifiedName) === -1) return;
-      if (text.indexOf('"' + e.qualifiedName + '"') !== -1) entities[e.qualifiedName] = { stored: e.persistable !== false, view: !!e.viewEntity };
+    hit.forEach(function (yes, i) {
+      var e = ix.entities[i];
+      if (named[e.qualifiedName]) entities[e.qualifiedName] = { stored: e.persistable !== false, view: !!e.viewEntity };
       (e.attributes || []).forEach(function (a) {
         var q = e.qualifiedName + '.' + a.name;
-        if (text.indexOf('"' + q + '"') === -1) return;
-        var vals = a.enumerationQualifiedName && enums[a.enumerationQualifiedName];
+        if (!named[q]) return;
+        var vals = a.enumerationQualifiedName && ix.enums[a.enumerationQualifiedName];
         attributes[q] = vals ? { type: 'Enumeration', values: vals.map(function (v) { return v.caption || v.name; }) } : { type: a.type || null };
       });
     });
     return { structure: p.structure, snippets: snippets, attributes: attributes, entities: entities };
   }
+  // A model's snippets and enumerations by name, and which entity each
+  // entity and attribute name belongs to (its place in model.entities, so a
+  // page's entries come out in the model's order): worked out once per model,
+  // not once per page.
+  var indexes = typeof WeakMap === 'function' ? new WeakMap() : null;
+  function indexOf(model) {
+    var ix = indexes && indexes.get(model);
+    // A model is not changed once read; if one ever is, its lists are new or longer, and this is worked out again.
+    if (ix && ix.entities === model.entities && ix.counts === count(model)) return ix;
+    ix = { snippets: Object.create(null), enums: Object.create(null), byName: Object.create(null), entities: model.entities || [], counts: count(model) };
+    (model.snippets || []).forEach(function (s) { ix.snippets[s.qualifiedName] = s; });
+    (model.enumerations || []).forEach(function (e) { ix.enums[e.qualifiedName] = e.values || []; });
+    function add(name, i) {
+      var at = ix.byName[name] || (ix.byName[name] = []);
+      if (at[at.length - 1] !== i) at.push(i);
+    }
+    ix.entities.forEach(function (e, i) {
+      add(e.qualifiedName, i);
+      (e.attributes || []).forEach(function (a) { add(e.qualifiedName + '.' + a.name, i); });
+    });
+    if (indexes) indexes.set(model, ix);
+    return ix;
+  }
+  function count(model) { return [model.entities, model.snippets, model.enumerations].map(function (l) { return l ? l.length : 0; }).join(','); }
 
   // ---------- the whole documentation ----------
   function build(model, project) {

@@ -1,5 +1,19 @@
 # mendix-docs — changes
 
+## 3.1.0 – 2026-10-14
+
+- **Processes are traced, not summarised.** A first run gave short, general
+  processes: the skill wrote them from the module descriptions. Now the agent
+  keeps what processes are made of while reading each module
+  (`work.<Module>.md`: where cases start, statuses, decisions, records looked
+  up by name, messages, deadlines, calls into other modules), then traces
+  every main process through its flows across modules, with a diagram
+  whenever the case branches, and reads them through before merging.
+- The checker (mendix-describe's) warns about a process story under 150
+  words, an overview under 300, or a process with fewer than two flows.
+- The language is the person's when they did not name one, not English.
+- The engine is MxScout's current one: Documentation built once per model.
+
 ## 3.0.1 – 2026-10-14
 
 - **A Mendix 10+ `.mpr` copied without `mprcontents/`** stops with a message

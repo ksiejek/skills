@@ -84,21 +84,58 @@ The pack is large (a real app is ~1.7 MB, ~470k tokens). Never read it whole.
    main records), skip technical ones. While you are in the module, also note
    in the same part what you will not see again: its `risks`, ranked by
    `reference/risk-levels.md`, and its `context` — where things are that
-   their names hide, the naming it follows, and what breaks easily. Modules
-   are independent — you may hand them to parallel subagents, one module each,
-   each writing its own part.
-4. **Then the application.** From the module descriptions you wrote — not by
-   re-reading the pack — write `app`: its story and summary, who uses it (as
-   groups, `{ "who", "what" }`), and
-   every main process the application has, each with its own story and summary — the story
-   follows one case stage by stage, concretely, as `reference/business-narrative.md`
-   says under "A process" — the steps a
-   person takes, the flows that carry it, and — when
-   the case branches — a simplified diagram ("A process" says when). Draw the architecture, levels 1 and 2, from the module notes
-   (`reference/c4.md`): who uses it, what it talks to, what it runs as, and in `open`
-   what the model does not show. Add the risks that span modules,
-   and the conventions the whole application shares. Put it in
-   `descriptions.app.json`. Merging adds the parts' risks and context up.
+   their names hide, the naming it follows, and what breaks easily.
+   **And keep what the processes are made of**, in your own working file
+   `work.<Module>.md` (never imported, never sent): every place a case
+   starts in this module — a page's button, a scheduled event, a published
+   REST or OData operation, a workflow, a before/after commit event — with
+   the flow it starts; the statuses it sets (the enumeration and its
+   values); the decisions that change a case's course and on what data; the
+   records the logic looks up **by name** (a team, a queue, a category, a
+   template: the literal in an XPath or an expression, e.g. a team found by
+   its name); the messages and e-mails that go out and to whom; deadlines
+   and time zones; and what calls into other modules. Step 4 is written from
+   this file, not from the module's summary. Modules are independent — you
+   may hand them to parallel subagents, one module each, each writing its own
+   part and its working file.
+4. **Then the application — and its processes, traced, not summarised.**
+   The application's `story`, `summary` and who uses it (as groups,
+   `{ "who", "what" }`) come from the module descriptions you wrote. **The
+   processes do not.** A process written from module summaries comes out
+   short and general — the one thing the person did not want. So:
+   - **List the main processes** from the starts you kept in the
+     `work.<Module>.md` files: what a person or another system sets going,
+     and what the application does on its own (a schedule, an incoming
+     message). Ask the person when unsure which matter most; there is no
+     number to reach and no limit.
+   - **Trace each one as "One more process" below says, steps 1 and 2**: grep
+     the pack for its flows and entities, read the flows on its way —
+     across modules, as far as the case goes (`node agent.js module <Name> --out m.md`
+     for a module you have not opened; a flow's block is enough when only one
+     flow is needed) — and follow one case from where it starts to how it
+     ends, every way it can go. Processes are independent: hand them to
+     parallel subagents, one process each, with the working files.
+   - **Write it concretely** (`reference/business-narrative.md`, "A
+     process"): the story stage by stage — who starts it, what is checked,
+     recorded or sent, who approves or can refuse, what has a deadline, what
+     happens when something fails, how it ends — naming the statuses, roles,
+     messages and the records looked up by name; the steps, one sentence each,
+     as many as the case has; the flows that carry it; and a **diagram
+     whenever the case can go more than one way** (rules tried in turn, a
+     refusal, a fallback), which in a real application is most processes.
+   Draw the architecture, levels 1 and 2, from the module notes
+   (`reference/c4.md`): who uses it, what it talks to, what it runs as, and
+   in `open` what the model does not show. Add the risks that span modules
+   — tracing a process is where most of them show — and the conventions the
+   whole application shares. Put it in `descriptions.app.json`. Merging adds
+   the parts' risks and context up.
+
+   **Before you merge, read your processes as their reader would.** Each
+   story about 200–400 words, one case followed from start to end, with the
+   real names of statuses, roles, messages and looked-up records in it; a
+   diagram on every process that branches; the flows listed. A process that
+   reads like a paragraph about the business in general is not done: trace
+   it again.
 5. **Merge and check:**
 
    ```
@@ -225,7 +262,8 @@ entity.
   happens ("only a clerk of the order's region may…").
 - **Small helpers get small sentences.** A getter is "Returns the current
   user's account." Do not inflate.
-- **Language:** the one the person asked for; English if they did not say.
+- **Language:** the one the person asked for; if they did not say, the one
+  they write to you in — ask when unsure, before you write anything.
   Set `"language"` accordingly. Keep Mendix names (entities, flows) as they
   are — do not translate identifiers.
 - **Copy the fingerprint.** Every flow header in the pack ends in `#xxxxxxxx`;

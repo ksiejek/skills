@@ -42,7 +42,18 @@
     }
     return ('0000000' + h.toString(16)).slice(-8);
   }
-  function hashOf(f) {
+  // A flow's entry is not changed once docs-data.js has built it, so its
+  // fingerprint and its text are worked out once: attaching descriptions,
+  // the pack and the chat assistant's parts all ask for them, on every flow.
+  var memo = typeof WeakMap === 'function' ? { hash: new WeakMap(), text: new WeakMap() } : null;
+  function remembered(kind, f, make) {
+    if (!memo || !f || typeof f !== 'object') return make(f);
+    var v = memo[kind].get(f);
+    if (v === undefined) { v = make(f); memo[kind].set(f, v); }
+    return v;
+  }
+  function hashOf(f) { return remembered('hash', f, hashOfNow); }
+  function hashOfNow(f) {
     if (f.kind === 'page') return fnv(JSON.stringify([f.params, f.roles]));
     return fnv(JSON.stringify([f.params, f.returns, f.workflow]));
   }
@@ -411,7 +422,7 @@
   }
 
   // One flow as the pack writes it — for a route that sends the model in pieces (copilot.js).
-  function flowText(f) { var out = []; flowBlock(f, out); return out.join('\n'); }
+  function flowText(f) { return remembered('text', f, function () { var out = []; flowBlock(f, out); return out.join('\n'); }); }
 
   // The imported risks by the documents they name, for the screens that show
   // them beside a document (the App Explorer, Microflows). A risk names its
