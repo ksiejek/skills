@@ -291,6 +291,38 @@
     };
   }
 
+  // A ticket checked against the model (skills/mendix-ticket-check; Karol, 2026-10-14: "I paste a ticket
+  // reported on the application, it checks whether the ticket is right and keeps the result in the
+  // documentation"): the ticket as it was pasted, a verdict — a bug in the model, works as designed, data
+  // or configuration, or cannot tell from the model — with the reasoning, the behaviour as the model has
+  // it, the places in the model that show it, what would settle it, a reply to paste back, and for a bug
+  // the change that would fix it (an id on the Changes page). An agent's judgement: MxScout shows it and
+  // acts on none of it; a source address is kept as text and never opened. An entry without an id, a
+  // title, a verdict or a summary is dropped. The fields and their bounds: descriptions-format.md, "Tickets".
+  var TICKET_VERDICTS = { bug: true, 'as-designed': true, 'data-config': true, 'cannot-tell': true };
+  var CONFIDENCE = { high: true, medium: true, low: true };
+  function ticketOf(t) {
+    if (!t || typeof t !== 'object') return null;
+    var id = str(t.id, 80), title = str(t.title, 200), summary = str(t.summary, 2000);
+    if (!id || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(id) || !title || TICKET_VERDICTS[t.verdict] !== true || !summary) return null;
+    var tr = t.traced && typeof t.traced === 'object' ? t.traced : {}, change = str(t.change, 80);
+    return {
+      id: id, title: title, reported: str(t.reported, 8000), source: str(t.source, 300), date: str(t.date, 40),
+      verdict: t.verdict, confidence: CONFIDENCE[t.confidence] === true ? t.confidence : 'low', summary: summary, story: str(t.story, STORY_MAX),
+      traced: { steps: texts(tr.steps, 600, 100), flows: texts(tr.flows, 300, 60), diagram: diagramItems(tr.diagram, 0) },
+      evidence: (Array.isArray(t.evidence) ? t.evidence : []).slice(0, 60).map(function (x) {
+        if (!x || typeof x !== 'object' || !str(x.target, 300)) return null;
+        var kind = typeof x.kind === 'string' ? x.kind.trim().toLowerCase() : '';
+        return { kind: CHANGE_KINDS[kind] === true ? kind : 'other', target: str(x.target, 300), what: str(x.what, 1000) };
+      }).filter(Boolean),
+      needs: texts(t.needs, 1000, 30), reply: str(t.reply, 4000),
+      change: change && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(change) ? change : null,
+      risks: (Array.isArray(t.risks) ? t.risks : []).slice(0, 30).map(function (x) {
+        return x && typeof x === 'object' && /^P[123]$/.test(x.level) && str(x.title, 300) ? { level: x.level, title: str(x.title, 300), detail: str(x.detail, 3000), fix: str(x.fix, 1000) } : null;
+      }).filter(Boolean)
+    };
+  }
+
   // Checks the shape and keeps only what it understands, as text. Whatever
   // the file says is data to show, never markup and never instructions.
   function parse(text) {
@@ -371,7 +403,14 @@
       ids[x.id] = true;
       return true;
     });
-    if (!out.app && !out.c4 && !out.risks.length && !out.context && !out.changes.length && !['modules', 'microflows', 'nanoflows', 'pages', 'entities'].some(function (k) { return Object.keys(out[k]).length; })) {
+    // Tickets, each once by its id, the same way.
+    var tids = {};
+    out.tickets = (Array.isArray(raw.tickets) ? raw.tickets : []).slice(0, 200).map(ticketOf).filter(function (x) {
+      if (!x || tids[x.id]) return false;
+      tids[x.id] = true;
+      return true;
+    });
+    if (!out.app && !out.c4 && !out.risks.length && !out.context && !out.changes.length && !out.tickets.length && !['modules', 'microflows', 'nanoflows', 'pages', 'entities'].some(function (k) { return Object.keys(out[k]).length; })) {
       return { error: 'The file has the right format but no descriptions in it.' };
     }
     return { value: out };
@@ -382,7 +421,7 @@
   // the one process, and the flows it described for it, and nothing else is lost). A process of the same
   // name is replaced, a new one is added at the end; a flow, page, entity or module described again is
   // replaced; a risk with a title already kept is not added twice; a change with an id already kept is
-  // replaced, a new one added at the end; the rest is kept as it was.
+  // replaced, a new one added at the end, and so is a ticket; the rest is kept as it was.
   function merge(base, more) {
     var out = JSON.parse(JSON.stringify(base || {
       project: null, language: null, by: null, written: null, app: null,
@@ -420,6 +459,13 @@
       out.changes.forEach(function (x, i) { if (at < 0 && x.id === c.id) at = i; });
       if (at < 0) out.changes.push(c); else out.changes[at] = c;
     });
+    // A ticket the same way, by its id: checked again, it replaces the one kept.
+    out.tickets = out.tickets || [];
+    (more.tickets || []).forEach(function (t) {
+      var at = -1;
+      out.tickets.forEach(function (x, i) { if (at < 0 && x.id === t.id) at = i; });
+      if (at < 0) out.tickets.push(t); else out.tickets[at] = t;
+    });
     ['project', 'language', 'by'].forEach(function (k) { if (!out[k] && more[k]) out[k] = more[k]; });
     if (more.written) out.written = more.written;
     return out;
@@ -451,6 +497,11 @@
     if (v.changes && v.changes.length) f.changes = v.changes.map(function (c) {
       var x = JSON.parse(JSON.stringify(c));
       x.now.diagram = items(c.now.diagram); x.proposal.diagram = items(c.proposal.diagram);
+      return x;
+    });
+    if (v.tickets && v.tickets.length) f.tickets = v.tickets.map(function (t) {
+      var x = JSON.parse(JSON.stringify(t));
+      x.traced.diagram = items(t.traced.diagram);
       return x;
     });
     if (v.context) f.context = {
@@ -486,6 +537,8 @@
       c4: d.c4 || null,
       // And the changes an agent proposed — none in a file imported before they existed.
       changes: d.changes || [],
+      // And the tickets an agent checked against the model, the same.
+      tickets: d.tickets || [],
       modules: Object.keys(d.modules).reduce(function (o, k) { o[k] = { summary: d.modules[k].text, story: d.modules[k].story || null, notes: d.modules[k].notes || null }; return o; }, {})
     };
     return { described: described, stale: stale, missing: missing };

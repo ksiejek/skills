@@ -1133,3 +1133,40 @@ button.dx-dm-can.link:hover { border-color:var(--acc); color:var(--acc-text); }
   .dx-ch-more { grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:40px; align-items:start; }
 }
 @media (max-width: 720px) { .dx-ch-target { white-space:normal; word-break:break-word; } }
+
+/* Tickets (docs-tickets.js): a ticket checked against the model. The verdict's colour says how much it
+   asks of a developer — a bug as a P1, data or configuration as a P2, as designed as settled, cannot
+   tell as muted; the rest of the page is the Changes page's parts. */
+.dx-tk-v { display:inline-block; font:600 11px/18px var(--font-ui); padding:0 7px; border-radius:5px; vertical-align:1px; white-space:nowrap; }
+.dx-tk-v.bug { color:var(--p1); background:var(--p1bg); }
+.dx-tk-v.data-config { color:var(--p2); background:var(--p2bg); }
+.dx-tk-v.as-designed { color:var(--ok); background:var(--okbg); }
+.dx-tk-v.cannot-tell { color:var(--muted); background:var(--raised); }
+.dx-tk-id { font:600 12px var(--font-mono); color:var(--muted); }
+.dx-tk-item { grid-template-columns:minmax(0,1fr); }
+.dx-tk-item small .dx-tk-id { font-size:11px; }
+.dx-tk-item.on .dx-tk-id { color:var(--acc-text); }
+.dx-tk-row .dx-ch-row-h { flex-wrap:wrap; }
+.dx-tk-chips { display:flex; flex-wrap:wrap; gap:6px; }
+.dx-tk-chip { font:500 12.5px/1 var(--font-ui); padding:6px 10px; border-radius:999px; border:1px solid var(--line2); background:none; color:var(--ink2); cursor:pointer; }
+.dx-tk-chip .mono { color:var(--muted); }
+.dx-tk-chip:hover { border-color:var(--acc); }
+.dx-tk-chip.on { background:var(--acc-soft); border-color:var(--acc); color:var(--acc-text); }
+.dx-tk-chip.bug.on { background:var(--p1bg); border-color:var(--p1); color:var(--p1); }
+.dx-tk-chip.data-config.on { background:var(--p2bg); border-color:var(--p2); color:var(--p2); }
+.dx-tk-chip.as-designed.on { background:var(--okbg); border-color:var(--ok); color:var(--ok); }
+.dx-tk-rep p { white-space:pre-wrap; font-style:normal; font-size:14.5px; }
+.dx-tk-fold { max-width:900px; }
+.dx-tk-fold > summary { cursor:pointer; font-size:13px; color:var(--ink2); padding:4px 0 8px; }
+.dx-tk-verdict { display:flex; flex-direction:column; gap:10px; max-width:900px; padding:14px 16px; border-radius:10px; border:1px solid var(--line); border-left:3px solid var(--muted); background:var(--panel); }
+.dx-tk-verdict.bug { border-left-color:var(--p1); }
+.dx-tk-verdict.data-config { border-left-color:var(--p2); }
+.dx-tk-verdict.as-designed { border-left-color:var(--ok); }
+.dx-tk-vh { display:flex; align-items:center; gap:10px; }
+.dx-tk-vh .dx-tk-v { font-size:12px; line-height:21px; padding:0 9px; }
+.dx-tk-conf { font-size:12.5px; color:var(--muted); }
+.dx-tk-conf.low { color:var(--p2); }
+.dx-tk-kind { width:120px; color:var(--muted); }
+.dx-tk-reply { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+.dx-tk-reply-t { margin:0; padding:10px 12px; width:100%; box-sizing:border-box; white-space:pre-wrap; font-size:14px; line-height:1.55; color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:8px; }
+.dx-tk-change { border:1px solid var(--line); border-radius:8px; padding:10px 12px; }

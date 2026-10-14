@@ -107,9 +107,33 @@
   }
 
   // ---------- drawing ----------
+  // The drawing is kept with the state it was drawn for, and handed back while
+  // only the pick changed: a click on an element draws the screen again, and a
+  // large page is thousands of nodes that did not change — only the outline
+  // moves to what was clicked. Another tab, the structure outlines or another
+  // page draw it anew. The last few pages are kept, not every page visited.
+  var drawn = [], KEEP_DRAWN = 4;
   function canvas(preview, st, hooks) {
-    var P = prepare(preview), S = preview.structure;
     st.tab = st.tab || {};
+    var sig = (st.structure ? 's' : '') + JSON.stringify(st.tab);
+    var was = null;
+    for (var i = 0; i < drawn.length; i++) if (drawn[i].st === st) { was = drawn[i]; drawn.splice(i, 1); break; }
+    if (was && was.preview === preview && was.sig === sig) {
+      drawn.unshift(was);
+      was.live.hooks = hooks;
+      Array.prototype.forEach.call(was.root.querySelectorAll('.pp-sel, .pp-hov'), function (n) { n.classList.remove('pp-sel'); n.classList.remove('pp-hov'); });
+      if (st.sel) Array.prototype.forEach.call(was.root.querySelectorAll('[data-pp]'), function (n) { if (n.getAttribute('data-pp') === st.sel) n.classList.add('pp-sel'); });
+      return was.root;
+    }
+    var root = draw0(preview, st, hooks);
+    drawn.unshift({ st: st, preview: preview, sig: sig, root: root.node, live: root.live });
+    drawn.length = Math.min(drawn.length, KEEP_DRAWN);
+    return root.node;
+  }
+  function draw0(preview, st, hooks0) {
+    // What the drawing's own clicks call: the hooks of the latest draw that handed it out.
+    var live = { hooks: hooks0 };
+    var P = prepare(preview), S = preview.structure;
     // g: a faded repeat of a list's item — drawn, but not something to click.
     function wrap(n, el, kindLabel, g) {
       if (g) return el;
@@ -235,7 +259,7 @@
         var on = i === sel;
         var tab = h(g ? 'span' : 'button', { type: g ? null : 'button', class: 'pp-tab' + (on ? ' on' : ''), role: g ? null : 'tab', 'aria-selected': g ? null : (on ? 'true' : 'false'),
           title: t.visible ? 'Shown only on a condition' : null }, [t.caption || 'Tab', t.visible ? h('span', { class: 'pp-tdot' }) : null]);
-        if (!g) tab.addEventListener('click', function (ev) { ev.stopPropagation(); st.tab[n._id] = i; hooks.rerender(); });
+        if (!g) tab.addEventListener('click', function (ev) { ev.stopPropagation(); st.tab[n._id] = i; live.hooks.rerender(); });
         return tab;
       }));
       var cur = pages[sel];
@@ -268,9 +292,9 @@
     root.addEventListener('click', function (ev) {
       var t = target(ev);
       st.sel = t ? t.getAttribute('data-pp') : null;
-      hooks.rerender();
+      live.hooks.rerender();
     });
-    return root;
+    return { node: root, live: live };
   }
   // Studio Pro's own button style and icon when the model says (mpr.js reads
   // both); what it does decides only when the model is silent.

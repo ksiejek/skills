@@ -32,6 +32,13 @@ cp -R "$DESCRIBE_SRC/." "$HERE/mendix-describe/"
   [ -e "$DESCRIBE_SRC/$f" ] || echo "  note: mendix-describe/$f is no longer in MxScout Dev"
 done
 
+TICKET_SRC="$MXSCOUT_DEV_DIR/skills/mendix-ticket-check"
+if [ -f "$TICKET_SRC/SKILL.md" ]; then
+  echo "mendix-ticket-check <- $TICKET_SRC"
+  mkdir -p "$HERE/mendix-ticket-check"
+  cp -R "$TICKET_SRC/." "$HERE/mendix-ticket-check/"
+fi
+
 echo "mendix-docs <- mendix-docs-source + $MXSCOUT_DIR"
 node "$HERE/mendix-docs-source/pack-skill.js" "$HERE/mendix-docs" --mxscout "$MXSCOUT_DIR"
 

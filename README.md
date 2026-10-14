@@ -8,6 +8,7 @@ The folder name is the skill's `name:` in its `SKILL.md`.
 | Skill | What it does | Canonical home |
 |---|---|---|
 | `mendix-describe/` | Writes business-readable documentation of a Mendix app from an MxScout AI pack (a `.mxscout-ai-pack.md` file, or a running MxScout sharing a project with an agent) as a descriptions file MxScout imports. | **The MxScout Dev repository** (`skills/mendix-describe/`), which has everything the public MxScout's copy has plus risk triage (risk ids, re-checking fixed risks, false positives, risks people raised in comments). This folder is a copy of the Dev one. |
+| `mendix-ticket-check/` | Checks a ticket reported on a Mendix app (a Jira issue, a bug report) against the model: bug, works as designed, data or configuration, or cannot tell — with the evidence, a reply to paste back, and for a bug a proposed fix; the result goes to MxScout's Tickets page. Uses mendix-describe's tools, so it is installed beside it. | **The MxScout Dev repository** (`skills/mendix-ticket-check/`). This folder is a copy. |
 | `mendix-docs/` | Documents a Mendix app straight from its `.mpr`, with nothing else running, as one offline HTML report (the same report MxScout exports). | **Here.** `mendix-docs/` is the installable copy, packed from `mendix-docs-source/`. |
 | `app-report-presentation/` | How to lay out any application's documentation as a readable report or small portal, with a ready visual kit in `assets/` (tokens, components, icons, renderer, `build.js`, an example report). **Draft for review**, as its `SKILL.md` says. | **Here.** |
 

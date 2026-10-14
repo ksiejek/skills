@@ -150,6 +150,7 @@
       home: ['M2.5 7.5L8 3l5.5 4.5V13H2.5z', 'M6.5 13V9.5h3V13'],
       proc: ['M3 4h.01M3 8h.01M3 12h.01', 'M6 4h7M6 8h7M6 12h7'],
       change: ['M2.5 5h8.5M8.5 2.5L11 5 8.5 7.5', 'M13.5 11H5M7.5 8.5L5 11l2.5 2.5'],
+      ticket: ['M2 4.5h12v2.2a1.4 1.4 0 0 0 0 2.6v2.2H2V9.3a1.4 1.4 0 0 0 0-2.6z', 'M10 5v1M10 7.5v1M10 10v1'],
       module: ['M8 1.8l5.5 3v6.4L8 14.2l-5.5-3V4.8z', 'M2.5 4.8L8 7.8l5.5-3M8 7.8v6.4'],
       flow: ['M3 6.4a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2zM13.4 6.4a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2z', 'M6 5.5h4.5v5H6zM4.6 8H6M10.5 8h1.3'],
       entity: ['M2.5 3h11v10h-11z', 'M2.5 6.5h11M6.5 6.5V13'],
@@ -359,7 +360,7 @@
       function agent() { w('> Written by an agent from the model.'); w(); }
       var D = data.derived || (window.MxReportData ? window.MxReportData.derive(data) : null);
       var ai = data.ai || {}, app = ai.app || null, risks = ai.risks || [], c4 = ai.c4 || null, ctx = ai.context || null;
-      var procs = app ? app.processes || [] : [], k = data.kpi, changes = ai.changes || [];
+      var procs = app ? app.processes || [] : [], k = data.kpi, changes = ai.changes || [], tickets = ai.tickets || [];
       function rid(i) { var n = String(i + 1); return 'R-' + (n.length < 3 ? ('00' + n).slice(-3) : n); }
       function lvCount(l) { return risks.filter(function (r) { return r.level === l; }).length; }
       var KIND_TAG = { microflow: 'MF', nanoflow: 'NF', page: 'PG' };
@@ -639,6 +640,9 @@
         });
       }
 
+      // ---- tickets: written by docs-tickets.js, beside the page it draws ----
+      if (tickets.length && window.MxDocsTickets) window.MxDocsTickets.markdown(tickets, { w: w, esc: esc, code: code, paras: paras, table: table, raw: raw, agent: agent, plural: plural });
+
       // ---- model quality ----
       if (Q) {
         w('## Model quality'); w();
@@ -691,7 +695,17 @@
       var at = {}, taken = {};
       var order = nodes.slice().sort(function (a, b) { return deg[b] - deg[a] || a.localeCompare(b); });
       var placed = [];
-      function links(x, y) { var c = 0; pairs.forEach(function (p) { if ((p.a === x && p.b === y) || (p.b === x && p.a === y)) c += p.n; }); return c; }
+      // How many associations join two entities, looked up rather than counted again for every
+      // cell tried (a large module asked it millions of times); the sizes likewise, read once.
+      var linkN = {};
+      pairs.forEach(function (p) {
+        var k1 = p.a + '\n' + p.b, k2 = p.b + '\n' + p.a;
+        linkN[k1] = (linkN[k1] || 0) + p.n;
+        if (k2 !== k1) linkN[k2] = (linkN[k2] || 0) + p.n;
+      });
+      function links(x, y) { return linkN[x + '\n' + y] || 0; }
+      var sizes = {};
+      nodes.forEach(function (x) { sizes[x] = size(x); });
       while (placed.length < n) {
         var next = null, best = -1;
         order.forEach(function (x) { if (at[x] !== undefined) return; var s2 = 0; placed.forEach(function (y) { s2 += links(x, y); }); if (s2 > best) { best = s2; next = x; } });
@@ -711,12 +725,12 @@
         var colW = [], rowH = [];
         for (var i = 0; i < cols; i++) colW[i] = 0;
         for (var j = 0; j < rows; j++) rowH[j] = 0;
-        nodes.forEach(function (x) { var sz = size(x), c = at[x]; colW[c % cols] = Math.max(colW[c % cols], sz.w); rowH[Math.floor(c / cols)] = Math.max(rowH[Math.floor(c / cols)], sz.h); });
+        nodes.forEach(function (x) { var sz = sizes[x], c = at[x]; colW[c % cols] = Math.max(colW[c % cols], sz.w); rowH[Math.floor(c / cols)] = Math.max(rowH[Math.floor(c / cols)], sz.h); });
         var colX = [], rowY = [], x0 = G.pad, y0 = G.pad;
         for (i = 0; i < cols; i++) { colX[i] = x0; x0 += colW[i] + G.gx; }
         for (j = 0; j < rows; j++) { rowY[j] = y0; y0 += rowH[j] + G.gy; }
         var pos = {};
-        nodes.forEach(function (x) { var sz = size(x), c = at[x]; pos[x] = { x: colX[c % cols], y: rowY[Math.floor(c / cols)], w: sz.w, h: sz.h, c: c % cols, r: Math.floor(c / cols) }; });
+        nodes.forEach(function (x) { var sz = sizes[x], c = at[x]; pos[x] = { x: colX[c % cols], y: rowY[Math.floor(c / cols)], w: sz.w, h: sz.h, c: c % cols, r: Math.floor(c / cols) }; });
         // channel k between column k-1 and k (0 and cols are the outer margins), the same for rows
         var vch = [], hch = [];
         for (i = 0; i <= cols; i++) vch[i] = i === 0 ? G.pad * 0.5 : i === cols ? colX[cols - 1] + colW[cols - 1] + G.pad * 0.5 : colX[i] - G.gx / 2;
@@ -748,23 +762,25 @@
         var lanes = {};
         rs.forEach(function (x, i) { x.r.pts.forEach(function (q) { if (q[0] === 'v' || q[0] === 'h') (lanes[q[0] + q[1]] = lanes[q[0] + q[1]] || []).push(i); }); });
         var laneOf = {};
+        // where each line comes from, worked out once rather than in every comparison of the sort
+        var keys = rs.map(function (x) { var A = g.pos[x.p.a], B = g.pos[x.p.b]; return (A.y + B.y) / 2 * 10 + (A.x + B.x) / 2 / 100; });
         Object.keys(lanes).forEach(function (k) {
           var list = lanes[k], step = 9;
           // order the lines in a channel by where they come from, so they do not braid
-          list.sort(function (i, j) { return key(rs[i]) - key(rs[j]); });
+          list.sort(function (i, j) { return keys[i] - keys[j]; });
           list.forEach(function (i, idx) { laneOf[k + ':' + i] = (idx - (list.length - 1) / 2) * step; });
         });
-        function key(x) { var A = g.pos[x.p.a], B = g.pos[x.p.b]; return (A.y + B.y) / 2 * 10 + (A.x + B.x) / 2 / 100; }
         // ports: the lines on one side of a box spread along it
         var ports = {};
         rs.forEach(function (x, i) {
-          [0, x.r.pts.length - 1].forEach(function (end) { var q = x.r.pts[end]; var id = q[1] + '|' + q[2]; (ports[id] = ports[id] || []).push([i, end]); });
+          [0, x.r.pts.length - 1].forEach(function (end) { var q = x.r.pts[end]; var id = q[1] + '|' + q[2]; (ports[id] = ports[id] || { name: q[1], sd: q[2], list: [] }).list.push([i, end]); });
         });
         var portAt = {};
         Object.keys(ports).forEach(function (id) {
-          var list = ports[id], name = id.split('|')[0], sd = id.split('|')[1], b = g.pos[name];
-          var other = function (e) { var x = rs[e[0]], o = g.pos[e[1] === 0 ? x.p.b : x.p.a]; return sd === 'L' || sd === 'R' ? o.y + o.h / 2 : o.x + o.w / 2; };
-          list.sort(function (u, v) { return other(u) - other(v); });
+          var list = ports[id].list, sd = ports[id].sd, b = g.pos[ports[id].name];
+          // where the line's other end is, along this side — set on each end before the sort
+          list.forEach(function (e) { var x = rs[e[0]], o = g.pos[e[1] === 0 ? x.p.b : x.p.a]; e[2] = sd === 'L' || sd === 'R' ? o.y + o.h / 2 : o.x + o.w / 2; });
+          list.sort(function (u, v) { return u[2] - v[2]; });
           list.forEach(function (e, k) {
             var v2;
             if (sd === 'L' || sd === 'R') v2 = [sd === 'R' ? b.x + b.w : b.x, Math.min(b.y + G.fy + k * 16, b.y + b.h - 10)];
@@ -798,22 +814,30 @@
           return { p: x.p, pts: clean };
         });
         // the cost: crossings dominate, then length, then bends
-        var segs = [];
-        routes.forEach(function (rt, i) { for (var k = 0; k < rt.pts.length - 1; k++) segs.push([i, rt.pts[k], rt.pts[k + 1]]); });
+        // Two lines cross where a level run passes strictly through an upright one of another
+        // line (half a pixel in from the ends). Each level run is set only against the upright
+        // runs whose x falls inside it, found in the list sorted by x: the layout's inner loop,
+        // run for every swap it tries, so not every pair of runs.
+        var hs = [], vs = [];
+        routes.forEach(function (rt, i) {
+          for (var k = 0; k < rt.pts.length - 1; k++) {
+            var a = rt.pts[k], b = rt.pts[k + 1];
+            if (a[1] === b[1]) hs.push({ i: i, y: a[1], x1: Math.min(a[0], b[0]), x2: Math.max(a[0], b[0]) });
+            else vs.push({ i: i, x: a[0], y1: Math.min(a[1], b[1]), y2: Math.max(a[1], b[1]) });
+          }
+        });
+        vs.sort(function (u, v) { return u.x - v.x; });
         var crossings = 0, len = 0, bends = 0;
         routes.forEach(function (rt) { bends += rt.pts.length - 2; for (var k = 0; k < rt.pts.length - 1; k++) len += Math.abs(rt.pts[k + 1][0] - rt.pts[k][0]) + Math.abs(rt.pts[k + 1][1] - rt.pts[k][1]); });
-        for (var s1 = 0; s1 < segs.length; s1++) for (var s2 = s1 + 1; s2 < segs.length; s2++) {
-          if (segs[s1][0] === segs[s2][0]) continue;
-          if (crosses(segs[s1][1], segs[s1][2], segs[s2][1], segs[s2][2])) crossings++;
+        for (var s1 = 0; s1 < hs.length; s1++) {
+          var hz = hs[s1], lo = hz.x1 + 0.5, hi = hz.x2 - 0.5, from = 0, to = vs.length;
+          while (from < to) { var mid = (from + to) >> 1; if (vs[mid].x > lo) to = mid; else from = mid + 1; }
+          for (var s2 = from; s2 < vs.length && vs[s2].x < hi; s2++) {
+            var vt = vs[s2];
+            if (vt.i !== hz.i && hz.y > vt.y1 + 0.5 && hz.y < vt.y2 - 0.5) crossings++;
+          }
         }
         return { pos: g.pos, routes: routes, W: g.W, H: g.H, crossings: crossings, cost: crossings * 100000 + len + bends * 40 };
-      }
-      function crosses(a1, a2, b1, b2) {
-        var aH = a1[1] === a2[1], bH = b1[1] === b2[1];
-        if (aH === bH) return false;
-        var h1 = aH ? a1 : b1, h2 = aH ? a2 : b2, v1 = aH ? b1 : a1, v2 = aH ? b2 : a2;
-        var x = v1[0], y = h1[1];
-        return x > Math.min(h1[0], h2[0]) + 0.5 && x < Math.max(h1[0], h2[0]) - 0.5 && y > Math.min(v1[1], v2[1]) + 0.5 && y < Math.max(v1[1], v2[1]) - 0.5;
       }
 
       // improve: swap two cells (a node with a node or with an empty cell) while it helps
@@ -869,7 +893,7 @@
       }
       // Risks, the developers' context, the architecture and the processes exist only when an agent wrote them (describe.js), so their pages too.
       var risks = data.ai && data.ai.risks || [], devCtx = data.ai && data.ai.context || null, c4 = data.ai && data.ai.c4 || null;
-      var procs = data.ai && data.ai.app && data.ai.app.processes || [], changes = data.ai && data.ai.changes || [];
+      var procs = data.ai && data.ai.app && data.ai.app.processes || [], changes = data.ai && data.ai.changes || [], tickets = data.ai && data.ai.tickets || [];
       // The application's full description lives on Processes (as its item 0), so the page is there when either is.
       var procPage = !!(data.ai && data.ai.app && (procs.length || data.ai.app.story || data.ai.app.summary));
       var devCount = devCtx ? devCtx.where.length + devCtx.conventions.length + devCtx.pitfalls.length : 0;
@@ -879,11 +903,11 @@
       var GROUPS = [
         ['Application', [['start', 'Overview', 'home'], procPage ? ['processes', 'Processes', 'proc'] : null, changes.length ? ['changes', 'Changes', 'change'] : null, ['modules', 'Modules', 'module'], ['arch', 'Architecture', 'arch']]],
         ['Model', [['domain', 'Entities', 'entity'], ['refs:microflow', 'Microflows', 'flow'], ['refs:nanoflow', 'Nanoflows', 'nano'], ['refs:page', 'Pages', 'page']]],
-        ['Review', [risks.length ? ['risks', 'Risks', 'risk'] : null, ['quality', 'Model quality', 'quality'], devCtx ? ['dev', 'For developers', 'dev'] : null]]
+        ['Review', [risks.length ? ['risks', 'Risks', 'risk'] : null, tickets.length ? ['tickets', 'Tickets', 'ticket'] : null, ['quality', 'Model quality', 'quality'], devCtx ? ['dev', 'For developers', 'dev'] : null]]
       ].map(function (g) { return [g[0], g[1].filter(Boolean)]; });
       var NAV = [];
       GROUPS.forEach(function (g) { g[1].forEach(function (r) { var v = r[0].split(':')[0]; if (!NAV.some(function (x) { return x[0] === v; })) NAV.push([v, r[1], r[2]]); }); });
-      var counts = { processes: procs.length, changes: changes.length, modules: data.kpi.modules, 'refs:microflow': data.kpi.microflows, 'refs:nanoflow': data.kpi.nanoflows, 'refs:page': data.kpi.pages, domain: data.kpi.entities,
+      var counts = { processes: procs.length, changes: changes.length, tickets: tickets.length, modules: data.kpi.modules, 'refs:microflow': data.kpi.microflows, 'refs:nanoflow': data.kpi.nanoflows, 'refs:page': data.kpi.pages, domain: data.kpi.entities,
         quality: data.quality.unreached.length, risks: risks.length, dev: devCount };
       var navBtns = {};
       var initial = String(data.project || '?').charAt(0).toUpperCase();
@@ -963,11 +987,12 @@
       //   #/                      Overview, ?s=users etc. for one of its sections
       //   #/processes/{n}         0 = the whole application, 1.. = a process
       //   #/changes/{id}          a change an agent worked out; none: the list of them
+      //   #/tickets/{id}          a ticket an agent checked against the model; none: the list of them
       //   #/modules/{Module}
       //   #/flows/{Module.Name}   ?seg=all|mf|nf|pg the list, ?step=N the step, ?var=Name the trace
       //   #/domain/{Module}/{Entity}
       //   #/architecture?s={section}  #/risks/{R-012}  #/quality/{check}  #/developers/{tab}
-      var ROUTE_OF = { start: '', processes: 'processes', changes: 'changes', modules: 'modules', refs: 'flows', domain: 'domain', arch: 'architecture', risks: 'risks', quality: 'quality', dev: 'developers' };
+      var ROUTE_OF = { start: '', processes: 'processes', changes: 'changes', tickets: 'tickets', modules: 'modules', refs: 'flows', domain: 'domain', arch: 'architecture', risks: 'risks', quality: 'quality', dev: 'developers' };
       var VIEW_OF = {};
       Object.keys(ROUTE_OF).forEach(function (k) { VIEW_OF[ROUTE_OF[k]] = k; });
       // Addresses written before these routes existed still open.
@@ -1003,6 +1028,7 @@
         if (st.view === 'dev') { st.dmod = q.mod || null; st.dq = q.q || ''; }
         if (st.view === 'processes') st.proc = arg && /^\d+$/.test(arg) ? Number(arg) : 0;
         if (st.view === 'changes') st.change = arg || null;
+        if (st.view === 'tickets') st.ticket = arg || null;
         if (st.view === 'risks' || st.view === 'quality' || st.view === 'dev') st.sub = arg;
         if (st.view === 'risks') rf = { lv: /^P[123]$/.test(q.lv) ? q.lv : null, th: PAT[q.th] ? q.th : null, mod: q.mod || null, q: q.q || '', group: q.group === 'mod' ? 'mod' : 'sev' };
         st.sec = (st.view === 'start' || st.view === 'arch') && q.s ? q.s : null;
@@ -1024,6 +1050,7 @@
         if (s.view === 'modules' && s.module) arg = s.module;
         if (s.view === 'processes') arg = String(s.proc || 0);
         if (s.view === 'changes' && s.change) arg = s.change;
+        if (s.view === 'tickets' && s.ticket) arg = s.ticket;
         if ((s.view === 'risks' || s.view === 'quality' || s.view === 'dev') && s.sub) arg = s.sub;
         if ((s.view === 'start' || s.view === 'arch') && s.sec) q = 's=' + encodeURIComponent(s.sec);
         if (s.view === 'modules' || s.view === 'arch' || s.view === 'dev') {
@@ -1104,6 +1131,7 @@
         var app2 = data.ai && data.ai.app;
         if (app2) { text('The application', 'description', [app2.summary, app2.story].filter(Boolean).join(' '), { view: 'processes', proc: 0 }); }
         procs.forEach(function (p, i) { text(p.name, 'process', [p.summary, p.story].concat(p.steps).filter(Boolean).join(' '), { view: 'processes', proc: i + 1 }); });
+        if (window.MxDocsTickets) window.MxDocsTickets.search(tickets, name, text);
         changes.forEach(function (c) { text(c.title, 'change', [c.asked, c.now.summary, c.now.story, c.proposal.summary, c.proposal.story].concat(c.proposal.changes.map(function (x) { return x.target + ' ' + (x.what || ''); }), c.open).filter(Boolean).join(' '), { view: 'changes', change: c.id }); });
         Object.keys((data.ai && data.ai.modules) || {}).forEach(function (m) {
           var md = data.ai.modules[m];
@@ -1119,7 +1147,7 @@
         }
         return { names: names, texts: texts };
       }
-      var GROUPS = ['Modules', 'Processes', 'Changes', 'Microflows', 'Nanoflows', 'Pages', 'Entities', 'Risks'];
+      var GROUPS = ['Modules', 'Processes', 'Changes', 'Microflows', 'Nanoflows', 'Pages', 'Entities', 'Risks', 'Tickets'];
       var searchUi = null;
       function marked(str, at, len) {
         if (at < 0) return [str];
@@ -1170,7 +1198,7 @@
             listEl.appendChild(h('div', { class: 'dx-sd-g', role: 'presentation' }, [h('span', { class: 'dx-cap', text: g }), h('span', { class: 'mono dx-fc-n', text: String(hits.length) })]));
             shown.forEach(function (x) {
               listEl.appendChild(row(x, [h('span', { class: 'dx-sd-b' + (/^P[123]$/.test(x.badge) ? ' dx-lv ' + x.badge.toLowerCase() : ' dx-kind' + (x.badge === 'MF' ? ' mf' : x.badge === 'NF' ? ' nf' : '')), text: x.badge }),
-                h('span', { class: 'dx-sd-t' + (g === 'Risks' || g === 'Processes' || g === 'Changes' ? '' : ' mono') }, marked(x.label, x.f.indexOf(fq), fq.length)), h('small', { text: x.sub })]));
+                h('span', { class: 'dx-sd-t' + (g === 'Risks' || g === 'Processes' || g === 'Changes' || g === 'Tickets' ? '' : ' mono') }, marked(x.label, x.f.indexOf(fq), fq.length)), h('small', { text: x.sub })]));
             });
             if (hits.length > shown.length) listEl.appendChild(h('button', { type: 'button', class: 'dx-sd-more', text: 'Show all ' + hits.length, onclick: function () { open[g] = true; run(); input.focus(); } }));
           });
@@ -1218,11 +1246,11 @@
         Object.keys(navBtns).forEach(function (k) { navBtns[k].classList.toggle('on', k === st.view || (st.view === 'refs' && k === 'refs:' + (st.seg === 'nanoflow' || st.seg === 'page' ? st.seg : 'microflow'))); });
         var kept = scrollsOf(root);
         clear(list); clear(main); clear(headTools);
-        if ((st.view === 'risks' && !risks.length) || (st.view === 'dev' && !devCtx) || (st.view === 'processes' && !procPage) || (st.view === 'changes' && !changes.length)) st.view = 'start';
+        if ((st.view === 'risks' && !risks.length) || (st.view === 'dev' && !devCtx) || (st.view === 'processes' && !procPage) || (st.view === 'changes' && !changes.length) || (st.view === 'tickets' && !tickets.length)) st.view = 'start';
         onScroll = null;
         root.setAttribute('data-view', st.view);
         root.classList.toggle('no-list', st.view === 'refs' || st.view === 'domain' || st.view === 'start' || st.view === 'quality' || st.view === 'risks' || st.view === 'dev' || st.view === 'arch');
-        var V = { start: drawStart, processes: drawProcesses, changes: drawChanges, modules: drawModules, refs: drawRefs, domain: drawDomain, quality: drawQuality, risks: drawRisks, dev: drawDev, arch: drawArch }[st.view] || drawStart;
+        var V = { start: drawStart, processes: drawProcesses, changes: drawChanges, tickets: drawTickets, modules: drawModules, refs: drawRefs, domain: drawDomain, quality: drawQuality, risks: drawRisks, dev: drawDev, arch: drawArch }[st.view] || drawStart;
         V();
         putScrolls(root, kept);
       }
@@ -1273,7 +1301,8 @@
           ['Scheduled events', k.scheduled, k.scheduled ? k.scheduledOn + ' on' : null, { view: 'quality', sub: 'sched' }],
           ['Published services', k.services, kinds.join(' · ') || null, { view: 'arch', sec: 'runtime' }],
           risks.length ? ['Risks', risks.length, levelCount('P1') + ' P1', { view: 'risks' }, 'p1'] : null,
-          changes.length ? ['Changes', changes.length, changes.filter(function (c) { return c.status === 'proposed'; }).length + ' proposed', { view: 'changes', change: null }] : null
+          changes.length ? ['Changes', changes.length, changes.filter(function (c) { return c.status === 'proposed'; }).length + ' proposed', { view: 'changes', change: null }] : null,
+          tickets.length ? ['Tickets', tickets.length, plural(tickets.filter(function (x) { return x.verdict === 'bug'; }).length, 'bug', 'bugs'), { view: 'tickets', ticket: null }] : null
         ].filter(Boolean);
         var hero = h('header', { class: 'dx-ov-hero', 'data-sec': 'about' }, [
           h('div', { class: 'dx-ov-intro' }, [
@@ -1363,7 +1392,7 @@
             [[{ view: 'refs' }, 'Microflows & pages', flowsN], [{ view: 'domain' }, 'Domain model', k.entities]]],
           ['Change it safely', risks.length ? 'What to fix first, what is unused, and what breaks easily.' : 'What is unused or switched off, and what breaks easily.',
             [risks.length ? [{ view: 'risks' }, 'Risks', risks.length] : null, [{ view: 'quality' }, 'Model quality', q.unreached.length], devCtx ? [{ view: 'dev' }, 'For developers', devCount] : null,
-              changes.length ? [{ view: 'changes', change: null }, 'Changes', changes.length] : null]]
+              changes.length ? [{ view: 'changes', change: null }, 'Changes', changes.length] : null, tickets.length ? [{ view: 'tickets', ticket: null }, 'Tickets', tickets.length] : null]]
         ].map(function (g) {
           return h('div', { class: 'dx-next-g' }, [h('h3', { text: g[0] }), h('p', { text: g[1] }),
             h('ul', null, g[2].filter(Boolean).map(function (l) { return h('li', null, ln(l[0], null, [h('span', { text: l[1] }), h('span', { class: 'mono', text: String(l[2]) })])); }))]);
@@ -1555,6 +1584,13 @@
           tools: function (node) { tools(node, null); }, copyLink: opts.hash ? copyLink : null,
           paragraphs: paragraphs, plural: plural, flowRows: flowRows, diagram: processDiagram, data: data, flowKey: flowKey
         });
+      }
+      // A ticket an agent checked against the model (describe.js ticketOf): drawn by docs-tickets.js, carried the same way.
+      function drawTickets() {
+        if (!window.MxDocsTickets) { main.appendChild(h('div', { class: 'dx-note', text: 'This copy of the documentation cannot draw its tickets.' })); return; }
+        window.MxDocsTickets.draw({ h: h, ln: ln, list: list, main: main, setTitle: setTitle, project: data.project, tickets: tickets, changes: changes, at: st.ticket,
+          tools: function (node) { tools(node, null); }, copyLink: opts.hash ? copyLink : null, paragraphs: paragraphs, plural: plural, flowRows: flowRows, diagram: processDiagram,
+          place: function (qn, kind) { return window.MxDocsChanges ? window.MxDocsChanges.place(data, flowKey, qn, { microflow: 1, nanoflow: 1, page: 1, entity: 1, attribute: 1, association: 1 }[kind] ? kind : 'other') : null; } });
       }
       // The risks on a process: those whose places include one of its flows, P1 first, each once.
       function processRisks(p) {
@@ -1833,7 +1869,7 @@
       // entity in full beside it — attributes, associations, who can access it.
       // A module bigger than DOMAIN_WHOLE is drawn around the chosen entity
       // (Karol, 2026-10-13); the List view always holds the whole module.
-      var DOMAIN_WHOLE = 14, domZoom = 1;
+      var DOMAIN_WHOLE = 14, domZoom = 1, domLayouts = {};
       function domainOf(mod) {
         var D = derived();
         if (D && D.domain && D.domain[mod]) return D.domain[mod];
@@ -1955,7 +1991,11 @@
         });
         var pairs = Object.keys(pm).map(function (k) { return pm[k]; });
         function boxH(n) { var na = E[n].attrs.length; return G.head + Math.min(na, G.maxA) * G.rowH + 14 + (footOf(n, shown) ? G.foot : 0); }
-        var L = domainLayout(shownNames, pairs, function (n) { return { w: G.w, h: boxH(n) }; }, G);
+        // Where the boxes sit depends on the module and which of its entities are drawn, not on which
+        // one is picked: worked out once and kept, so a click on an entity only redraws (a large
+        // module's layout is a search that took a second, and boxes moved between two clicks).
+        var lkey = mod + '\n' + (wide ? 'w' : 'n') + '\n' + shownNames.join('\n');
+        var L = domLayouts[lkey] || (domLayouts[lkey] = domainLayout(shownNames, pairs, function (n) { return { w: G.w, h: boxH(n) }; }, G));
         var stage = h('div', { class: 'dx-dm-stage' });
         stage.style.width = L.W + 'px'; stage.style.height = L.H + 'px';
         var svg = s('svg', { class: 'dx-dm-svg', width: L.W, height: L.H, 'aria-hidden': 'true' });

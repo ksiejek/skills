@@ -195,11 +195,10 @@
     return { acts: acts, decs: decs, merges: merges, ends: ends, segs: segs, frames: frames, notes: notes, params: params, start: { cx: startCx, cy: Y }, w: Math.max(maxX + 35, 300), h: lowest + 30 + 12 };
   }
 
-  // ---------- drawing the canvas ----------
-  function canvas(L, an, opts) {
-    var sel = opts.selected;
-    // Item usages (spec 02 §7.4): what the picked step uses gets its name
-    // marked; every activity that uses what it makes gets a "Usage" mark.
+  // ---------- what the picked step marks ----------
+  // Item usages (spec 02 §7.4): what the picked step uses gets its name
+  // marked; every activity that uses what it makes gets a "Usage" mark.
+  function usages(an, sel) {
     var used = {}, usage = {};
     if (sel) {
       Object.keys(an.du).forEach(function (v) {
@@ -208,6 +207,25 @@
         if (r === 'defines') Object.keys(an.du[v]).forEach(function (k) { if (an.du[v][k] !== 'defines' && /^\d+$/.test(k)) usage[k] = true; });
       });
     }
+    return { used: used, usage: usage };
+  }
+  // Every node the pick changes, noted while the drawing is made, so another
+  // pick changes those and nothing else (select below): what shows it is the
+  // picked one, each output's name, and where a "Usage" mark goes.
+  function marker() {
+    var m = { on: {}, names: [], usage: [] };
+    m.pick = function (no, node, before, after) { if (no) (m.on[no] = m.on[no] || []).push({ node: node, before: before, after: after }); return node; };
+    m.name = function (v, node) { m.names.push({ v: v, node: node }); return node; };
+    // where the "Usage" mark of step `no` goes: right after its activity
+    m.spot = function (no, act, style, node) { if (no) m.usage.push({ no: no, act: act, style: style, node: node || null }); };
+    return m;
+  }
+  function usageMark(style) { return h('span', { class: 'sv-usage', text: 'Usage', style: style }); }
+
+  // ---------- drawing the canvas ----------
+  function canvas(L, an, opts, M) {
+    var sel = opts.selected;
+    var u0 = usages(an, sel), used = u0.used, usage = u0.usage;
     var kids = [];
     L.frames.forEach(function (f) {
       kids.push(h('div', { class: 'sv-frame', style: { left: px(f.x), top: px(f.y), width: px(f.w), height: px(f.h) } }, [h('span', { class: 'sv-frame-label', text: f.label })]));
@@ -227,26 +245,30 @@
       svg.setAttribute('viewBox', '0 0 26 22'); svg.setAttribute('width', '26'); svg.setAttribute('height', '22'); svg.setAttribute('class', 'sv-param'); svg.setAttribute('aria-hidden', 'true');
       var path = document.createElementNS(SVG_NS, 'path'); path.setAttribute('d', 'M2 2h14l7 9-7 9H2z'); svg.appendChild(path);
       kids.push(h('span', { class: 'sv-param-wrap', style: { left: px(p.x + 39), top: '18px' } }, [svg]));
-      kids.push(h('span', { class: 'sv-out', style: { left: px(p.x - 10), top: '44px', width: px(W + 20) } }, [h('span', { class: 'sv-out-name' + (used[p.name] ? ' used' : ''), text: p.name }), h('span', { class: 'sv-out-type', text: p.type })]));
+      kids.push(h('span', { class: 'sv-out', style: { left: px(p.x - 10), top: '44px', width: px(W + 20) } }, [M.name(p.name, h('span', { class: 'sv-out-name' + (used[p.name] ? ' used' : ''), text: p.name })), h('span', { class: 'sv-out-type', text: p.type })]));
     });
     kids.push(h('span', { class: 'sv-start', style: { left: px(L.start.cx - 11), top: px(L.start.cy - 11) }, 'aria-label': 'Start' }));
     L.acts.forEach(function (a) {
       var on = sel === a.no;
-      kids.push(h('button', {
+      var act = M.pick(a.no, h('button', {
         type: 'button', class: 'sv-act' + (on ? ' on' : '') + (a.card.off ? ' off' : ''), 'aria-label': 'Step ' + a.no + ': ' + a.caption,
         style: { left: px(a.x), top: px(a.y - H / 2), width: px(W), height: px(H) }, onclick: function () { opts.onPick(a.no); }
-      }, [icon(studioIcon(a.card), 15), h('span', { class: 'sv-act-cap', text: a.caption })]));
-      if (usage[a.no]) kids.push(h('span', { class: 'sv-usage', text: 'Usage', style: { left: px(a.x + W / 2 - 25), top: px(a.y - 50) } }));
+      }, [icon(studioIcon(a.card), 15), h('span', { class: 'sv-act-cap', text: a.caption })]), 'sv-act', a.card.off ? ' off' : '');
+      kids.push(act);
+      var ustyle = { left: px(a.x + W / 2 - 25), top: px(a.y - 50) };
+      var mk = usage[a.no] ? usageMark(ustyle) : null;
+      if (mk) kids.push(mk);
+      M.spot(a.no, act, ustyle, mk);
       if (a.out) kids.push(h('span', { class: 'sv-out', style: { left: px(a.x - 10), top: px(a.y + 34), width: px(W + 20) } }, [
-        h('span', { class: 'sv-out-name' + (used[a.out] ? ' used' : ''), text: a.out }), a.outType ? h('span', { class: 'sv-out-type', text: a.outType }) : null]));
+        M.name(a.out, h('span', { class: 'sv-out-name' + (used[a.out] ? ' used' : ''), text: a.out })), a.outType ? h('span', { class: 'sv-out-type', text: a.outType }) : null]));
     });
     L.decs.forEach(function (d) {
       var on = sel === d.no;
       var side = Math.round(DEC / 1.414);
-      kids.push(h('button', {
+      kids.push(M.pick(d.no, h('button', {
         type: 'button', class: 'sv-dec' + (on ? ' on' : ''), 'aria-label': 'Step ' + d.no + ': decision ' + d.caption,
         style: { left: px(d.cx - side / 2), top: px(d.cy - side / 2), width: px(side), height: px(side) }, onclick: function () { opts.onPick(d.no); }
-      }));
+      }), 'sv-dec', ''));
       kids.push(h('span', { class: 'sv-dec-cap', text: d.caption, style: { left: px(d.cx - 32), top: px(d.cy - 8) } }));
     });
     L.merges.forEach(function (m) {
@@ -298,28 +320,21 @@
     return pts.filter(function (p, i) { return !i || Math.abs(p.x - pts[i - 1].x) > 0.1 || Math.abs(p.y - pts[i - 1].y) > 0.1; });
   }
   var markerSeq = 0;
-  function drawn(entry, an, opts) {
+  function drawn(entry, an, opts, M) {
     var C = entry.canvas, PAD = 40;
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     C.n.forEach(function (n) { minX = Math.min(minX, n[1]); minY = Math.min(minY, n[2]); maxX = Math.max(maxX, n[1] + n[3]); maxY = Math.max(maxY, n[2] + n[4]); });
     var ox = PAD - minX, oy = PAD - minY;
     var box = C.n.map(function (n) { return { x: n[1] + ox, y: n[2] + oy, w: n[3], h: n[4] }; });
     var W2 = maxX - minX + PAD * 2, H2 = maxY - minY + PAD * 2 + 40;
-    var sel = opts.selected, used = {}, usage = {};
-    if (sel) {
-      Object.keys(an.du).forEach(function (v) {
-        var r = an.du[v][sel];
-        if (r && r !== 'defines' && r !== 'parameter') used[v] = true;
-        if (r === 'defines') Object.keys(an.du[v]).forEach(function (k) { if (an.du[v][k] !== 'defines' && /^\d+$/.test(k)) usage[k] = true; });
-      });
-    }
+    var sel = opts.selected, u0 = usages(an, sel), used = u0.used, usage = u0.usage;
     var kids = [];
     // loops first, so what is in them sits on top
     C.n.forEach(function (n, i) {
       if (n[0] !== 'loop') return;
       var b = box[i], it = n[6] && an.byNo[n[6]] ? an.byNo[n[6]].b : null;
-      kids.push(h('div', { class: 'sv-frame' + (sel && sel === n[6] ? ' on' : ''), style: { left: px(b.x), top: px(b.y), width: px(b.w), height: px(b.h) } },
-        [h('span', { class: 'sv-frame-label', text: it && it.each && it.over ? 'For each ' + it.each + ' in ' + it.over : (n[7] || 'Loop') })]));
+      kids.push(M.pick(n[6], h('div', { class: 'sv-frame' + (sel && sel === n[6] ? ' on' : ''), style: { left: px(b.x), top: px(b.y), width: px(b.w), height: px(b.h) } },
+        [h('span', { class: 'sv-frame-label', text: it && it.each && it.over ? 'For each ' + it.each + ' in ' + it.over : (n[7] || 'Loop') })]), 'sv-frame', ''));
     });
     // the lines, in one drawing under the shapes
     var svg = document.createElementNS(SVG_NS, 'svg');
@@ -358,8 +373,8 @@
         kids.push(h('span', { class: 'sv-merge', role: 'img', 'aria-label': 'Merge', style: { left: px(b.x + b.w / 2 - ms / 2), top: px(b.y + b.h / 2 - ms / 2), width: px(ms), height: px(ms) } }));
       } else if (kind === 'decision' || kind === 'objectTypeDecision') {
         var ds = Math.round(Math.min(b.w, b.h) / 1.414);
-        kids.push(h('button', { type: 'button', class: 'sv-dec' + (sel === no ? ' on' : ''), 'aria-label': 'Step ' + no + ': decision ' + (n[7] || ''),
-          style: { left: px(b.x + b.w / 2 - ds / 2), top: px(b.y + b.h / 2 - ds / 2), width: px(ds), height: px(ds) }, onclick: function () { if (no) opts.onPick(no); } }));
+        kids.push(M.pick(no, h('button', { type: 'button', class: 'sv-dec' + (sel === no ? ' on' : ''), 'aria-label': 'Step ' + no + ': decision ' + (n[7] || ''),
+          style: { left: px(b.x + b.w / 2 - ds / 2), top: px(b.y + b.h / 2 - ds / 2), width: px(ds), height: px(ds) }, onclick: function () { if (no) opts.onPick(no); } }), 'sv-dec', ''));
         // the caption inside the diamond, as Studio Pro writes it
         kids.push(h('span', { class: 'sv-dec-cap in', title: n[7] || 'Decision', text: n[7] || 'Decision', style: { left: px(b.x + b.w / 2 - 60), top: px(b.y + b.h / 2 - 8), width: '120px' } }));
       } else if (kind === 'parameter') {
@@ -369,18 +384,22 @@
         kids.push(h('span', { class: 'sv-param-wrap', style: { left: px(b.x + b.w / 2 - 13), top: px(b.y + b.h / 2 - 11) } }, [ps]));
         var param = (entry.params || []).filter(function (p) { return p.name === n[7]; })[0];
         kids.push(h('span', { class: 'sv-out', style: { left: px(b.x + b.w / 2 - 70), top: px(b.y + b.h + 2), width: '140px' } }, [
-          h('span', { class: 'sv-out-name' + (used[n[7]] ? ' used' : ''), text: n[7] || '' }), param ? h('span', { class: 'sv-out-type', text: shortName(param.type) }) : null]));
+          M.name(n[7], h('span', { class: 'sv-out-name' + (used[n[7]] ? ' used' : ''), text: n[7] || '' })), param ? h('span', { class: 'sv-out-type', text: shortName(param.type) }) : null]));
       } else if (kind === 'annotation') {
         kids.push(h('span', { class: 'sv-annot', text: n[7] || '', style: { left: px(b.x), top: px(b.y), width: px(b.w), minHeight: px(b.h) } }));
       } else if (kind !== 'loop') {
         var it = no && an.byNo[no] ? an.byNo[no].b : null, c = (it && it.card) || { title: n[7] }, p = c.props || {};
-        kids.push(h('button', {
+        var act = M.pick(no, h('button', {
           type: 'button', class: 'sv-act' + (sel === no ? ' on' : '') + (c.off ? ' off' : ''), 'aria-label': 'Step ' + no + ': ' + caption(c),
           style: { left: px(b.x), top: px(b.y), width: px(b.w), height: px(b.h) }, onclick: function () { if (no) opts.onPick(no); }
-        }, [icon(studioIcon(c), 15), h('span', { class: 'sv-act-cap', text: caption(c) })]));
-        if (no && usage[no]) kids.push(h('span', { class: 'sv-usage', text: 'Usage', style: { left: px(b.x + b.w / 2 - 25), top: px(b.y - 20) } }));
+        }, [icon(studioIcon(c), 15), h('span', { class: 'sv-act-cap', text: caption(c) })]), 'sv-act', c.off ? ' off' : '');
+        kids.push(act);
+        var ustyle = { left: px(b.x + b.w / 2 - 25), top: px(b.y - 20) };
+        var mk = no && usage[no] ? usageMark(ustyle) : null;
+        if (mk) kids.push(mk);
+        M.spot(no, act, ustyle, mk);
         if (p.out) kids.push(h('span', { class: 'sv-out', style: { left: px(b.x - 10), top: px(b.y + b.h + 3), width: px(b.w + 20) } }, [
-          h('span', { class: 'sv-out-name' + (used[p.out] ? ' used' : ''), text: p.out }), an.types[p.out] ? h('span', { class: 'sv-out-type', text: an.types[p.out] }) : null]));
+          M.name(p.out, h('span', { class: 'sv-out-name' + (used[p.out] ? ' used' : ''), text: p.out })), an.types[p.out] ? h('span', { class: 'sv-out-type', text: an.types[p.out] }) : null]));
       }
     });
     return { w: W2, h: H2, node: h('div', { class: 'sv-canvas drawn', style: { width: px(W2), height: px(H2) } }, kids) };
@@ -472,9 +491,12 @@
   // 2026-10-14: "only this drawing"); the dialog below wraps it too.
   function board(entry, an, opts) {
     if (zoom.qn !== opts.qn) zoom = { qn: opts.qn, z: 1 };
-    var D = entry.canvas && entry.canvas.n && entry.canvas.n.length ? drawn(entry, an, opts) : null;
+    // A click goes to whatever the board was last handed (select below).
+    var B = null, M = marker();
+    var at = Object.assign({}, opts, { onPick: function (no) { B.onPick(no); } });
+    var D = entry.canvas && entry.canvas.n && entry.canvas.n.length ? drawn(entry, an, at, M) : null;
     var L = D ? null : layout(entry, an);
-    var stage = D ? D.node : canvas(L, an, opts);
+    var stage = D ? D.node : canvas(L, an, at, M);
     var sized = h('div', { class: 'sv-zoomed' }, [stage]);
     var zl = h('span', { class: 'sv-mono', text: '100%' });
     function applyZoom() {
@@ -503,9 +525,33 @@
       h('button', { type: 'button', 'aria-label': 'Zoom in', text: '+', onclick: function () { setZoom(zoom.z + 0.1); } }),
       h('button', { type: 'button', class: 'fit', text: 'Fit', onclick: function () { var r = strip.getBoundingClientRect(); setZoom(Math.min(1, (r.width - 20) / D.w, Math.max(0.2, (r.height - 20) / D.h))); } })
     ]) : h('span', { class: 'sv-mono', text: '100%' });
-    return { strip: strip, zoomBar: zoomBar, drawn: !!D,
+    B = { strip: strip, zoomBar: zoomBar, drawn: !!D,
       note: D ? 'Drawn as it is in Studio Pro: every object where the model keeps it. Click an activity to see its properties; Ctrl and the wheel zoom.'
-        : 'Laid out as in Studio Pro: left to right, outputs under each activity, parameters above. Click an activity to see its properties.' };
+        : 'Laid out as in Studio Pro: left to right, outputs under each activity, parameters above. Click an activity to see its properties.',
+      onPick: opts.onPick, marks: M, an: an, qn: opts.qn, selected: opts.selected || null };
+    return B;
+  }
+  // A board already drawn, with another step picked (or none): the nodes that
+  // say which step is picked, what it uses and what uses its output change,
+  // and nothing else is drawn again. False when it is not the same flow's
+  // board, or the zoom has since moved to another flow's: draw it again.
+  function select(B, sel, onPick) {
+    if (!B || !B.marks || zoom.qn !== B.qn) return false;
+    if (onPick) B.onPick = onPick;
+    sel = sel || null;
+    if (B.selected === sel) return true;
+    var M = B.marks, u0 = usages(B.an, sel);
+    [B.selected, sel].forEach(function (n) {
+      (M.on[n] || []).forEach(function (x) { x.node.setAttribute('class', x.before + (n === sel ? ' on' : '') + x.after); });
+    });
+    M.names.forEach(function (x) { x.node.setAttribute('class', 'sv-out-name' + (u0.used[x.v] ? ' used' : '')); });
+    M.usage.forEach(function (x) {
+      var want = !!u0.usage[x.no];
+      if (want && !x.node) { x.node = usageMark(x.style); x.act.parentNode.insertBefore(x.node, x.act.nextSibling); }
+      else if (!want && x.node) { x.node.parentNode.removeChild(x.node); x.node = null; }
+    });
+    B.selected = sel;
+    return true;
   }
   function render(entry, an, opts) {
     var B = board(entry, an, opts), strip = B.strip, zoomBar = B.zoomBar, D = B.drawn;
@@ -550,5 +596,5 @@
     return overlay;
   }
 
-  window.MxStudioView = { render: render, board: board, properties: properties, layout: layout, caption: caption };
+  window.MxStudioView = { render: render, board: board, select: select, properties: properties, layout: layout, caption: caption };
 })();

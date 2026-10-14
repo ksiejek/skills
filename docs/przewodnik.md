@@ -398,3 +398,25 @@ Wynik trafia na osobną stronę **Changes**, a nie do Procesów:
 
 Agent tylko proponuje, nigdy nie zmienia modelu. W Dev propozycję można też narysować
 skillem mendix-change-proposal.
+
+### Zmiana 2026-10-14: mendix-ticket-check i strona Tickets
+
+Nowy skill **mendix-ticket-check**, część MxScout. Jego główne miejsce to MxScout Dev, a w
+Skills jest kopia. Wymaga mendix-describe obok siebie, bo `install.sh` podpina oba.
+
+Jak użyć:
+1. W MxScout kliknij **Share with an agent** i wklej linię agentowi.
+2. Napisz: „Sprawdź to zgłoszenie skillem mendix-ticket-check — czy ma rację bytu:
+   <treść z Jiry>”. Można wkleić kilka zgłoszeń naraz.
+3. Agent śledzi zachowanie w modelu i daje werdykt: **bug / as designed /
+   data-config / cannot tell**, z pewnością i dowodami.
+4. Przy błędzie od razu proponuje poprawkę na stronie Changes.
+5. Przygotowuje odpowiedź do wklejenia w Jirę, z przyciskiem Copy.
+6. Wynik pojawia się na stronie **Tickets** (w menu, sekcja Review).
+
+Bez MxScout: `/mendix-docs ticket <treść>`. Raport HTML ma wtedy stronę Tickets (od
+mendix-docs 3.3.0).
+
+Ograniczenie: pakiet AI nie zawiera jeszcze reguł dostępu do encji, warunków
+widoczności widgetów ani walidacji encji. Przy zgłoszeniach o tym agent mówi wprost,
+czego nie widzi, i odsyła do ekranów Security i Pages.

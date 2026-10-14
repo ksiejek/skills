@@ -270,6 +270,15 @@ you write no code for it: you propose.**
 In MxScout Dev, a proposal can also be drawn — the changed flows and domain
 model on a canvas — with the mendix-change-proposal skill.
 
+## A ticket to check? Use mendix-ticket-check
+
+When the person pastes a ticket reported on the application — a Jira issue, a
+bug report — and asks whether it holds, that is the **mendix-ticket-check**
+skill's job (`../mendix-ticket-check/SKILL.md`, installed beside this one). It
+uses this skill's `agent.js`, `check-descriptions.js` and format, gives a
+verdict with its evidence, and writes to MxScout's **Tickets** page — for a bug
+with a fix as a change. Do not answer a ticket as a process or a change here.
+
 ## Risk triage: what a person already decided
 
 MxScout Dev lets the person work through your risks: mark one a **false
@@ -358,8 +367,9 @@ entity.
 ## Files
 
 - `reference/pack-format.md` — how to read the pack, line by line.
-- `reference/descriptions-format.md` — the JSON you write, with an example, and
-  a change's, with another.
+- `reference/descriptions-format.md` — the JSON you write, with an example, a
+  change's, with another, and a checked ticket's (mendix-ticket-check), with a
+  third.
 - `reference/business-narrative.md` — the two layers: what a summary and a
   description are, how long, how they are shown. Shared with mendix-docs.
 - `reference/risk-levels.md` — what P1, P2 and P3 mean and how to calibrate

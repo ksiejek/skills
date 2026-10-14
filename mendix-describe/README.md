@@ -128,6 +128,13 @@ MxScout on the project's **Changes** page: how it works now beside the proposal,
 both drawn when they branch, and the model changes in a table. Ask again with
 your answers and it sends the change again under the same id, replacing it.
 
+## A ticket to check
+
+To check a ticket reported on the application — is it a bug, does it work as
+designed, is it the data — use the **mendix-ticket-check** skill beside this
+one (`skills/mendix-ticket-check`, its README says how). It uses this skill's
+tools, so install both. The result appears on the project's **Tickets** page.
+
 ## When the model changes
 
 Export a new pack. Every flow in it carries a fingerprint, so MxScout marks a

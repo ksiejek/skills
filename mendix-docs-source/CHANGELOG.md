@@ -1,5 +1,15 @@
 # mendix-docs — changes
 
+## 3.3.0 – 2026-10-14
+
+- **`ticket <text>`**: a ticket reported on the application checked against
+  the model — bug, works as designed, data or configuration, or cannot tell
+  (and what would settle it) — with the evidence, a reply to paste back and,
+  for a bug, a proposed fix on the Changes page. It follows the
+  mendix-ticket-check skill, installed beside this one.
+- The engine carries MxScout's `docs-tickets.js`: the report and its Markdown
+  copy have the Tickets page.
+
 ## 3.2.0 – 2026-10-14
 
 - **`change <what>`**: a change the person wants, described as the

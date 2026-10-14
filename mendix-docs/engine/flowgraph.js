@@ -125,7 +125,17 @@
   function render(entry, opts) {
     opts = opts || {};
     var an = opts.analysis || null;
-    var pick = typeof opts.onPick === 'function' ? opts.onPick : null;
+    // A click goes to whatever the drawing was last handed (select below), so
+    // a drawing kept across redraws calls the screen it is on now.
+    var root = null;
+    var pick = typeof opts.onPick === 'function' ? function (no) { root.fgOnPick(no); } : null;
+    // Every node that shows whether it is the picked step: its class without
+    // and with "on", so a new pick changes those two nodes and nothing else.
+    var marks = {};
+    function mark(no, node, before, after) {
+      (marks[no] = marks[no] || []).push({ node: node, before: before, after: after, pressed: !!pick });
+      return node;
+    }
     var traceVar = opts.traceVar || null;
 
     function roleAt(key) { return an && traceVar ? an.roleAt(traceVar, key) : null; }
@@ -141,7 +151,8 @@
       var on = opts.selected === b.no;
       // A process's diagram (docs-view.js) says its steps in words, not in code: no code font for them.
       var biz = c.fam === 'person' || c.fam === 'app';
-      var attrs = { class: 'fg-card' + (small ? ' small' : '') + (biz ? ' biz' : '') + (c.off ? ' off' : '') + (on ? ' on' : '') + dimmed(b.no), 'data-step': String(b.no) };
+      var before = 'fg-card' + (small ? ' small' : '') + (biz ? ' biz' : '') + (c.off ? ' off' : ''), after = dimmed(b.no);
+      var attrs = { class: before + (on ? ' on' : '') + after, 'data-step': String(b.no) };
       var body = small
         ? [tile(c, 24), h('span', { class: 'fg-text' }, [
             h('span', { class: 'fg-kind', text: c.kick || '' }),
@@ -151,16 +162,17 @@
             h('span', { class: 'fg-kind', text: kicker(c) }),
             h('span', { class: 'fg-main' }, [c.title || '', outVar(c) ? h('span', { class: 'fg-muted', text: outVar(c) }) : null])
           ]), h('span', { class: 'fg-right' }, [h('span', { class: 'fg-no', text: String(b.no) }), tag(roleAt(b.no))])];
-      if (!pick) return h('div', attrs, body);
+      if (!pick) return mark(b.no, h('div', attrs, body), before, after);
       attrs.type = 'button';
       attrs['aria-pressed'] = on ? 'true' : 'false';
       attrs.onclick = function () { pick(b.no); };
-      return h('button', attrs, body);
+      return mark(b.no, h('button', attrs, body), before, after);
     }
 
     function decision(b, small) {
       var on = opts.selected === b.no;
-      var attrs = { class: 'fg-decision' + (small ? ' small' : '') + (on ? ' on' : '') + dimmed(b.no), 'data-step': String(b.no) };
+      var before = 'fg-decision' + (small ? ' small' : ''), after = dimmed(b.no);
+      var attrs = { class: before + (on ? ' on' : '') + after, 'data-step': String(b.no) };
       var body = [
         h('span', { class: 'fg-rhomb', 'aria-hidden': 'true' }),
         h('span', { class: 'fg-dec-title', text: b.title || 'Decision' }),
@@ -168,11 +180,11 @@
         h('span', { class: 'fg-no', text: String(b.no) }),
         tag(roleAt(b.no))
       ];
-      if (!pick) return h('span', attrs, body);
+      if (!pick) return mark(b.no, h('span', attrs, body), before, after);
       attrs.type = 'button';
       attrs['aria-pressed'] = on ? 'true' : 'false';
       attrs.onclick = function () { pick(b.no); };
-      return h('button', attrs, body);
+      return mark(b.no, h('button', attrs, body), before, after);
     }
 
     function endPill(b) {
@@ -346,42 +358,87 @@
       mainRows(entry.workflow, rows, null);
     }
     var top = assemble(rows);
-    var root = h('div', { class: 'fg' + (opts.compact ? ' compact' : '') + (top.fgWide ? '' : ' single') }, [top]);
+    root = h('div', { class: 'fg' + (opts.compact ? ' compact' : '') + (top.fgWide ? '' : ' single') }, [top]);
+    root.fgOnPick = opts.onPick || null;
+    root.fgMarks = marks;
+    root.fgSelected = opts.selected === undefined ? null : opts.selected;
     whenShown(root, function () { fit(fits); });
     return root;
+  }
+
+  // A drawing already made, with another step picked: the two steps whose
+  // look says so change, and nothing else is drawn again (a click on a step
+  // of a big flow used to build the whole drawing anew and fit it again).
+  // False when the drawing cannot be kept — it was taken off the page and
+  // stopped following its width — and must be drawn again.
+  function select(node, no, onPick) {
+    if (!node || !node.fgMarks || node.fgGone) return false;
+    if (onPick) node.fgOnPick = onPick;
+    no = no === undefined ? null : no;
+    var was = node.fgSelected;
+    if (was === no) return true;
+    [was, no].forEach(function (n) {
+      (node.fgMarks[n] || []).forEach(function (m) {
+        var on = n === no;
+        m.node.setAttribute('class', m.before + (on ? ' on' : '') + m.after);
+        if (m.pressed) m.node.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    });
+    node.fgSelected = no;
+    return true;
   }
 
   // Give each way out to the side the height it needs at the end of the rows
   // beside it. Inner grids (a loop's) first, since their height moves the
   // outer ones; within a grid each way is measured against its own rows only.
+  //
+  // Measured a level at a time, not a way at a time: every height written
+  // made the next measurement lay the whole page out again, a hundred times
+  // over on a flow with a hundred ways out. Ways in grids at the same depth
+  // do not move one another — each is measured from its own first row to its
+  // own stretch, and the rows between them belong to it alone — so a level
+  // is read whole, then written whole, and the next level up reads what the
+  // one below it left.
   function fit(fits) {
     var depth = function (n) { var d = 0; while (n && n.parentElement) { if (n.classList && n.classList.contains('fg-grid')) d++; n = n.parentElement; } return d; };
-    var list = fits.filter(function (f) { return f.side.isConnected; }).sort(function (a, b) { return depth(b.grid) - depth(a.grid); });
+    var list = fits.filter(function (f) { return f.side.isConnected; });
+    var levels = {};
+    list.forEach(function (f) { var d = depth(f.grid); (levels[d] = levels[d] || []).push(f); });
     list.forEach(function (f) { f.stretch.style.height = '0px'; });
-    list.forEach(function (f) {
-      var top = f.first.getBoundingClientRect().top;
-      var room = f.stretch.getBoundingClientRect().top - top;
-      var need = f.side.firstChild.getBoundingClientRect().height + 10;
-      f.stretch.style.height = Math.max(0, Math.ceil(need - room)) + 'px';
+    Object.keys(levels).map(Number).sort(function (a, b) { return b - a; }).forEach(function (d) {
+      var heights = levels[d].map(function (f) {
+        var top = f.first.getBoundingClientRect().top;
+        var room = f.stretch.getBoundingClientRect().top - top;
+        var need = f.side.firstChild.getBoundingClientRect().height + 10;
+        return Math.max(0, Math.ceil(need - room)) + 'px';
+      });
+      levels[d].forEach(function (f, i) { f.stretch.style.height = heights[i]; });
     });
   }
   // Run fn once the drawing is on the page, and again when its width changes
   // (cards wrap differently, so the heights do too).
   function whenShown(root, fn) {
     var tries = 0, width = -1;
-    (function tick() {
+    function tick() {
       // A timer, not an animation frame: frames do not come while the tab
       // is in the background, and the drawing must be right when it shows.
       if (!root.isConnected) { if (tries++ < 100) setTimeout(tick, 20); return; }
       width = root.getBoundingClientRect().width;
       fn();
       if (window.ResizeObserver) {
-        new window.ResizeObserver(function () {
+        var ro = new window.ResizeObserver(function () {
+          // A drawing taken off the page is not coming back: let it go.
+          if (!root.isConnected) { ro.disconnect(); root.fgGone = true; return; }
           var w = root.getBoundingClientRect().width;
           if (Math.abs(w - width) > 1) { width = w; fn(); }
-        }).observe(root);
+        });
+        ro.observe(root);
       }
-    })();
+    }
+    // First as soon as the code that drew it has put it on the page — before
+    // the browser paints it, so it is never shown unfitted and fitted again a
+    // moment later — and by the timer only when it is not on the page yet.
+    if (typeof Promise === 'function') Promise.resolve().then(tick); else tick();
   }
 
   // The figures the header above a drawing quotes: steps, decisions, ends.
@@ -398,5 +455,5 @@
     return { steps: entry.steps || 0, decisions: decisions, ends: ends };
   }
 
-  window.MxFlowGraph = { render: render, counts: counts, look: look, tile: tile, icon: icon, kicker: kicker };
+  window.MxFlowGraph = { render: render, select: select, counts: counts, look: look, tile: tile, icon: icon, kicker: kicker };
 })();

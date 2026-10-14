@@ -102,6 +102,10 @@
     return at;
   }
 
+  var analysed = new WeakMap();
+  // The Workflow drawing last made for a screen's state, to keep across redraws.
+  var drawings = new WeakMap();
+  var boards = new WeakMap();
   function screen(src, u, opts) {
     var rerender = opts.rerender;
     // Every click draws the screen again; the list and the drawing keep their
@@ -111,6 +115,9 @@
     function keep(node, name, owner) {
       var at = u.scroll[name];
       if (at && at.owner === owner) requestFrame(function () { node.scrollTop = at.top; node.scrollLeft = at.left; });
+      // A drawing kept across redraws is the same node: one listener is enough.
+      if (node.mfKeeps === name + '|' + owner) return node;
+      node.mfKeeps = name + '|' + owner;
       node.addEventListener('scroll', function () { u.scroll[name] = { owner: owner, top: node.scrollTop, left: node.scrollLeft }; }, { passive: true });
       return node;
     }
@@ -535,13 +542,26 @@
         return h('button', { type: 'button', class: 'xe-seg' + (on ? ' on' : ''), 'aria-pressed': on ? 'true' : 'false', onclick: function () { u.mode = x[0]; u.studio = false; u.about = false; rerender(); } }, [x[1]]);
       }));
     }
+    function context(risks) {
+      return { model: src.model, risks: risks, flow: function (qn) { var x = src.entry(null, qn); return x && x.kind !== 'page' ? { returnType: x.returns } : null; } };
+    }
+    // What a flow does with its variables is worked out once per flow, not on
+    // every click: it reads only the flow and the return types of the flows it
+    // calls, and neither changes while the model is the same one.
+    function analysis(entry, ctx) {
+      var was = analysed.get(entry);
+      if (was && was.model === src.model) return was.an;
+      var an = window.MxFlowTrace.analyse(entry, ctx);
+      analysed.set(entry, { model: src.model, an: an });
+      return an;
+    }
     function flowDetail(entry) {
       return u.mode === 'modeler' ? modelerDetail(entry) : workflowDetail(entry);
     }
     function workflowDetail(entry) {
       var risks = src.risks(entry);
-      var ctx = { model: src.model, risks: risks, flow: function (qn) { var x = src.entry(null, qn); return x && x.kind !== 'page' ? { returnType: x.returns } : null; } };
-      var an = window.MxFlowTrace.analyse(entry, ctx);
+      var ctx = context(risks);
+      var an = analysis(entry, ctx);
       // On arriving at a flow: its first step picked, nothing traced.
       if (!u.step || !an.byNo[u.step]) {
         var first = an.items.filter(function (it) { return it.b.t === 'step'; })[0];
@@ -550,10 +570,16 @@
       if (u.trace && !an.known[u.trace]) u.trace = null;
       var tab = u.tab === 'flow' ? 'flow' : 'step';
       var buttons = [modeSwitch()].concat(opts.actions ? opts.actions(entry) : []);
-      var graph = window.MxFlowGraph.render(entry, {
-        analysis: an, selected: u.step, traceVar: u.trace,
-        onPick: function (no) { u.step = no; u.tab = 'step'; rerender(); }
-      });
+      var onPick = function (no) { u.step = no; u.tab = 'step'; rerender(); };
+      // The drawing is kept while it draws the same flow with the same variable
+      // traced: a click on a step, the tabs beside it, the list — none of them
+      // change what it shows but which step is picked, and that it changes in place.
+      var kept = drawings.get(u), graph;
+      if (kept && kept.entry === entry && kept.an === an && kept.trace === (u.trace || null) && window.MxFlowGraph.select(kept.node, u.step, onPick)) graph = kept.node;
+      else {
+        graph = window.MxFlowGraph.render(entry, { analysis: an, selected: u.step, traceVar: u.trace, onPick: onPick });
+        drawings.set(u, { entry: entry, an: an, trace: u.trace || null, node: graph });
+      }
       var tabs = h('div', { class: 'mf-tabs' }, [h('div', { class: 'xe-segs', role: 'group', 'aria-label': 'Details' }, [
         h('button', { type: 'button', class: 'xe-seg' + (tab === 'step' ? ' on' : ''), 'aria-pressed': tab === 'step' ? 'true' : 'false', onclick: function () { u.tab = 'step'; rerender(); } }, ['Step ' + (u.step || '')]),
         h('button', { type: 'button', class: 'xe-seg' + (tab === 'flow' ? ' on' : ''), 'aria-pressed': tab === 'flow' ? 'true' : 'false', onclick: function () { u.tab = 'flow'; rerender(); } }, [KIND_WORD[entry.kind]])
@@ -570,17 +596,22 @@
 
     function modelerDetail(entry) {
       var risks = src.risks(entry);
-      var ctx = { model: src.model, risks: risks, flow: function (qn) { var x = src.entry(null, qn); return x && x.kind !== 'page' ? { returnType: x.returns } : null; } };
-      var an = window.MxFlowTrace.analyse(entry, ctx);
+      var ctx = context(risks);
+      var an = analysis(entry, ctx);
       if (u.step && !an.byNo[u.step]) { u.step = null; u.studio = false; }
       var open = !!(u.studio && u.step);
       var aboutBtn = h('button', { type: 'button', class: 'mf-btn mf-about-open' + (u.about ? ' on' : ''), 'aria-expanded': u.about ? 'true' : 'false',
         onclick: function () { u.about = !u.about; rerender(); } }, ['About this ' + KIND_WORD[entry.kind].toLowerCase()]);
       var buttons = [modeSwitch(), aboutBtn].concat(opts.actions ? opts.actions(entry) : []);
-      var B = window.MxStudioView.board(entry, an, {
-        selected: open ? u.step : null, qn: entry.qn, name: entry.name, inline: true,
-        onPick: function (no) { u.step = no; u.studio = true; rerender(); }
-      });
+      var onPick = function (no) { u.step = no; u.studio = true; rerender(); };
+      // Kept, as the Workflow drawing is, while it is the same flow: opening a
+      // step's window, closing it, About, change only what is marked on it.
+      var kept = boards.get(u), B;
+      if (kept && kept.entry === entry && kept.an === an && window.MxStudioView.select(kept.B, open ? u.step : null, onPick)) B = kept.B;
+      else {
+        B = window.MxStudioView.board(entry, an, { selected: open ? u.step : null, qn: entry.qn, name: entry.name, inline: true, onPick: onPick });
+        boards.set(u, { entry: entry, an: an, B: B });
+      }
       var about = u.about ? h('aside', { class: 'mf-about', 'aria-label': 'About ' + entry.name }, [
         h('div', { class: 'mf-about-head' }, [h('span', { class: 'xe-caps', text: 'About this ' + KIND_WORD[entry.kind].toLowerCase() }),
           h('button', { type: 'button', class: 'mf-x', 'aria-label': 'Close', text: '×', onclick: function () { u.about = false; rerender(); } })]),

@@ -116,6 +116,7 @@ Paragraphs are separated by a blank line …",
 | `microflows`, `nanoflows`, `pages`, `entities` | no | qualified name → `{ "hash", "text" }`, or just the text |
 | `risks[]` | no, but write it | `level` (`P1`, `P2` or `P3`, by `risk-levels.md`) and `title` are required, or MxScout drops the risk; `detail`, `where` (qualified names, they become links) and `fix` are what make it useful; `theme` is its pattern, one of the ten keys in `risk-levels.md` — the Risks page groups and filters by it, and guesses it from the title when it is missing |
 | `changes[]` | no | changes the person asked to be worked out (`SKILL.md`, "A change, when the person asks"), shown on the Changes page; see "Changes" below. In a file with `"add": true`, a change whose `id` is already kept replaces it and a new one is added at the end |
+| `tickets[]` | no | tickets reported on the application and checked against the model by the mendix-ticket-check skill, shown on the Tickets page; see "Tickets" below. In a file with `"add": true`, a ticket whose `id` is already kept replaces it and a new one is added at the end |
 | `context.where[]` | no | `{ "topic", "place" }`: what a developer looks for, and where it is when the name does not say |
 | `context.conventions[]` | no | `{ "pattern", "meaning" }`: a prefix or naming rule the modules follow |
 | `context.pitfalls[]` | no | sentences: what breaks easily, and what to check before a change |
@@ -245,3 +246,93 @@ MxScout keeps up to 100 changes, 60 model changes per change, 100 steps and 60
 flows on each side, 30 risks, 30 open questions and 30 roles; text is cut at the
 lengths the rest of the file is. Both stories are plain prose like every other
 `story`: paragraphs separated by a blank line, no markup.
+
+## Tickets
+
+A ticket is something reported on the application — a Jira issue, an e-mail
+from a user — checked against the model by the mendix-ticket-check skill (a
+sibling of this one, `../../mendix-ticket-check/SKILL.md`): the ticket as it was
+pasted, a **verdict** with how sure it is, the reasoning, what the model does,
+the places in the model that show it, what would settle it, a reply to paste
+back into the ticket and, for a bug, the change that would fix it. MxScout shows
+it on the Tickets page and acts on none of it: nothing is sent to the tracker,
+and `source` is shown as text — an address in it is never opened. It is sent as
+a part of its own, with `"add": true` and only `tickets` in it — and `changes`
+when a fix is proposed:
+
+```json
+{
+  "format": "mxscout-descriptions",
+  "version": 1,
+  "add": true,
+  "project": "Sales",
+  "language": "en",
+  "by": "Claude, mendix-ticket-check skill",
+  "tickets": [
+    {
+      "id": "PROJ-12",
+      "title": "Cancelled orders still appear in the clerk's queue",
+      "reported": "When a customer cancels an order it still shows up in my queue the next morning and I have to skip it by hand. Expected: cancelled orders are gone from the queue.\n\nSteps: cancel order 10423 as the customer, log in as a clerk of the North region, open My queue.",
+      "source": "Jira, https://jira.example.com/browse/PROJ-12",
+      "date": "2026-10-14",
+      "verdict": "bug",
+      "confidence": "high",
+      "summary": "The ticket is right: the clerk's queue lists every order of the region that has not shipped, and nothing in it leaves out the status Cancelled. It is a fault in the model, not in the data.",
+      "story": "The ticket expects an order a customer cancelled to leave the clerk's queue at once. The reporter is a clerk of the North region, and the case is one order cancelled before it shipped.\n\nIn the model, the queue page Orders.Queue_Clerk is filled by Orders.DS_Order_QueueForClerk. That flow retrieves the orders of the clerk's region whose Status is not Shipped, sorted by the date placed. Cancelling (Orders.ACT_Order_Cancel) sets Status to Cancelled through Orders.SUB_Order_ChangeStatus and changes nothing else, so a cancelled order still matches the queue's condition and stays on the page until it is deleted by hand.\n\nThe list on the queue page shows what that flow returns, so the flow's condition is the queue's condition. Orders.ENUM_OrderStatus has the value Cancelled, and nothing in the condition names it. The model behaves this way for every region and every clerk; the data of order 10423 is not needed to see it.",
+      "traced": {
+        "steps": [
+          "The customer cancels the order; the status becomes Cancelled",
+          "The clerk opens My queue; the application lists the region's orders that have not shipped",
+          "The cancelled order matches, and is listed with the others"
+        ],
+        "flows": ["Orders.ACT_Order_Cancel", "Orders.SUB_Order_ChangeStatus", "Orders.DS_Order_QueueForClerk"],
+        "diagram": [
+          { "step": "Opens My queue", "who": "Clerk" },
+          { "decision": "Status is Shipped?", "ways": [
+            { "label": "yes", "end": "Left out" },
+            { "label": "no" }
+          ] },
+          { "end": "Listed — Cancelled among them" }
+        ]
+      },
+      "evidence": [
+        { "kind": "microflow", "target": "Orders.DS_Order_QueueForClerk", "what": "Retrieves the region's orders with Status != Shipped; Cancelled is not left out." },
+        { "kind": "microflow", "target": "Orders.SUB_Order_ChangeStatus", "what": "Sets Status to Cancelled and nothing else; the order is not removed from any list." },
+        { "kind": "enumeration", "target": "Orders.ENUM_OrderStatus", "what": "Has the value Cancelled beside Placed, Confirmed and Shipped." },
+        { "kind": "page", "target": "Orders.Queue_Clerk", "what": "Opens with its list filled by Orders.DS_Order_QueueForClerk, which is what decides the queue." }
+      ],
+      "needs": [],
+      "reply": "Thanks — confirmed. The clerk's queue leaves out shipped orders but not cancelled ones, so a cancelled order stays listed until someone removes it. We will change the queue to leave out cancelled orders too (change queue-leaves-out-cancelled). Until then, cancelled orders can be skipped safely: they cannot be confirmed.",
+      "change": "queue-leaves-out-cancelled",
+      "risks": [
+        { "level": "P3", "title": "Other lists may miss the new status as well", "detail": "Cancelled came after the lists were built.", "fix": "Check every retrieve on Orders.Order that filters by Status." }
+      ]
+    }
+  ]
+}
+```
+
+The change it names, `queue-leaves-out-cancelled`, is a `changes` entry in the
+same file, written as "Changes" above says — how the queue works now, and the
+retrieve with `Status != Cancelled` added.
+
+| Field | Required | Notes |
+|---|---|---|
+| `id` | yes | the ticket's key as it was given (`PROJ-12`), or a slug when it has none — letters, digits, dots, hyphens and underscores, up to 80. A ticket with an id MxScout keeps replaces it; without one MxScout drops the ticket |
+| `title` | yes | the ticket's title, or what it reports in a line |
+| `reported` | no, but write it | the ticket's text as the person pasted it, trimmed — its own language, its line breaks; MxScout keeps 8,000 characters and shows it quoted, folded when it is long |
+| `source`, `date` | no | `source`: where it came from (`"Jira"`, the ticket's address) — kept and shown as text, never opened; `date`: when it was checked |
+| `verdict` | yes | `bug` (the model does what the ticket reports, and that is a fault), `as-designed` (the model was built to do it: a misunderstanding, or a wish for a change), `data-config` (the model is right; the data, a constant, a scheduled event switched on or off, a setting or an integration's other side decides it), `cannot-tell` (the model does not settle it: it needs logs, the data, steps to reproduce, the deployed version). Anything else drops the ticket |
+| `confidence` | no, but write it | `high`, `medium` or `low` (the default) — how sure the model lets you be |
+| `summary` | yes | the answer in one to three sentences; MxScout drops a ticket without it |
+| `story` | yes | the reasoning in paragraphs, at least 80 words: what the ticket expects, what the model does instead, why that is or is not a fault — the model's facts and the judgement on them kept apart |
+| `traced` | no, but write it | the behaviour as the model has it: `steps` (one sentence each), `flows` (qualified names from the pack; links) and `diagram` when it branches — the same shape as a process's |
+| `evidence[]` | no, but write it | the places the verdict rests on: `kind` (as a change's: `microflow`, `nanoflow`, `page`, `entity`, `attribute`, `association`, `enumeration`, `security`, `scheduled event`, `integration` or `other`), `target` (a qualified name, as the pack has it; a link when the documentation has it) and `what` (what it shows, in a sentence) |
+| `needs[]` | for `cannot-tell` or `low` | what would settle it: the logs of that day, the record's data, the steps to reproduce, the version deployed |
+| `reply` | no | a short answer to paste back into the ticket, in the ticket's language; the page has a button that copies it |
+| `change` | for a bug | the `id` of the `changes` entry with the proposed fix — in the same file, or one MxScout keeps; the page links to it |
+| `risks[]` | no | as a change's: `level` (`P1`–`P3`) and `title` required, `detail`, `fix` |
+
+MxScout keeps up to 200 tickets, 60 evidence rows, 100 steps and 60 flows per
+ticket, 30 needs and 30 risks; text is cut at the lengths the rest of the file
+is. The story is plain prose like every other `story`.

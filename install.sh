@@ -9,7 +9,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEST="${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}"
 BACKUP="$HOME/.claude/skills-backup"
-ALL=(mendix-describe mendix-docs app-report-presentation)
+ALL=(mendix-describe mendix-ticket-check mendix-docs app-report-presentation)
 NAMES=("${@:-${ALL[@]}}")
 
 mkdir -p "$DEST"

@@ -17,10 +17,12 @@
  *       reference/risk-levels.md, its places and a fix; every change (SKILL.md,
  *       "A change, when the person asks") has an id, how it works now traced
  *       through flows that exist, a proposal and model changes that name what
- *       is there, unless they add it. Exit code 1 on errors.
+ *       is there, unless they add it; every ticket (skills/mendix-ticket-check)
+ *       a verdict, its reasoning, evidence that names what is in the pack, and
+ *       for a bug the change that fixes it. Exit code 1 on errors.
  *
  *   node check-descriptions.js merge <out.json> <part.json> [<part.json> …]
- *       One file from several, later parts winning per name (a change per id) —
+ *       One file from several, later parts winning per name (a change or a ticket per id) —
  *       for describing module by module, or in parallel, one part per batch.
  *
  * The format it checks is the one public/describe.js in MxScout parses. If the
@@ -297,6 +299,17 @@ function check(pack, desc) {
       });
     }
   }
+  const flowInPack = (qn) => !!(pack.microflows[qn] || pack.nanoflows[qn] || pack.pages[qn]);
+  // Whether a model change's or a ticket's target is in the pack: flows and pages by kind, an entity, and an
+  // attribute or an association by the entity or module it belongs to. The other kinds the pack does not list.
+  const targetInPack = (kind, qn) => {
+    const parts = String(qn).split('.');
+    if (kind === 'microflow' || kind === 'nanoflow' || kind === 'page') return !!pack[kind + 's'][qn];
+    if (kind === 'entity') return !!pack.entities[qn];
+    if (kind === 'attribute') return parts.length === 3 && !!pack.entities[parts[0] + '.' + parts[1]];
+    if (kind === 'association') return !!pack.modules[parts[0]];
+    return null;
+  };
   // Changes (SKILL.md, "A change, when the person asks"): how it works now, traced like a process, and the
   // proposal with the model changes it needs. MxScout drops a change without a slug id or a title, and a
   // model change without a target or with an action other than add, change or remove.
@@ -305,17 +318,6 @@ function check(pack, desc) {
     else {
       if (desc.changes.length > 100) warn('"changes" has ' + desc.changes.length + ' entries — MxScout keeps 100.');
       const ids = {};
-      const flowInPack = (qn) => !!(pack.microflows[qn] || pack.nanoflows[qn] || pack.pages[qn]);
-      // Whether a model change's target is in the pack: flows and pages by kind, an entity, and an attribute
-      // or an association by the entity or module it belongs to. The other kinds the pack does not list.
-      const targetInPack = (kind, qn) => {
-        const parts = String(qn).split('.');
-        if (kind === 'microflow' || kind === 'nanoflow' || kind === 'page') return !!pack[kind + 's'][qn];
-        if (kind === 'entity') return !!pack.entities[qn];
-        if (kind === 'attribute') return parts.length === 3 && !!pack.entities[parts[0] + '.' + parts[1]];
-        if (kind === 'association') return !!pack.modules[parts[0]];
-        return null;
-      };
       desc.changes.forEach((c, i) => {
         const what = 'change ' + (c && typeof c.id === 'string' ? '"' + c.id + '"' : '[' + i + ']');
         if (!c || typeof c !== 'object') { err(what + ' is not an object.'); return; }
@@ -373,8 +375,84 @@ function check(pack, desc) {
       });
     }
   }
+  // Tickets (skills/mendix-ticket-check): a ticket reported on the application, checked against the model.
+  // MxScout drops a ticket without an id, a title, a verdict it knows or a summary, and an evidence row
+  // without a target; the rest it shows as it is, so the rest is a warning.
+  if (desc.tickets !== undefined) {
+    if (!Array.isArray(desc.tickets)) err('"tickets" must be a list.');
+    else {
+      if (desc.tickets.length > 200) warn('"tickets" has ' + desc.tickets.length + ' entries — MxScout keeps 200.');
+      const ids = {};
+      const changeIds = {};
+      (Array.isArray(desc.changes) ? desc.changes : []).forEach((c) => { if (c && typeof c.id === 'string') changeIds[c.id] = true; });
+      desc.tickets.forEach((t, i) => {
+        const what = 'ticket ' + (t && typeof t.id === 'string' ? '"' + t.id + '"' : '[' + i + ']');
+        if (!t || typeof t !== 'object') { err(what + ' is not an object.'); return; }
+        if (typeof t.id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(t.id.trim()) || t.id.length > 80) err(what + ': "id" must be the ticket\'s key as given ("PROJ-12") or a slug — letters, digits, dots, hyphens and underscores — MxScout drops the ticket otherwise.');
+        else if (ids[t.id]) err(what + ': the id is used twice — MxScout keeps the first.');
+        ids[t.id] = true;
+        if (typeof t.title !== 'string' || !t.title.trim()) err(what + ': no "title" — MxScout drops the ticket.');
+        if (TICKET_VERDICTS.indexOf(t.verdict) === -1) err(what + ': "verdict" must be one of ' + TICKET_VERDICTS.join(', ') + ' — MxScout drops the ticket otherwise.');
+        if (t.confidence === undefined) warn(what + ': no "confidence" — shown as low; say how sure the model lets you be.');
+        else if (CONFIDENCE.indexOf(t.confidence) === -1) warn(what + ': "confidence" "' + t.confidence + '" is not one of ' + CONFIDENCE.join(', ') + ' — shown as low.');
+        if (typeof t.reported !== 'string' || !t.reported.trim()) warn(what + ': no "reported" — the ticket as it was pasted is what the page opens with.');
+        else if (t.reported.length > 8000) warn(what + ': "reported" is ' + t.reported.length + ' characters — MxScout keeps 8,000.');
+        if (typeof t.summary !== 'string' || !t.summary.trim()) err(what + ': no "summary" — the answer in one to three sentences; MxScout drops the ticket without it.');
+        else {
+          if (t.summary.length > LIMITS.summary) warn(what + ': the summary is ' + t.summary.length + ' characters — the answer in one to three sentences; the reasoning belongs in "story".');
+          if (markupIn(t.summary)) warn(what + ': the summary carries markup or a list — it is shown as plain text.');
+        }
+        if (typeof t.story !== 'string' || !t.story.trim()) err(what + ': no "story" — the reasoning (what the ticket expects, what the model does, why that is or is not a fault) is what makes the verdict checkable.');
+        else {
+          const words = t.story.split(/\s+/).filter(Boolean).length;
+          if (words < 80) warn(what + ': the story is ' + words + ' words — say what the ticket expects, what the model does instead, and why that is or is not a fault, with the names.');
+          if (markupIn(t.story)) warn(what + ': the story carries markup, a list or a heading — it is shown as text; write paragraphs, a blank line between them.');
+        }
+        const tr = t.traced;
+        if (tr !== undefined) {
+          if (!tr || typeof tr !== 'object') err(what + ': "traced" must be an object with "steps", "flows" and "diagram".');
+          else {
+            (Array.isArray(tr.flows) ? tr.flows : []).forEach((qn) => { if (!flowInPack(qn)) warn(what + ' traced names ' + qn + ', which is not in the pack — it shows as plain text, not a link.'); });
+            if (tr.diagram !== undefined) flowDiagram(what + ' traced', tr.diagram, 'diagram');
+          }
+        } else if (t.verdict !== 'cannot-tell') warn(what + ': no "traced" — show what the model does, the steps and the flows you followed.');
+        const ev = Array.isArray(t.evidence) ? t.evidence : [];
+        if (t.evidence !== undefined && !Array.isArray(t.evidence)) err(what + ': "evidence" must be a list.');
+        else if (!ev.length && t.verdict !== 'cannot-tell') warn(what + ': no "evidence" — name the places in the model the verdict rests on; they become links.');
+        if (ev.length > 60) warn(what + ': ' + ev.length + ' evidence rows — MxScout keeps 60.');
+        ev.forEach((x, j) => {
+          const w = what + ' evidence[' + j + ']';
+          if (!x || typeof x !== 'object') { err(w + ' is not an object.'); return; }
+          if (typeof x.target !== 'string' || !x.target.trim()) { err(w + ': no "target" — MxScout drops it.'); return; }
+          if (CHANGE_KINDS.indexOf(x.kind) === -1) warn(w + ': "kind" "' + x.kind + '" is not one of ' + CHANGE_KINDS.join(', ') + ' — shown as other.');
+          if (typeof x.what !== 'string' || !x.what.trim()) warn(w + ': no "what" — say what this place shows.');
+          if (targetInPack(x.kind, x.target) === false) warn(w + ': ' + x.target + ' is not in the pack — name it as the pack does.');
+        });
+        const needs = t.needs;
+        if (needs !== undefined && (!Array.isArray(needs) || needs.some((x) => typeof x !== 'string'))) err(what + ': "needs" must be a list of sentences.');
+        if ((t.verdict === 'cannot-tell' || t.confidence === 'low') && !(Array.isArray(needs) && needs.length)) warn(what + ': ' + (t.verdict === 'cannot-tell' ? 'cannot tell' : 'low confidence') + ' and no "needs" — say what would settle it (logs, the data, the steps to reproduce, the deployed version).');
+        if (t.reply !== undefined && typeof t.reply !== 'string') err(what + ': "reply" must be text.');
+        if (t.change !== undefined) {
+          if (typeof t.change !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(t.change)) err(what + ': "change" must be the id of a change — a slug, as the change has it; MxScout drops it otherwise.');
+          else if (!changeIds[t.change]) warn(what + ': "change" is "' + t.change + '", which is not in this file — it links only if MxScout already keeps a change with that id.');
+        } else if (t.verdict === 'bug') warn(what + ': a bug with no "change" — propose the fix as a change in the same file and name its id.');
+        if (t.risks !== undefined) {
+          if (!Array.isArray(t.risks)) err(what + ': "risks" must be a list.');
+          else t.risks.forEach((r, j) => {
+            const w = what + ' risks[' + j + ']';
+            if (!r || !/^P[123]$/.test(r.level)) err(w + ': "level" must be "P1", "P2" or "P3" — MxScout drops it otherwise.');
+            if (!r || typeof r.title !== 'string' || !r.title.trim()) err(w + ': no "title" — MxScout drops it.');
+          });
+        }
+      });
+    }
+  }
   return problems;
 }
+
+// A ticket's verdict and how sure it is (reference/descriptions-format.md, "Tickets"; public/describe.js keeps the same lists).
+const TICKET_VERDICTS = ['bug', 'as-designed', 'data-config', 'cannot-tell'];
+const CONFIDENCE = ['high', 'medium', 'low'];
 
 // A change's status, the kinds of model change and what is done to each (reference/descriptions-format.md, "changes"; public/describe.js keeps the same lists).
 const CHANGE_STATUS = ['proposed', 'accepted', 'done', 'dropped'];
@@ -408,6 +486,14 @@ function merge(parts) {
       p.changes.forEach((x) => {
         const i = out.changes.findIndex((y) => y && x && y.id === x.id);
         if (i < 0) out.changes.push(x); else out.changes[i] = x;
+      });
+    }
+    // Tickets the same way, by id.
+    if (Array.isArray(p.tickets)) {
+      out.tickets = (out.tickets || []).slice();
+      p.tickets.forEach((x) => {
+        const i = out.tickets.findIndex((y) => y && x && y.id === x.id);
+        if (i < 0) out.tickets.push(x); else out.tickets[i] = x;
       });
     }
     TABLES.forEach((k) => {
@@ -460,7 +546,7 @@ function main(argv) {
     const merged = merge(args.slice(1).map(readJson));
     fs.writeFileSync(args[0], JSON.stringify(merged, null, 2) + '\n');
     const n = ['microflows', 'nanoflows', 'pages', 'entities'].reduce((s, k) => s + Object.keys(merged[k] || {}).length, 0);
-    console.log('Wrote ' + args[0] + ': ' + n + ' descriptions' + (merged.changes ? ', ' + merged.changes.length + ' change' + (merged.changes.length === 1 ? '' : 's') : '') + ' from ' + (args.length - 1) + ' parts.');
+    console.log('Wrote ' + args[0] + ': ' + n + ' descriptions' + (merged.changes ? ', ' + merged.changes.length + ' change' + (merged.changes.length === 1 ? '' : 's') : '') + (merged.tickets ? ', ' + merged.tickets.length + ' ticket' + (merged.tickets.length === 1 ? '' : 's') : '') + ' from ' + (args.length - 1) + ' parts.');
     return 0;
   }
   console.log('Usage:\n  node check-descriptions.js todo  <pack.md> [descriptions.json] [--list]\n  node check-descriptions.js check <pack.md> <descriptions.json>\n  node check-descriptions.js merge <out.json> <part.json> [<part.json> …]');
