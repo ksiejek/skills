@@ -37,8 +37,10 @@ files a chat assistant takes and reads its answers back.)
 **Straight from MxScout (no files).** Open the project → **Documentation** →
 **Share with an agent**, then **Copy for the agent** and paste that line into
 the agent's chat, together with the request below. The agent reads the pack
-from MxScout one module at a time, and when it is done MxScout offers **Import
-them** — nothing is kept until you press it. While you share, the pack sits in
+from MxScout one module at a time, and when it is done MxScout saves what it
+sent at once, with **Undo** beside it — a whole file that would replace the
+descriptions you have waits for **Import them**, and the card has a switch to
+make everything wait. While you share, the pack sits in
 the MxScout server's memory behind a token; **Stop sharing**, a reload or
 closing the tab takes it away. Skip step 4.
 

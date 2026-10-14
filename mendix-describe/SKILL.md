@@ -151,8 +151,10 @@ The pack is large (a real app is ~1.7 MB, ~470k tokens). Never read it whole.
    rest and puts yours on top. Leave it out only for a complete description
    that should take the place of the old one.
    Connected to MxScout: `node agent.js send descriptions.json`,
-   and tell the person MxScout now offers **Import them** in the project's
-   Documentation — nothing is kept until they press it. From a file: tell them
+   and tell the person what you sent. MxScout saves it at once and shows it with
+   **Undo** — unless they turned that off, or the file would replace descriptions
+   already kept (a file without `"add"`), when it waits for **Import them** in the
+   project's Documentation. From a file: tell them
    where `descriptions.json` is and to import it there: **Import descriptions…**.
 
 An earlier `descriptions.json` given to you is where you start: keep what is

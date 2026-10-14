@@ -161,9 +161,9 @@ there, stop and tell the person to install mendix-describe beside this skill.
    node ../mendix-describe/agent.js send descriptions.tickets.json
    ```
 
-   Fix every error; read the warnings. Connected, MxScout then offers **Import
-   them** in the project's Documentation — nothing is kept until the person
-   presses it. From a file, tell the person where the file is and to import it
+   Fix every error; read the warnings. Connected, MxScout saves it at once and
+   shows it with **Undo** (unless the person turned saving at once off; then it
+   waits for **Import them** in the project's Documentation). From a file, tell the person where the file is and to import it
    with **Import descriptions…**. Then tell them the result is on the
    **Tickets** page (and the fix on **Changes**), give the verdict in a line
    per ticket, and list what would settle any `cannot-tell`.
