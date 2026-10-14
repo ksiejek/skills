@@ -41,8 +41,16 @@ from MxScout one module at a time, and when it is done MxScout saves what it
 sent at once, with **Undo** beside it — a whole file that would replace the
 descriptions you have waits for **Import them**, and the card has a switch to
 make everything wait. While you share, the pack sits in
-the MxScout server's memory behind a token; **Stop sharing**, a reload or
-closing the tab takes it away. Skip step 4.
+the MxScout server's memory behind a token — with the documentation as
+Markdown beside it once the project has descriptions, which the agent reads
+first as its map; **Stop sharing**, a reload or closing the tab takes both
+away. Skip step 4.
+
+The line alone does not set the agent describing: it connects, tells you what
+it sees, and asks what you want — describe the application (all or some
+modules), bring it up to date, one more process, a change, a ticket, or a
+question about how something works. Say it in the same message to skip the
+question.
 
 **Or as a file.**
 
@@ -139,13 +147,24 @@ tools, so install both. The result appears on the project's **Tickets** page.
 
 ## When the model changes
 
-Export a new pack. Every flow in it carries a fingerprint, so MxScout marks a
+Export a new pack, or share again. Every flow in it carries a fingerprint, so MxScout marks a
 description whose flow changed as out of date instead of passing it off as
 current, and the checker lists only what is left to do:
 
 ```bash
 node ~/.claude/skills/mendix-describe/check-descriptions.js todo <Project>.mxscout-ai-pack.md descriptions.json
 ```
+
+Shared with an agent, ask it to *update the documentation*: it reads the
+documentation MxScout shares (`node agent.js docs`), gives that to the checker
+in place of `descriptions.json`, and describes only the new flows and the ones
+marked out of date — not the whole application again.
+
+## A question about the application
+
+Shared with an agent, you can also just ask — "who can reopen a closed case?".
+It reads the documentation first, checks the flows it points to in the pack,
+and answers citing them; it writes nothing unless you ask.
 
 The other two commands:
 

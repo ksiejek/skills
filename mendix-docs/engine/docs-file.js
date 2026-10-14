@@ -98,9 +98,52 @@
     ].join('\n');
   }
 
+  // The documentation as an agent reads it — the agent channel's GET /api/agent/docs, and the
+  // mendix-docs skill's `docs` command, which builds it from a .mpr in Node. It is the Markdown
+  // copy the export writes (MxDocsView.markdown), of the own modules, after a short header that
+  // says what it is: what an agent understood earlier, to be read as a map and checked against the
+  // pack. A description whose flow changed since it was written is marked out of date in it.
+  // data: the documentation's data with the descriptions attached (MxDescribe.attach); null when
+  // there are none — there is nothing an agent understood yet, and the pack says the rest.
+  var AGENT_DOCS_HEAD = '# MxScout documentation';
+  function forAgent(data) {
+    if (!data || !data.ai) return null;
+    var own = {};
+    data.modules.forEach(function (m) { own[m.name] = !m.marketplace; });
+    var mine = withDerived(subset(data, own));
+    var flows = 0, described = 0, stale = 0;
+    Object.keys(mine.flows).forEach(function (k) {
+      var f = mine.flows[k];
+      if (f.kind === 'page') return;
+      flows++;
+      if (f.desc) { described++; if (f.descStale) stale++; }
+    });
+    var market = data.modules.length - mine.modules.length;
+    var ai = data.ai, now = new Date().toISOString();
+    function one(t) { return String(t).replace(/\s*\n\s*/g, ' '); }
+    var head = [
+      AGENT_DOCS_HEAD + ' — ' + one(data.project),
+      '',
+      'project: ' + one(data.project),
+      'mendix: ' + one(data.mendix || 'unknown'),
+      'generated: ' + now,
+      'modules: the own modules (' + mine.modules.length + ')' + (market ? '; ' + market + ' Marketplace ' + (market === 1 ? 'module' : 'modules') + ' left out' : ''),
+      'flows described: ' + described + ' of ' + flows,
+      'out of date: ' + stale + (stale ? ' — each marked "(out of date …)" after its description: the flow changed since it was written' : ''),
+      ai.written || ai.by ? 'descriptions: ' + ['written ' + one(ai.written || 'at an unknown date'), ai.by ? 'by ' + one(ai.by) : null].filter(Boolean).join(' ') : null,
+      '',
+      '> This is what an agent understood earlier; verify against the AI pack before concluding.',
+      '',
+      '---',
+      '',
+      ''
+    ].filter(function (l) { return l !== null; });
+    return { text: head.join('\n') + window.MxDocsView.markdown(mine), generatedAt: now, flows: flows, described: described, stale: stale };
+  }
+
   function fileName(data) {
     return String(data.project).replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') + '-documentation-' + String(data.generatedAt).slice(0, 10) + '.html';
   }
 
-  window.MxDocsFile = { SHEETS: SHEETS, SCRIPTS: SCRIPTS, fontsIn: fontsIn, fontPath: fontPath, withDerived: withDerived, subset: subset, build: build, fileName: fileName };
+  window.MxDocsFile = { SHEETS: SHEETS, SCRIPTS: SCRIPTS, fontsIn: fontsIn, fontPath: fontPath, withDerived: withDerived, subset: subset, build: build, fileName: fileName, forAgent: forAgent, AGENT_DOCS_HEAD: AGENT_DOCS_HEAD };
 })();

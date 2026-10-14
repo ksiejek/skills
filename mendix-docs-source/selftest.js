@@ -3,7 +3,8 @@
  *   node selftest.js [--mxscout <MxScout repository>]   (or MXSCOUT_DIR; default ~/Projects/MxScout)
  *
  * It puts an installable copy together, then runs it the way the skill does: status, module, pack,
- * mendix-describe's checker on that pack, and a report with descriptions on it. MxScout's own suite
+ * mendix-describe's checker on that pack, a report with descriptions on it, and the documentation as
+ * Markdown (docs). MxScout's own suite
  * keeps the file this builds the same as its export (public/docs-file.js is shared by both); this
  * checks the skill's side of it. */
 'use strict';
@@ -55,6 +56,21 @@ try {
     'report writes one self-contained file, fonts inside');
   ok(html.indexOf('Taking an order') !== -1 && html.indexOf('Known customer?') !== -1 && html.indexOf('window.MxDocsView=') !== -1 && html.indexOf('MxFlowGraph') !== -1,
     'with the descriptions, the process and its diagram as data, the reader and the flow drawing');
+
+  // docs: the documentation as Markdown, what MxScout gives an agent it shares a project with.
+  ok(/^No documentation yet/.test(run(['docs', proj])), 'docs without descriptions says plainly there is none yet');
+  const md = run(['docs', proj, path.join(tmp, 'descriptions.json')]);
+  ok(md.startsWith('# MxScout documentation — Sales\n') && /^flows described: 1 of 2$/m.test(md) && /^out of date: 0$/m.test(md) &&
+    md.indexOf('> This is what an agent understood earlier; verify against the AI pack before concluding.') !== -1 && md.indexOf('## Processes') !== -1 && md.indexOf('Opens a fresh order.') !== -1,
+    'docs writes the documentation as Markdown: the header, then the pages, the descriptions in them');
+  const old = Object.assign({}, desc, { microflows: { 'Sales.CreateOrder': { hash: '00000000', text: 'Opens a fresh order.' } } });
+  fs.writeFileSync(path.join(tmp, 'old.json'), JSON.stringify(old));
+  const mdOut = path.join(tmp, 'docs.md');
+  ok(/^Wrote /.test(run(['docs', proj, path.join(tmp, 'old.json'), '--out', mdOut])) && /^out of date: 1 /m.test(fs.readFileSync(mdOut, 'utf8')) &&
+    fs.readFileSync(mdOut, 'utf8').indexOf('Opens a fresh order. (out of date — the microflow changed since this was written)') !== -1,
+    'a description whose flow changed since is marked out of date, and --out writes it to a file');
+  const todoDocs = execFileSync(process.execPath, [path.join(skill, 'check-descriptions.js'), 'todo', pack, mdOut, '--list'], { encoding: 'utf8' });
+  ok(/Sales \(pack line \d+\): \d+ new, 1 changed/.test(todoDocs) && /^ {4}Sales\.CreateOrder$/m.test(todoDocs), 'the checker’s todo reads that Markdown in place of a descriptions file');
 
   // Mendix 10+: the documents are in mprcontents/ beside the .mpr. With the folder the project reads;
   // without it the skill says what is missing instead of building an empty report.

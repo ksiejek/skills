@@ -420,3 +420,24 @@ mendix-docs 3.3.0).
 Ograniczenie: pakiet AI nie zawiera jeszcze reguł dostępu do encji, warunków
 widoczności widgetów ani walidacji encji. Przy zgłoszeniach o tym agent mówi wprost,
 czego nie widzi, i odsyła do ekranów Security i Pages.
+
+### Zmiana 2026-10-14: dokumentacja MD w kanale agenta; skill pyta, zanim zacznie
+
+- **Share with an agent** przekazuje razem z pakietem dokumentację jako Markdown:
+  `node agent.js docs`. Ma nagłówek (ile flow opisanych, ile nieaktualnych), a każdy
+  nieaktualny opis jest oznaczony. Odświeża się po każdym zapisie, Undo i imporcie.
+  Obowiązuje ten sam token, ten sam komputer i tylko pamięć.
+- **Skill po połączeniu nie opisuje sam.** Robi `status`, potem `docs`, a dalej to, o co
+  prosisz:
+  - opis całości albo wybranych modułów,
+  - update (tylko nowe i zmienione flow),
+  - jeszcze jeden proces,
+  - zmiana,
+  - zgłoszenie,
+  - pytanie o działanie aplikacji (odpowiedź ze wskazaniem flow, bez zapisu).
+
+  Wklejona sama linia oznacza, że skill zapyta, co zrobić.
+- **Zasada pracy: najpierw dokumentacja jako mapa, potem pakiet jako dowód.** Gdy
+  dokumentacja i model się różnią, wygrywa model, a agent nazywa nieaktualny opis.
+- **mendix-docs 3.4.0:** `docs.js docs <app.mpr> [descriptions.json]` robi ten sam plik
+  MD. Skill czyta go jako mapę i ma nowe polecenie `question`.

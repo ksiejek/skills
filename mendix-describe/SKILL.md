@@ -1,6 +1,6 @@
 ---
 name: mendix-describe
-description: Write business-readable documentation of a Mendix application from an MxScout AI pack — what the application is for, its main processes and its modules, each as a short summary and a long description, and one or two sentences on each microflow and nanoflow, the risks in the model ranked P1–P3, and what a developer should know before changing it — as a descriptions file MxScout imports into its Documentation. Also works out a change the person wants made — how that part works now and a proposed solution in Mendix terms — for MxScout's Changes page. Use when given a `.mxscout-ai-pack.md` file, or an address and token of a running MxScout that is sharing a project, or asked to describe or document a Mendix app for the business from MxScout, or to work out a change to it ("I want customers to be able to cancel an order").
+description: Write business-readable documentation of a Mendix application from an MxScout AI pack — what the application is for, its main processes and its modules, each as a short summary and a long description, and one or two sentences on each microflow and nanoflow, the risks in the model ranked P1–P3, and what a developer should know before changing it — as a descriptions file MxScout imports into its Documentation. Also works out a change the person wants made — how that part works now and a proposed solution in Mendix terms — for MxScout's Changes page, brings the descriptions up to date after the model changed, and answers questions about how the application works — reading the documentation MxScout shares first, as the map, and the pack to verify. Given only an address and token, it asks what the person wants instead of starting to describe. Use when given a `.mxscout-ai-pack.md` file, or an address and token of a running MxScout that is sharing a project, or asked to describe or document a Mendix app for the business from MxScout, or to work out a change to it ("I want customers to be able to cancel an order").
 ---
 
 # Describing a Mendix application for the business
@@ -32,19 +32,82 @@ Two ways, and the rest of this file works the same for both:
   and a token. `agent.js` (next to this file) reads from it and sends back to it:
 
   ```
-  node agent.js status                      the project and its modules, with counts
-  node agent.js module <Name> --out m.md    one module's section
+  node agent.js status                      the project, its modules with counts, and whether
+                                            there is documentation (how much is out of date)
+  node agent.js docs --out docs.md          the documentation as Markdown — what an agent
+                                            understood earlier; the map you read first
+  node agent.js module <Name> --out m.md    one module's section of the pack
   node agent.js pack pack.md                the whole pack, to a file, for the checker only
   node agent.js send descriptions.json      hand the result to MxScout
   ```
 
   Pass `--url` and `--token`, or set `MXSCOUT_URL` and `MXSCOUT_TOKEN`. It
-  refuses any address that is not this machine. Start with `status`; **show the
-  person the modules and ask which to describe** — all of them, or a few — and
-  fetch those one at a time. The token is the person's: never write it into a
-  file you leave behind.
+  refuses any address that is not this machine. The token is the person's:
+  never write it into a file you leave behind.
 - **From a file.** `<Project>.mxscout-ai-pack.md`, exported from MxScout's
-  Documentation. Read a module by the line range the index gives.
+  Documentation. Read a module by the line range the index gives. The person
+  may give you the documentation's Markdown copy beside it (Export
+  documentation → Markdown file): it plays the same part as `docs` below.
+
+## When you connect: ask, do not start
+
+Connecting is not a request to describe the application. Run `status`, then —
+when it says there is documentation — `docs --out docs.md`, and **do what the
+person asked**. If they only pasted the line, say what you see (the project,
+its modules, how much is described and how much of that is out of date) and
+ask what they want:
+
+- **describe the application** — all of it, or some modules (show them the
+  modules and let them choose);
+- **bring the description up to date** after the model changed;
+- **one more process** the documentation does not tell, or tells too thinly;
+- **a change** they want made;
+- **check a ticket** (the mendix-ticket-check skill);
+- **a question** about how something in the application works.
+
+Never start a full description unasked: on a real application it is hours of
+work and the person may want something else entirely.
+
+## The documentation is the map, the pack is the proof
+
+`docs` gives you the documentation as Markdown: the Markdown copy MxScout
+exports, of the own modules, under a short header — the project, the Mendix
+version, when it was generated, how many flows are described and how many of
+those are **out of date** (each marked `(out of date — the microflow changed
+since this was written)` right after its description). It is **what an agent
+understood earlier**, not the model.
+
+For everything except a first description — an update, one more process, a
+change, a ticket, a question — **read it first**: the application's story and
+its processes, the notes of the modules involved, **For developers** (where
+things are, the naming, what breaks easily), and the earlier **Changes** and
+**Tickets**. It tells you which flows, entities, statuses and roles matter, so
+you open only those. Then **verify in the pack**: read the modules or flows it
+pointed you to (`node agent.js module <Name> --out m.md`, or grep the pack
+file for one flow's block) and base what you conclude on them. When the two
+disagree, **the model wins** — say so, and name the description that is
+stale ("the documentation says X; the flow now does Y — its description is out
+of date"). A description marked out of date is a lead, never evidence.
+
+With no documentation yet, the pack is all there is: read it by module, as
+below.
+
+## Answering a question about the app
+
+"How does an order get its warehouse?", "who can reopen a closed case?" — the
+person wants an answer, not a file.
+
+1. Find it in the documentation first: the process that tells it, the module
+   notes, For developers, a change or ticket that touched it.
+2. Verify in the pack: grep it for the names the documentation gave you (or
+   the words of the question when there is none), read those flows, and follow
+   the case as far as the question goes.
+3. Answer in a few paragraphs, citing the flows, entities, conditions and
+   roles by their qualified names, and say what the model cannot show
+   (data, configuration, what runs outside it). Point out a description that
+   says otherwise.
+4. Write nothing and send nothing unless the person asks — then it is one more
+   process, or a change, below.
 
 ## The two rules that matter most
 
@@ -65,10 +128,11 @@ The pack is large (a real app is ~1.7 MB, ~470k tokens). Never read it whole.
 1. **Find the work.** Run the checker; with an earlier descriptions file it
    lists only new flows and flows whose fingerprint changed. Connected to
    MxScout, first put the pack in a file for it (`node agent.js pack pack.md`) —
-   the checker reads it, you do not:
+   the checker reads it, you do not — and give it the documentation in place of
+   the descriptions file, which MxScout keeps and you cannot read:
 
    ```
-   node check-descriptions.js todo <pack.md> [descriptions.json] --list
+   node check-descriptions.js todo <pack.md> [descriptions.json | docs.md] --list
    ```
 
 2. **Read the header and the index** — the first lines of the pack, up to the
@@ -161,6 +225,24 @@ An earlier `descriptions.json` given to you is where you start: keep what is
 still current, describe what `todo` lists, merge the old file first and your
 parts after it.
 
+## Bringing it up to date, when the person asks
+
+"I made changes — update the documentation." Describe **only what changed**,
+never the whole application again.
+
+1. `node agent.js pack pack.md` and `node agent.js docs --out docs.md`, then
+   `node check-descriptions.js todo pack.md docs.md --list` (from files: the
+   earlier `descriptions.json` in place of `docs.md`). It lists the new flows
+   and the ones whose description is out of date — that is the work.
+2. Read the documentation for the processes and modules those flows belong
+   to, then read those flows in the pack and describe them, module by module,
+   as steps 3 and 5 above say — with their `hash`.
+3. Where a changed flow carries a process, a module's story or a risk, check
+   that against the pack too and rewrite what no longer holds (a process with
+   the same name replaces the one kept). Leave the rest as it is.
+4. Send it as a part with `"add": true`, so everything you did not touch stays.
+   Tell the person what you updated and what you found had changed.
+
 ## One more process, when the person asks
 
 After reading the documentation the person may ask for a process it does not
@@ -168,12 +250,16 @@ tell, or tells too thinly: "describe how an order gets its warehouse too". It
 becomes one more main process on the Processes page, analysed like the others —
 not a paragraph added to the application's story.
 
-1. **Find where it lives.** Put the pack in a file (connected:
-   `node agent.js pack pack.md`) and search it for the words of the request —
-   entity, attribute, flow and page names, captions (`grep -n -i team pack.md`).
+1. **Find where it lives.** Start from the documentation when there is one
+   (`node agent.js docs --out docs.md`): a process that touches it, the module
+   notes, For developers — they name the flows and entities to look at. Then
+   put the pack in a file (connected: `node agent.js pack pack.md`) and search
+   it for those names and the words of the request — entity, attribute, flow
+   and page names, captions (`grep -n -i team pack.md`).
    Do not read it whole: the hits give the modules and flows; read those
    modules (`node agent.js module <Name> --out m.md`) and follow the calls
-   into other modules as far as the case goes.
+   into other modules as far as the case goes. What you write comes from the
+   pack, not from the documentation.
 2. **Follow one case from start to end.** Where it starts (a page's button, a
    scheduled event, a REST call, a workflow), every decision that changes its
    course and on what data, what is set (which attribute, which association),
@@ -223,7 +309,9 @@ you write no code for it: you propose.**
    refunded, or is that someone else's job?"). Do not go on while the request
    can mean two different solutions.
 2. **Trace how it works now** exactly as "One more process" steps 1 and 2 say:
-   put the pack in a file, grep it for the words of the request, read the flows
+   the documentation first for the process, the module notes, For developers'
+   conventions and pitfalls, and the earlier changes; then put the pack in a
+   file, grep it for those names and the words of the request, read the flows
    on its way across modules, and follow one case from where it starts to how
    it ends. Note the statuses, the decisions and on what data, the records
    looked up by name, who is told — and **where the change would go in**: the
@@ -380,5 +468,7 @@ entity.
 - `reference/c4.md` — the architecture, levels 1 and 2, as nodes and links;
   level 3 MxScout reads from the model.
 - `check-descriptions.js` — `todo`, `check`, `merge`. Node only, no install.
-- `agent.js` — `status`, `module`, `pack`, `send`: the connection to a running
-  MxScout that is sharing. Node only, no install.
+- `check-descriptions.js todo` also takes the documentation (`docs.md`) in
+  place of a descriptions file.
+- `agent.js` — `status`, `docs`, `module`, `pack`, `send`: the connection to a
+  running MxScout that is sharing. Node only, no install.

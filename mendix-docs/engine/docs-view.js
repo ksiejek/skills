@@ -535,7 +535,7 @@
             var full = rs.length || f.desc || inProcess[f.qn];
             if (!full) { w('- ' + code(f.qn) + ' · ' + f.kind + ' · ' + plural(f.steps || 0, 'step', 'steps') + ' · calls ' + f.calls.length + ' · called by ' + f.calledBy.length); return; }
             w(); w('#### ' + code(f.qn) + ' — ' + f.kind); w();
-            if (f.desc) { agent(); w(esc(f.desc) + (f.descStale ? ' (written before the ' + f.kind + ' changed)' : '')); w(); }
+            if (f.desc) { agent(); w(esc(f.desc) + (f.descStale ? ' (out of date — the ' + f.kind + ' changed since this was written)' : '')); w(); }
             w('- Parameters: ' + (f.params.length ? f.params.map(function (p) { return code(p.name) + ' (' + esc(p.type) + ')'; }).join(', ') : 'none'));
             w('- Returns: ' + (f.returns ? code(f.returns) : 'nothing'));
             w('- Who can start it: ' + (f.roles.length ? f.roles.map(code).join(', ') : 'no user role — only other flows'));

@@ -72,7 +72,7 @@ pack has no `## risk triage` section.
 
 ```
 node mendix-docs-source/pack-skill.js mendix-docs --mxscout ~/Projects/MxScout
-node mendix-docs-source/selftest.js --mxscout ~/Projects/MxScout   # expect "10 passed, 0 failed"
+node mendix-docs-source/selftest.js --mxscout ~/Projects/MxScout   # expect "14 passed, 0 failed"
 ```
 
 `pack-skill.js` empties the destination first. To install straight from the

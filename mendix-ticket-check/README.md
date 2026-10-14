@@ -47,7 +47,11 @@ ln -s "$PWD/skills/mendix-describe" "$PWD/skills/mendix-ticket-check" ~/.claude/
 ## Use it
 
 In MxScout: open the project → **Documentation** → **Share with an agent** →
-**Copy for the agent**. Paste that line into the agent's chat, then:
+**Copy for the agent**. Paste that line into the agent's chat, then the ticket.
+When the project has descriptions, the agent reads the documentation first —
+the process, the module notes, earlier tickets and changes — and then checks
+what matters in the model itself; where the two disagree, the model wins and it
+says which description is stale.
 
 ```
 Use the mendix-ticket-check skill on this ticket:

@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 /* The mendix-describe skill's checker. No dependencies — Node only.
  *
- *   node check-descriptions.js todo  <pack.md> [descriptions.json] [--list]
+ *   node check-descriptions.js todo  <pack.md> [descriptions.json | docs.md] [--list]
  *       What is left to describe, per module: new flows, flows that changed
  *       since they were described (their fingerprint moved), whether the
  *       application overview is there, which modules have no long
  *       description yet, and whether risks and the developers' context are
  *       written. Run it first; describe only that.
+ *       Connected to MxScout there is no descriptions file to give it — MxScout
+ *       keeps it — so give it the documentation instead (node agent.js docs
+ *       --out docs.md): what is described there, and what is marked out of
+ *       date, is read from it.
  *
  *   node check-descriptions.js check <pack.md> <descriptions.json>
  *       Whether MxScout will accept the file, and whether it says what it
@@ -82,6 +86,48 @@ function markupIn(text) {
   return /^\s*(?:[-*•]\s|#{1,6}\s|\d+[.)]\s|\|)|\*\*|<\/?[a-z][^>]*>|\]\(/im.test(text);
 }
 function hashOf(v) { return v && typeof v === 'object' && typeof v.hash === 'string' ? v.hash : null; }
+
+// ---------- the documentation, in place of a descriptions file ----------
+// The Markdown MxScout gives an agent (GET /api/agent/docs, `node agent.js docs`), or the Markdown
+// copy exported from its Documentation: a described flow is a "#### `Module.Name` — microflow"
+// section with the agent's line and the description under it, followed by "(out of date — …)" when
+// the flow changed since. Read into the shape todo() takes: a description that is current gets the
+// pack's own fingerprint, one marked out of date a fingerprint that matches nothing.
+function isDocs(text) { return /^\s*#/.test(text); }
+function readDocs(text, pack) {
+  const lines = String(text).split(/\r?\n/);
+  const AGENT = '> Written by an agent from the model.';
+  const desc = { microflows: {}, nanoflows: {}, modules: {}, fromDocs: true };
+  let h2 = null, flow = null, mod = null;
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    let m = /^## (.+)$/.exec(l);
+    if (m) { h2 = m[1].trim(); flow = mod = null; continue; }
+    m = /^#### `([^`]+)` — (microflow|nanoflow)$/.exec(l);
+    if (m && h2 === 'Microflows & pages') { flow = { qn: m[1], kind: m[2] + 's' }; mod = null; continue; }
+    m = /^### `([^`]+)` \((?:own|Marketplace) module\)$/.exec(l);
+    if (m && h2 === 'Modules') { mod = m[1]; flow = null; continue; }
+    if (/^#{3,4} /.test(l)) { flow = null; if (/^### /.test(l)) mod = null; continue; }
+    if (l.trim() !== AGENT || !(flow || mod)) continue;
+    let j = i + 1;
+    while (j < lines.length && !lines[j].trim()) j++;
+    const said = (lines[j] || '').trim();
+    if (flow) {
+      const stale = /\(out of date — the (?:micro|nano)flow changed since this was written\)$/.test(said) || /\(written before the (?:micro|nano)flow changed\)$/.test(said);
+      const p = (pack[flow.kind] || {})[flow.qn];
+      if (said) desc[flow.kind][flow.qn] = { text: said, hash: stale || !p ? 'outofdate' : p.hash };
+      flow = null;
+    } else {
+      if (said) desc.modules[mod] = { summary: said };
+      mod = null;
+    }
+  }
+  if (lines.indexOf('### The application') !== -1) desc.app = { summary: 'described', story: 'described' };
+  if (lines.indexOf('## Risks') !== -1) desc.risks = [];
+  if (lines.indexOf('## For developers') !== -1) desc.context = {};
+  if (lines.indexOf('### Runtime') !== -1 || lines.indexOf('### Context') !== -1) desc.c4 = { context: {} };
+  return desc;
+}
 
 // ---------- todo ----------
 function todo(pack, desc) {
@@ -560,13 +606,17 @@ function main(argv) {
   const args = rest.filter((a) => a !== '--list');
   if (cmd === 'todo' && args[0]) {
     const pack = readPack(fs.readFileSync(args[0], 'utf8'));
-    const desc = args[1] && fs.existsSync(args[1]) ? readJson(args[1]) : null;
+    const given = args[1] && fs.existsSync(args[1]) ? fs.readFileSync(args[1], 'utf8') : null;
+    const docs = given !== null && isDocs(given);
+    const desc = given === null ? null : docs ? readDocs(given, pack) : readJson(args[1]);
     const t = todo(pack, desc);
-    console.log(t.flows + ' flows to describe in ' + t.modules.length + ' modules' + (t.overview ? '; the application overview is missing' : t.overviewStory ? '; the application has no long description' : '') +
+    // From the documentation, a module's long description and its notes cannot be told apart from the rest of its page: not reported.
+    console.log(t.flows + ' flows to describe in ' + t.modules.length + ' modules' + (t.overview ? '; the application overview is missing' : !docs && t.overviewStory ? '; the application has no long description' : '') +
       (t.missingModules.length ? '; ' + t.missingModules.length + ' modules have no description' : '') +
-      (t.shortModules.length ? '; ' + t.shortModules.length + ' modules have a summary but no long description (' + t.shortModules.join(', ') + ')' : '') +
+      (!docs && t.shortModules.length ? '; ' + t.shortModules.length + ' modules have a summary but no long description (' + t.shortModules.join(', ') + ')' : '') +
       (t.risks ? '; no risks yet' : '') + (t.context ? '; no context for developers yet' : '') +
-      (t.noNotes.length ? '; ' + t.noNotes.length + ' modules have no notes' : '') + (t.c4 ? '; no architecture yet' : '') + '.');
+      (!docs && t.noNotes.length ? '; ' + t.noNotes.length + ' modules have no notes' : '') + (t.c4 ? '; no architecture yet' : '') + '.' +
+      (docs ? ' (Read from the documentation: "changed" are the descriptions it marks out of date.)' : ''));
     if (t.recheck.length || t.falsePositives.length || t.verify.length) {
       console.log('Risk triage: ' + [t.recheck.length ? t.recheck.length + ' fixed to check again (' + t.recheck.join(', ') + ')' : null,
         t.falsePositives.length ? t.falsePositives.length + ' false positives not to raise again (' + t.falsePositives.join(', ') + ')' : null,
@@ -592,7 +642,7 @@ function main(argv) {
     console.log('Wrote ' + args[0] + ': ' + n + ' descriptions' + (merged.changes ? ', ' + merged.changes.length + ' change' + (merged.changes.length === 1 ? '' : 's') : '') + (merged.tickets ? ', ' + merged.tickets.length + ' ticket' + (merged.tickets.length === 1 ? '' : 's') : '') + ' from ' + (args.length - 1) + ' parts.');
     return 0;
   }
-  console.log('Usage:\n  node check-descriptions.js todo  <pack.md> [descriptions.json] [--list]\n  node check-descriptions.js check <pack.md> <descriptions.json>\n  node check-descriptions.js merge <out.json> <part.json> [<part.json> …]');
+  console.log('Usage:\n  node check-descriptions.js todo  <pack.md> [descriptions.json | docs.md] [--list]\n  node check-descriptions.js check <pack.md> <descriptions.json>\n  node check-descriptions.js merge <out.json> <part.json> [<part.json> …]');
   return 2;
 }
 
@@ -600,4 +650,4 @@ if (require.main === module) {
   try { process.exitCode = main(process.argv.slice(2)); }
   catch (e) { console.error(e.message); process.exitCode = 2; }
 }
-module.exports = { readPack, todo, check, merge, DESC_FORMAT };
+module.exports = { readPack, readDocs, todo, check, merge, DESC_FORMAT };

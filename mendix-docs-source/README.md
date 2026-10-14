@@ -29,8 +29,11 @@ Node 18 or later. No dependencies, nothing to install.
 ## Use
 
 In Claude Code, in a folder outside the Mendix project: `/mendix-docs build`,
-`/mendix-docs update`, `/mendix-docs process <what>`, `/mendix-docs report`.
-SKILL.md says what each does.
+`/mendix-docs update`, `/mendix-docs process <what>`, `/mendix-docs change <what>`,
+`/mendix-docs ticket <text>`, `/mendix-docs question <what>`, `/mendix-docs report`.
+With no argument it asks what you want. SKILL.md says what each does.
+`docs.js docs` writes the documentation as Markdown, the agent's map for
+everything after the first build.
 
 ## What it does not do
 

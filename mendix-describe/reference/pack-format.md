@@ -22,6 +22,17 @@ legend: …
 Marketplace modules are not in the pack: they are other people's components,
 and the business documentation is about this application.
 
+**The documentation is not in the pack.** When MxScout shares a project that
+has descriptions, it also shares the documentation as Markdown, separately
+(`node agent.js docs`; from files, the Markdown copy exported from
+Documentation). It starts with `# MxScout documentation — <project>` and a
+header of `key: value` lines (`project`, `mendix`, `generated`, `modules`,
+`flows described: N of M`, `out of date: N`), then the documentation's pages
+in the order of its menu. A description whose flow changed since it was
+written ends in `(out of date — the microflow changed since this was
+written)`. It is what an agent wrote earlier: read it as a map to what matters,
+and take the facts from this pack.
+
 ## Risk triage (MxScout Dev, when there is any)
 
 ```

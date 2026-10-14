@@ -1,5 +1,26 @@
 # mendix-docs — changes
 
+## 3.4.0 – 2026-10-14
+
+- **`docs <app.mpr> [descriptions.json] [--out docs.md]`**: the documentation
+  as Markdown — the same text MxScout gives an agent it shares a project with:
+  the Markdown copy of the own modules under a header (project, Mendix version,
+  when, how many flows are described and how many are out of date), every
+  description whose flow changed since marked *out of date*. Without
+  descriptions it says plainly there is none yet.
+- **The skill asks before it starts.** With no argument it runs `status`, says
+  what it sees and asks what the person wants — describe, update, one more
+  process, a change, a ticket, or a question — and never starts a full
+  description unasked.
+- **The documentation is the map, the model is the proof.** For an update, a
+  process, a change, a ticket or a question the agent reads `docs.md` first
+  (processes, module notes, For developers, earlier changes and tickets), then
+  verifies in the pack what it pointed to, and says so where the two disagree.
+- **`question <what>`**: an answer about how the app works, citing the flows,
+  with no file written.
+- mendix-describe's checker: `todo` takes `docs.md` in place of a descriptions
+  file.
+
 ## 3.3.0 – 2026-10-14
 
 - **`ticket <text>`**: a ticket reported on the application checked against

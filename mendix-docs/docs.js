@@ -12,6 +12,10 @@
  *   node docs.js pack <app.mpr> <file>                    the whole pack, to a FILE — for check-descriptions.js
  *   node docs.js report <app.mpr> [descriptions.json]     the documentation, one HTML file
  *        [--out file.html] [--modules A,B] [--all]        (own modules unless --modules or --all)
+ *   node docs.js docs <app.mpr> [descriptions.json]       the documentation as Markdown, own modules, for an
+ *        [--out docs.md]                                  agent to read first: what was understood earlier, with
+ *                                                         a header and the out-of-date marks — what MxScout gives
+ *                                                         an agent it shares a project with (GET /api/agent/docs)
  *
  * <app.mpr> is the project's .mpr, or the folder that holds it. A Mendix 10+ project keeps its
  * documents in mprcontents/ beside the .mpr; that is read too, nothing else. Nothing is written into
@@ -109,8 +113,8 @@ function flag(name) { const i = args.indexOf(name); if (i < 0) return false; arg
 (async function () {
   const out = take('--out'), only = take('--modules'), all = flag('--all');
   const [cmd, where, arg] = args;
-  if (!/^(status|module|pack|report)$/.test(cmd || '')) {
-    console.error('Usage: node docs.js status <app.mpr> | module <app.mpr> <Name> [--out f] | pack <app.mpr> <file> | report <app.mpr> [descriptions.json] [--out f.html] [--modules A,B] [--all]');
+  if (!/^(status|module|pack|report|docs)$/.test(cmd || '')) {
+    console.error('Usage: node docs.js status <app.mpr> | module <app.mpr> <Name> [--out f] | pack <app.mpr> <file> | report <app.mpr> [descriptions.json] [--out f.html] [--modules A,B] [--all] | docs <app.mpr> [descriptions.json] [--out docs.md]');
     process.exit(2);
   }
   const E = engine();
@@ -144,7 +148,7 @@ function flag(name) { const i = args.indexOf(name); if (i < 0) return false; arg
     return;
   }
 
-  // ---- report: the file MxScout's "Export documentation" writes ----
+  // ---- the descriptions, for report and docs ----
   let note = 'without descriptions';
   if (arg) {
     let text;
@@ -155,6 +159,17 @@ function flag(name) { const i = args.indexOf(name); if (i < 0) return false; arg
     const st = E.MxDescribe.attach(data, parsed.value);
     note = st.described + ' flows described' + (st.stale ? ', ' + st.stale + ' out of date' : '') + (st.missing ? ', ' + st.missing + ' not yet' : '');
   } else E.MxDescribe.attach(data, null);
+
+  // ---- docs: the Markdown MxScout gives an agent, built by the same function (docs-file.js forAgent) ----
+  if (cmd === 'docs') {
+    const made = E.MxDocsFile.forAgent(E.MxDocsFile.withDerived(data));
+    if (!made) { console.log('No documentation yet: no descriptions.json was given, so nothing has been understood before. Read the pack by module.'); return; }
+    if (out) { fs.writeFileSync(out, made.text); console.log('Wrote ' + out + ' (' + made.text.split('\n').length + ' lines) — ' + note + '. What an agent understood earlier; verify against the pack.'); }
+    else process.stdout.write(made.text);
+    return;
+  }
+
+  // ---- report: the file MxScout's "Export documentation" writes ----
   const keep = {};
   const named = only ? only.split(',').map((s) => s.trim()).filter(Boolean) : null;
   data.modules.forEach((m) => { keep[m.name] = named ? named.indexOf(m.name) !== -1 : all || !m.marketplace; });
