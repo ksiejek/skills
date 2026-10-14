@@ -19,7 +19,27 @@ so it cannot drift. Edit `mendix-docs-source/`, never `mendix-docs/` by hand.
 
 A Polish guide to using the skills, with dated reviews: [`docs/przewodnik.md`](docs/przewodnik.md).
 
-## Install
+## Install — and keep up to date with git
+
+On a new machine (or for someone you give access to):
+
+```
+git clone https://github.com/ksiejek/skills.git ~/Projects/Skills
+~/Projects/Skills/install.sh
+```
+
+`install.sh` links each skill folder into `~/.claude/skills/` (an older copy
+there is moved to `~/.claude/skills-backup/`, never deleted). Because they are
+links, updating is only:
+
+```
+git -C ~/Projects/Skills pull
+```
+
+then start a new Claude Code session. `./install.sh mendix-docs` links one
+skill only.
+
+### Copying instead of linking
 
 Copy a skill's folder into `~/.claude/skills/<name>/`:
 

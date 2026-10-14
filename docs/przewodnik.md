@@ -360,3 +360,24 @@ mendix-docs od 3.1.0):
   traced, not summarised”, sekcja „A process page holds what was traced” w
   `page-patterns.md` i nowe punkty w checkliście. Wcześniej mówił, że procesy pisze się
   „z opisów części”.
+
+## Instalacja i aktualizacja z gita
+
+Na nowym komputerze albo u kogoś, komu dasz dostęp do repo:
+
+```bash
+git clone https://github.com/ksiejek/skills.git ~/Projects/Skills
+~/Projects/Skills/install.sh
+```
+
+`install.sh` podłącza każdy skill do `~/.claude/skills/` dowiązaniem do folderu w repo.
+Starą kopię przenosi do `~/.claude/skills-backup/` i niczego nie kasuje. Aktualizacja
+to samo:
+
+```bash
+git -C ~/Projects/Skills pull
+```
+
+i nowa sesja Claude Code. Zmiany w skillach robisz w repo Skills: mendix-docs w
+`mendix-docs-source/`, a potem uruchamiasz `./sync.sh`. mendix-describe zmieniasz najpierw
+w MxScout Dev, potem `./sync.sh`. Na koniec commit i push.
