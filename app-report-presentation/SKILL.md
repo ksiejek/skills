@@ -144,6 +144,23 @@ print stylesheet, and an address for every state worth sending to someone
 the same page order: drawings become tables and numbered lists. That copy is
 what reads well in AI tools and in a repository.
 
+**Start from `assets/`; never rebuild the components from scratch.** The kit
+already does all of the above, and looks the way these rules describe:
+
+1. Write the facts and texts as one data JSON — the schema is in
+   `assets/README.md`, a complete example in `assets/example-data.json`.
+   Put the technology's own words in `terms` and `flowKinds`.
+2. `node assets/build.js report-data.json Report.html --md Report.md`
+   (`--lang pl` or `de` for Polish or German labels). The result is the HTML
+   file and its Markdown copy.
+3. Open it and review it (`reference/checklist.md`): every page, both
+   themes, phone width.
+
+To restyle, change **only `assets/tokens.css`**; the components read nothing
+else. A page the kit does not have yet is added to `report.js` and
+`report.css` in the same style, not built beside them.
+`assets/template.html` is the example built — open it to see every page.
+
 If the person asks for another medium (a wiki space, a PDF, a Word file, a
 slide deck), keep the information architecture, the page patterns and the
 language rules; drop only what the medium cannot do (interactive filters
@@ -155,6 +172,10 @@ report never carries secrets or personal data, even when the source does —
 note that a key exists, never its value.
 
 ## Files
+
+- `assets/` — the visual kit: `tokens.css`, `report.css`, `icons.svg`,
+  `report.js`, `build.js`, the fonts, an example (`example-data.json`,
+  `template.html`) and `README.md` with the data schema.
 
 - `reference/information-architecture.md` — the menu: groups, page order,
   what each page answers, the landing page, how a reader moves between pages,

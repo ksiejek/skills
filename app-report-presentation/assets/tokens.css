@@ -1,0 +1,157 @@
+/* Report design tokens — every colour, size, radius, shadow and font the
+ * report uses. report.css reads ONLY these names, never a literal, so a
+ * report is restyled by changing this file and nothing else.
+ *
+ * Themes: <html data-theme="light|dark"> is the theme in effect. report.js
+ * sets it — from the reader's choice (Light · Dark · Auto, remembered) or,
+ * for Auto, from the system's prefers-color-scheme, following it live. With
+ * no attribute the light values apply.
+ *
+ * Roles, not hues (reference/visual-rules.md): chrome · panel/raised/sunken ·
+ * line/line-2 · ink/ink-2/muted · ONE accent · P1/P2/P3 (reserved: how bad,
+ * nothing else) · ok · six kind colours (what sort of thing). Each coloured
+ * role has its colour and a tinted background (--p1 + --p1-bg).
+ *
+ * Fonts: Instrument Sans and JetBrains Mono, SIL Open Font License 1.1, in
+ * fonts/ with their licence texts. build.js inlines them as data: URIs. */
+
+@font-face {
+  font-family: "Instrument Sans";
+  src: url("fonts/InstrumentSans.woff2") format("woff2");
+  font-weight: 400 700;
+  font-stretch: 75% 100%;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("fonts/JetBrainsMono.woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* type */
+  --font-ui: "Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  --text-2xs: 11px;    /* captions in upper case, tags */
+  --text-xs: 12px;     /* small grey lines, kind tags */
+  --text-sm: 13px;     /* interface text, lists, tables */
+  --text-md: 14px;     /* list titles, controls */
+  --text-base: 16px;   /* business prose */
+  --text-lg: 17px;     /* leads of a part or process */
+  --text-xl: 20px;     /* headings inside a page */
+  --text-2xl: 24px;    /* page and section headings */
+  --text-3xl: 32px;    /* the heading of one item (a process, a part) */
+  --text-display: 64px;/* the application's name, Overview only */
+  --lead: 22px;        /* the Overview's lead sentence */
+  --lh-ui: 1.5;
+  --lh-prose: 1.7;
+  --lh-head: 1.2;
+  --w-regular: 400; --w-medium: 500; --w-semibold: 600; --w-bold: 700;
+  --tracking-cap: .08em;
+  --measure: 760px;    /* business prose: ~80 characters a line */
+
+  /* space: inside a group ≤ 8px, between groups ≥ 16px */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+  --space-6: 48px;
+  --space-7: 64px;
+  --gutter: 40px;      /* page padding, wide */
+  --gutter-narrow: 16px;
+
+  /* shape */
+  --radius-xs: 4px; --radius-s: 7px; --radius-m: 9px; --radius-l: 12px; --radius-xl: 16px;
+  --sidebar-w: 240px;
+  --list-w: 340px;
+  --inset: 8px;        /* the page island's margin from the window edge */
+  --line-w: 1.5px;     /* drawings */
+  --motion: 120ms;
+}
+
+:root, [data-theme="light"] {
+  color-scheme: light;
+  --chrome: #ECEDF0;
+  --panel: #FFFFFF;
+  --raised: #F6F7F9;
+  --sunken: #FAFAFB;
+  --line: #E4E6EA;
+  --line-2: #D3D7DD;
+  --edge: #AEB4BD;
+  --ink: #121417;
+  --ink-2: #3B4048;
+  --muted: #646A74;
+  --seg-on: #FFFFFF;
+
+  --accent: #2A57F0;
+  --accent-text: #2148D0;
+  --accent-on: #FFFFFF;
+  --accent-soft: #EBF0FF;
+
+  --p1: #C9302C; --p1-bg: #FCE9E8;
+  --p2: #B45309; --p2-bg: #FBF0E2;
+  --p3: #5B616B; --p3-bg: #EEF0F3; --p3-bar: #B9BEC6;
+  --ok: #15803D; --ok-bg: #E7F6EC;
+  --ai: #6D4BC9;
+
+  /* kind colours: what sort of thing, the same in every drawing */
+  --k-read: #1A74B0;   --k-read-bg: #E6F1FA;
+  --k-change: #B4580A; --k-change-bg: #FBEFE3;
+  --k-save: #16804F;   --k-save-bg: #E5F4EC;
+  --k-call: #6D4BC9;   --k-call-bg: #F0EBFB;
+  --k-decide: #8A6A00; --k-decide-bg: #FBF5DD;
+  --k-var: #5B6472;    --k-var-bg: #EEF0F3;
+
+  --shadow-seg: 0 1px 2px rgba(16,18,23,.10);
+  --shadow-island: 0 1px 2px rgba(16,18,23,.05), 0 18px 40px -28px rgba(16,18,23,.25);
+  --shadow-box: 0 1px 2px rgba(16,18,23,.06), 0 8px 20px -14px rgba(16,18,23,.25);
+  --shadow-dialog: 0 40px 100px -30px rgba(16,18,23,.45);
+  --scrim: rgba(16,18,23,.36);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --chrome: #0A0B0D;
+  --panel: #111215;
+  --raised: #16171B;
+  --sunken: #0D0E11;
+  --line: #22252B;
+  --line-2: #30333A;
+  --edge: #3A3E46;
+  --ink: #EDEEF0;
+  --ink-2: #BCC1C9;
+  --muted: #8B919B;
+  --seg-on: #24272D;
+
+  --accent: #3461F5;
+  --accent-text: #8EA8FF;
+  --accent-on: #FFFFFF;
+  --accent-soft: #172038;
+
+  --p1: #FF6B6B; --p1-bg: #2E1618;
+  --p2: #F5A524; --p2-bg: #2B2112;
+  --p3: #A0A6B0; --p3-bg: #22252B; --p3-bar: #4A4F58;
+  --ok: #4ADE80; --ok-bg: #112417;
+  --ai: #B194F5;
+
+  --k-read: #5BB4F0;   --k-read-bg: #122331;
+  --k-change: #F09A52; --k-change-bg: #2A1D12;
+  --k-save: #4CC38A;   --k-save-bg: #11261C;
+  --k-call: #B194F5;   --k-call-bg: #211B32;
+  --k-decide: #E0C25B; --k-decide-bg: #28230F;
+  --k-var: #9AA4B2;    --k-var-bg: #1D2027;
+
+  --shadow-seg: none;
+  --shadow-island: 0 0 0 1px rgba(0,0,0,.25), 0 24px 60px -30px rgba(0,0,0,.7);
+  --shadow-box: 0 1px 0 rgba(0,0,0,.4), 0 10px 24px -14px rgba(0,0,0,.8);
+  --shadow-dialog: 0 40px 120px -20px rgba(0,0,0,.85);
+  --scrim: rgba(4,5,7,.66);
+}
+
+@media (min-width: 2000px) {
+  :root { --sidebar-w: 272px; --list-w: 380px; --gutter: 64px; --text-display: 76px; }
+}

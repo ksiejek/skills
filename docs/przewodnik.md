@@ -180,8 +180,10 @@ jasny i ciemny oraz język etykiet. Polecenia: `plan | build | review`.
 - „Structure” czy „Model”,
 - paleta kolorów,
 - P1–P3 jako uniwersalna skala,
-- terminy po polsku i po niemiecku,
-- szablon.
+- terminy po polsku i po niemiecku.
+
+Szablon już jest: `assets/` (tokeny, komponenty, ikony, `report.js`, `build.js`,
+przykład *Riverside Orders* jako `template.html`).
 
 Do czasu tych decyzji szkicu nie instaluję i nie commituję.
 

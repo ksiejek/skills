@@ -16,6 +16,14 @@ Write every size and colour as a named variable (CSS custom properties) in
 one place, then use only the names. Components never contain a literal
 colour or an ad-hoc pixel value.
 
+**This is already done in `assets/`.** `assets/tokens.css` holds the scales
+and the default palette below, light and dark; `assets/report.css` builds
+every component from those names only. Start from the kit: build the data
+JSON and run `assets/build.js`; to restyle, change only `tokens.css`; never
+rebuild the components from scratch. The rest of this file is what the kit
+does and why — read it to judge a report, or to extend the kit in its own
+style.
+
 ## Spacing scale
 
 ```

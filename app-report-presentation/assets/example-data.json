@@ -1,0 +1,395 @@
+{
+  "format": "app-report",
+  "version": 1,
+  "lang": "en",
+  "app": {
+    "name": "Riverside Orders",
+    "kind": "Web application",
+    "source": "TypeScript service · source of 14 Oct 2026",
+    "readAt": "2026-10-14",
+    "summary": "Riverside Orders is the back office of an online shop. It takes the orders the shop's website sends, checks and confirms them, takes the payment, and hands each order to the warehouse until it is shipped. Clerks work the order queue, warehouse staff pick and pack, and the finance team follows invoices and refunds. Customers never see it; they only get the e-mails it sends.",
+    "story": "An order starts on the shop's website, which posts it to `Orders.submitOrder` the moment the customer presses Pay. Riverside Orders looks the customer up by e-mail address, registers a new one when nobody matches, and asks the payment provider to authorise the amount. An order whose payment is refused never reaches a clerk; the customer is told at once and the order is closed as cancelled.\n\nAn authorised order is placed in the confirmation queue. A clerk checks the address and the lines, and confirms it. Confirming decides which warehouse ships it: the one in the customer's region when it has every line in stock, otherwise the central warehouse, otherwise a supplier who promises delivery within five days. When none of the three can, the order is back-ordered and the customer is asked whether to wait.\n\nOnce a warehouse holds the stock, the payment is captured and an invoice is written. A job retries captures that failed, three times over a day; after the third failure the order is put on hold for the finance team. The warehouse then picks, packs and ships the order, the carrier's tracking number is stored on it, and the customer gets the shipping e-mail.\n\nReturns come back through the same back office. A clerk registers the returned parcel, the warehouse checks its condition, and the finance team refunds the amount the condition allows. Every e-mail the application sends is logged in `Notifications.MailLog`, which is where support looks first when a customer says nothing arrived.",
+    "audience": [
+      { "who": "Clerks", "what": "Work the confirmation queue: check each new order's address and lines, confirm it, and answer customers about back-orders and returns." },
+      { "who": "Warehouse staff", "what": "Pick, pack and ship the orders assigned to their warehouse, and check the condition of returned parcels." },
+      { "who": "Finance team", "what": "Follow invoices, payments on hold and refunds, and close the month against the accounting system." },
+      { "who": "Administrators", "what": "Manage users and roles, the warehouses and the e-mail templates." }
+    ]
+  },
+  "provenance": { "by": "an agent", "written": "2026-10-14" },
+  "terms": {
+    "parts": { "label": "Modules", "one": "module", "other": "modules" },
+    "records": { "label": "Data model", "one": "table", "other": "tables" },
+    "screens": { "label": "Screens", "one": "screen", "other": "screens" }
+  },
+  "flowKinds": [
+    { "key": "svc", "tag": "SVC", "label": "Services", "one": "service", "other": "services" },
+    { "key": "job", "tag": "JOB", "label": "Jobs", "one": "job", "other": "jobs" }
+  ],
+
+  "processes": [
+    {
+      "name": "Placing and confirming an order",
+      "summary": "The website sends an order, the application authorises the payment, and a clerk confirms it; confirming chooses the warehouse that ships it, or back-orders it when none can.",
+      "story": "The case starts when the customer presses Pay on the shop's website. The website posts the order to `Orders.submitOrder`, which looks the customer up by e-mail address in `Customers.findCustomer`. A customer nobody matches is registered on the spot by `Customers.registerCustomer`, with the address from the order as their first delivery address.\n\nThe application then asks the payment provider to authorise the amount (`Billing.authorisePayment`). A refusal ends the case: the order is saved with the status Cancelled, and the customer gets the refusal e-mail. An authorised order is saved as Awaiting confirmation and appears in the clerks' queue on `Orders.OrderList`.\n\nA clerk opens it on `Orders.OrderDetail`, checks the address and the lines, and presses Confirm, which runs `Orders.confirmOrder`. Confirming tries three sources in turn, each by its own rule in `Warehouse.reserveStock`: the regional warehouse of the customer's postcode, when it holds every line; the central warehouse; and the preferred supplier, when its promised delivery is five days or less. The first that fits holds the stock.\n\nWhen none fits, the order is set to Back-ordered and the customer is asked by e-mail whether to wait or cancel. Otherwise the order becomes Confirmed and moves on to payment and invoicing.",
+      "steps": [
+        { "text": "The customer pays on the shop's website, which sends the order to the application", "who": "app" },
+        { "text": "The application finds the customer by e-mail address, or registers a new one", "who": "app" },
+        { "text": "The payment provider authorises the amount, or refuses it and the order is cancelled", "who": "app" },
+        { "text": "A clerk checks the address and the lines in the confirmation queue", "who": "person", "role": "Clerk" },
+        { "text": "The clerk confirms the order", "who": "person", "role": "Clerk" },
+        { "text": "The application reserves the stock in the first warehouse that can ship it, or back-orders the order", "who": "app" },
+        { "text": "The customer gets the confirmation e-mail, or the back-order question", "who": "app" }
+      ],
+      "flows": ["Orders.submitOrder", "Customers.findCustomer", "Customers.registerCustomer", "Billing.authorisePayment", "Orders.confirmOrder", "Warehouse.reserveStock", "Notifications.sendOrderMail"],
+      "diagram": [
+        { "step": "Receives the order from the website", "by": "app" },
+        { "decision": "Is the customer known?", "ways": [
+          { "label": "no", "then": [{ "step": "Registers the customer", "by": "app" }] },
+          { "label": "yes" }
+        ] },
+        { "decision": "Is the payment authorised?", "ways": [
+          { "label": "no", "then": [{ "step": "Sends the refusal e-mail", "by": "app" }], "end": "Order cancelled" },
+          { "label": "yes" }
+        ] },
+        { "step": "Checks the address and the lines", "who": "Clerk", "by": "person" },
+        { "step": "Confirms the order", "who": "Clerk", "by": "person" },
+        { "decision": "Regional warehouse has every line?", "ways": [
+          { "label": "found", "join": "Reserves the stock" },
+          { "label": "not found" }
+        ] },
+        { "decision": "Central warehouse has every line?", "ways": [
+          { "label": "found", "join": "Reserves the stock" },
+          { "label": "not found" }
+        ] },
+        { "decision": "Supplier delivers within 5 days?", "ways": [
+          { "label": "no", "then": [{ "step": "Asks the customer whether to wait", "by": "app" }], "end": "Back-ordered" },
+          { "label": "yes" }
+        ] },
+        { "step": "Reserves the stock", "by": "app" },
+        { "step": "Sends the confirmation e-mail", "by": "app" },
+        { "end": "Order confirmed" }
+      ]
+    },
+    {
+      "name": "Taking the payment and invoicing",
+      "summary": "When the stock is held, the application captures the authorised payment and writes the invoice; captures that fail are retried by a job, and an order is put on hold after the third failure.",
+      "story": "Payment starts as soon as a warehouse holds the stock for a confirmed order. `Billing.capturePayment` asks the payment provider to capture the amount authorised when the order was placed. A successful capture writes an invoice with the next number from the invoice series (`Billing.createInvoice`) and records the payment on it.\n\nA capture can fail for reasons the application cannot see: an expired authorisation, a card blocked since. The failure is recorded on `Billing.Payment` with the provider's reason, and the order stays Confirmed.\n\nThe job `Billing.retryFailedPayments` runs every four hours and tries each failed capture again, three times at most. After the third failure the order is set to On hold and appears on the finance team's list on `Billing.InvoiceList`, where someone contacts the customer. The provider also calls back the application's webhook when a capture settles; `Billing.handlePaymentWebhook` matches the call to the payment and marks it settled.",
+      "steps": [
+        { "text": "The application asks the payment provider to capture the authorised amount", "who": "app" },
+        { "text": "A successful capture writes the invoice and records the payment on it", "who": "app" },
+        { "text": "A failed capture is recorded with the provider's reason", "who": "app" },
+        { "text": "Every four hours a job retries failed captures, three times at most", "who": "app" },
+        { "text": "After the third failure the order is put on hold for the finance team", "who": "app" },
+        { "text": "The finance team contacts the customer about an order on hold", "who": "person", "role": "Finance team" }
+      ],
+      "flows": ["Billing.capturePayment", "Billing.createInvoice", "Billing.retryFailedPayments", "Billing.handlePaymentWebhook"],
+      "diagram": [
+        { "step": "Captures the authorised amount", "by": "app" },
+        { "decision": "Is the capture accepted?", "ways": [
+          { "label": "no", "then": [
+            { "step": "Records the failure and its reason", "by": "app" },
+            { "decision": "Failed three times?", "ways": [
+              { "label": "no", "then": [{ "step": "The job tries again in four hours", "by": "app" }], "join": "Captures the authorised amount" },
+              { "label": "yes", "then": [{ "step": "Contacts the customer", "who": "Finance team", "by": "person" }], "end": "Order on hold" }
+            ] }
+          ] },
+          { "label": "yes" }
+        ] },
+        { "step": "Writes the invoice", "by": "app" },
+        { "step": "Records the payment on the invoice", "by": "app" },
+        { "end": "Paid and invoiced" }
+      ]
+    },
+    {
+      "name": "Picking and shipping",
+      "summary": "Warehouse staff pick and pack each paid order on the pick list, book the carrier, and the customer gets the shipping e-mail with the tracking number.",
+      "story": "A paid order appears on `Warehouse.PickList` of the warehouse that holds its stock. Warehouse staff pick the lines, pack the parcel and press Ship, which runs `Warehouse.shipOrder`.\n\nShipping books the parcel with the carrier (`Warehouse.bookCarrier`), stores the tracking number on `Warehouse.Shipment`, takes the shipped quantities off the stock, and sets the order to Shipped. `Notifications.sendShippingMail` sends the customer the tracking link.\n\nEvery night `Warehouse.nightlyStockSync` compares the stock with the warehouse's own counts and corrects the difference.",
+      "steps": [
+        { "text": "A paid order appears on the pick list of the warehouse that holds its stock", "who": "app" },
+        { "text": "Warehouse staff pick the lines and pack the parcel", "who": "person", "role": "Warehouse staff" },
+        { "text": "Warehouse staff press Ship, and the application books the carrier", "who": "person", "role": "Warehouse staff" },
+        { "text": "The application stores the tracking number and takes the quantities off the stock", "who": "app" },
+        { "text": "The customer gets the shipping e-mail with the tracking link", "who": "app" }
+      ],
+      "flows": ["Warehouse.shipOrder", "Warehouse.bookCarrier", "Notifications.sendShippingMail", "Warehouse.nightlyStockSync"]
+    },
+    {
+      "name": "Returns and refunds",
+      "summary": "A clerk registers a returned parcel, the warehouse checks its condition, and the finance team refunds what the condition allows; returns after 30 days are refused.",
+      "story": "A return starts when a parcel arrives back at a warehouse. A clerk finds the order and registers the return on `Orders.OrderDetail`, which runs `Orders.registerReturn`. A return more than 30 days after delivery is refused, and the customer is told why.\n\nWarehouse staff check the condition of each line. An unused line is refunded in full and goes back to stock; a damaged line is refunded at half its price and written off. `Billing.refundPayment` asks the payment provider for the refund and writes a credit note against the invoice.",
+      "steps": [
+        { "text": "A clerk registers the returned parcel against its order", "who": "person", "role": "Clerk" },
+        { "text": "The application refuses returns more than 30 days after delivery", "who": "app" },
+        { "text": "Warehouse staff check the condition of each line", "who": "person", "role": "Warehouse staff" },
+        { "text": "The application refunds each line by its condition and writes a credit note", "who": "app" }
+      ],
+      "flows": ["Orders.registerReturn", "Billing.refundPayment", "Notifications.sendOrderMail"],
+      "diagram": [
+        { "step": "Registers the returned parcel", "who": "Clerk", "by": "person" },
+        { "decision": "Within 30 days of delivery?", "ways": [
+          { "label": "no", "then": [{ "step": "Tells the customer why", "by": "app" }], "end": "Return refused" },
+          { "label": "yes" }
+        ] },
+        { "step": "Checks the condition of each line", "who": "Warehouse staff", "by": "person" },
+        { "decision": "Is the line unused?", "ways": [
+          { "label": "damaged", "then": [{ "step": "Refunds half the price, writes the line off", "by": "app" }] },
+          { "label": "unused", "then": [{ "step": "Refunds in full, puts it back in stock", "by": "app" }] }
+        ] },
+        { "step": "Writes the credit note", "by": "app" },
+        { "end": "Refunded" }
+      ]
+    }
+  ],
+
+  "parts": [
+    {
+      "name": "Orders",
+      "summary": "The heart of the application: orders and their lines, the confirmation queue, the order's status from placed to shipped, and returns.",
+      "story": "Every order lives here, from the moment the website sends it to the moment it is shipped or returned. The module owns the order's status and is the only place that should change it; the other modules ask it to.\n\nClerks work in its two screens: the queue of orders awaiting confirmation and the order itself, where they confirm it, cancel it or register a return.\n\nA job closes orders whose payment was authorised but never captured within 14 days.",
+      "notes": [
+        { "title": "Statuses", "table": { "columns": ["Status", "Set by", "Next"], "rows": [["Awaiting confirmation", "Orders.submitOrder", "Confirmed, Cancelled"], ["Confirmed", "Orders.confirmOrder", "Back-ordered, Shipped, On hold"], ["Shipped", "Warehouse.shipOrder", "Returned"]] } },
+        { "title": "Layout", "items": ["Services that change an order end in `Order`; the status is changed only through `Orders.changeStatus`.", "Each screen's actions sit in a file of the same name."] }
+      ],
+      "dependsOn": [{ "name": "Customers", "count": 4 }, { "name": "Billing", "count": 3 }, { "name": "Warehouse", "count": 5 }, { "name": "Notifications", "count": 6 }],
+      "runs": [{ "kind": "job", "name": "Orders.expireUnpaidOrders", "schedule": "daily at 02:00", "on": true }, { "kind": "endpoint", "name": "POST /orders" }]
+    },
+    {
+      "name": "Customers",
+      "summary": "Customers and their delivery addresses, found by e-mail address and registered on their first order.",
+      "story": "A customer is found by e-mail address and registered on the first order nobody matches. The module keeps the delivery addresses and the region each postcode belongs to, which the warehouse rules use.\n\nClerks correct an address on the customer's screen when a parcel comes back undelivered.",
+      "dependsOn": [{ "name": "Notifications", "count": 1 }]
+    },
+    {
+      "name": "Billing",
+      "summary": "Payments, invoices and refunds: authorises and captures each order's payment, writes invoices and credit notes, and retries captures that failed.",
+      "story": "Billing talks to the payment provider in both directions: it asks for authorisations, captures and refunds, and receives the provider's webhook when a capture settles.\n\nInvoices take their number from one series per year. Credit notes refer to the invoice they correct.\n\nThe finance team works on the invoice list, which also shows orders on hold.",
+      "notes": [
+        { "title": "Talking to the payment provider", "text": "Every call goes through `PaymentConnector`, the vendor's client. Its settings are read once at start-up; a changed key needs a restart." }
+      ],
+      "dependsOn": [{ "name": "Orders", "count": 2 }, { "name": "PaymentConnector", "count": 7 }, { "name": "Notifications", "count": 1 }],
+      "runs": [{ "kind": "job", "name": "Billing.retryFailedPayments", "schedule": "every 4 hours", "on": true }, { "kind": "endpoint", "name": "POST /webhooks/payments" }]
+    },
+    {
+      "name": "Warehouse",
+      "summary": "Stock per warehouse, the rules that choose which warehouse ships an order, the pick list, shipments and the carrier booking.",
+      "story": "Each warehouse keeps its own stock of each item. When a clerk confirms an order, the module tries the regional warehouse, the central one and the preferred supplier in turn, and reserves the stock in the first that can ship every line.\n\nWarehouse staff work on the pick list and ship from it; shipping books the carrier and stores the tracking number.",
+      "dependsOn": [{ "name": "Orders", "count": 3 }, { "name": "Notifications", "count": 1 }],
+      "runs": [{ "kind": "job", "name": "Warehouse.nightlyStockSync", "schedule": "nightly at 01:30", "on": false }]
+    },
+    {
+      "name": "Notifications",
+      "summary": "Every e-mail the application sends — confirmations, refusals, back-order questions, shipping and refunds — from templates, each one logged.",
+      "story": "Notifications renders an e-mail from its template, sends it through the mail service and logs it in `Notifications.MailLog`. Support looks there first when a customer says nothing arrived.",
+      "dependsOn": []
+    },
+    {
+      "name": "PaymentConnector",
+      "thirdParty": true,
+      "summary": "The payment provider's client, taken unchanged from the vendor.",
+      "dependsOn": []
+    }
+  ],
+
+  "flows": [
+    {
+      "name": "Orders.submitOrder", "kind": "svc",
+      "summary": "Receives an order from the shop's website, finds or registers the customer, asks for the payment's authorisation and puts the order in the confirmation queue.",
+      "params": [{ "name": "order", "type": "OrderRequest" }], "returns": "Order",
+      "from": ["POST /orders (website)"], "roles": ["website client"],
+      "calls": ["Customers.findCustomer", "Customers.registerCustomer", "Billing.authorisePayment", "Notifications.sendOrderMail"],
+      "steps": 14,
+      "drawing": [
+        { "step": "Checks the request", "kind": "var", "value": "lines, address, amount" },
+        { "step": "Finds the customer", "kind": "call", "value": "Customers.findCustomer" },
+        { "decision": "Customer found?", "ways": [
+          { "label": "no", "then": [{ "step": "Registers the customer", "kind": "call", "value": "Customers.registerCustomer" }] },
+          { "label": "yes" }
+        ] },
+        { "step": "Creates the order", "kind": "change", "value": "Order, status 'New'" },
+        { "loop": "For each line in the request", "body": [
+          { "step": "Creates the order line", "kind": "change", "value": "OrderLine" },
+          { "step": "Saves the line", "kind": "save" }
+        ] },
+        { "step": "Asks for the authorisation", "kind": "call", "value": "Billing.authorisePayment" },
+        { "decision": "Authorised?", "ways": [
+          { "label": "no", "then": [{ "step": "Sets the status", "kind": "change", "value": "'Cancelled'" }, { "step": "Sends the refusal", "kind": "message", "value": "refusal e-mail" }], "end": "Returns the refusal" },
+          { "label": "yes" }
+        ] },
+        { "step": "Sets the status", "kind": "change", "value": "'Awaiting confirmation'" },
+        { "step": "Saves the order", "kind": "save" },
+        { "end": "Returns the order", "returns": "Order" }
+      ]
+    },
+    { "name": "Orders.confirmOrder", "kind": "svc", "summary": "Confirms an order a clerk checked: reserves its stock through the warehouse rules, or back-orders it, and sends the matching e-mail.", "params": [{ "name": "orderId", "type": "string" }], "returns": "Order", "from": ["Orders.OrderDetail"], "roles": ["Clerk"], "calls": ["Warehouse.reserveStock", "Notifications.sendOrderMail", "Orders.changeStatus"], "steps": 11 },
+    { "name": "Orders.changeStatus", "kind": "svc", "summary": "Sets an order's status and writes the history record; the only place the status should change.", "params": [{ "name": "order", "type": "Order" }, { "name": "status", "type": "OrderStatus" }], "from": ["Orders.confirmOrder", "Warehouse.shipOrder"], "steps": 6 },
+    { "name": "Orders.cancelOrder", "kind": "svc", "summary": "Cancels an order on a clerk's request and releases its reserved stock.", "params": [{ "name": "orderId", "type": "string" }], "from": ["Orders.OrderDetail"], "roles": ["Clerk"], "calls": ["Warehouse.releaseStock"], "steps": 8 },
+    { "name": "Orders.registerReturn", "kind": "svc", "summary": "Registers a returned parcel against its order and refuses it after 30 days.", "params": [{ "name": "orderId", "type": "string" }], "from": ["Orders.OrderDetail"], "roles": ["Clerk"], "calls": ["Billing.refundPayment"], "steps": 12 },
+    { "name": "Orders.expireUnpaidOrders", "kind": "job", "summary": "Closes orders whose payment was authorised but never captured within 14 days.", "from": ["schedule: daily at 02:00"], "steps": 9 },
+    { "name": "Customers.findCustomer", "kind": "svc", "summary": "Finds a customer by e-mail address, ignoring case.", "params": [{ "name": "email", "type": "string" }], "returns": "Customer or nothing", "from": ["Orders.submitOrder"], "steps": 3 },
+    { "name": "Customers.registerCustomer", "kind": "svc", "summary": "Registers a new customer with the order's address as their first delivery address.", "params": [{ "name": "request", "type": "OrderRequest" }], "returns": "Customer", "from": ["Orders.submitOrder"], "steps": 7 },
+    { "name": "Billing.authorisePayment", "kind": "svc", "summary": "Asks the payment provider to authorise an order's amount.", "params": [{ "name": "order", "type": "Order" }], "returns": "Authorisation", "from": ["Orders.submitOrder"], "calls": ["PaymentConnector.authorise"], "steps": 6 },
+    {
+      "name": "Billing.capturePayment", "kind": "svc",
+      "summary": "Captures an authorised payment, writes the invoice, and records a failure with the provider's reason.",
+      "params": [{ "name": "order", "type": "Order" }], "returns": "Payment",
+      "from": ["Warehouse.reserveStock", "Billing.retryFailedPayments"], "calls": ["PaymentConnector.capture", "Billing.createInvoice"],
+      "steps": 10,
+      "drawing": [
+        { "step": "Reads the payment", "kind": "read", "value": "of the order" },
+        { "step": "Asks for the capture", "kind": "call", "value": "PaymentConnector.capture" },
+        { "decision": "Accepted?", "ways": [
+          { "label": "no", "then": [{ "step": "Records the failure", "kind": "change", "value": "reason, attempts + 1" }, { "step": "Saves the payment", "kind": "save" }], "end": "Returns the failure" },
+          { "label": "yes" }
+        ] },
+        { "step": "Writes the invoice", "kind": "call", "value": "Billing.createInvoice" },
+        { "step": "Marks the payment captured", "kind": "change", "value": "'Captured'" },
+        { "step": "Saves the payment", "kind": "save" },
+        { "end": "Returns the payment", "returns": "Payment" }
+      ]
+    },
+    { "name": "Billing.createInvoice", "kind": "svc", "summary": "Writes an invoice with the next number of the year's series.", "params": [{ "name": "order", "type": "Order" }], "returns": "Invoice", "from": ["Billing.capturePayment"], "steps": 8 },
+    { "name": "Billing.refundPayment", "kind": "svc", "summary": "Asks the provider for a refund and writes a credit note against the invoice.", "params": [{ "name": "returnId", "type": "string" }], "from": ["Orders.registerReturn"], "calls": ["PaymentConnector.refund"], "steps": 9 },
+    { "name": "Billing.handlePaymentWebhook", "kind": "svc", "summary": "Receives the provider's call when a capture settles and marks the payment settled.", "params": [{ "name": "event", "type": "ProviderEvent" }], "from": ["POST /webhooks/payments"], "steps": 7 },
+    { "name": "Billing.retryFailedPayments", "kind": "job", "summary": "Tries failed captures again, three times at most, and puts the order on hold after the third failure.", "from": ["schedule: every 4 hours"], "calls": ["Billing.capturePayment", "Orders.changeStatus"], "steps": 12 },
+    { "name": "Warehouse.reserveStock", "kind": "svc", "summary": "Tries the regional warehouse, the central one and the supplier in turn, and reserves the stock in the first that can ship every line.", "params": [{ "name": "order", "type": "Order" }], "returns": "Reservation or nothing", "from": ["Orders.confirmOrder"], "calls": ["Billing.capturePayment"], "steps": 18 },
+    { "name": "Warehouse.releaseStock", "kind": "svc", "summary": "Releases the stock reserved for an order.", "params": [{ "name": "order", "type": "Order" }], "from": ["Orders.cancelOrder"], "steps": 5 },
+    { "name": "Warehouse.shipOrder", "kind": "svc", "summary": "Books the carrier, stores the tracking number, takes the quantities off the stock and sets the order to Shipped.", "params": [{ "name": "orderId", "type": "string" }], "from": ["Warehouse.PickList"], "roles": ["Warehouse staff"], "calls": ["Warehouse.bookCarrier", "Orders.changeStatus", "Notifications.sendShippingMail"], "steps": 15 },
+    { "name": "Warehouse.bookCarrier", "kind": "svc", "summary": "Books a parcel with the carrier and returns the tracking number.", "params": [{ "name": "shipment", "type": "Shipment" }], "returns": "tracking number", "from": ["Warehouse.shipOrder"], "steps": 6 },
+    { "name": "Warehouse.nightlyStockSync", "kind": "job", "summary": "Compares the stock with each warehouse's own counts and corrects the difference.", "from": ["schedule: nightly at 01:30 (switched off)"], "steps": 21 },
+    { "name": "Notifications.sendOrderMail", "kind": "svc", "summary": "Sends one of the order e-mails from its template and logs it.", "params": [{ "name": "order", "type": "Order" }, { "name": "template", "type": "string" }], "from": ["Orders.submitOrder", "Orders.confirmOrder"], "steps": 5 },
+    { "name": "Notifications.sendShippingMail", "kind": "svc", "summary": "Sends the shipping e-mail with the tracking link and logs it.", "params": [{ "name": "shipment", "type": "Shipment" }], "from": ["Warehouse.shipOrder"], "steps": 4 },
+    { "name": "Notifications.legacyDigest", "kind": "svc", "summary": "Builds a daily digest of orders; nothing calls it.", "steps": 22 }
+  ],
+
+  "screens": [
+    { "name": "Orders.OrderList", "summary": "The clerks' confirmation queue: orders awaiting confirmation, oldest first.", "roles": ["Clerk"], "openedFrom": ["main menu"], "starts": ["Orders.cancelOrder"], "shows": ["Orders.Order"] },
+    { "name": "Orders.OrderDetail", "summary": "One order: its lines, address, payment and history, with Confirm, Cancel and Register return.", "roles": ["Clerk", "Finance team"], "openedFrom": ["Orders.OrderList", "Billing.InvoiceList"], "starts": ["Orders.confirmOrder", "Orders.cancelOrder", "Orders.registerReturn"], "shows": ["Orders.Order", "Orders.OrderLine", "Billing.Payment"] },
+    { "name": "Customers.CustomerDetail", "summary": "A customer's details and delivery addresses, where clerks correct an address.", "roles": ["Clerk"], "openedFrom": ["Orders.OrderDetail"], "shows": ["Customers.Customer", "Customers.Address"] },
+    { "name": "Billing.InvoiceList", "summary": "Invoices, credit notes and the orders on hold, for the finance team.", "roles": ["Finance team"], "openedFrom": ["main menu"], "shows": ["Billing.Invoice", "Billing.Payment"] },
+    { "name": "Warehouse.PickList", "summary": "The paid orders a warehouse has to ship, with Ship on each.", "roles": ["Warehouse staff"], "openedFrom": ["main menu"], "starts": ["Warehouse.shipOrder"], "shows": ["Orders.Order", "Warehouse.Shipment"] }
+  ],
+
+  "dataModel": [
+    { "name": "Orders.Order", "summary": "What a customer ordered, from placing to shipping or return.", "fields": [{ "name": "number", "type": "string" }, { "name": "status", "type": "OrderStatus" }, { "name": "total", "type": "decimal" }, { "name": "placedAt", "type": "timestamp" }], "relations": [{ "to": "Customers.Customer", "many": "*-1" }, { "to": "Orders.OrderLine", "many": "1-*" }], "access": [{ "role": "Clerk", "read": true, "write": true }, { "role": "Warehouse staff", "read": true }, { "role": "Finance team", "read": true }] },
+    { "name": "Orders.OrderLine", "summary": "One item of an order, with its quantity and price.", "fields": [{ "name": "sku", "type": "string" }, { "name": "quantity", "type": "integer" }, { "name": "price", "type": "decimal" }], "relations": [{ "to": "Orders.Order", "many": "*-1" }] },
+    { "name": "Customers.Customer", "summary": "Someone who ordered at least once, known by e-mail address.", "fields": [{ "name": "email", "type": "string" }, { "name": "name", "type": "string" }], "relations": [{ "to": "Customers.Address", "many": "1-*" }], "access": [{ "role": "Clerk", "read": true, "write": true }, { "role": "Finance team", "read": true }] },
+    { "name": "Customers.Address", "summary": "A delivery address and the region its postcode belongs to.", "fields": [{ "name": "street", "type": "string" }, { "name": "postcode", "type": "string" }, { "name": "region", "type": "Region" }] },
+    { "name": "Billing.Payment", "summary": "An order's payment: authorised, captured, failed or refunded, with the provider's reference.", "fields": [{ "name": "status", "type": "PaymentStatus" }, { "name": "attempts", "type": "integer" }, { "name": "providerRef", "type": "string" }, { "name": "failure", "type": "string" }], "relations": [{ "to": "Orders.Order", "many": "1-1" }] },
+    { "name": "Billing.Invoice", "summary": "An invoice or credit note, numbered per year.", "fields": [{ "name": "number", "type": "string" }, { "name": "amount", "type": "decimal" }, { "name": "isCredit", "type": "boolean" }], "relations": [{ "to": "Orders.Order", "many": "*-1" }] },
+    { "name": "Warehouse.StockItem", "summary": "How many of an item a warehouse holds and has reserved.", "fields": [{ "name": "sku", "type": "string" }, { "name": "onHand", "type": "integer" }, { "name": "reserved", "type": "integer" }] },
+    { "name": "Warehouse.Shipment", "summary": "A parcel booked with the carrier, with its tracking number.", "fields": [{ "name": "trackingNo", "type": "string" }, { "name": "shippedAt", "type": "timestamp" }], "relations": [{ "to": "Orders.Order", "many": "*-1" }] },
+    { "name": "Notifications.MailLog", "summary": "Every e-mail sent: to whom, which template, when, and whether the mail service took it.", "fields": [{ "name": "to", "type": "string" }, { "name": "template", "type": "string" }, { "name": "sentAt", "type": "timestamp" }, { "name": "accepted", "type": "boolean" }] }
+  ],
+
+  "architecture": {
+    "context": {
+      "nodes": [
+        { "id": "clerks", "name": "Clerks", "note": "confirm orders", "kind": "person", "group": "People" },
+        { "id": "wh", "name": "Warehouse staff", "note": "pick and ship", "kind": "person", "group": "People" },
+        { "id": "fin", "name": "Finance team", "note": "invoices, refunds", "kind": "person", "group": "People" },
+        { "id": "app", "name": "Riverside Orders", "note": "back office", "kind": "app" },
+        { "id": "shop", "name": "Shop website", "note": "REST, API key", "kind": "system", "group": "Systems that send data" },
+        { "id": "pay", "name": "Payment provider", "note": "REST + webhook", "kind": "system", "group": "Both ways" },
+        { "id": "mail", "name": "Mail service", "note": "SMTP", "kind": "system", "group": "Systems it calls" },
+        { "id": "carrier", "name": "Carrier", "note": "REST", "kind": "system", "group": "Systems it calls" },
+        { "id": "acct", "name": "Accounting", "note": "file export", "kind": "system", "group": "Systems it calls" }
+      ],
+      "links": [
+        { "from": "clerks", "to": "app", "label": "browser" },
+        { "from": "wh", "to": "app", "label": "browser" },
+        { "from": "fin", "to": "app", "label": "browser" },
+        { "from": "shop", "to": "app", "label": "orders" },
+        { "from": "app", "to": "pay", "label": "payments" },
+        { "from": "pay", "to": "app", "label": "settlements" },
+        { "from": "app", "to": "mail", "label": "e-mails" },
+        { "from": "app", "to": "carrier", "label": "bookings" },
+        { "from": "app", "to": "acct", "label": "invoices" }
+      ]
+    },
+    "containers": {
+      "nodes": [
+        { "id": "staff", "name": "Staff", "note": "clerks, warehouse, finance", "kind": "person" },
+        { "id": "shop", "name": "Shop website", "note": "sends orders", "kind": "system" },
+        { "id": "ui", "name": "Back-office UI", "note": "browser screens", "kind": "part" },
+        { "id": "api", "name": "REST API", "note": "orders, webhooks", "kind": "part" },
+        { "id": "jobs", "name": "Job runner", "note": "3 scheduled jobs", "kind": "part" },
+        { "id": "db", "name": "Database", "note": "orders, stock, invoices", "kind": "store" },
+        { "id": "mail", "name": "Mail service", "note": "SMTP", "kind": "system" },
+        { "id": "pay", "name": "Payment provider", "note": "REST", "kind": "system" }
+      ],
+      "links": [
+        { "from": "staff", "to": "ui", "label": "HTTPS" },
+        { "from": "shop", "to": "api", "label": "orders" },
+        { "from": "ui", "to": "db", "label": "reads, writes" },
+        { "from": "api", "to": "pay", "label": "payments" },
+        { "from": "jobs", "to": "db", "label": "retries" },
+        { "from": "api", "to": "mail", "label": "e-mails" }
+      ]
+    },
+    "access": [
+      { "role": "Clerk", "parts": { "Orders": "read, write", "Customers": "read, write", "Notifications": "read" } },
+      { "role": "Warehouse staff", "parts": { "Orders": "read", "Warehouse": "read, write" } },
+      { "role": "Finance team", "parts": { "Orders": "read", "Billing": "read, write", "Customers": "read" } },
+      { "role": "Administrator", "parts": { "Orders": "read, write", "Customers": "read, write", "Billing": "read, write", "Warehouse": "read, write", "Notifications": "read, write" } }
+    ],
+    "open": [
+      "Where the application is hosted, and how many instances run, cannot be told from the source.",
+      "Which database it uses in production: the source names a driver, the connection is set per environment.",
+      "Whether staff sign in through a company identity provider: the source checks a session, not where it came from.",
+      "Whether the nightly stock sync, switched off in the source, runs in production."
+    ]
+  },
+
+  "themes": {
+    "access": { "name": "Missing access checks", "text": "Logic that acts on any record without checking who calls it." },
+    "secrets": { "name": "Secrets in the source", "text": "Keys and passwords written where anyone with the source can read them." },
+    "logic": { "name": "Logic and data errors", "text": "Conditions and calculations that give the wrong answer in some cases." },
+    "silent": { "name": "Errors that vanish", "text": "Failures caught and dropped, so nobody learns something went wrong." },
+    "loops": { "name": "Saves in loops", "text": "Records saved one at a time inside a loop: slow, and half done when one fails." },
+    "schedule": { "name": "Relies on switched-off jobs", "text": "Work that depends on scheduled jobs switched off in the source." },
+    "dead": { "name": "Unused or duplicated", "text": "Code nothing uses, or the same logic kept twice." },
+    "hardcoded": { "name": "Values written into code", "text": "Values that belong in configuration or constants." }
+  },
+
+  "risks": [
+    { "id": "R-001", "level": "P1", "theme": "access", "title": "Any signed-in user can confirm or cancel any order", "detail": "`Orders.confirmOrder` and `Orders.cancelOrder` check that a session exists, not that its user is a clerk. A warehouse or finance account can call them directly and change an order's course, although no screen of theirs offers the buttons.", "where": ["Orders.confirmOrder", "Orders.cancelOrder"], "fix": "Check the Clerk role at the start of both services, the way `Orders.registerReturn` already does." },
+    { "id": "R-002", "level": "P1", "theme": "secrets", "title": "The payment provider's live key is written in the source", "detail": "The key `PaymentConnector` uses in production is a constant in the Billing module's settings file. Anyone who can read the repository can take payments and refunds in the shop's name.", "where": ["Billing.authorisePayment", "Billing.capturePayment", "Billing.refundPayment"], "fix": "Read the key from the environment, and have the provider replace the key that was committed." },
+    { "id": "R-003", "level": "P1", "theme": "access", "title": "The payment webhook accepts calls without checking the signature", "detail": "`Billing.handlePaymentWebhook` marks a payment settled on any call that names a known reference. Someone who learns a reference can mark an unpaid order as paid.", "where": ["Billing.handlePaymentWebhook"], "fix": "Verify the provider's signature header before reading the event." },
+    { "id": "R-004", "level": "P2", "theme": "logic", "title": "A partly stocked regional warehouse is skipped even when the rest is central", "detail": "The warehouse rules need one warehouse to hold every line. An order whose lines are split between the regional and the central warehouse goes to the supplier or is back-ordered, although both together could ship it.", "where": ["Warehouse.reserveStock"], "fix": "Decide with the business whether split shipments are allowed; if they are, add the rule before the supplier's." },
+    { "id": "R-005", "level": "P2", "theme": "silent", "title": "A failed e-mail is logged as sent", "detail": "`Notifications.sendOrderMail` writes the log entry before the mail service answers and catches its error without changing the entry. Support then tells a customer an e-mail went out that never did.", "where": ["Notifications.sendOrderMail", "Notifications.sendShippingMail"], "fix": "Write the log entry after the mail service answers, with `accepted` set from the answer." },
+    { "id": "R-006", "level": "P2", "theme": "schedule", "title": "The stock is never corrected while the nightly sync is switched off", "detail": "`Warehouse.nightlyStockSync` is switched off in the source. Nothing else corrects the stock against the warehouses' counts, so the warehouse rules work on numbers that drift.", "where": ["Warehouse.nightlyStockSync", "Warehouse.reserveStock"], "fix": "Confirm whether the job runs in production; if it does not, switch it on or document who corrects the stock." },
+    { "id": "R-007", "level": "P3", "theme": "loops", "title": "Order lines are saved one at a time", "detail": "`Orders.submitOrder` saves each line inside the loop that creates it. An order with many lines is slow, and a failure halfway leaves half an order.", "where": ["Orders.submitOrder"], "fix": "Create the lines in the loop and save them together after it, in the same transaction as the order." },
+    { "id": "R-008", "level": "P3", "theme": "dead", "title": "A digest service nothing calls", "detail": "`Notifications.legacyDigest` is not called from any service, screen or job.", "where": ["Notifications.legacyDigest"], "fix": "Remove it, after checking that no report outside the application calls it by name." },
+    { "id": "R-009", "level": "P3", "theme": "hardcoded", "title": "The 30-day return window and the 5-day supplier promise are written into code", "detail": "Both limits are literals in the services that apply them. Changing either means a release.", "where": ["Orders.registerReturn", "Warehouse.reserveStock"], "fix": "Move both into the settings, with today's values as defaults." }
+  ],
+
+  "quality": [
+    { "id": "unused", "group": "Unused", "warn": true, "count": 1, "total": 23, "label": "Services nothing reaches", "sub": "No caller, no screen, no job, no endpoint", "explain": "A service counted here is not called by any other service, not started from a screen, a job or an endpoint. Code that only a script outside the application calls by name shows up here too, so check before removing it.", "rule": { "quote": "Remove code that nothing calls once you have checked that nothing outside the repository uses it.", "source": "Team guideline · CONTRIBUTING.md" }, "items": { "columns": ["Service", "Lines"], "rows": [["Notifications.legacyDigest", "22"]] } },
+    { "id": "size", "group": "Size", "warn": false, "count": 3, "total": 23, "label": "Services over 15 steps", "sub": "Measured on the steps each service takes", "explain": "Long services are harder to read and to test. The count says nothing about whether the length is justified: a validation that checks twenty fields is long by nature.", "items": { "columns": ["Service", "Steps"], "rows": [["Warehouse.reserveStock", "18"], ["Warehouse.nightlyStockSync", "21"], ["Notifications.legacyDigest", "22"]] } },
+    { "id": "jobs", "group": "Background", "warn": true, "count": 1, "total": 3, "label": "Jobs switched off", "sub": "As set in the source", "explain": "A job switched off in the source may still run in production, where the schedule is set per environment. This is what the source says, not what runs.", "items": { "columns": ["Job", "Schedule", "State"], "rows": [["Orders.expireUnpaidOrders", "daily at 02:00", "on"], ["Billing.retryFailedPayments", "every 4 hours", "on"], ["Warehouse.nightlyStockSync", "nightly at 01:30", "off"]] } },
+    { "id": "auth", "group": "Security", "warn": true, "count": 3, "total": 21, "label": "Services without a role check", "sub": "Started from a screen or an endpoint", "explain": "Each service a person or another system can start should check who is calling. Services only other services call are left out. A check done by a shared middleware the analysis could not follow would also show up here.", "rule": { "quote": "Every service started from outside checks the caller's role before it reads or changes data.", "source": "Team guideline · SECURITY.md" }, "items": { "columns": ["Service", "Started from"], "rows": [["Orders.confirmOrder", "Orders.OrderDetail"], ["Orders.cancelOrder", "Orders.OrderDetail"], ["Billing.handlePaymentWebhook", "POST /webhooks/payments"]] } },
+    { "id": "naming", "group": "Naming", "warn": false, "count": 0, "total": 23, "label": "Names outside the convention", "sub": "Verb first, camel case", "explain": "Every service name starts with a verb in camel case, as the team's guideline asks.", "rule": { "quote": "Service names start with a verb: submitOrder, not orderSubmit.", "source": "Team guideline · CONTRIBUTING.md" }, "items": { "columns": ["Service"], "rows": [] } }
+  ],
+
+  "forDevelopers": {
+    "where": [
+      { "topic": "Where an order's status changes", "place": "Only in `Orders.changeStatus`, which also writes the history record. `Warehouse.shipOrder` and `Orders.confirmOrder` call it." },
+      { "topic": "Which warehouse ships an order", "place": "`Warehouse.reserveStock`: three rules tried in turn — regional, central, supplier." },
+      { "topic": "Why a customer says no e-mail arrived", "place": "`Notifications.MailLog`; but see `R-005` before trusting its `accepted` column." },
+      { "topic": "Where the payment provider is called", "place": "Only through `PaymentConnector`, from the Billing services." }
+    ],
+    "conventions": [
+      { "pattern": "submit…, confirm…, cancel…", "meaning": "A service a person or a system starts; checks the caller's role.", "count": 9 },
+      { "pattern": "find…, read…", "meaning": "Reads only; never saves.", "count": 2 },
+      { "pattern": "…Job, expire…, retry…", "meaning": "Started by the job runner on a schedule.", "count": 3 },
+      { "pattern": "send…Mail", "meaning": "Renders a template, sends it and logs it.", "count": 2 }
+    ],
+    "pitfalls": [
+      "Changing an order's status anywhere but `Orders.changeStatus` skips the history record, and the finance team's month-end report misses the order.",
+      "`Warehouse.reserveStock` captures the payment as its last step; a change that reserves stock elsewhere must capture it too.",
+      "The payment provider's settings are read once at start-up; a changed key needs a restart.",
+      "Invoice numbers come from one series per year: never create an invoice outside `Billing.createInvoice`."
+    ]
+  }
+}

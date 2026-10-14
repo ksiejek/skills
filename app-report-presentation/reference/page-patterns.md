@@ -4,6 +4,13 @@ How each page type is laid out: what is shown first, the at-a-glance blocks,
 when to use a list, a table or prose, the two layers of narrative, when a
 diagram helps, what an empty state says, and how counts and badges look.
 
+Every pattern here is built in `assets/` (`report.js` draws the pages from a
+data JSON, `report.css` styles them; `assets/template.html` shows them all on
+an example). Start from the kit: build the data JSON and run
+`assets/build.js`; change only `assets/tokens.css` to restyle; never rebuild
+the components from scratch. The kit's data model page is a list of records
+(fields, relations, access), not yet the drawing described below.
+
 ## Shared parts
 
 ### The page header

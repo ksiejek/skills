@@ -9,7 +9,7 @@ The folder name is the skill's `name:` in its `SKILL.md`.
 |---|---|---|
 | `mendix-describe/` | Writes business-readable documentation of a Mendix app from an MxScout AI pack (a `.mxscout-ai-pack.md` file, or a running MxScout sharing a project with an agent) as a descriptions file MxScout imports. | **The MxScout Dev repository** (`skills/mendix-describe/`), which has everything the public MxScout's copy has plus risk triage (risk ids, re-checking fixed risks, false positives, risks people raised in comments). This folder is a copy of the Dev one. |
 | `mendix-docs/` | Documents a Mendix app straight from its `.mpr`, with nothing else running, as one offline HTML report (the same report MxScout exports). | **Here.** `mendix-docs/` is the installable copy, packed from `mendix-docs-source/`. |
-| `app-report-presentation/` | How to lay out any application's documentation as a readable report or small portal. **Draft for review**, as its `SKILL.md` says. | **Here.** |
+| `app-report-presentation/` | How to lay out any application's documentation as a readable report or small portal, with a ready visual kit in `assets/` (tokens, components, icons, renderer, `build.js`, an example report). **Draft for review**, as its `SKILL.md` says. | **Here.** |
 
 `mendix-docs-source/` holds mendix-docs' own files (`SKILL.md`, `docs.js`,
 `README.md`, `CHANGELOG.md`) and the two tools that build and check it:
