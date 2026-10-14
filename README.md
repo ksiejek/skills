@@ -17,8 +17,7 @@ The folder name is the skill's `name:` in its `SKILL.md`.
 engine, the checker, the references) is taken from MxScout when it is packed,
 so it cannot drift. Edit `mendix-docs-source/`, never `mendix-docs/` by hand.
 
-A Polish guide to using the Mendix skills lives in advisor-bridge:
-`guides/mendix-skills.md`.
+A Polish guide to using the skills, with dated reviews: [`docs/przewodnik.md`](docs/przewodnik.md).
 
 ## Install
 
