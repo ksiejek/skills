@@ -1,6 +1,6 @@
 ---
 name: mendix-describe
-description: Write business-readable documentation of a Mendix application from an MxScout AI pack — what the application is for, its main processes and its modules, each as a short summary and a long description, and one or two sentences on each microflow and nanoflow, the risks in the model ranked P1–P3, and what a developer should know before changing it — as a descriptions file MxScout imports into its Documentation. Use when given a `.mxscout-ai-pack.md` file, or an address and token of a running MxScout that is sharing a project, or asked to describe or document a Mendix app for the business from MxScout.
+description: Write business-readable documentation of a Mendix application from an MxScout AI pack — what the application is for, its main processes and its modules, each as a short summary and a long description, and one or two sentences on each microflow and nanoflow, the risks in the model ranked P1–P3, and what a developer should know before changing it — as a descriptions file MxScout imports into its Documentation. Also works out a change the person wants made — how that part works now and a proposed solution in Mendix terms — for MxScout's Changes page. Use when given a `.mxscout-ai-pack.md` file, or an address and token of a running MxScout that is sharing a project, or asked to describe or document a Mendix app for the business from MxScout, or to work out a change to it ("I want customers to be able to cancel an order").
 ---
 
 # Describing a Mendix application for the business
@@ -204,6 +204,72 @@ replaces the one kept, every process included, and the descriptions of flows,
 modules and risks stay. You cannot read what MxScout keeps, so write every
 process the overview should have, the ones you were asked for among them.
 
+## A change, when the person asks
+
+The person may also come with something they want **changed**: "customers
+should be able to cancel an order until it ships". They want to see, before
+anyone builds it, how that part of the application works today and what the
+solution would be. It becomes one entry on the **Changes** page — not a
+process: how it works now and the proposal side by side, the concrete changes
+to the model, and what they touch. **You never change the model itself, and
+you write no code for it: you propose.**
+
+1. **Restate the change and ask what is unclear.** Say back in two or three
+   sentences what you understood — who wants to do what, and what should
+   happen — and ask about what changes the design: who may do it, until when,
+   what happens to what was already done ("is a cancelled order's payment
+   refunded, or is that someone else's job?"). Do not go on while the request
+   can mean two different solutions.
+2. **Trace how it works now** exactly as "One more process" steps 1 and 2 say:
+   put the pack in a file, grep it for the words of the request, read the flows
+   on its way across modules, and follow one case from where it starts to how
+   it ends. Note the statuses, the decisions and on what data, the records
+   looked up by name, who is told — and **where the change would go in**: the
+   flow that would decide it, the page a person would do it from, the entity
+   that would remember it.
+3. **Design the solution in Mendix terms, the way this application does
+   things.** Which microflows, nanoflows, pages, entities, attributes,
+   associations, enumerations (and their values), security rules (module
+   roles, entity access, who may start a flow), scheduled events and
+   integrations to **add, change or remove**, each by its qualified name —
+   an existing one as the pack names it, a new one named by the application's
+   own conventions. Find those first in the developers' context and the module
+   notes, or in the names themselves: its prefixes (`ACT_`, `SUB_`, `VAL_` …),
+   how it changes a status (one flow that every change goes through, or each
+   flow on its own), where validation lives, how it tells people (a message,
+   an e-mail, a log). Prefer the smallest change that does the whole job, and
+   say what you chose not to do and why.
+4. **Say what it touches and what could go wrong.** The existing flows it
+   affects, the roles that gain or lose something, what happens to the data
+   already there (existing records, a migration, a new attribute's default);
+   its risks, ranked by `reference/risk-levels.md`; the questions the model
+   cannot answer (`open`); and, when you can tell, a rough effort ("small: two
+   flows and one attribute").
+5. **Write a part that adds** — `descriptions.change.json`, with
+   `"add": true` and **only** `"changes": [ … ]` (the fields are in
+   `reference/descriptions-format.md`, "changes", with a full example): an `id`
+   (a slug, `cancel-order`), the `title`, what was `asked` in the person's own
+   words, the `date`; `now` with its `summary`, its `story` — the case stage by
+   stage, 150–400 words, as `reference/business-narrative.md` says under "A
+   process" — its `steps`, its `flows` and, when it branches, a `diagram`;
+   `proposal` with the same and its `changes`, one entry per model change
+   (`kind`, `target`, `action`, `what`); `impact`, `risks`, `open`, `effort`.
+   A change with an `id` MxScout already keeps replaces it — that is how you
+   revise one after the person's answer.
+6. **Check and hand it over:**
+
+   ```
+   node check-descriptions.js check <pack.md> descriptions.change.json
+   node agent.js send descriptions.change.json
+   ```
+
+   From a file, the person imports it with **Import descriptions…**; it adds
+   the same way. Then tell the person the change is on the **Changes** page,
+   and list the open questions — those are theirs to answer.
+
+In MxScout Dev, a proposal can also be drawn — the changed flows and domain
+model on a canvas — with the mendix-change-proposal skill.
+
 ## Risk triage: what a person already decided
 
 MxScout Dev lets the person work through your risks: mark one a **false
@@ -292,7 +358,8 @@ entity.
 ## Files
 
 - `reference/pack-format.md` — how to read the pack, line by line.
-- `reference/descriptions-format.md` — the JSON you write, with an example.
+- `reference/descriptions-format.md` — the JSON you write, with an example, and
+  a change's, with another.
 - `reference/business-narrative.md` — the two layers: what a summary and a
   description are, how long, how they are shown. Shared with mendix-docs.
 - `reference/risk-levels.md` — what P1, P2 and P3 mean and how to calibrate

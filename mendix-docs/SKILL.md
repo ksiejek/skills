@@ -1,7 +1,7 @@
 ---
 name: mendix-docs
-description: Build business-readable documentation of a Mendix application straight from its .mpr file, with no other tool running — what the application is for, its main processes and its modules, each as a short summary and a long description, one or two sentences on each microflow and nanoflow, the risks in the model ranked P1–P3, and what a developer should know before changing it — as one offline HTML report, the same report MxScout exports. Use when asked to document a Mendix app ("build", "zbuduj dokumentację"), to bring the documentation up to date after the app changed ("update", "zrobiłem zmiany"), or to describe one more process in it ("opisz jeszcze ten proces").
-argument-hint: build | update | process <what to describe> | report
+description: Build business-readable documentation of a Mendix application straight from its .mpr file, with no other tool running — what the application is for, its main processes and its modules, each as a short summary and a long description, one or two sentences on each microflow and nanoflow, the risks in the model ranked P1–P3, and what a developer should know before changing it — as one offline HTML report, the same report MxScout exports. Use when asked to document a Mendix app ("build", "zbuduj dokumentację"), to bring the documentation up to date after the app changed ("update", "zrobiłem zmiany"), to describe one more process in it ("opisz jeszcze ten proces"), or to describe a change and propose how to make it ("opisz zmianę", "jak to zmienić").
+argument-hint: build | update | process <what to describe> | change <what to change> | report
 ---
 
 # Documenting a Mendix application for the business
@@ -32,6 +32,7 @@ under a line saying an agent wrote it — next to the facts read from the model.
 | `build` | the whole documentation: pack, descriptions module by module, the application, the report |
 | `update` | after the app changed: describe what is new or changed, keep the rest, build the report again |
 | `process <what>` | one more main process the person names — see "One more process" below |
+| `change <what>` | a change the person wants: how that part works now and a proposed solution, on the Changes page — see "A change" below |
 | `report` | only build the report again from the descriptions you have |
 
 No argument: ask which. Answer briefly, in the person's language.
@@ -218,6 +219,70 @@ not a paragraph added to the application's story.
    A process of the same name is replaced, a new one added at the end; the rest
    of `descriptions.json` stays as it was. Tell the person what the process is
    called and that the report is built again.
+
+## A change, when the person asks
+
+The person may also come with something they want **changed**: "customers
+should be able to cancel an order until it ships". They want to see, before
+anyone builds it, how that part of the application works today and what the
+solution would be. It becomes one entry on the **Changes** page — not a
+process: how it works now and the proposal side by side, the concrete changes
+to the model, and what they touch. **You never change the model itself, and
+you write no code for it: you propose.**
+
+1. **Restate the change and ask what is unclear.** Say back in two or three
+   sentences what you understood — who wants to do what, and what should
+   happen — and ask about what changes the design: who may do it, until when,
+   what happens to what was already done ("is a cancelled order's payment
+   refunded, or is that someone else's job?"). Do not go on while the request
+   can mean two different solutions.
+2. **Trace how it works now** exactly as "One more process" steps 1 and 2 say:
+   put the pack in a file, grep it for the words of the request, read the flows
+   on its way across modules, and follow one case from where it starts to how
+   it ends. Note the statuses, the decisions and on what data, the records
+   looked up by name, who is told — and **where the change would go in**: the
+   flow that would decide it, the page a person would do it from, the entity
+   that would remember it.
+3. **Design the solution in Mendix terms, the way this application does
+   things.** Which microflows, nanoflows, pages, entities, attributes,
+   associations, enumerations (and their values), security rules (module
+   roles, entity access, who may start a flow), scheduled events and
+   integrations to **add, change or remove**, each by its qualified name —
+   an existing one as the pack names it, a new one named by the application's
+   own conventions. Find those first in the developers' context and the module
+   notes, or in the names themselves: its prefixes (`ACT_`, `SUB_`, `VAL_` …),
+   how it changes a status (one flow that every change goes through, or each
+   flow on its own), where validation lives, how it tells people (a message,
+   an e-mail, a log). Prefer the smallest change that does the whole job, and
+   say what you chose not to do and why.
+4. **Say what it touches and what could go wrong.** The existing flows it
+   affects, the roles that gain or lose something, what happens to the data
+   already there (existing records, a migration, a new attribute's default);
+   its risks, ranked by `reference/risk-levels.md`; the questions the model
+   cannot answer (`open`); and, when you can tell, a rough effort ("small: two
+   flows and one attribute").
+5. **Write a part that adds** — `descriptions.change.json`, with
+   `"add": true` and **only** `"changes": [ … ]` (the fields are in
+   `reference/descriptions-format.md`, "changes", with a full example): an `id`
+   (a slug, `cancel-order`), the `title`, what was `asked` in the person's own
+   words, the `date`; `now` with its `summary`, its `story` — the case stage by
+   stage, 150–400 words, as `reference/business-narrative.md` says under "A
+   process" — its `steps`, its `flows` and, when it branches, a `diagram`;
+   `proposal` with the same and its `changes`, one entry per model change
+   (`kind`, `target`, `action`, `what`); `impact`, `risks`, `open`, `effort`.
+   A change with an `id` already in `descriptions.json` replaces it when merged — that is how you
+   revise one after the person's answer.
+6. **Check, merge, build:**
+
+   ```
+   node check-descriptions.js check pack.md descriptions.change.json
+   node check-descriptions.js merge descriptions.json descriptions.json descriptions.change.json
+   node docs.js report <app.mpr> descriptions.json --out <App>-documentation.html
+   ```
+
+   Tell the person the change is on the report's **Changes** page, and what
+   you need from them to finish it (the `open` questions). The same file
+   imports into MxScout (**Import descriptions…**) if they use it.
 
 ## How to write
 

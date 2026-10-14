@@ -45,11 +45,16 @@
   // A flow's entry is not changed once docs-data.js has built it, so its
   // fingerprint and its text are worked out once: attaching descriptions,
   // the pack and the chat assistant's parts all ask for them, on every flow.
-  var memo = typeof WeakMap === 'function' ? { hash: new WeakMap(), text: new WeakMap() } : null;
+  // The chat assistant's card works out every flow's text when the
+  // Documentation section is drawn; the pack, made when it is asked for,
+  // takes the same lines from here instead of writing them again.
+  var memo = typeof WeakMap === 'function' ? { hash: new WeakMap(), text: new WeakMap(), lines: new WeakMap() } : null;
+  // A copy of an entry (docs-data.js flowEntry) shares what is worked out with the entry it copies.
   function remembered(kind, f, make) {
     if (!memo || !f || typeof f !== 'object') return make(f);
-    var v = memo[kind].get(f);
-    if (v === undefined) { v = make(f); memo[kind].set(f, v); }
+    var key = f.same || f;
+    var v = memo[kind].get(key);
+    if (v === undefined) { v = make(f); memo[kind].set(key, v); }
     return v;
   }
   function hashOf(f) { return remembered('hash', f, hashOfNow); }
@@ -146,7 +151,11 @@
         out.push('### entities');
         m.entities.forEach(function (q) { out.push(entityLine(data.entities[q], data)); });
       }
-      m.microflows.concat(m.nanoflows, m.pages).forEach(function (k) { out.push(''); flowBlock(data.flows[k], out); });
+      m.microflows.concat(m.nanoflows, m.pages).forEach(function (k) {
+        out.push('');
+        var lines = flowLines(data.flows[k]);
+        for (var i = 0; i < lines.length; i++) out.push(lines[i]);
+      });
       out.push('');
       return { m: m, lines: out };
     });
@@ -174,7 +183,12 @@
     var all = head.concat(indexHead, index, ['']);
     blocks.forEach(function (b) { all = all.concat(b.lines); });
     var text = all.join('\n') + '\n';
-    return { text: text, id: fnv(text), modules: own.length, flows: own.reduce(function (n, m) { return n + m.microflows.length + m.nanoflows.length; }, 0) };
+    var out = { text: text, modules: own.length, flows: own.reduce(function (n, m) { return n + m.microflows.length + m.nanoflows.length; }, 0) };
+    // Its fingerprint, worked out when something asks for it: on a large project it is a read of
+    // every character of the pack, and sharing it with an agent has no use for it.
+    var id = null;
+    Object.defineProperty(out, 'id', { enumerable: true, get: function () { return id || (id = fnv(text)); } });
+    return out;
   }
 
   // ---------- the descriptions file ----------
@@ -240,6 +254,41 @@
       if (str(x.end, 160)) return { t: 'end', text: str(x.end, 160) };
       return null;
     }).filter(Boolean);
+  }
+
+  // A change the person asked an agent to work out (skills/mendix-describe/SKILL.md, "A change, when the
+  // person asks"; Karol, 2026-10-14: "I have a change I want to make — how does it work now, and what
+  // would the solution be"): the process as it works today, the proposed solution, the concrete changes to
+  // the model, and what they touch. A proposal: MxScout shows it, and nothing of it is applied anywhere.
+  // Text only, bounded; an entry without an id or a title is dropped, and so is a model change with an
+  // action it does not know. The fields and their bounds: descriptions-format.md, "changes".
+  var CHANGE_STATUS = { proposed: true, accepted: true, done: true, dropped: true };
+  var CHANGE_KINDS = { microflow: true, nanoflow: true, page: true, entity: true, attribute: true, association: true, enumeration: true, security: true, 'scheduled event': true, integration: true, other: true };
+  var CHANGE_ACTIONS = { add: true, change: true, remove: true };
+  function texts(list, max, n) { return (Array.isArray(list) ? list : []).map(function (s) { return str(s, max); }).filter(Boolean).slice(0, n); }
+  function changeOf(c) {
+    if (!c || typeof c !== 'object') return null;
+    var id = str(c.id, 80), title = str(c.title, 200);
+    if (!id || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id) || !title) return null;
+    var now = c.now && typeof c.now === 'object' ? c.now : {}, pr = c.proposal && typeof c.proposal === 'object' ? c.proposal : {};
+    var im = c.impact && typeof c.impact === 'object' ? c.impact : {};
+    return {
+      id: id, title: title, asked: str(c.asked, 2000), date: str(c.date, 40), status: CHANGE_STATUS[c.status] === true ? c.status : 'proposed',
+      now: { summary: str(now.summary, 2000), story: str(now.story, STORY_MAX), steps: texts(now.steps, 600, 100), flows: texts(now.flows, 300, 60), diagram: diagramItems(now.diagram, 0) },
+      proposal: {
+        summary: str(pr.summary, 2000), story: str(pr.story, STORY_MAX), steps: texts(pr.steps, 600, 100), diagram: diagramItems(pr.diagram, 0),
+        changes: (Array.isArray(pr.changes) ? pr.changes : []).slice(0, 60).map(function (x) {
+          if (!x || typeof x !== 'object' || !str(x.target, 300) || CHANGE_ACTIONS[x.action] !== true) return null;
+          var kind = typeof x.kind === 'string' ? x.kind.trim().toLowerCase() : '';
+          return { kind: CHANGE_KINDS[kind] === true ? kind : 'other', target: str(x.target, 300), action: x.action, what: str(x.what, 1000) };
+        }).filter(Boolean)
+      },
+      impact: { flows: texts(im.flows, 300, 60), roles: texts(im.roles, 120, 30), data: str(im.data, 3000) },
+      risks: (Array.isArray(c.risks) ? c.risks : []).slice(0, 30).map(function (x) {
+        return x && typeof x === 'object' && /^P[123]$/.test(x.level) && str(x.title, 300) ? { level: x.level, title: str(x.title, 300), detail: str(x.detail, 3000), fix: str(x.fix, 1000) } : null;
+      }).filter(Boolean),
+      open: texts(c.open, 1000, 30), effort: str(c.effort, 300)
+    };
   }
 
   // Checks the shape and keeps only what it understands, as text. Whatever
@@ -315,7 +364,14 @@
       pitfalls: (Array.isArray(c.pitfalls) ? c.pitfalls : []).map(function (s) { return str(s, 1000); }).filter(Boolean).slice(0, 80)
     };
     if (!out.context.where.length && !out.context.conventions.length && !out.context.pitfalls.length) out.context = null;
-    if (!out.app && !out.c4 && !out.risks.length && !out.context && !['modules', 'microflows', 'nanoflows', 'pages', 'entities'].some(function (k) { return Object.keys(out[k]).length; })) {
+    // Changes, each once: a second entry with an id already read is dropped.
+    var ids = {};
+    out.changes = (Array.isArray(raw.changes) ? raw.changes : []).slice(0, 100).map(changeOf).filter(function (x) {
+      if (!x || ids[x.id]) return false;
+      ids[x.id] = true;
+      return true;
+    });
+    if (!out.app && !out.c4 && !out.risks.length && !out.context && !out.changes.length && !['modules', 'microflows', 'nanoflows', 'pages', 'entities'].some(function (k) { return Object.keys(out[k]).length; })) {
       return { error: 'The file has the right format but no descriptions in it.' };
     }
     return { value: out };
@@ -325,7 +381,8 @@
   // (Karol, 2026-10-14: after reading the documentation, "describe this process too" — the agent sends
   // the one process, and the flows it described for it, and nothing else is lost). A process of the same
   // name is replaced, a new one is added at the end; a flow, page, entity or module described again is
-  // replaced; a risk with a title already kept is not added twice; the rest is kept as it was.
+  // replaced; a risk with a title already kept is not added twice; a change with an id already kept is
+  // replaced, a new one added at the end; the rest is kept as it was.
   function merge(base, more) {
     var out = JSON.parse(JSON.stringify(base || {
       project: null, language: null, by: null, written: null, app: null,
@@ -357,6 +414,12 @@
       c.where = c.where.concat(more.context.where); c.conventions = c.conventions.concat(more.context.conventions); c.pitfalls = c.pitfalls.concat(more.context.pitfalls);
     }
     if (more.c4) out.c4 = more.c4;
+    out.changes = out.changes || [];
+    (more.changes || []).forEach(function (c) {
+      var at = -1;
+      out.changes.forEach(function (x, i) { if (at < 0 && x.id === c.id) at = i; });
+      if (at < 0) out.changes.push(c); else out.changes[at] = c;
+    });
     ['project', 'language', 'by'].forEach(function (k) { if (!out[k] && more[k]) out[k] = more[k]; });
     if (more.written) out.written = more.written;
     return out;
@@ -385,6 +448,11 @@
     });
     if (v.c4) f.c4 = v.c4;
     f.risks = v.risks || [];
+    if (v.changes && v.changes.length) f.changes = v.changes.map(function (c) {
+      var x = JSON.parse(JSON.stringify(c));
+      x.now.diagram = items(c.now.diagram); x.proposal.diagram = items(c.proposal.diagram);
+      return x;
+    });
     if (v.context) f.context = {
       where: v.context.where.map(function (x) { return { topic: x[0], place: x[1] }; }),
       conventions: v.context.conventions.map(function (x) { return { pattern: x[0], meaning: x[1] }; }),
@@ -416,13 +484,17 @@
       // A file imported before risks and context existed has neither.
       risks: d.risks || [], context: d.context || null,
       c4: d.c4 || null,
+      // And the changes an agent proposed — none in a file imported before they existed.
+      changes: d.changes || [],
       modules: Object.keys(d.modules).reduce(function (o, k) { o[k] = { summary: d.modules[k].text, story: d.modules[k].story || null, notes: d.modules[k].notes || null }; return o; }, {})
     };
     return { described: described, stale: stale, missing: missing };
   }
 
   // One flow as the pack writes it — for a route that sends the model in pieces (copilot.js).
-  function flowText(f) { return remembered('text', f, function () { var out = []; flowBlock(f, out); return out.join('\n'); }); }
+  function flowText(f) { return remembered('text', f, function () { return flowLines(f).join('\n'); }); }
+  // Its lines as the pack writes them, one entry a line — the pack's index counts them.
+  function flowLines(f) { return remembered('lines', f, function () { var out = []; flowBlock(f, out); return out; }); }
 
   // The imported risks by the documents they name, for the screens that show
   // them beside a document (the App Explorer, Microflows). A risk names its

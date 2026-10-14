@@ -149,6 +149,7 @@
     var NAV_ICONS = {
       home: ['M2.5 7.5L8 3l5.5 4.5V13H2.5z', 'M6.5 13V9.5h3V13'],
       proc: ['M3 4h.01M3 8h.01M3 12h.01', 'M6 4h7M6 8h7M6 12h7'],
+      change: ['M2.5 5h8.5M8.5 2.5L11 5 8.5 7.5', 'M13.5 11H5M7.5 8.5L5 11l2.5 2.5'],
       module: ['M8 1.8l5.5 3v6.4L8 14.2l-5.5-3V4.8z', 'M2.5 4.8L8 7.8l5.5-3M8 7.8v6.4'],
       flow: ['M3 6.4a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2zM13.4 6.4a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2z', 'M6 5.5h4.5v5H6zM4.6 8H6M10.5 8h1.3'],
       entity: ['M2.5 3h11v10h-11z', 'M2.5 6.5h11M6.5 6.5V13'],
@@ -358,7 +359,7 @@
       function agent() { w('> Written by an agent from the model.'); w(); }
       var D = data.derived || (window.MxReportData ? window.MxReportData.derive(data) : null);
       var ai = data.ai || {}, app = ai.app || null, risks = ai.risks || [], c4 = ai.c4 || null, ctx = ai.context || null;
-      var procs = app ? app.processes || [] : [], k = data.kpi;
+      var procs = app ? app.processes || [] : [], k = data.kpi, changes = ai.changes || [];
       function rid(i) { var n = String(i + 1); return 'R-' + (n.length < 3 ? ('00' + n).slice(-3) : n); }
       function lvCount(l) { return risks.filter(function (r) { return r.level === l; }).length; }
       var KIND_TAG = { microflow: 'MF', nanoflow: 'NF', page: 'PG' };
@@ -440,6 +441,9 @@
           w();
         });
       }
+
+      // ---- changes: written by docs-changes.js, beside the page it draws ----
+      if (changes.length && window.MxDocsChanges) window.MxDocsChanges.markdown(changes, { w: w, esc: esc, code: code, paras: paras, table: table, raw: raw, agent: agent, plural: plural });
 
       // ---- modules ----
       var mods = D && D.modules ? D.modules : [];
@@ -865,7 +869,7 @@
       }
       // Risks, the developers' context, the architecture and the processes exist only when an agent wrote them (describe.js), so their pages too.
       var risks = data.ai && data.ai.risks || [], devCtx = data.ai && data.ai.context || null, c4 = data.ai && data.ai.c4 || null;
-      var procs = data.ai && data.ai.app && data.ai.app.processes || [];
+      var procs = data.ai && data.ai.app && data.ai.app.processes || [], changes = data.ai && data.ai.changes || [];
       // The application's full description lives on Processes (as its item 0), so the page is there when either is.
       var procPage = !!(data.ai && data.ai.app && (procs.length || data.ai.app.story || data.ai.app.summary));
       var devCount = devCtx ? devCtx.where.length + devCtx.conventions.length + devCtx.pitfalls.length : 0;
@@ -873,13 +877,13 @@
       // what needs the running app): what the application is, the model, the review. Microflows,
       // nanoflows and pages are three entries, each the flow screen on its kind.
       var GROUPS = [
-        ['Application', [['start', 'Overview', 'home'], procPage ? ['processes', 'Processes', 'proc'] : null, ['modules', 'Modules', 'module'], ['arch', 'Architecture', 'arch']]],
+        ['Application', [['start', 'Overview', 'home'], procPage ? ['processes', 'Processes', 'proc'] : null, changes.length ? ['changes', 'Changes', 'change'] : null, ['modules', 'Modules', 'module'], ['arch', 'Architecture', 'arch']]],
         ['Model', [['domain', 'Entities', 'entity'], ['refs:microflow', 'Microflows', 'flow'], ['refs:nanoflow', 'Nanoflows', 'nano'], ['refs:page', 'Pages', 'page']]],
         ['Review', [risks.length ? ['risks', 'Risks', 'risk'] : null, ['quality', 'Model quality', 'quality'], devCtx ? ['dev', 'For developers', 'dev'] : null]]
       ].map(function (g) { return [g[0], g[1].filter(Boolean)]; });
       var NAV = [];
       GROUPS.forEach(function (g) { g[1].forEach(function (r) { var v = r[0].split(':')[0]; if (!NAV.some(function (x) { return x[0] === v; })) NAV.push([v, r[1], r[2]]); }); });
-      var counts = { processes: procs.length, modules: data.kpi.modules, 'refs:microflow': data.kpi.microflows, 'refs:nanoflow': data.kpi.nanoflows, 'refs:page': data.kpi.pages, domain: data.kpi.entities,
+      var counts = { processes: procs.length, changes: changes.length, modules: data.kpi.modules, 'refs:microflow': data.kpi.microflows, 'refs:nanoflow': data.kpi.nanoflows, 'refs:page': data.kpi.pages, domain: data.kpi.entities,
         quality: data.quality.unreached.length, risks: risks.length, dev: devCount };
       var navBtns = {};
       var initial = String(data.project || '?').charAt(0).toUpperCase();
@@ -958,11 +962,12 @@
       // "Copy link" copies something that opens exactly that.
       //   #/                      Overview, ?s=users etc. for one of its sections
       //   #/processes/{n}         0 = the whole application, 1.. = a process
+      //   #/changes/{id}          a change an agent worked out; none: the list of them
       //   #/modules/{Module}
       //   #/flows/{Module.Name}   ?seg=all|mf|nf|pg the list, ?step=N the step, ?var=Name the trace
       //   #/domain/{Module}/{Entity}
       //   #/architecture?s={section}  #/risks/{R-012}  #/quality/{check}  #/developers/{tab}
-      var ROUTE_OF = { start: '', processes: 'processes', modules: 'modules', refs: 'flows', domain: 'domain', arch: 'architecture', risks: 'risks', quality: 'quality', dev: 'developers' };
+      var ROUTE_OF = { start: '', processes: 'processes', changes: 'changes', modules: 'modules', refs: 'flows', domain: 'domain', arch: 'architecture', risks: 'risks', quality: 'quality', dev: 'developers' };
       var VIEW_OF = {};
       Object.keys(ROUTE_OF).forEach(function (k) { VIEW_OF[ROUTE_OF[k]] = k; });
       // Addresses written before these routes existed still open.
@@ -997,6 +1002,7 @@
         if (st.view === 'arch') { st.amod = q.mod || null; st.arole = q.role || null; }
         if (st.view === 'dev') { st.dmod = q.mod || null; st.dq = q.q || ''; }
         if (st.view === 'processes') st.proc = arg && /^\d+$/.test(arg) ? Number(arg) : 0;
+        if (st.view === 'changes') st.change = arg || null;
         if (st.view === 'risks' || st.view === 'quality' || st.view === 'dev') st.sub = arg;
         if (st.view === 'risks') rf = { lv: /^P[123]$/.test(q.lv) ? q.lv : null, th: PAT[q.th] ? q.th : null, mod: q.mod || null, q: q.q || '', group: q.group === 'mod' ? 'mod' : 'sev' };
         st.sec = (st.view === 'start' || st.view === 'arch') && q.s ? q.s : null;
@@ -1017,6 +1023,7 @@
         if (s.view === 'domain' && s.dview === 'list') q = 'view=list';
         if (s.view === 'modules' && s.module) arg = s.module;
         if (s.view === 'processes') arg = String(s.proc || 0);
+        if (s.view === 'changes' && s.change) arg = s.change;
         if ((s.view === 'risks' || s.view === 'quality' || s.view === 'dev') && s.sub) arg = s.sub;
         if ((s.view === 'start' || s.view === 'arch') && s.sec) q = 's=' + encodeURIComponent(s.sec);
         if (s.view === 'modules' || s.view === 'arch' || s.view === 'dev') {
@@ -1088,6 +1095,7 @@
         function text(where, kindLabel, body, patch) { if (body) texts.push({ where: where, kind: kindLabel, body: String(body).replace(/\s+/g, ' '), f: fold(String(body).replace(/\s+/g, ' ')), patch: patch }); }
         data.modules.forEach(function (m) { name('Modules', m.name, m.marketplace ? 'Marketplace module' : 'own module', 'MOD', { view: 'modules', module: m.name }); });
         procs.forEach(function (p, i) { name('Processes', p.name, 'process ' + pad2(i + 1), pad2(i + 1), { view: 'processes', proc: i + 1 }); });
+        changes.forEach(function (c) { name('Changes', c.title, 'change · ' + c.status, 'CH', { view: 'changes', change: c.id }); });
         var KG = { microflow: ['Microflows', 'MF'], nanoflow: ['Nanoflows', 'NF'], page: ['Pages', 'PG'] };
         Object.keys(data.flows).forEach(function (k) { var f = data.flows[k], g = KG[f.kind]; if (g) name(g[0], f.name, f.module, g[1], { view: 'refs', module: f.module, seg: f.kind, key: k }, f.qn); });
         Object.keys(data.entities).forEach(function (q) { var e = data.entities[q]; name('Entities', e.name, e.module, 'EN', { view: 'domain', entity: q, dmodule: e.module }, q); });
@@ -1096,6 +1104,7 @@
         var app2 = data.ai && data.ai.app;
         if (app2) { text('The application', 'description', [app2.summary, app2.story].filter(Boolean).join(' '), { view: 'processes', proc: 0 }); }
         procs.forEach(function (p, i) { text(p.name, 'process', [p.summary, p.story].concat(p.steps).filter(Boolean).join(' '), { view: 'processes', proc: i + 1 }); });
+        changes.forEach(function (c) { text(c.title, 'change', [c.asked, c.now.summary, c.now.story, c.proposal.summary, c.proposal.story].concat(c.proposal.changes.map(function (x) { return x.target + ' ' + (x.what || ''); }), c.open).filter(Boolean).join(' '), { view: 'changes', change: c.id }); });
         Object.keys((data.ai && data.ai.modules) || {}).forEach(function (m) {
           var md = data.ai.modules[m];
           text(m, 'module', [md.summary, md.story].concat((md.notes || []).map(function (n) { return [n.title, n.text].concat(n.items || [], n.table ? n.table.rows.map(function (r) { return r.join(' '); }) : []).filter(Boolean).join(' '); })).filter(Boolean).join(' '), { view: 'modules', module: m });
@@ -1110,7 +1119,7 @@
         }
         return { names: names, texts: texts };
       }
-      var GROUPS = ['Modules', 'Processes', 'Microflows', 'Nanoflows', 'Pages', 'Entities', 'Risks'];
+      var GROUPS = ['Modules', 'Processes', 'Changes', 'Microflows', 'Nanoflows', 'Pages', 'Entities', 'Risks'];
       var searchUi = null;
       function marked(str, at, len) {
         if (at < 0) return [str];
@@ -1161,7 +1170,7 @@
             listEl.appendChild(h('div', { class: 'dx-sd-g', role: 'presentation' }, [h('span', { class: 'dx-cap', text: g }), h('span', { class: 'mono dx-fc-n', text: String(hits.length) })]));
             shown.forEach(function (x) {
               listEl.appendChild(row(x, [h('span', { class: 'dx-sd-b' + (/^P[123]$/.test(x.badge) ? ' dx-lv ' + x.badge.toLowerCase() : ' dx-kind' + (x.badge === 'MF' ? ' mf' : x.badge === 'NF' ? ' nf' : '')), text: x.badge }),
-                h('span', { class: 'dx-sd-t' + (g === 'Risks' || g === 'Processes' ? '' : ' mono') }, marked(x.label, x.f.indexOf(fq), fq.length)), h('small', { text: x.sub })]));
+                h('span', { class: 'dx-sd-t' + (g === 'Risks' || g === 'Processes' || g === 'Changes' ? '' : ' mono') }, marked(x.label, x.f.indexOf(fq), fq.length)), h('small', { text: x.sub })]));
             });
             if (hits.length > shown.length) listEl.appendChild(h('button', { type: 'button', class: 'dx-sd-more', text: 'Show all ' + hits.length, onclick: function () { open[g] = true; run(); input.focus(); } }));
           });
@@ -1209,11 +1218,11 @@
         Object.keys(navBtns).forEach(function (k) { navBtns[k].classList.toggle('on', k === st.view || (st.view === 'refs' && k === 'refs:' + (st.seg === 'nanoflow' || st.seg === 'page' ? st.seg : 'microflow'))); });
         var kept = scrollsOf(root);
         clear(list); clear(main); clear(headTools);
-        if ((st.view === 'risks' && !risks.length) || (st.view === 'dev' && !devCtx) || (st.view === 'processes' && !procPage)) st.view = 'start';
+        if ((st.view === 'risks' && !risks.length) || (st.view === 'dev' && !devCtx) || (st.view === 'processes' && !procPage) || (st.view === 'changes' && !changes.length)) st.view = 'start';
         onScroll = null;
         root.setAttribute('data-view', st.view);
         root.classList.toggle('no-list', st.view === 'refs' || st.view === 'domain' || st.view === 'start' || st.view === 'quality' || st.view === 'risks' || st.view === 'dev' || st.view === 'arch');
-        var V = { start: drawStart, processes: drawProcesses, modules: drawModules, refs: drawRefs, domain: drawDomain, quality: drawQuality, risks: drawRisks, dev: drawDev, arch: drawArch }[st.view] || drawStart;
+        var V = { start: drawStart, processes: drawProcesses, changes: drawChanges, modules: drawModules, refs: drawRefs, domain: drawDomain, quality: drawQuality, risks: drawRisks, dev: drawDev, arch: drawArch }[st.view] || drawStart;
         V();
         putScrolls(root, kept);
       }
@@ -1263,7 +1272,8 @@
           ['User roles', k.roles, null, { view: 'arch', sec: 'roles' }],
           ['Scheduled events', k.scheduled, k.scheduled ? k.scheduledOn + ' on' : null, { view: 'quality', sub: 'sched' }],
           ['Published services', k.services, kinds.join(' · ') || null, { view: 'arch', sec: 'runtime' }],
-          risks.length ? ['Risks', risks.length, levelCount('P1') + ' P1', { view: 'risks' }, 'p1'] : null
+          risks.length ? ['Risks', risks.length, levelCount('P1') + ' P1', { view: 'risks' }, 'p1'] : null,
+          changes.length ? ['Changes', changes.length, changes.filter(function (c) { return c.status === 'proposed'; }).length + ' proposed', { view: 'changes', change: null }] : null
         ].filter(Boolean);
         var hero = h('header', { class: 'dx-ov-hero', 'data-sec': 'about' }, [
           h('div', { class: 'dx-ov-intro' }, [
@@ -1352,7 +1362,8 @@
           ['Read the logic', 'Every flow drawn step by step, and the data it works on.',
             [[{ view: 'refs' }, 'Microflows & pages', flowsN], [{ view: 'domain' }, 'Domain model', k.entities]]],
           ['Change it safely', risks.length ? 'What to fix first, what is unused, and what breaks easily.' : 'What is unused or switched off, and what breaks easily.',
-            [risks.length ? [{ view: 'risks' }, 'Risks', risks.length] : null, [{ view: 'quality' }, 'Model quality', q.unreached.length], devCtx ? [{ view: 'dev' }, 'For developers', devCount] : null]]
+            [risks.length ? [{ view: 'risks' }, 'Risks', risks.length] : null, [{ view: 'quality' }, 'Model quality', q.unreached.length], devCtx ? [{ view: 'dev' }, 'For developers', devCount] : null,
+              changes.length ? [{ view: 'changes', change: null }, 'Changes', changes.length] : null]]
         ].map(function (g) {
           return h('div', { class: 'dx-next-g' }, [h('h3', { text: g[0] }), h('p', { text: g[1] }),
             h('ul', null, g[2].filter(Boolean).map(function (l) { return h('li', null, ln(l[0], null, [h('span', { text: l[1] }), h('span', { class: 'mono', text: String(l[2]) })])); }))]);
@@ -1451,10 +1462,20 @@
         }
         return [{ t: 'start' }].concat(conv(items));
       }
-      function processDiagram(p) {
-        if (!p.diagram || !p.diagram.length || !window.MxFlowGraph) return null;
-        return h('section', { class: 'dx-pd-sec dx-pd-diagram' }, [h('h3', { class: 'dx-cap', text: 'Diagram' }),
-          h('div', { class: 'dx-pd-graph' }, [window.MxFlowGraph.render({ workflow: diagramFlow(p.diagram), params: [] }, {})])]);
+      function processDiagram(items, caption) {
+        if (!items || !items.length || !window.MxFlowGraph) return null;
+        return h('section', { class: 'dx-pd-sec dx-pd-diagram' }, [h('h3', { class: 'dx-cap', text: caption || 'Diagram' }),
+          h('div', { class: 'dx-pd-graph' }, [window.MxFlowGraph.render({ workflow: diagramFlow(items), params: [] }, {})])]);
+      }
+      // Flows named by qualified name, each a row: its kind, its name, its size — a link when the model has it.
+      function flowRows(qns) {
+        return h('div', { class: 'dx-pd-rows' }, qns.map(function (qn) {
+          var key = flowKey(qn), f = key ? data.flows[key] : null, dot = qn.indexOf('.');
+          var kids = [kindTag(f ? { microflow: 'MF', nanoflow: 'NF', page: 'PG' }[f.kind] : '··'),
+            h('span', { class: 'dx-pd-qn mono' }, [h('span', { class: 'dx-mod', text: qn.slice(0, dot + 1) }), qn.slice(dot + 1)]),
+            h('span', { class: 'dx-pd-steps-n mono', text: f && f.steps ? plural(f.steps, 'step', 'steps') : '' })];
+          return f ? ln({ view: 'refs', module: f.module, seg: f.kind, key: key }, { class: 'dx-pd-flow' }, kids) : h('div', { class: 'dx-pd-flow' }, kids);
+        }));
       }
 
       function drawProcesses() {
@@ -1502,7 +1523,7 @@
             p.summary ? h('p', { class: 'dx-pd-lead', text: p.summary }) : null
           ]));
           if (p.steps.length) wrap.appendChild(h('section', { class: 'dx-pd-sec' }, [h('h3', { class: 'dx-cap', text: 'Steps' }), steps]));
-          var drawn = processDiagram(p);
+          var drawn = processDiagram(p.diagram);
           if (drawn) wrap.appendChild(drawn);
           var story2 = paragraphs(p.story);
           wrap.appendChild(h('div', { class: 'dx-pd-grid' }, [
@@ -1510,13 +1531,7 @@
             h('div', { class: 'dx-pd-side' }, [
               h('section', null, [
                 h('h3', { class: 'dx-cap', text: 'Flows that carry it · ' + p.flows.length }),
-                h('div', { class: 'dx-pd-rows' }, p.flows.map(function (qn) {
-                  var key = flowKey(qn), f = key ? data.flows[key] : null, dot = qn.indexOf('.');
-                  var kids = [kindTag(f ? { microflow: 'MF', nanoflow: 'NF', page: 'PG' }[f.kind] : '··'),
-                    h('span', { class: 'dx-pd-qn mono' }, [h('span', { class: 'dx-mod', text: qn.slice(0, dot + 1) }), qn.slice(dot + 1)]),
-                    h('span', { class: 'dx-pd-steps-n mono', text: f && f.steps ? plural(f.steps, 'step', 'steps') : '' })];
-                  return f ? ln({ view: 'refs', module: f.module, seg: f.kind, key: key }, { class: 'dx-pd-flow' }, kids) : h('div', { class: 'dx-pd-flow' }, kids);
-                }))
+                flowRows(p.flows)
               ]),
               h('section', null, [
                 h('h3', { class: 'dx-cap', text: 'Risks along the way · ' + touched.length }),
@@ -1529,6 +1544,17 @@
         }
         wrap.appendChild(h('p', { class: 'dx-prov', text: 'Written by an agent from the model. Step lists and flow names come from the model; check the wording before you quote it.' }));
         main.appendChild(wrap);
+      }
+      // ---------- changes ----------
+      // A change an agent worked out (describe.js changeOf): drawn by docs-changes.js, which the file
+      // carries beside the flow drawing, with what it needs from this reader handed to it.
+      function drawChanges() {
+        if (!window.MxDocsChanges) { main.appendChild(h('div', { class: 'dx-note', text: 'This copy of the documentation cannot draw its changes.' })); return; }
+        window.MxDocsChanges.draw({
+          h: h, ln: ln, list: list, main: main, setTitle: setTitle, project: data.project, changes: changes, at: st.change,
+          tools: function (node) { tools(node, null); }, copyLink: opts.hash ? copyLink : null,
+          paragraphs: paragraphs, plural: plural, flowRows: flowRows, diagram: processDiagram, data: data, flowKey: flowKey
+        });
       }
       // The risks on a process: those whose places include one of its flows, P1 first, each once.
       function processRisks(p) {

@@ -18,7 +18,8 @@
   var SHEETS = ['tokens.css', 'explorer.css', 'flowgraph.css', 'studioview.css', 'pagepreview.css', 'microflows.css', 'docs.css'];
   // "Microflows & pages" in the file is MxScout's own Microflows screen (flowview.js, redesign spec
   // 14), so the file carries it and what it draws with — a page with pagepreview.js — as the files themselves, unchanged.
-  var SCRIPTS = ['flowtrace.js', 'flowgraph.js', 'studioview.js', 'pagepreview.js', 'flowview.js'];
+  // The Changes page (docs-changes.js) is drawn by a file of its own as well, carried the same way.
+  var SCRIPTS = ['flowtrace.js', 'flowgraph.js', 'studioview.js', 'pagepreview.js', 'flowview.js', 'docs-changes.js'];
 
   // The fonts tokens.css names, as they are written in it: url("fonts/X.woff2").
   function fontsIn(tokens) { return tokens.match(/url\("fonts\/[A-Za-z0-9_-]+\.woff2"\)/g) || []; }

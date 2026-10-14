@@ -108,6 +108,26 @@ file, each shown as an agent's — marked **✦ AI**, or under a line saying an
 agent wrote it — so a reader can always tell what an agent wrote
 from what the model says.
 
+## A change you want made
+
+With the project shared (or the pack exported), ask the agent for a change —
+not a description, a proposal:
+
+```
+Use the mendix-describe skill: I want customers to be able to cancel an order
+until it ships. Show me how it works now and propose a solution, as a change.
+```
+
+It asks what is unclear first, then traces how that part of the application
+works today, designs the solution the way the application already does things —
+which microflows, pages, entities, attributes, enumerations and security rules
+to add, change or remove — and lists what it touches, its risks and the
+questions the model cannot answer. It changes nothing in the model. What it
+sends (or the file it writes, `"add": true`, holding only `changes`) appears in
+MxScout on the project's **Changes** page: how it works now beside the proposal,
+both drawn when they branch, and the model changes in a table. Ask again with
+your answers and it sends the change again under the same id, replacing it.
+
 ## When the model changes
 
 Export a new pack. Every flow in it carries a fingerprint, so MxScout marks a

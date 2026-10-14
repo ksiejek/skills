@@ -14,11 +14,14 @@
  *       matches, no description is empty or overlong, and the application,
  *       its processes and its modules each have both layers of
  *       reference/business-narrative.md; every risk has a level of
- *       reference/risk-levels.md, its places and a fix. Exit code 1 on errors.
+ *       reference/risk-levels.md, its places and a fix; every change (SKILL.md,
+ *       "A change, when the person asks") has an id, how it works now traced
+ *       through flows that exist, a proposal and model changes that name what
+ *       is there, unless they add it. Exit code 1 on errors.
  *
  *   node check-descriptions.js merge <out.json> <part.json> [<part.json> …]
- *       One file from several, later parts winning per name — for describing
- *       module by module, or in parallel, and writing one part per batch.
+ *       One file from several, later parts winning per name (a change per id) —
+ *       for describing module by module, or in parallel, one part per batch.
  *
  * The format it checks is the one public/describe.js in MxScout parses. If the
  * two ever disagree, MxScout is the one that is right: it is what the person
@@ -180,6 +183,29 @@ function check(pack, desc) {
       if (!l || !ids[l.from] || !ids[l.to] || l.from === l.to) warn(what + ' links[' + i + ']: "from" and "to" must be two different node ids — MxScout drops the link.');
     });
   }
+  // A process's simplified diagram, and a change's two (reference/descriptions-format.md, "diagram"):
+  // steps, decisions with their ways, ends. `who` names what it belongs to in the messages.
+  function flowDiagram(who, diagram, name) {
+    let decisions = 0;
+    const walk = (list, where) => {
+      if (!Array.isArray(list)) { err(who + ': ' + where + ' must be a list.'); return; }
+      list.forEach((x, i) => {
+        const w = where + '[' + i + ']';
+        if (x && typeof x.decision === 'string' && x.decision.trim()) {
+          decisions++;
+          if (!Array.isArray(x.ways) || x.ways.length < 2) warn(who + ': ' + w + ' is a decision with fewer than two ways.');
+          (Array.isArray(x.ways) ? x.ways : []).forEach((y, j) => { if (y && y.then !== undefined) walk(y.then, w + '.ways[' + j + '].then'); });
+        } else if (!(x && ((typeof x.step === 'string' && x.step.trim()) || (typeof x.end === 'string' && x.end.trim())))) {
+          err(who + ': ' + w + ' is neither a "step", a "decision" nor an "end" — MxScout drops it.');
+        }
+      });
+    };
+    walk(diagram, name);
+    const texts = {};
+    (function names(list) { (Array.isArray(list) ? list : []).forEach((x) => { if (x && typeof x.step === 'string') texts[x.step.trim()] = true; if (x && Array.isArray(x.ways)) x.ways.forEach((y) => names(y && y.then)); }); })(diagram);
+    (function joins(list) { (Array.isArray(list) ? list : []).forEach((x) => { if (x && Array.isArray(x.ways)) x.ways.forEach((y) => { if (y && typeof y.join === 'string' && !texts[y.join.trim()]) warn(who + ': a way joins "' + y.join + '", which is no step of its ' + name + ' — drawn as if it rejoined the main path.'); joins(y && y.then); }); }); })(diagram);
+    if (Array.isArray(diagram) && !decisions) warn(who + ': its ' + name + ' has no decision — a straight line, which the steps already say; leave the ' + name + ' out.');
+  }
   if (!desc || typeof desc !== 'object') { err('The file is not a JSON object.'); return problems; }
   if (desc.format !== DESC_FORMAT) err('"format" must be "' + DESC_FORMAT + '" — MxScout refuses the file without it.');
   if (desc.version !== 1) err('"version" must be 1.');
@@ -297,27 +323,7 @@ function check(pack, desc) {
         const steps = Array.isArray(p.steps) ? p.steps.filter((x) => typeof x === 'string' && x.trim()) : [];
         if (steps.length < 2) warn('process "' + p.name + '": ' + steps.length + ' step' + (steps.length === 1 ? '' : 's') + ' — a reader follows the case by its steps; write each one, naming who does what.');
         // The diagram, when there is one: steps, decisions with ways, ends (reference/descriptions-format.md).
-        if (p.diagram !== undefined) {
-          let decisions = 0;
-          const walk = (list, where) => {
-            if (!Array.isArray(list)) { err('process "' + p.name + '": ' + where + ' must be a list.'); return; }
-            list.forEach((x, i) => {
-              const w = where + '[' + i + ']';
-              if (x && typeof x.decision === 'string' && x.decision.trim()) {
-                decisions++;
-                if (!Array.isArray(x.ways) || x.ways.length < 2) warn('process "' + p.name + '": ' + w + ' is a decision with fewer than two ways.');
-                (Array.isArray(x.ways) ? x.ways : []).forEach((y, j) => { if (y && y.then !== undefined) walk(y.then, w + '.ways[' + j + '].then'); });
-              } else if (!(x && ((typeof x.step === 'string' && x.step.trim()) || (typeof x.end === 'string' && x.end.trim())))) {
-                err('process "' + p.name + '": ' + w + ' is neither a "step", a "decision" nor an "end" — MxScout drops it.');
-              }
-            });
-          };
-          walk(p.diagram, 'diagram');
-          const texts = {};
-          (function names(list) { (Array.isArray(list) ? list : []).forEach((x) => { if (x && typeof x.step === 'string') texts[x.step.trim()] = true; if (x && Array.isArray(x.ways)) x.ways.forEach((y) => names(y && y.then)); }); })(p.diagram);
-          (function joins(list) { (Array.isArray(list) ? list : []).forEach((x) => { if (x && Array.isArray(x.ways)) x.ways.forEach((y) => { if (y && typeof y.join === 'string' && !texts[y.join.trim()]) warn('process "' + p.name + '": a way joins "' + y.join + '", which is no step of its diagram — drawn as if it rejoined the main path.'); joins(y && y.then); }); }); })(p.diagram);
-          if (Array.isArray(p.diagram) && !decisions) warn('process "' + p.name + '": its diagram has no decision — a straight line, which the steps already say; leave the diagram out.');
-        }
+        if (p.diagram !== undefined) flowDiagram('process "' + p.name + '"', p.diagram, 'diagram');
         const bare = steps.filter((x) => x.trim().split(/\s+/).length < 4);
         if (bare.length) warn('process "' + p.name + '": ' + bare.length + ' step' + (bare.length === 1 ? ' is a label' : 's are labels') + ' ("' + bare[0] + '") — write who does what, in one sentence.');
         (Array.isArray(p.flows) ? p.flows : []).forEach((qn) => {
@@ -326,8 +332,89 @@ function check(pack, desc) {
       });
     }
   }
+  // Changes (SKILL.md, "A change, when the person asks"): how it works now, traced like a process, and the
+  // proposal with the model changes it needs. MxScout drops a change without a slug id or a title, and a
+  // model change without a target or with an action other than add, change or remove.
+  if (desc.changes !== undefined) {
+    if (!Array.isArray(desc.changes)) err('"changes" must be a list.');
+    else {
+      if (desc.changes.length > 100) warn('"changes" has ' + desc.changes.length + ' entries — MxScout keeps 100.');
+      const ids = {};
+      const flowInPack = (qn) => !!(pack.microflows[qn] || pack.nanoflows[qn] || pack.pages[qn]);
+      // Whether a model change's target is in the pack: flows and pages by kind, an entity, and an attribute
+      // or an association by the entity or module it belongs to. The other kinds the pack does not list.
+      const targetInPack = (kind, qn) => {
+        const parts = String(qn).split('.');
+        if (kind === 'microflow' || kind === 'nanoflow' || kind === 'page') return !!pack[kind + 's'][qn];
+        if (kind === 'entity') return !!pack.entities[qn];
+        if (kind === 'attribute') return parts.length === 3 && !!pack.entities[parts[0] + '.' + parts[1]];
+        if (kind === 'association') return !!pack.modules[parts[0]];
+        return null;
+      };
+      desc.changes.forEach((c, i) => {
+        const what = 'change ' + (c && typeof c.id === 'string' ? '"' + c.id + '"' : '[' + i + ']');
+        if (!c || typeof c !== 'object') { err(what + ' is not an object.'); return; }
+        if (typeof c.id !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(c.id)) err(what + ': "id" must be a slug — lower-case letters, digits and hyphens ("cancel-order") — MxScout drops the change otherwise.');
+        else if (ids[c.id]) err(what + ': the id is used twice — MxScout keeps the first.');
+        ids[c.id] = true;
+        if (typeof c.title !== 'string' || !c.title.trim()) err(what + ': no "title" — MxScout drops the change.');
+        if (typeof c.asked !== 'string' || !c.asked.trim()) warn(what + ': no "asked" — the request in the person\'s own words is what the page opens with.');
+        if (c.status !== undefined && CHANGE_STATUS.indexOf(c.status) === -1) warn(what + ': "status" "' + c.status + '" is not one of ' + CHANGE_STATUS.join(', ') + ' — shown as proposed.');
+        const now = c.now, pr = c.proposal;
+        if (!now || typeof now !== 'object') err(what + ': "now" must be an object — how it works today is half of a change.');
+        else {
+          layers(what + ' now', now, { words: 120, why: 'how it works now follows one case through its flows, stage by stage, about 150–400 words (SKILL.md, "A change", step 2). Trace it, do not summarise it.' });
+          const steps = Array.isArray(now.steps) ? now.steps.filter((x) => typeof x === 'string' && x.trim()) : [];
+          if (steps.length < 2) warn(what + ' now: ' + steps.length + ' step' + (steps.length === 1 ? '' : 's') + ' — write each step of how it works today, naming who does what.');
+          const flows = Array.isArray(now.flows) ? now.flows : [];
+          if (!flows.length) warn(what + ' now: no flows listed — name the flows you followed; they become links.');
+          flows.forEach((qn) => { if (!flowInPack(qn)) warn(what + ' now names ' + qn + ', which is not in the pack — it shows as plain text, not a link.'); });
+          if (now.diagram !== undefined) flowDiagram(what + ' now', now.diagram, 'diagram');
+        }
+        if (!pr || typeof pr !== 'object') err(what + ': "proposal" must be an object — the solution is the other half of a change.');
+        else {
+          layers(what + ' proposal', pr, { words: 60, why: 'the proposal says in plain words how the solution works for the people using it.' });
+          if (!Array.isArray(pr.steps) || !pr.steps.length) warn(what + ' proposal: no steps — write how the case goes once the change is made.');
+          if (pr.diagram !== undefined) flowDiagram(what + ' proposal', pr.diagram, 'diagram');
+          if (!Array.isArray(pr.changes) || !pr.changes.length) warn(what + ' proposal: no "changes" — list what to add, change or remove in the model.');
+          else {
+            if (pr.changes.length > 60) warn(what + ' proposal: ' + pr.changes.length + ' model changes — MxScout keeps 60.');
+            pr.changes.forEach((x, j) => {
+              const w = what + ' proposal.changes[' + j + ']';
+              if (!x || typeof x !== 'object') { err(w + ' is not an object.'); return; }
+              if (typeof x.target !== 'string' || !x.target.trim()) err(w + ': no "target" — MxScout drops it.');
+              if (CHANGE_ACTIONS.indexOf(x.action) === -1) err(w + ': "action" must be one of ' + CHANGE_ACTIONS.join(', ') + ' — MxScout drops it otherwise.');
+              if (CHANGE_KINDS.indexOf(x.kind) === -1) warn(w + ': "kind" "' + x.kind + '" is not one of ' + CHANGE_KINDS.join(', ') + ' — shown under other.');
+              if (typeof x.what !== 'string' || !x.what.trim()) warn(w + ': no "what" — say in a sentence what the change is.');
+              if (x.action !== 'add' && typeof x.target === 'string' && targetInPack(x.kind, x.target) === false) warn(w + ': ' + x.target + ' is not in the pack — to change or remove it, name it as the pack does; for something new the action is "add".');
+            });
+          }
+        }
+        const im = c.impact;
+        if (im !== undefined) {
+          if (!im || typeof im !== 'object') err(what + ': "impact" must be an object with "flows", "roles" and "data".');
+          else (Array.isArray(im.flows) ? im.flows : []).forEach((qn) => { if (!flowInPack(qn)) warn(what + ' impact names ' + qn + ', which is not in the pack — it shows as plain text, not a link.'); });
+        }
+        if (c.risks !== undefined) {
+          if (!Array.isArray(c.risks)) err(what + ': "risks" must be a list.');
+          else c.risks.forEach((r, j) => {
+            const w = what + ' risks[' + j + ']';
+            if (!r || !/^P[123]$/.test(r.level)) err(w + ': "level" must be "P1", "P2" or "P3" — MxScout drops it otherwise.');
+            if (!r || typeof r.title !== 'string' || !r.title.trim()) err(w + ': no "title" — MxScout drops it.');
+            else if (typeof r.fix !== 'string' || !r.fix.trim()) warn(w + ': no "fix" — every risk says what to do.');
+          });
+        }
+        if (c.open !== undefined && (!Array.isArray(c.open) || c.open.some((x) => typeof x !== 'string'))) err(what + ': "open" must be a list of questions.');
+      });
+    }
+  }
   return problems;
 }
+
+// A change's status, the kinds of model change and what is done to each (reference/descriptions-format.md, "changes"; public/describe.js keeps the same lists).
+const CHANGE_STATUS = ['proposed', 'accepted', 'done', 'dropped'];
+const CHANGE_KINDS = ['microflow', 'nanoflow', 'page', 'entity', 'attribute', 'association', 'enumeration', 'security', 'scheduled event', 'integration', 'other'];
+const CHANGE_ACTIONS = ['add', 'change', 'remove'];
 
 // A risk's id (reference/descriptions-format.md; public/describe.js reads the same pattern).
 const RISK_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -352,6 +439,14 @@ function merge(parts) {
       } else out.app = p.app;
     }
     if (p.c4 && typeof p.c4 === 'object') out.c4 = p.c4;
+    // Changes by id: one written again replaces the one before, a new one goes at the end.
+    if (Array.isArray(p.changes)) {
+      out.changes = (out.changes || []).slice();
+      p.changes.forEach((x) => {
+        const i = out.changes.findIndex((y) => y && x && y.id === x.id);
+        if (i < 0) out.changes.push(x); else out.changes[i] = x;
+      });
+    }
     TABLES.forEach((k) => {
       if (!p[k] || typeof p[k] !== 'object') return;
       out[k] = Object.assign(out[k] || {}, p[k]);
@@ -408,7 +503,7 @@ function main(argv) {
     const merged = merge(args.slice(1).map(readJson));
     fs.writeFileSync(args[0], JSON.stringify(merged, null, 2) + '\n');
     const n = ['microflows', 'nanoflows', 'pages', 'entities'].reduce((s, k) => s + Object.keys(merged[k] || {}).length, 0);
-    console.log('Wrote ' + args[0] + ': ' + n + ' descriptions from ' + (args.length - 1) + ' parts.');
+    console.log('Wrote ' + args[0] + ': ' + n + ' descriptions' + (merged.changes ? ', ' + merged.changes.length + ' change' + (merged.changes.length === 1 ? '' : 's') : '') + ' from ' + (args.length - 1) + ' parts.');
     return 0;
   }
   console.log('Usage:\n  node check-descriptions.js todo  <pack.md> [descriptions.json] [--list]\n  node check-descriptions.js check <pack.md> <descriptions.json>\n  node check-descriptions.js merge <out.json> <part.json> [<part.json> …]');

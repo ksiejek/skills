@@ -186,8 +186,8 @@
 
     function reach(id, c) {
       var seen = {}, q = [id];
-      while (q.length) {
-        var n = q.shift();
+      for (var at = 0; at < q.length; at++) {
+        var n = q[at];
         if (seen[n] || !nodes[n] || cOf(n) !== c) continue;
         seen[n] = 1;
         (out[n] || []).forEach(function (e) { q.push(e.to); });
@@ -293,7 +293,28 @@
   // The same entry is drawn by the documentation and, on its own, by the flow
   // window in MxScout (objects.js) — one entry, one reader, so the two views
   // of a flow cannot drift apart.
+  //
+  // Worked out once per flow and handed out as a copy after that. The
+  // documentation is built from two models that hold the same flows — the
+  // screens read the model with the System module added, the Documentation
+  // section and its AI pack the model as read — and on a large project the
+  // flows are most of that build. A copy, because a build writes its
+  // descriptions onto its own entries (describe.js attach); everything else in
+  // an entry is only read, by every reader. `same` (not enumerable, so not in
+  // the file) is the entry it is a copy of: what is worked out from an entry
+  // alone — its fingerprint, its lines in the pack — is worked out once for
+  // all its copies (describe.js).
+  var entries = typeof WeakMap === 'function' ? new WeakMap() : null;
   function flowEntry(f, kind) {
+    var was = entries && entries.get(f);
+    // A flow is not changed once read; if one ever is, its graph is a new one, and it is worked out again.
+    if (!was || was.graph !== f.graph) { was = { graph: f.graph }; if (entries) entries.set(f, was); }
+    var made = was[kind] || (was[kind] = flowEntryNow(f, kind));
+    var e = Object.assign({}, made);
+    Object.defineProperty(e, 'same', { value: made });
+    return e;
+  }
+  function flowEntryNow(f, kind) {
     var wf = workflow(f);
     var calls = [], exits = [];
     ((f.graph && f.graph.nodes) || []).forEach(function (n) {
@@ -343,28 +364,7 @@
     if (!p.structure) return null;
     model = model || {};
     var ix = indexOf(model);
-    var snippets = {};
-    (function place(structure) {
-      (function walk(nodes) {
-        (nodes || []).forEach(function (n) {
-          if (n.kind === 'snippet' && n.snippet && !snippets[n.snippet] && ix.snippets[n.snippet] && ix.snippets[n.snippet].structure) {
-            var s = ix.snippets[n.snippet];
-            snippets[n.snippet] = { parameters: (s.parameters || []).map(function (x) { return { name: x.name, type: x.entityQualifiedName || x.type || 'value' }; }), structure: s.structure };
-            place(s.structure);
-          }
-          walk(n.widgets); walk(n.footer);
-        });
-      })((structure.regions || []).reduce(function (all, r) { return all.concat(r.widgets || []); }, []));
-    })(p.structure);
-    // Every name the page and its snippets mention, read once: each run of
-    // text between two quotes of the JSON (a quote opens the next run as well
-    // as closing this one), so a name counts exactly when '"' + name + '"'
-    // is in the text. Looked up by name, not searched for once per entity and
-    // attribute of the model — that made a large project's documentation
-    // take seconds to build.
-    var text = JSON.stringify(p.structure) + JSON.stringify(snippets) + JSON.stringify(p.parameters || []);
-    var named = Object.create(null), m, quoted = /"([^"\\]+)(?=")/g;
-    while ((m = quoted.exec(text))) named[m[1]] = true;
+    var read = pageNames(p, model, ix), snippets = read.snippets, named = ix.dotless ? namesIn(read.text, false) : read.named;
     var hit = [];
     Object.keys(named).forEach(function (n) {
       var at = ix.byName[n];
@@ -383,6 +383,53 @@
     });
     return { structure: p.structure, snippets: snippets, attributes: attributes, entities: entities };
   }
+  // The snippets a page places and every name it and they mention — the
+  // costly part of a preview, and the same for every model the page is in
+  // while the model's snippets are the same list: the screens and the
+  // Documentation section build from two models that share their pages.
+  var pageReads = typeof WeakMap === 'function' ? new WeakMap() : null;
+  function pageNames(p, model, ix) {
+    var was = pageReads && pageReads.get(p);
+    var many = (model.snippets || []).length;
+    if (was && was.structure === p.structure && was.list === model.snippets && was.many === many) return was;
+    var snippets = {};
+    (function place(structure) {
+      (function walk(nodes) {
+        (nodes || []).forEach(function (n) {
+          if (n.kind === 'snippet' && n.snippet && !snippets[n.snippet] && ix.snippets[n.snippet] && ix.snippets[n.snippet].structure) {
+            var s = ix.snippets[n.snippet];
+            snippets[n.snippet] = { parameters: (s.parameters || []).map(function (x) { return { name: x.name, type: x.entityQualifiedName || x.type || 'value' }; }), structure: s.structure };
+            place(s.structure);
+          }
+          walk(n.widgets); walk(n.footer);
+        });
+      })((structure.regions || []).reduce(function (all, r) { return all.concat(r.widgets || []); }, []));
+    })(p.structure);
+    var text = JSON.stringify(p.structure) + JSON.stringify(snippets) + JSON.stringify(p.parameters || []);
+    var out = { structure: p.structure, list: model.snippets, many: many, snippets: snippets, text: text, named: namesIn(text, true) };
+    if (pageReads) pageReads.set(p, out);
+    return out;
+  }
+
+  // Every name the page and its snippets mention, read once: each run of text
+  // between two quotes of the JSON (a quote opens the next run as well as
+  // closing this one), so a name counts exactly when '"' + name + '"' is in
+  // the text. Looked up by name, not searched for once per entity and
+  // attribute of the model — that made a large project's documentation take
+  // seconds to build. A run holding a backslash is part of an escaped string,
+  // never a whole one. With `dotted`, only runs with a dot are kept: the names
+  // looked up are qualified ones (Module.Entity, Module.Entity.Attribute), and
+  // a page's text is mostly other words; a model with an entity named without
+  // a module is read with every run (indexOf, dotless).
+  function namesIn(text, dotted) {
+    var named = Object.create(null), runs = text.split('"');
+    for (var i = 1; i < runs.length - 1; i++) {
+      var r = runs[i];
+      if (r && r.indexOf('\\') === -1 && (!dotted || r.indexOf('.') !== -1)) named[r] = true;
+    }
+    return named;
+  }
+
   // A model's snippets and enumerations by name, and which entity each
   // entity and attribute name belongs to (its place in model.entities, so a
   // page's entries come out in the model's order): worked out once per model,
@@ -400,6 +447,7 @@
       if (at[at.length - 1] !== i) at.push(i);
     }
     ix.entities.forEach(function (e, i) {
+      if (String(e.qualifiedName).indexOf('.') === -1) ix.dotless = true;
       add(e.qualifiedName, i);
       (e.attributes || []).forEach(function (a) { add(e.qualifiedName + '.' + a.name, i); });
     });

@@ -69,6 +69,15 @@ cares about, in their words, not every check a flow makes; one rule tried in
 turn is a chain of decisions, each with its way out ("found") that `join`s the
 step all of them lead to, and the main path going on down ("not found").
 
+**A change** (mendix-describe's "A change, when the person asks") has two
+stories. How it works **now** is a process story by the rules above — one case,
+stage by stage, 150–400 words, naming statuses, roles and messages — told so
+that the place where the change would go in is plain. The **proposal** says how
+the case goes once the change is made, for the people who use it: what they see
+and do, what the application checks and records, who is told, what happens when
+it is too late or not allowed. The Mendix names belong in its list of model
+changes, not in this story.
+
 Smaller parts (one microflow, one page, one entity) keep their one or two
 sentences. They are read in lists, and the documentation already shows their
 steps.

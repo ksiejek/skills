@@ -25,7 +25,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const ENGINE_FILES = ['sqlite.js', 'bson.js', 'mpr.js', 'docs-data.js', 'describe.js', 'reportdata.js', 'docs-view.js', 'docs-file.js'];
+const ENGINE_FILES = ['sqlite.js', 'bson.js', 'mpr.js', 'docs-data.js', 'describe.js', 'reportdata.js', 'docs-changes.js', 'docs-view.js', 'docs-file.js'];
 
 function fail(message) { console.error(message); process.exit(1); }
 

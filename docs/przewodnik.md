@@ -381,3 +381,20 @@ git -C ~/Projects/Skills pull
 i nowa sesja Claude Code. Zmiany w skillach robisz w repo Skills: mendix-docs w
 `mendix-docs-source/`, a potem uruchamiasz `./sync.sh`. mendix-describe zmieniasz najpierw
 w MxScout Dev, potem `./sync.sh`. Na koniec commit i push.
+
+### Zmiana 2026-10-14: strona Changes i polecenie `change`
+
+Na prośbę „opisz zmianę” (np. „klient może anulować zamówienie, dopóki nie wyszło”) agent
+robi kolejno:
+1. dopytuje o niejasności,
+2. śledzi przez flow, jak to działa **teraz**,
+3. proponuje **rozwiązanie** w kategoriach Mendixa: co dodać, zmienić albo usunąć
+   (microflow, strony, encje, atrybuty, zabezpieczenia), zgodnie z konwencjami aplikacji,
+4. wypisuje wpływ, ryzyka, otwarte pytania i szacunek pracy.
+
+Wynik trafia na osobną stronę **Changes**, a nie do Procesów:
+- MxScout i MxScout Dev: mendix-describe, plik z `"add": true` zawierający tylko `changes`;
+- raport mendix-docs: `/mendix-docs change <co zmienić>` (od 3.2.0).
+
+Agent tylko proponuje, nigdy nie zmienia modelu. W Dev propozycję można też narysować
+skillem mendix-change-proposal.

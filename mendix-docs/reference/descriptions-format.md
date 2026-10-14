@@ -115,6 +115,7 @@ Paragraphs are separated by a blank line …",
 | `c4` | no | the architecture, levels 1 and 2: `context` and `containers` (nodes and links) and `open` (what the model does not show), see `c4.md` |
 | `microflows`, `nanoflows`, `pages`, `entities` | no | qualified name → `{ "hash", "text" }`, or just the text |
 | `risks[]` | no, but write it | `level` (`P1`, `P2` or `P3`, by `risk-levels.md`) and `title` are required, or MxScout drops the risk; `detail`, `where` (qualified names, they become links) and `fix` are what make it useful; `theme` is its pattern, one of the ten keys in `risk-levels.md` — the Risks page groups and filters by it, and guesses it from the title when it is missing |
+| `changes[]` | no | changes the person asked to be worked out (`SKILL.md`, "A change, when the person asks"), shown on the Changes page; see "Changes" below. In a file with `"add": true`, a change whose `id` is already kept replaces it and a new one is added at the end |
 | `context.where[]` | no | `{ "topic", "place" }`: what a developer looks for, and where it is when the name does not say |
 | `context.conventions[]` | no | `{ "pattern", "meaning" }`: a prefix or naming rule the modules follow |
 | `context.pitfalls[]` | no | sentences: what breaks easily, and what to check before a change |
@@ -134,3 +135,113 @@ that flow, page or entity in the documentation when the model has it.
 A description without `hash` is shown but never marked out of date; with one,
 MxScout compares it to the flow's current fingerprint each time it builds the
 documentation, and flags the ones that changed since.
+
+## Changes
+
+A change is something the person wants made to the application, worked out
+before anyone builds it: how that part works **now**, the **proposal**, and the
+concrete changes to the model it needs. MxScout shows it on the Changes page —
+the request quoted, now and the proposal side by side, both diagrams drawn, the
+model changes as a table grouped by kind — and nothing of it is applied
+anywhere. It is sent as a part of its own, with `"add": true` and only
+`changes` in it:
+
+```json
+{
+  "format": "mxscout-descriptions",
+  "version": 1,
+  "add": true,
+  "project": "Sales",
+  "language": "en",
+  "by": "Claude, mendix-describe skill",
+  "changes": [
+    {
+      "id": "cancel-order",
+      "title": "Customers can cancel an order until it ships",
+      "asked": "Customers should be able to cancel an order themselves, as long as it has not been shipped yet.",
+      "date": "2026-10-14",
+      "status": "proposed",
+      "now": {
+        "summary": "Today an order, once placed, only goes forward: a clerk confirms it, the warehouse ships it. A customer who changes their mind has to call the order desk, and a clerk deletes the order by hand.",
+        "story": "A customer places an order from the shop page. Orders.ACT_Order_Place checks that it has lines, sets its Status to Placed and puts it in the region's queue.\n\nA clerk takes it from the queue … (the case stage by stage, 150–400 words: who acts, what is checked and set, which statuses it passes through, how it ends).\n\nNothing in the model lets a customer take an order back. The only way out is Orders.ACT_Order_Delete, which a clerk may start from the order screen; it deletes the order and its lines and records nothing.",
+        "steps": [
+          "The customer places the order from the shop page",
+          "A clerk takes it from the region's queue and confirms it",
+          "The warehouse marks it shipped when it leaves",
+          "To stop an order, a clerk deletes it by hand"
+        ],
+        "flows": ["Orders.ACT_Order_Place", "Orders.ACT_Order_Confirm", "Orders.ACT_Order_Ship", "Orders.ACT_Order_Delete"],
+        "diagram": [
+          { "step": "Places the order", "who": "Customer" },
+          { "step": "Takes and confirms it", "who": "Clerk" },
+          { "decision": "Does the customer call to stop it?", "ways": [
+            { "label": "yes", "then": [{ "step": "Deletes the order by hand", "who": "Clerk" }], "end": "Deleted, with no record" },
+            { "label": "no" }
+          ] },
+          { "step": "Marks it shipped", "who": "Warehouse" },
+          { "end": "Shipped" }
+        ]
+      },
+      "proposal": {
+        "summary": "A Cancel button on the customer's order page, shown until the order ships, sets a new status Cancelled through the flow every status change already goes through, so the history and the delivery date stay right.",
+        "story": "The customer opens their order and presses Cancel. … (the solution in plain words, for the people who use it: what they see, what is checked, what is recorded, who is told, what happens when it is too late.)",
+        "steps": [
+          "The customer opens their order and presses Cancel",
+          "The application checks the order has not shipped",
+          "It sets the status to Cancelled and records who cancelled it and when",
+          "The clerks of the region see it leave their queue"
+        ],
+        "diagram": [
+          { "step": "Presses Cancel on the order", "who": "Customer" },
+          { "decision": "Has it shipped?", "ways": [
+            { "label": "yes", "end": "Refused: the order is on its way" },
+            { "label": "no" }
+          ] },
+          { "step": "Sets the status to Cancelled", "by": "app" },
+          { "end": "Cancelled" }
+        ],
+        "changes": [
+          { "kind": "enumeration", "target": "Orders.ENUM_OrderStatus", "action": "change", "what": "Gets the value Cancelled." },
+          { "kind": "attribute", "target": "Orders.Order.CancelledOn", "action": "add", "what": "A date and time, empty until the order is cancelled." },
+          { "kind": "microflow", "target": "Orders.ACT_Order_Cancel", "action": "add", "what": "Started by the Cancel button: checks the status is not Shipped and calls Orders.SUB_Order_ChangeStatus with Cancelled." },
+          { "kind": "microflow", "target": "Orders.SUB_Order_ChangeStatus", "action": "change", "what": "Accepts Cancelled, sets CancelledOn and skips the delivery date for it." },
+          { "kind": "page", "target": "Orders.Order_Detail_Customer", "action": "change", "what": "Gets a Cancel button, visible while the status is Placed or Confirmed." },
+          { "kind": "security", "target": "Orders.Customer", "action": "change", "what": "The module role Customer may start Orders.ACT_Order_Cancel, and write CancelledOn on their own orders only." }
+        ]
+      },
+      "impact": {
+        "flows": ["Orders.SUB_Order_ChangeStatus", "Orders.DS_Order_QueueForClerk"],
+        "roles": ["Customer", "Clerk"],
+        "data": "Existing orders keep their status; none becomes Cancelled. The queue's data source must leave Cancelled orders out."
+      },
+      "risks": [
+        { "level": "P2", "title": "An order shipped at the same moment could still be cancelled", "detail": "The warehouse and the customer act on the same order; the button's visibility is decided when the page opens.", "fix": "Check the status again inside Orders.ACT_Order_Cancel, not only on the button." }
+      ],
+      "open": [
+        "Is the payment of a cancelled order refunded, and by whom?",
+        "May a clerk cancel on a customer's behalf?"
+      ],
+      "effort": "small: one new microflow, two changed, one attribute and one enumeration value"
+    }
+  ]
+}
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `id` | yes | a slug — lower-case letters, digits and hyphens (`cancel-order`); a change with an id MxScout keeps replaces it. Without one, or without `title`, MxScout drops the change |
+| `title` | yes | the change in a line, as the person would say it |
+| `asked` | no, but write it | the request in the person's own words; the page opens with it, quoted |
+| `date`, `status` | no | `status`: `proposed` (the default), `accepted`, `done` or `dropped` |
+| `now` | yes | how it works today: `summary` (1–3 sentences), `story` (one case stage by stage, 150–400 words, as `business-narrative.md` says under "A process"), `steps`, `flows` (qualified names from the pack; they become links) and `diagram` when it branches — the same shape as a process's |
+| `proposal` | yes | the solution: `summary`, `story` (in plain words, for the people who use it), `steps`, `diagram` when it branches, and `changes` |
+| `proposal.changes[]` | yes | one per model change: `kind` (`microflow`, `nanoflow`, `page`, `entity`, `attribute`, `association`, `enumeration`, `security`, `scheduled event`, `integration` or `other`), `target` (a qualified name — an existing one as the pack names it, a new one by the app's conventions; an attribute as `Module.Entity.Attribute`), `action` (`add`, `change` or `remove`; anything else is dropped) and `what` (one or two sentences). An existing target becomes a link; an added one is marked new |
+| `impact` | no | `flows` (existing flows it affects; links), `roles` (user roles that gain or lose something), `data` (what happens to the records already there) |
+| `risks[]` | no | as the top-level risks: `level` (`P1`–`P3`) and `title` required, `detail`, `fix` |
+| `open[]` | no | the questions the model cannot answer — for the person |
+| `effort` | no | a rough size, in words |
+
+MxScout keeps up to 100 changes, 60 model changes per change, 100 steps and 60
+flows on each side, 30 risks, 30 open questions and 30 roles; text is cut at the
+lengths the rest of the file is. Both stories are plain prose like every other
+`story`: paragraphs separated by a blank line, no markup.

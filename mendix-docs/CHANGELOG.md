@@ -1,5 +1,15 @@
 # mendix-docs — changes
 
+## 3.2.0 – 2026-10-14
+
+- **`change <what>`**: a change the person wants, described as the
+  application works today and with a proposed solution — the model changes
+  by kind (add, change, remove), impact, risks, open questions and effort —
+  on the report's new **Changes** page. The agent proposes; it never changes
+  the model.
+- The engine carries MxScout's `docs-changes.js`, so the report and its
+  Markdown copy have the Changes page.
+
 ## 3.1.0 – 2026-10-14
 
 - **Processes are traced, not summarised.** A first run gave short, general

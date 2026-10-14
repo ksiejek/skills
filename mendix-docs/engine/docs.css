@@ -1082,3 +1082,54 @@ button.dx-dm-can.link:hover { border-color:var(--acc); color:var(--acc-text); }
 
 /* A process's diagram (drawProcesses), drawn by the flow drawing; it scrolls sideways rather than squeeze. */
 .dx-pd-graph { overflow-x:auto; padding:6px 2px 10px; }
+
+/* Changes (docs-changes.js): a change an agent worked out — now and proposed side by side on a wide
+   screen, one under the other on a narrow one; the model changes as a table grouped by kind. */
+.dx-ch-st { display:inline-block; font:600 10.5px/17px var(--font-mono); padding:0 7px; border-radius:5px; vertical-align:1px; color:var(--acc-text); background:var(--acc-soft); }
+.dx-ch-st.accepted { color:var(--ok); background:color-mix(in srgb, var(--ok) 14%, transparent); }
+.dx-ch-st.done { color:var(--ink2); background:var(--raised); }
+.dx-ch-st.dropped { color:var(--muted); background:var(--raised); text-decoration:line-through; }
+.dx-pl-t small .dx-ch-st { margin-right:2px; }
+.dx-ch-asked { margin:0; padding:12px 16px; border-left:3px solid var(--acc); background:var(--panel); border-radius:0 10px 10px 0; display:flex; flex-direction:column; gap:6px; max-width:900px; }
+.dx-ch-asked p { margin:0; font-size:16px; line-height:1.6; font-style:italic; color:var(--ink); }
+.dx-ch-cols { display:grid; grid-template-columns:1fr; gap:34px; }
+.dx-ch-col { display:flex; flex-direction:column; gap:16px; min-width:0; }
+.dx-ch-col.proposal > .dx-cap { color:var(--acc-text); }
+.dx-ch-lead { margin:0; font-size:16px; line-height:1.55; font-weight:500; color:var(--ink); }
+.dx-ch-steps { max-width:none; }
+.dx-ch-sub { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.dx-ch-index { max-width:900px; }
+.dx-ch-row { display:flex; flex-direction:column; gap:4px; padding:12px 2px; border:0; border-bottom:1px solid var(--line); background:none; color:var(--ink); text-align:left; text-decoration:none; cursor:pointer; }
+.dx-ch-row-h { display:flex; align-items:center; gap:10px; }
+.dx-ch-row-h b { font-size:15px; font-weight:600; }
+.dx-ch-row-s { font-size:13.5px; line-height:1.5; color:var(--ink2); }
+.dx-ch-row small { font-size:12px; color:var(--muted); }
+.dx-ch-row:hover b { color:var(--acc-text); }
+.dx-ch-table { width:100%; max-width:1100px; border-collapse:collapse; font-size:13.5px; }
+.dx-ch-table th, .dx-ch-table td { text-align:left; vertical-align:top; padding:8px 10px 8px 2px; border-bottom:1px solid var(--line); }
+.dx-ch-table thead th { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+.dx-ch-kind th { padding-top:16px; font-size:12.5px; font-weight:600; color:var(--ink); }
+.dx-ch-kind .mono { color:var(--muted); font-weight:500; }
+.dx-ch-table td:first-child { width:78px; }
+.dx-ch-table td:last-child { line-height:1.5; color:var(--ink2); }
+.dx-ch-target { white-space:nowrap; }
+.dx-ch-target .dx-code { font-family:var(--font-mono); font-size:12.5px; }
+.dx-ch-act { display:inline-block; min-width:58px; text-align:center; font:600 11px/19px var(--font-mono); border-radius:5px; }
+.dx-ch-act.add { color:var(--ok); background:color-mix(in srgb, var(--ok) 14%, transparent); }
+.dx-ch-act.change { color:var(--p2); background:var(--p2bg); }
+.dx-ch-act.remove { color:var(--p1); background:var(--p1bg); }
+.dx-ch-new { margin-left:8px; font:600 10.5px/16px var(--font-mono); padding:0 6px; border-radius:5px; border:1px solid var(--line2); color:var(--muted); }
+.dx-ch-more { display:grid; grid-template-columns:1fr; gap:30px; }
+.dx-ch-roles { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding-top:6px; font-size:12.5px; color:var(--muted); }
+.dx-ch-role { padding:1px 8px; border-radius:999px; background:var(--raised); color:var(--ink2); }
+.dx-ch-data { margin:0; font-size:14px; line-height:1.6; color:var(--ink2); }
+.dx-ch-risk { display:grid; grid-template-columns:30px minmax(0,1fr); column-gap:10px; align-items:start; padding:10px 2px; border-bottom:1px solid var(--line); font-size:13.5px; line-height:1.5; }
+.dx-ch-risk p { margin:4px 0 0; color:var(--ink2); }
+.dx-ch-open { margin:0; padding-left:20px; display:flex; flex-direction:column; gap:6px; font-size:14px; line-height:1.55; color:var(--ink2); }
+@media (min-width: 1100px) {
+  .dx-ch-cols { grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:0; align-items:stretch; }
+  .dx-ch-col.now { padding-right:32px; }
+  .dx-ch-col.proposal { padding-left:32px; border-left:1px solid var(--line); }
+  .dx-ch-more { grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:40px; align-items:start; }
+}
+@media (max-width: 720px) { .dx-ch-target { white-space:normal; word-break:break-word; } }
