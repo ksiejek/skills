@@ -354,3 +354,7 @@ mendix-docs od 3.1.0):
   - proces wymienia mniej niż dwa flow.
 - **Język:** ten, w którym piszesz, jeśli go nie podasz. Agent pyta, gdy nie jest pewny.
   Wcześniej domyślnie był angielski.
+- **app-report-presentation** dostał tę samą zasadę: nowa reguła 11 „A process is
+  traced, not summarised”, sekcja „A process page holds what was traced” w
+  `page-patterns.md` i nowe punkty w checkliście. Wcześniej mówił, że procesy pisze się
+  „z opisów części”.

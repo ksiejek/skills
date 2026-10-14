@@ -15,7 +15,7 @@ menu, the labels and the kind tags.
 | Background work | something that runs without a user | schedule, on/off, what it runs |
 | Integration | a connection in or out | direction, partner, what goes over |
 | Role | a kind of user | which parts and records it reaches |
-| Process | a business case end to end | written from the units above |
+| Process | a business case end to end | traced through the units above, one case from start to end |
 
 ## Rules
 

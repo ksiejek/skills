@@ -45,8 +45,14 @@ seconds, can a reader answer:
       no bold.
 - [ ] Prose blocks are stacked, full width of the reading column — no tiles.
 - [ ] Business prose is ≤ ~85 characters per line.
+- [ ] Each process's description follows one case from start to end, about
+      200–400 words, with the real names of statuses, roles, messages and
+      the records the logic looks up by name — not a paragraph about the
+      business in general.
+- [ ] Each process lists the flows that carry it, across parts.
 - [ ] Each process's steps are one sentence each, naming who does what.
-- [ ] A diagram exists only for processes that branch.
+- [ ] A diagram exists for every process that can go more than one way, and
+      only for those.
 
 ## 4. Accuracy
 

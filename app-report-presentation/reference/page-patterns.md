@@ -163,6 +163,21 @@ application", the summary as lead, "Who uses it." as a short list (group in
 bold, then what they do), then `HOW IT WORKS` (the description) beside the
 list of processes.
 
+### A process page holds what was traced
+
+A process page is only as good as the tracing behind it. Before writing it,
+whoever analyses the application (a person or an agent) follows one case
+through the code that carries it, across parts: where it starts (a screen's
+button, a schedule, an incoming call or message, a workflow), every decision
+that changes its course and on what data, what is recorded (which status,
+which field), the records the logic looks up by name (a team, a queue, a
+template — often a literal in a query), who is told and how, what has a
+deadline, what happens when something fails or is refused, and how it ends.
+The description then tells that case stage by stage, about 200–400 words;
+the steps are one sentence each; the flows on its way are listed. A process
+written from the summaries of the parts it touches reads well and says
+nothing — trace it again.
+
 ### When a process gets a diagram
 
 Decide per process:

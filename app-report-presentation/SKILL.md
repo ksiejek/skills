@@ -30,7 +30,7 @@ own analysis supplies it and this skill only says how to show it.
 
 No argument: ask which, briefly, in the person's language.
 
-## The ten rules that matter most
+## The eleven rules that matter most
 
 1. **The report belongs to the application, not to the tool.** Its title and
    mark are the application's (its name, its initial). Say once, quietly, what
@@ -66,7 +66,14 @@ No argument: ask which, briefly, in the person's language.
 9. **Translate the words, never the names.** Labels and prose follow the
    reader's language; identifiers (modules, classes, tables, flows, fields)
    stay exactly as in the source, in code font. See `reference/language.md`.
-10. **A diagram must earn its place.** Draw a process only when it branches;
+10. **A process is traced, not summarised.** Its page follows one case
+    through the code that carries it — where it starts, every decision and
+    on what data, what is recorded, who is told, how it ends, every way it
+    can go — naming the real statuses, roles, messages and the records the
+    logic looks up by name. Written from the parts' summaries it comes out
+    short and general, which is the one thing a reader did not come for. See
+    "A process page holds" in `reference/page-patterns.md`.
+11. **A diagram must earn its place.** Draw a process only when it branches;
     draw a flow top to bottom with the main path straight down and the other
     ways to the side; draw context grouped by direction of traffic. A straight
     sequence is a numbered list, not a picture.
@@ -79,7 +86,7 @@ generic type only decides **where** it goes and **how** it is laid out.
 
 | Generic page type | It holds | Examples by technology |
 |---|---|---|
-| **Processes** | business processes told end to end | the same everywhere: written from the parts below |
+| **Processes** | business processes told end to end | the same everywhere: one case traced through the flows below, across parts — never written from the parts' summaries |
 | **Modules** (parts) | the units the application is divided into | Mendix modules · Maven/Gradle modules or top packages · .NET projects · npm workspaces · Django apps · DB schemas · ABAP packages |
 | **Flows** (logic) | the units of behaviour, each drawable as steps | Mendix microflows/nanoflows · Spring service methods and endpoints · .NET controller actions and handlers · stored procedures and triggers · OutSystems actions · Power Automate flows |
 | **Data model** | what the application stores and how it relates | entities · tables · JPA/EF/ORM classes · document collections |
