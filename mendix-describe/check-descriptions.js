@@ -641,6 +641,10 @@ function check(pack, desc) {
       const ids = {};
       const changeIds = {};
       (Array.isArray(desc.changes) ? desc.changes : []).forEach((c) => { if (c && typeof c.id === 'string') changeIds[c.id] = true; });
+      // The risks a ticket may name as the one it is about: those the pack's risk triage lists (an agent's by its
+      // id, one a person raised by "c-…"), and those this file writes.
+      const triage = (pack && pack.triage) || [];
+      const knownRisks = new Set(triage.map((r) => r.id).concat((Array.isArray(desc.risks) ? desc.risks : []).map((r) => r && r.id)).filter(Boolean));
       desc.tickets.forEach((t, i) => {
         const what = 'ticket ' + (t && typeof t.id === 'string' ? '"' + t.id + '"' : '[' + i + ']');
         if (!t || typeof t !== 'object') { err(what + ' is not an object.'); return; }
@@ -690,6 +694,10 @@ function check(pack, desc) {
           if (typeof t.change !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(t.change)) err(what + ': "change" must be the id of a change — a slug, as the change has it; MxScout drops it otherwise.');
           else if (!changeIds[t.change]) warn(what + ': "change" is "' + t.change + '", which is not in this file — it links only if MxScout already keeps a change with that id.');
         } else if (t.verdict === 'bug') warn(what + ': a bug with no "change" — propose the fix as a change in the same file and name its id.');
+        if (t.risk !== undefined && t.risk !== null) {
+          if (typeof t.risk !== 'string' || !((RISK_ID.test(t.risk) && t.risk.length <= 80) || /^c-[A-Za-z0-9_-]{1,80}$/.test(t.risk))) warn(what + ': "risk" must be the id of a known risk — an agent\'s risk\'s slug, or "c-…" for one a person raised, as the pack\'s risk triage lists it; MxScout leaves it out otherwise.');
+          else if (triage.length && !knownRisks.has(t.risk)) warn(what + ': "risk" is "' + t.risk + '", which neither the pack\'s risk triage nor this file lists — it links only if MxScout keeps a risk with that id.');
+        }
         if (t.risks !== undefined) {
           if (!Array.isArray(t.risks)) err(what + ': "risks" must be a list.');
           else t.risks.forEach((r, j) => {

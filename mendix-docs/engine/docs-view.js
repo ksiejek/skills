@@ -2695,7 +2695,7 @@
           var max = Math.max.apply(null, pats.map(function (p) { return p.n; }).concat([1]));
           return h('section', { class: 'dx-fc', 'aria-label': 'Patterns' }, [
             facetHead('Patterns', rf.th, function () { setF({ th: null }); }),
-            insight ? h('p', { class: 'dx-insight' }, [h('b', { text: insight }), wide ? ' ' + PAT_NOTE[top[0]] : null]) : null,
+            insight ? h('p', { class: 'dx-insight' }, [h('b', { text: insight }), ' ' + PAT_NOTE[top[0]]]) : null,
             h('div', { class: wide ? 'dx-fc-rows' : 'dx-pats' }, pats.map(function (p) {
               var on = rf.th === p.k;
               var cls = (wide ? 'dx-fc-pat' : 'dx-pat') + (on ? ' on' : '') + ((rf.th && !on) || !p.n ? ' dim' : '');
@@ -2791,7 +2791,6 @@
             var t2 = shown[idx + d];
             return h('button', { type: 'button', class: 'dx-rk-nav', 'aria-label': label, disabled: !t2, onclick: function () { if (t2) go({ view: 'risks', sub: riskId(t2.i)}); } }, [navIcon(icon, 14)]);
           };
-          var allPat = h('button', { type: 'button', class: 'dx-more-link', text: 'All ' + (sameP.length + 1) + ' with this pattern', onclick: function () { setF({ th: cur.th }); } });
           var main2 = h('div', { class: 'dx-rk-main' }, [
             h('div', { class: 'dx-rk-top' }, [h('div', { class: 'dx-rk-navs' }, [nav2(-1, 'Previous finding', 'up'), nav2(1, 'Next finding', 'down'), h('span', { text: gKey + ' · ' + (inG.indexOf(cur) + 1) + ' of ' + inG.length })]),
               h('span', { class: 'mono dx-rk-id', text: riskId(cur.i) })]),
@@ -2817,12 +2816,11 @@
                 if (ent) return ln({ view: 'domain', entity: w.qn }, { class: 'dx-rk-where' }, kids);
                 return h('div', { class: 'dx-rk-where' }, kids);
               }))]),
-            sameP.length ? h('section', { class: 'dx-rk-sec dx-rk-narrow' }, [h('div', { class: 'dx-rk-sec-h' }, [h('h3', { class: 'dx-cap', text: 'Same pattern elsewhere' }), allPat]),
-              h('div', { class: 'dx-pd-rows' }, sameP.slice(0, 4).map(sib))]) : null,
             h('p', { class: 'dx-rk-foot' }, [navIcon('info', 14), 'An agent read the model and wrote this finding. It sees only the model, not the data or the configuration in production.'])
           ]);
           var lvC = { P1: 0, P2: 0, P3: 0 };
           all.forEach(function (x) { if (x.mod === cur.mod) lvC[x.lv]++; });
+          // Beside the finding when the window is wide, under it otherwise (docs.css).
           var rail = h('aside', { class: 'dx-rk-rail' }, [
             sameP.length ? h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: 'Same pattern elsewhere' }),
               h('p', { class: 'dx-rk-note', text: plural(sameP.length, 'more finding', 'more findings') + ' in ' + plural(Object.keys(patMods).length, 'module', 'modules') + ' share this pattern.' }),

@@ -194,7 +194,7 @@
 }
 @media print {
   .dx { height:auto; overflow:visible; }
-  .dx-side, .dx-list, .dx-actions { display:none !important; }
+  .dx-side, .dx-list, .dx-actions, .dx-toc { display:none !important; }
   .dx-island { margin:0; border:0; box-shadow:none; }
   .dx-body { display:block; } .dx-main { overflow:visible; }
 }
@@ -218,7 +218,9 @@
 .dx[data-view="start"] .dx-main, .dx[data-view="processes"] .dx-main { padding:0; }
 .dx-ov { max-width:1080px; margin:0; padding:48px 40px 88px; }
 .dx-ov-doc { min-width:0; display:flex; flex-direction:column; gap:72px; }
-.dx-toc { display:none; }
+/* The contents beside the document at 2000px and wider; under it otherwise, its links in a row, rather than
+   gone (Karol, 2026-10-14). */
+.dx-toc { display:flex; flex-direction:column; gap:22px; max-width:760px; margin-top:72px; padding-top:28px; border-top:1px solid var(--line); }
 .dx-ov-hero { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr)); gap:40px 56px; align-items:start; }
 .dx-ov-intro { grid-column:span 2; min-width:0; max-width:760px; display:flex; flex-direction:column; gap:18px; }
 .dx-ov-h1 { margin:0; font-size:64px; line-height:1; font-weight:600; letter-spacing:-.04em; overflow-wrap:anywhere; }
@@ -315,6 +317,11 @@
 /* wide: the contents beside the document, and what this file is */
 .dx-toc-l { display:flex; flex-direction:column; gap:4px; }
 .dx-toc-l > .dx-cap { padding:0 10px 6px; }
+@media (max-width: 1999px) {
+  .dx-toc-l { flex-direction:row; flex-wrap:wrap; align-items:center; gap:4px 2px; }
+  .dx-toc-l > .dx-cap { flex-basis:100%; padding:0 0 6px; }
+  .dx-toc-l > .dx-toc-a:first-of-type { padding-left:0; }
+}
 .dx-toc-a { display:block; padding:5px 10px; border:0; border-radius:6px; background:none; font-size:13px; color:var(--ink2); text-align:left; cursor:pointer; }
 .dx-toc-a.on { color:var(--acc-text); font-weight:600; background:var(--acc-soft); }
 .dx-toc-file { display:flex; flex-direction:column; gap:10px; padding:16px; border:1px solid var(--line); border-radius:14px; background:var(--raised); }
@@ -322,7 +329,7 @@
 .dx-toc-file span { font-size:12.5px; line-height:1.55; color:var(--muted); }
 @media (min-width: 2000px) {
   .dx-ov { display:grid; grid-template-columns:minmax(0,1fr) 260px; column-gap:72px; max-width:1880px; padding:72px 72px 96px; }
-  .dx-toc { display:flex; flex-direction:column; gap:22px; padding-top:8px; position:sticky; top:24px; align-self:start; }
+  .dx-toc { display:flex; flex-direction:column; gap:22px; max-width:none; margin-top:0; padding-top:8px; border-top:0; position:sticky; top:24px; align-self:start; }
   .dx-ov-h1 { font-size:76px; }
   .dx-ov-pair:not(.one) { display:grid; grid-template-columns:minmax(0,.8fr) minmax(0,1.4fr); gap:72px; align-items:start; }
 }
@@ -479,7 +486,10 @@ a.dx-pd-flow:hover .dx-pd-qn, button.dx-pd-flow:hover .dx-pd-qn, .dx-pd-risk:hov
 .dx-rk-detail { min-height:0; overflow:auto; }
 .dx-rk-wrap { display:flex; padding:26px 36px 56px; }
 .dx-rk-main { display:flex; flex-direction:column; gap:26px; min-width:0; max-width:780px; }
-.dx-rk-rail { display:none; }
+/* Beside the finding at 2000px and wider; under it otherwise (Karol, 2026-10-14: a column that vanished on a
+   smaller screen should go under its neighbour instead). */
+.dx-rk-wrap { flex-direction:column; }
+.dx-rk-rail { display:flex; flex-direction:column; gap:26px; min-width:0; max-width:780px; margin-top:30px; padding-top:26px; border-top:1px solid var(--line); }
 .dx-rk-top { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .dx-rk-navs { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); }
 .dx-rk-navs > span { padding-left:6px; }
@@ -517,10 +527,18 @@ a.dx-rk-where, button.dx-rk-where { cursor:pointer; }
   .dx-rk-facets { display:flex; flex-direction:column; gap:28px; min-height:0; overflow:auto; border-right:1px solid var(--line); padding:24px 22px 32px 28px; }
   .dx-rk-facets .dx-fc-mod { grid-template-columns:minmax(0,1fr) 96px 28px; }
   .dx-rk-wrap { display:grid; grid-template-columns:minmax(0,780px) minmax(0,400px); column-gap:64px; padding:34px 48px 64px 52px; }
-  .dx-rk-rail { display:flex; flex-direction:column; gap:30px; min-width:0; padding-top:52px; }
-  .dx-rk-narrow { display:none; }
+  .dx-rk-rail { display:flex; flex-direction:column; gap:30px; min-width:0; max-width:none; margin-top:0; padding-top:52px; border-top:0; }
   .dx-rk-head h2 { font-size:30px; }
   .dx-rk-p { font-size:16px; }
+}
+/* Where the list and the finding no longer fit side by side, the finding goes under the list and the page scrolls as one. */
+.dx[data-view="risks"] .dx-main, .dx[data-view="domain"] .dx-main { container:dxmain / inline-size; }
+@container dxmain (max-width: 720px) {
+  .dx-rk { overflow-y:auto; }
+  .dx-rk-body { flex:none; display:block; }
+  .dx-rk-list { max-height:50vh; border-right:0; border-bottom:1px solid var(--line); }
+  .dx-rk-detail { overflow:visible; }
+  .dx-rk-wrap { padding:22px 18px 40px; }
 }
 @media (max-width: 1100px) {
   .dx-rk-strip { grid-template-columns:minmax(0,1fr); }
@@ -1066,6 +1084,27 @@ button.dx-dm-can.link:hover { border-color:var(--acc); color:var(--acc-text); }
 .dx.dx-only .dx-dm-mods > .dx-cap { padding:8px 8px 2px; }
 .dx.dx-only .dx-dm-mods .dx-rk-search { width:auto; }
 @media (min-width: 2000px) { .dx.dx-only .dx-dm { grid-template-columns:280px minmax(0,1fr) 600px; } }
+/* The domain model where three columns no longer fit: the entity's panel goes under the drawing instead of
+   squeezing it to a sliver, and the screen scrolls as one; narrower still, the modules go on top. */
+@container dxmain (max-width: 1150px) {
+  .dx .dx-dm, .dx.dx-only .dx-dm { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(420px,1fr) auto; overflow-y:auto; }
+  .dx.dx-only .dx-dm { grid-template-columns:240px minmax(0,1fr); }
+  .dx .dx-dm-mods { grid-column:1; grid-row:1 / span 2; }
+  .dx .dx-dm-canvas { grid-column:-2 / -1; grid-row:1; border-right:0; }
+  .dx .dx-dm-insp { grid-column:-2 / -1; grid-row:2; overflow:visible; border-top:1px solid var(--line); }
+}
+@media (min-width: 1100px) { @container dxmain (max-width: 1150px) { .dx .dx-dm { grid-template-columns:240px minmax(0,1fr); } } }
+@container dxmain (max-width: 640px) {
+  .dx .dx-dm, .dx.dx-only .dx-dm { grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(380px,60vh) auto; }
+  .dx .dx-dm-mods { grid-column:1; grid-row:1; max-height:32vh; border-right:0; border-bottom:1px solid var(--line); }
+  .dx .dx-dm-canvas { grid-column:1; grid-row:2; }
+  .dx .dx-dm-insp { grid-column:1; grid-row:3; }
+}
+/* The legend wraps rather than cutting off its last kinds. */
+.dx-dm-legend { flex-wrap:wrap; height:auto; min-height:32px; row-gap:2px; padding:4px 12px; white-space:normal; }
+.dx-dm-legend span { white-space:nowrap; }
+.dx-dm-bar { align-items:flex-end; }
+.dx-dm-legend { flex:0 1 auto; min-width:0; }
 
 /* The checks MxScout ran on a rule (security.js accessNotes), in the app only. */
 .dx-ac-chk { font:500 11.5px/18px inherit; padding:1px 8px; border-radius:999px; border:1px solid var(--line2); background:var(--panel); color:var(--ink2); cursor:pointer; }

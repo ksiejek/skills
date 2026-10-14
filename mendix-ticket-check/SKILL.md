@@ -183,6 +183,14 @@ be a ticket — a description, an update, one more process, a change, a question
    validation rule as `attribute` with `Module.Entity.Attribute`. Write the reasoning (`story`, at least 80 words, paragraphs): what
    the ticket expects, what the model does instead, why that is or is not a
    fault. Then the `summary`: the answer in one to three sentences.
+   **If it is a risk already known, say which.** The pack's `## risk triage`
+   lists the risks a person decided about or raised, each by its id — an
+   agent's slug (`p2-saved-twice`), or `c-…` for one a person raised in a
+   comment — and the documentation's Risks section gives every risk's id. When
+   the ticket reports the very problem one of them describes, put that id in
+   the ticket's `risk`: MxScout links the ticket to the risk and the risk back
+   to the ticket. Only an id you read there, never one you make up; when none
+   matches, leave `risk` out, and a new risk the ticket shows goes in `risks`.
 
 6. **For a bug, propose the fix as a change.** Work it out as mendix-describe's
    "A change, when the person asks" steps 2 to 4 say — how it works now (you
@@ -206,7 +214,8 @@ be a ticket — a description, an update, one more process, a change, a question
    `reported` (the text as pasted, trimmed), `source` (`"Jira"`, its address —
    kept as text), `date`, `verdict`, `confidence`, `summary`, `story`,
    `traced` (`steps`, `flows`, a `diagram` when it branches), `evidence`,
-   `needs`, `reply`, `change`, `risks`. Several tickets go in one file.
+   `needs`, `reply`, `change`, `risk` (a known risk it is about), `risks`.
+   Several tickets go in one file.
 
    ```
    node ../mendix-describe/check-descriptions.js check pack.md descriptions.tickets.json

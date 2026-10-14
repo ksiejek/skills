@@ -309,6 +309,7 @@ when a fix is proposed:
       "needs": [],
       "reply": "Thanks — confirmed. The clerk's queue leaves out shipped orders but not cancelled ones, so a cancelled order stays listed until someone removes it. We will change the queue to leave out cancelled orders too (change queue-leaves-out-cancelled). Until then, cancelled orders can be skipped safely: they cannot be confirmed.",
       "change": "queue-leaves-out-cancelled",
+      "risk": "c-7d3f2a9e",
       "risks": [
         { "level": "P3", "title": "Other lists may miss the new status as well", "detail": "Cancelled came after the lists were built.", "fix": "Check every retrieve on Orders.Order that filters by Status." }
       ]
@@ -336,6 +337,7 @@ retrieve with `Status != Cancelled` added.
 | `needs[]` | for `cannot-tell` or `low` | what would settle it: the logs of that day, the record's data, the steps to reproduce, the version deployed |
 | `reply` | no | a short answer to paste back into the ticket, in the ticket's language; the page has a button that copies it |
 | `change` | for a bug | the `id` of the `changes` entry with the proposed fix — in the same file, or one MxScout keeps; the page links to it |
+| `risk` | when it matches one | the `id` of the known risk the ticket is about — the very problem a risk already describes: an agent's risk by its slug (`p2-saved-twice`) or one a person raised in a comment by its `c-…` id, exactly as the pack's `## risk triage` lists it (or as this file's `risks` or the documentation's Risks section give it). MxScout links the ticket to that risk on the Risks page and the risk back to the ticket ("Ticket PROJ-12: Bug in the model"). Never an id you made up; none matching, leave it out — a new risk the ticket shows goes in `risks` |
 | `risks[]` | no | as a change's: `level` (`P1`–`P3`) and `title` required, `detail`, `fix` |
 
 MxScout keeps up to 200 tickets, 60 evidence rows, 100 steps and 60 flows per

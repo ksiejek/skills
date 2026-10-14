@@ -225,3 +225,30 @@
 .mf-step-win-props .sv-form { grid-template-columns: 150px minmax(0, 1fr); }
 .mf-step-win-props .sv-field.mono { white-space: pre-wrap; }
 @media (max-width: 900px) { .mf-step-win-body { grid-template-columns: minmax(0, 1fr); } .mf-step-win-insp { border-right: 0; border-bottom: 1px solid var(--line); } }
+
+/* ---------- narrower screens: the column beside goes under, it does not vanish ----------
+   Karol, 2026-10-14: "on smaller screens a column disappears; it could go under the column next
+   to it instead". Measured on the screen's own width, not the window's, because the sidebar takes
+   its share first. Where the drawing would be squeezed to a sliver, the step and the flow as a whole
+   (or About) go under the drawing, and the body scrolls as one; where even the list leaves no room,
+   the list goes on top. The wide layouts are untouched. */
+.mf { container: mfscreen / inline-size; }
+.mf-detail { container: mfdetail / inline-size; }
+@container mfdetail (max-width: 800px) {
+  .mf-body, .mf-body.board { flex-direction: column; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
+  .mf-flow, .mf-board { flex: none; height: 64vh; min-height: 340px; }
+  .mf-side, .mf-about { flex: none; width: auto; border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+  .mf-panels { flex: none; flex-direction: column; }
+  .mf-panel { overflow: visible; }
+  /* Under the drawing there is room for both: the step, then the flow as a whole, without the tabs. */
+  .mf-tabs { display: none; }
+  .mf-side .mf-step, .mf-side .mf-rail, .mf-side.tab-step .mf-rail, .mf-side.tab-flow .mf-step { display: flex; }
+  .mf-side .mf-rail { border-top: 1px solid var(--line); }
+  .mf-board-foot { flex-wrap: wrap; }
+  .mf-board-note { white-space: normal; }
+}
+@container mfscreen (max-width: 680px) {
+  .mf-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .mf-list { border-right: 0; border-bottom: 1px solid var(--line); max-height: 42vh; }
+  .mf-detail { min-height: 70vh; }
+}
