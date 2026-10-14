@@ -72,6 +72,7 @@ Paragraphs are separated by a blank line …",
 
   "risks": [
     {
+      "id": "p1-operator-reads-all-tickets",
       "level": "P1",
       "theme": "access",
       "title": "Every clerk can read every order",
@@ -104,7 +105,7 @@ Paragraphs are separated by a blank line …",
 | Field | Required | Notes |
 |---|---|---|
 | `format`, `version` | yes | exactly as above, or MxScout refuses the file |
-| `add` | no | `true`: the file adds to the descriptions MxScout keeps instead of replacing them — one more process, or flows described since. A process of the same name is replaced and a new one added at the end; a flow, page, entity or module in the file replaces its old description; a risk whose title is already kept is not added twice; everything else stays. Without it, an import replaces what was kept |
+| `add` | no | `true`: the file adds to the descriptions MxScout keeps instead of replacing them — one more process, or flows described since. A process of the same name is replaced and a new one added at the end; a flow, page, entity or module in the file replaces its old description; a risk already kept — the same `id`, or the same level and title — is replaced by the new copy, not added twice; everything else stays. Without it, an import replaces what was kept |
 | `replace` | no | with `"add": true` only: `["app"]` — the file's `app` (summary, story, who uses it, every process) replaces the overview kept, as when the overview was written again from the start; flows, modules, risks and the rest are still added to |
 | `project`, `language`, `by`, `written` | no | `by` is shown as who wrote the descriptions |
 | `app.summary` | no, but write it | the first thing a business reader sees: 2–4 sentences, always shown |
@@ -115,6 +116,8 @@ Paragraphs are separated by a blank line …",
 | `c4` | no | the architecture, levels 1 and 2: `context` and `containers` (nodes and links) and `open` (what the model does not show), see `c4.md` |
 | `microflows`, `nanoflows`, `pages`, `entities` | no | qualified name → `{ "hash", "text" }`, or just the text |
 | `risks[]` | no, but write it | `level` (`P1`, `P2` or `P3`, by `risk-levels.md`) and `title` are required, or MxScout drops the risk; `detail`, `where` (qualified names, they become links) and `fix` are what make it useful; `theme` is its pattern, one of the ten keys in `risk-levels.md` — the Risks page groups and filters by it, and guesses it from the title when it is missing |
+| `risks[].id` | no, but write it | a short slug — lower-case letters, digits and single hyphens, at most 80 characters (`p1-anon-delete-ticket`) — unique in the file. **Keep it the same for the same risk on every update** and invent a new one only for a new risk: it is how MxScout knows the risk again, merges it, and keeps what a person decided about it (fixed, false positive — see "Risk triage" in `SKILL.md`). Without it MxScout knows a risk by its level and title, so a reworded title becomes a new risk |
+| `verify[]` | no | for risks a **person** raised (listed as `raised by …` under `## risk triage` in the pack) and marked fixed: `{ "id": "c-…", "still": true \| false, "why": "…" }` — whether the model still shows it, with the id the pack gives. MxScout reopens or verifies the risk by it; risks a person raised are never yours to write in `risks` |
 | `context.where[]` | no | `{ "topic", "place" }`: what a developer looks for, and where it is when the name does not say |
 | `context.conventions[]` | no | `{ "pattern", "meaning" }`: a prefix or naming rule the modules follow |
 | `context.pitfalls[]` | no | sentences: what breaks easily, and what to check before a change |
@@ -128,7 +131,9 @@ in separate tables because a microflow and a page can share a name.
 
 Risks and context are not tied to a fingerprint: they describe the model as a
 whole, and are written again with the application's part when the model
-changes. A qualified name in `where`, or inside a `place` or a pitfall, links to
+changes — the whole list each time, each risk under the id it had before. A
+risk a full file no longer lists is taken as gone; a file with `"add": true`
+says nothing about the risks it does not list. A qualified name in `where`, or inside a `place` or a pitfall, links to
 that flow, page or entity in the documentation when the model has it.
 
 A description without `hash` is shown but never marked out of date; with one,

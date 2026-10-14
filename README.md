@@ -7,7 +7,7 @@ The folder name is the skill's `name:` in its `SKILL.md`.
 
 | Skill | What it does | Canonical home |
 |---|---|---|
-| `mendix-describe/` | Writes business-readable documentation of a Mendix app from an MxScout AI pack (a `.mxscout-ai-pack.md` file, or a running MxScout sharing a project with an agent) as a descriptions file MxScout imports. | **The MxScout repository** (`skills/mendix-describe/`), where it ships with the app. This folder is a copy. |
+| `mendix-describe/` | Writes business-readable documentation of a Mendix app from an MxScout AI pack (a `.mxscout-ai-pack.md` file, or a running MxScout sharing a project with an agent) as a descriptions file MxScout imports. | **The MxScout Dev repository** (`skills/mendix-describe/`), which has everything the public MxScout's copy has plus risk triage (risk ids, re-checking fixed risks, false positives, risks people raised in comments). This folder is a copy of the Dev one. |
 | `mendix-docs/` | Documents a Mendix app straight from its `.mpr`, with nothing else running, as one offline HTML report (the same report MxScout exports). | **Here.** `mendix-docs/` is the installable copy, packed from `mendix-docs-source/`. |
 | `app-report-presentation/` | How to lay out any application's documentation as a readable report or small portal. **Draft for review**, as its `SKILL.md` says. | **Here.** |
 
@@ -35,14 +35,17 @@ dependencies, nothing to install.
 
 ### mendix-describe: which MxScout
 
-`agent.js` talks to MxScout at `http://127.0.0.1:4289` by default, which is
-the public, reporting MxScout. MxScout Dev runs on port 4288. Choose the app
-with `--url` or `MXSCOUT_URL`:
+This is MxScout Dev's copy, so `agent.js` talks to `http://127.0.0.1:4288`
+(MxScout Dev) by default. For the public, reporting MxScout on port 4289,
+choose it with `MXSCOUT_URL` (better than `--token` on the command line, the
+token stays out of `ps` and shell history):
 
 ```
-MXSCOUT_URL=http://127.0.0.1:4288 node agent.js status --token <token>
-node agent.js status --url http://127.0.0.1:4288 --token <token>
+MXSCOUT_URL=http://127.0.0.1:4289 MXSCOUT_TOKEN=<token> node agent.js status
 ```
+
+Against the public MxScout the risk-triage parts simply do not come up: its
+pack has no `## risk triage` section.
 
 ## Rebuild mendix-docs from MxScout
 
@@ -56,20 +59,21 @@ source, pack into `~/.claude/skills/mendix-docs` instead.
 
 ## Keep in sync
 
-After MxScout changes (its engine in `public/`, or `skills/mendix-describe/`):
+After MxScout or MxScout Dev changes (the engine in `public/`, or `skills/mendix-describe/`):
 
 ```
-./sync.sh                                # MxScout at ~/Projects/MxScout
-MXSCOUT_DIR=/path/to/MxScout ./sync.sh   # anywhere else
-git status && git diff --stat            # review, then commit
+./sync.sh                                         # ~/Projects/MxScout and ~/Projects/MxScout-Dev
+MXSCOUT_DIR=… MXSCOUT_DEV_DIR=… ./sync.sh         # anywhere else
+git status && git diff --stat                     # review, then commit
 ```
 
-`sync.sh` copies `skills/mendix-describe/` from MxScout over `mendix-describe/`
-(and names any file MxScout no longer has, without deleting it), re-packs
-`mendix-docs/` from `mendix-docs-source/` and MxScout, and runs the selftest.
+`sync.sh` copies `skills/mendix-describe/` from **MxScout Dev** over
+`mendix-describe/` (and names any file Dev no longer has, without deleting it),
+re-packs `mendix-docs/` from `mendix-docs-source/` and the public MxScout's
+engine, and runs the selftest.
 
-A change to mendix-describe belongs in the MxScout repository first, then
-`./sync.sh` here. A change to mendix-docs goes into `mendix-docs-source/`,
+A change to mendix-describe belongs in MxScout Dev first (and in the public
+MxScout too when it is not about a Dev-only feature), then `./sync.sh` here. A change to mendix-docs goes into `mendix-docs-source/`,
 then `./sync.sh`.
 
 ## Never commit client data

@@ -37,11 +37,19 @@ const LIMITS = { flow: 400, entity: 300, module: 600, summary: 900, story: 12000
 function readPack(text) {
   const lines = String(text).split(/\r?\n/);
   if (!/^format: mxscout-ai-pack 1\b/m.test(text)) throw new Error('This is not an MxScout AI pack (no "format: mxscout-ai-pack 1" line).');
-  const pack = { project: null, modules: {}, microflows: {}, nanoflows: {}, pages: {}, entities: {} };
+  const pack = { project: null, modules: {}, microflows: {}, nanoflows: {}, pages: {}, entities: {}, triage: [] };
   const project = /^project: (.+)$/m.exec(text);
   pack.project = project ? project[1].trim() : null;
-  let module = null;
+  let module = null, inTriage = false;
   lines.forEach((line, i) => {
+    // What a person decided about risks (reference/pack-format.md, "Risk triage"): id | level | status | who | title …
+    if (line === '## risk triage') { inTriage = true; return; }
+    if (/^## /.test(line)) inTriage = false;
+    if (inTriage) {
+      const t = /^- (\S+) \| (P[123]) \| ([a-z-]+) \| (ai|raised by [^|]*?) \| ([^|]*?)(?: \| where: [^|]*)?(?: \| note: (.*))?$/.exec(line);
+      if (t) pack.triage.push({ id: t[1], level: t[2], status: t[3], person: t[4] !== 'ai', title: t[5], note: t[6] || null });
+      return;
+    }
     let m = /^## module (\S+)/.exec(line);
     if (m) { module = m[1]; pack.modules[module] = { line: i + 1, flows: 0 }; return; }
     m = /^### (MF|NF|PG) (\S+) #([0-9a-f]{8})/.exec(line);
@@ -104,7 +112,11 @@ function todo(pack, desc) {
     risks: !Array.isArray(desc.risks),
     context: !(desc.context && typeof desc.context === 'object'),
     noNotes: noNotes,
-    c4: !(desc.c4 && typeof desc.c4 === 'object' && (desc.c4.context || desc.c4.containers))
+    c4: !(desc.c4 && typeof desc.c4 === 'object' && (desc.c4.context || desc.c4.containers)),
+    // Risk triage (SKILL.md): fixed risks to check again, false positives not to raise again, a person's fixed risks to answer in "verify".
+    recheck: pack.triage.filter((r) => !r.person && r.status === 'fixed').map((r) => r.id),
+    falsePositives: pack.triage.filter((r) => !r.person && r.status === 'false-positive').map((r) => r.id),
+    verify: pack.triage.filter((r) => r.person && r.status === 'fixed').map((r) => r.id)
   };
 }
 
@@ -194,10 +206,16 @@ function check(pack, desc) {
   // Risks by reference/risk-levels.md; MxScout drops a risk without a level or a title.
   const inPack = (qn) => !!(pack.microflows[qn] || pack.nanoflows[qn] || pack.pages[qn] || pack.entities[qn]);
   if (desc.risks !== undefined) {
+    const ids = {};
     if (!Array.isArray(desc.risks)) err('"risks" must be a list.');
     else desc.risks.forEach((r, i) => {
       const what = 'risks[' + i + ']' + (r && typeof r.title === 'string' ? ' "' + r.title + '"' : '');
       if (!r || typeof r !== 'object') { err(what + ' is not an object.'); return; }
+      // The id is how MxScout knows a risk again on the next update, and keeps what a person decided about it.
+      if (r.id === undefined || r.id === null) warn(what + ': no "id" — give it a short slug (p1-anon-delete-ticket) and keep it on every update, or MxScout knows it only by its level and title.');
+      else if (typeof r.id !== 'string' || !RISK_ID.test(r.id) || r.id.length > 80) err(what + ': "id" "' + r.id + '" must be a slug — lower-case letters, digits and single hyphens, at most 80 characters; MxScout drops it otherwise.');
+      else if (ids[r.id]) err(what + ': id "' + r.id + '" is used by risks[' + ids[r.id].i + '] too — one id, one risk.');
+      else ids[r.id] = { i: i };
       if (!/^P[123]$/.test(r.level)) err(what + ': "level" must be "P1", "P2" or "P3" — MxScout drops it otherwise.');
       if (typeof r.title !== 'string' || !r.title.trim()) err(what + ': no "title" — MxScout drops it.');
       if (typeof r.fix !== 'string' || !r.fix.trim()) warn(what + ': no "fix" — every risk says what to do (reference/risk-levels.md).');
@@ -206,6 +224,23 @@ function check(pack, desc) {
       const where = Array.isArray(r.where) ? r.where : [];
       if (!where.length) warn(what + ': no "where" — every risk names the flows, pages or entities it is in.');
       where.forEach((qn) => { if (!inPack(qn)) warn(what + ' names ' + qn + ', which is not in the pack — it shows as plain text, not a link.'); });
+    });
+  }
+  // Risk triage (SKILL.md): a false positive comes back only with a reason; a person's risk is never the agent's to write.
+  if (Array.isArray(desc.risks)) {
+    const fp = {}, person = {};
+    (pack.triage || []).forEach((r) => { if (r.person) person[r.id] = r; else if (r.status === 'false-positive') fp[r.id] = r; });
+    desc.risks.forEach((r, i) => {
+      if (!r || typeof r.id !== 'string') return;
+      if (fp[r.id]) warn('risks[' + i + '] "' + r.id + '" was marked a false positive (' + (fp[r.id].note || 'no reason given') + ') — report it again only if the model changed so the reason no longer holds, and say why in its detail.');
+      if (person[r.id]) err('risks[' + i + '] "' + r.id + '" is a risk a person raised — answer for it in "verify", not in "risks".');
+    });
+  }
+  if (desc.verify !== undefined) {
+    if (!Array.isArray(desc.verify)) err('"verify" must be a list of { "id", "still", "why" }.');
+    else desc.verify.forEach((v, i) => {
+      if (!v || typeof v.id !== 'string' || !/^c-[A-Za-z0-9_-]{1,80}$/.test(v.id) || typeof v.still !== 'boolean') err('verify[' + i + '] needs "id" (the c-… id from the pack\'s risk triage) and "still": true or false — MxScout drops it otherwise.');
+      else if (pack.triage && pack.triage.length && !pack.triage.some((r) => r.person && r.id === v.id)) warn('verify[' + i + '] "' + v.id + '" is not a risk a person raised in this pack.');
     });
   }
   if (desc.context !== undefined) {
@@ -290,6 +325,8 @@ function check(pack, desc) {
   return problems;
 }
 
+// A risk's id (reference/descriptions-format.md; public/describe.js reads the same pattern).
+const RISK_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 // The ten patterns a risk can belong to (reference/risk-levels.md; public/describe.js keeps the same list).
 const THEMES = ['access', 'secrets', 'logic', 'silent', 'delete', 'loops', 'schedule', 'dead', 'hardcoded', 'naming'];
 
@@ -316,9 +353,10 @@ function merge(parts) {
       out[k] = Object.assign(out[k] || {}, p[k]);
     });
     // Risks and context come from several parts (one per module, and the application's): they add up,
-    // and the same risk written twice — same level, same title — is kept once, the later part winning.
+    // and the same risk written twice — the same id, or the same level and title — is kept once, the later part winning.
     if (Array.isArray(p.risks)) {
-      out.risks = (out.risks || []).filter((r) => !p.risks.some((x) => x && r && x.level === r.level && x.title === r.title)).concat(p.risks);
+      const same = (x, r) => x && r && ((x.id && r.id && x.id === r.id) || (x.level === r.level && x.title === r.title));
+      out.risks = (out.risks || []).filter((r) => !p.risks.some((x) => same(x, r))).concat(p.risks);
     }
     if (p.context && typeof p.context === 'object') {
       out.context = out.context || {};
@@ -344,6 +382,11 @@ function main(argv) {
       (t.shortModules.length ? '; ' + t.shortModules.length + ' modules have a summary but no long description (' + t.shortModules.join(', ') + ')' : '') +
       (t.risks ? '; no risks yet' : '') + (t.context ? '; no context for developers yet' : '') +
       (t.noNotes.length ? '; ' + t.noNotes.length + ' modules have no notes' : '') + (t.c4 ? '; no architecture yet' : '') + '.');
+    if (t.recheck.length || t.falsePositives.length || t.verify.length) {
+      console.log('Risk triage: ' + [t.recheck.length ? t.recheck.length + ' fixed to check again (' + t.recheck.join(', ') + ')' : null,
+        t.falsePositives.length ? t.falsePositives.length + ' false positives not to raise again (' + t.falsePositives.join(', ') + ')' : null,
+        t.verify.length ? t.verify.length + ' raised by people, marked fixed, to answer in "verify" (' + t.verify.join(', ') + ')' : null].filter(Boolean).join('; ') + '.');
+    }
     t.modules.forEach((r) => {
       console.log('  ' + r.module + ' (pack line ' + r.line + '): ' + r.fresh.length + ' new, ' + r.changed.length + ' changed');
       if (list) r.fresh.concat(r.changed).forEach((qn) => console.log('    ' + qn));

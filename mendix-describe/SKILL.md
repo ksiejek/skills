@@ -167,6 +167,45 @@ replaces the one kept, every process included, and the descriptions of flows,
 modules and risks stay. You cannot read what MxScout keeps, so write every
 process the overview should have, the ones you were asked for among them.
 
+## Risk triage: what a person already decided
+
+MxScout Dev lets the person work through your risks: mark one a **false
+positive** with the reason, mark one **fixed**, reopen it. A comment can be a
+risk too, **raised by a person**. When there is any of that, the pack has a
+`## risk triage` section before its index (connected: it is in the header —
+`node agent.js pack pack.md`, then read the lines from `## risk triage` to
+`## index`), one line per risk:
+
+```
+- p2-saved-twice | P2 | fixed | ai | The order is saved twice | where: Sales.CreateOrder | note: Committed once now
+- p1-anyone-sweeps | P1 | false-positive | ai | Anyone can sweep orders | note: The page's role guards it
+- c-5f0e… | P2 | fixed | raised by Karol | The discount is applied twice | where: Sales.CreateOrder
+```
+
+On every update:
+
+1. **Keep the ids.** A risk you report again carries the id it had; a new risk
+   gets a new one. MxScout matches by id — that is how it knows what the person
+   decided. A line that says `(no id: give it one)` is a risk from before ids:
+   report it, if it is still there, with the same level and title and a new id.
+2. **Re-check every `fixed` risk against the model.** Still there: report it
+   again, same id, and say in its `detail` what still shows it — MxScout
+   reopens it. Gone: leave it out — MxScout marks it verified. Do this in the
+   full file (the one without `"add": true`): a file that adds says nothing
+   about the risks it leaves out.
+3. **Do not raise a `false-positive` again** — unless the model changed so that
+   the person's reason (the `note`) no longer holds. Then report it with the
+   same id and say in its `detail` why the reason no longer holds.
+4. **Risks `raised by` a person are theirs.** Never write them into `risks`.
+   For one marked `fixed`, say in `verify` whether the model still shows it:
+   `"verify": [{ "id": "c-…", "still": false, "why": "The before-commit event no longer applies the discount." }]`.
+   MxScout reopens or verifies it by that.
+5. **The risks list is written whole each time,** as before: every risk you
+   still see, under its id. A full file that leaves a risk out says it is gone.
+
+`check-descriptions.js todo` counts what the triage asks you to re-check;
+`check` warns when a false positive comes back without a reason.
+
 ## How to write
 
 The two layers of the application, its processes and its modules follow
@@ -202,7 +241,8 @@ entity.
   must be confirmed. One risk per cause, with every place it is in.
 - **A risk is for someone who will fix it:** the title says what is wrong, the
   `detail` why it matters, `where` the qualified names, the `fix` what to do in
-  one sentence.
+  one sentence, and an `id` — a short slug you keep on every update (see "Risk
+  triage" above).
 - **The context is for whoever changes the model next** — a developer or an
   agent. Write what the names do not tell: where a rule really lives, which flow
   must be used instead of a direct change, which convention the modules keep.

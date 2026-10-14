@@ -85,6 +85,11 @@ wrong, not by where:
    one risk with ten places, not ten risks.
 5. **Every risk says where and what to do.** It names the qualified name of each
    flow, page or entity it is in, and gives the fix in one sentence.
+6. **A risk keeps its id.** The same risk carries the same `id` on every
+   update, so whoever works through the list — marking one fixed, or a false
+   positive with the reason — finds their decision still on it next time. A
+   risk marked a false positive is not raised again unless the model changed
+   so the reason no longer holds (mendix-describe, "Risk triage").
 
 ## Where each tool writes it
 

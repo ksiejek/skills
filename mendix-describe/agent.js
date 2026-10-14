@@ -11,7 +11,7 @@
  *                                           Never read it whole; read it by module.
  *   node agent.js send <descriptions.json>  hand the finished descriptions to MxScout; the person accepts them there
  *
- * Where: --url and --token, or MXSCOUT_URL and MXSCOUT_TOKEN. The url defaults to http://127.0.0.1:4289.
+ * Where: --url and --token, or MXSCOUT_URL and MXSCOUT_TOKEN. The url defaults to http://127.0.0.1:4288.
  * The person gets both from MxScout ("Copy for the agent"). It refuses any address that is not this machine:
  * the token and the descriptions go nowhere else.
  */
@@ -28,7 +28,7 @@ function take(name) {
 }
 function fail(message) { console.error(message); process.exit(1); }
 
-const base = String(take('--url') || process.env.MXSCOUT_URL || 'http://127.0.0.1:4289').replace(/\/+$/, '');
+const base = String(take('--url') || process.env.MXSCOUT_URL || 'http://127.0.0.1:4288').replace(/\/+$/, '');
 const token = take('--token') || process.env.MXSCOUT_TOKEN;
 const out = take('--out');
 const [cmd, arg] = args;

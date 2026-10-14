@@ -22,6 +22,20 @@ legend: …
 Marketplace modules are not in the pack: they are other people's components,
 and the business documentation is about this application.
 
+## Risk triage (MxScout Dev, when there is any)
+
+```
+## risk triage
+What a person decided about risks; …
+- p2-saved-twice | P2 | fixed | ai | The order is saved twice | where: Sales.CreateOrder | note: Committed once now
+- c-5f0e… | P2 | fixed | raised by Karol | The discount is applied twice | where: Sales.CreateOrder
+```
+
+Before the index, after the header: one line per risk a person has decided
+about — `id | level | status | ai or raised by <who> | title | where | note`.
+Statuses: `fixed`, `false-positive`, `reopened`, `verified`, and `open` for a
+risk a person raised. `SKILL.md`, "Risk triage", says what to do with each.
+
 ## Index
 
 ```

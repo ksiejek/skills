@@ -14,7 +14,7 @@ Stan na **2026-10-14**:
 
 | Skill | Do czego | Źródło | Zainstalowany | Widoczność |
 |---|---|---|---|---|
-| **mendix-describe** | agent pisze opisy dla biznesu, MxScout je pokazuje | `MxScout/skills/mendix-describe/` (ta sama kopia w MxScout-Dev) | nie w `~/.claude/skills`; agent czyta go z repo | publiczny |
+| **mendix-describe** | agent pisze opisy dla biznesu, MxScout je pokazuje | `MxScout-Dev/skills/mendix-describe/` (pełna wersja, z obsługą ryzyk); publiczny MxScout ma wersję bez niej; kopia z Dev w `skills/mendix-describe/` | nie w `~/.claude/skills`; agent czyta go z repo | publiczny |
 | **mendix-docs** | ta sama dokumentacja prosto z `.mpr`, bez MxScout, jako jeden plik HTML | `skills/mendix-docs-source/` (gotowa kopia: `skills/mendix-docs/`) | `~/.claude/skills/mendix-docs` | prywatny |
 | **mendix-change-proposal** | propozycja zmiany flow lub domain modelu jako plik do narysowania w MxScaffold | `MxScout-Dev/skills/mendix-change-proposal/` | nie, agent czyta go z repo | prywatny (tylko Dev) |
 | **advisor-bridge** | stan, architektura i plany projektu dla doradcy (git → Google Drive) | `advisor-bridge/skill/advisor-bridge/` | nie znalazłem kopii w `~/.claude/skills` na tym Macu | prywatny |
@@ -316,3 +316,17 @@ Niski priorytet:
 Skille Mendix i szkic prezentacji mają jedno miejsce: to repo (advisor-bridge zostaje przy swoim własnym skillu). Z advisor-bridge zniknęły źródło mendix-docs, jego
 gotowa kopia, szkic app-report-presentation i ten przewodnik. Historia tych plików do
 `00e56d9` jest w gicie advisor-bridge.
+
+### Zmiana 2026-10-14: mendix-describe z Dev
+
+Repo Skills trzyma wersję mendix-describe z **MxScout Dev**. To ta sama wersja co
+publiczna, a do tego obsługa ryzyk:
+- `id` ryzyka, które agent utrzymuje między kolejnymi update,
+- sekcja `## risk triage` w pakiecie,
+- ponowne sprawdzanie naprawionych ryzyk,
+- false positive nie wracają jako ryzyka,
+- ryzyka z komentarzy oznaczone jako zgłoszone przez człowieka, plus `verify`.
+
+`agent.js` łączy się domyślnie z Dev (4288). Do publicznego MxScout:
+`MXSCOUT_URL=http://127.0.0.1:4289`. `./sync.sh` bierze mendix-describe z
+`~/Projects/MxScout-Dev`, a silnik mendix-docs z publicznego `~/Projects/MxScout`.
