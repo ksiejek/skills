@@ -132,6 +132,52 @@
     return model;
   }
 
+  // What refuses a save before any microflow runs: an entity's validation
+  // rules, one per attribute and kind — required, unique, a range, a regular
+  // expression, a maximum length, equal to a value or another attribute — each
+  // with the message the user sees. Read for the AI pack (describe.js), so an
+  // agent can say why a save is refused. Kept on the entity only when it has
+  // some (entity.validations), so every other entity keeps its old shape; at
+  // most VALIDATIONS_MAX per entity, a message cut like a page's text.
+  var VALIDATIONS_MAX = 100;
+  var VALIDATION_KINDS = {
+    'DomainModels$RequiredRuleInfo': 'required', 'DomainModels$UniqueRuleInfo': 'unique',
+    'DomainModels$RangeRuleInfo': 'range', 'DomainModels$RegExRuleInfo': 'regex',
+    'DomainModels$MaxLengthRuleInfo': 'maxLength', 'DomainModels$EqualsToRuleInfo': 'equals'
+  };
+  // A bound is a value typed into the rule, or another attribute of the same object.
+  function validationBound(useValue, value, attribute) {
+    if (useValue !== false) return typeof value === 'string' && value.trim() ? { value: value.trim() } : null;
+    return typeof attribute === 'string' && attribute ? { attribute: shortName(attribute) } : null;
+  }
+  function readValidationRules(list) {
+    var out = [];
+    payload(list).forEach(function (v) {
+      if (out.length >= VALIDATIONS_MAX || !v || v['$Type'] !== 'DomainModels$ValidationRule' || typeof v.Attribute !== 'string' || !v.Attribute) return;
+      var info = v.RuleInfo && typeof v.RuleInfo === 'object' ? v.RuleInfo : {};
+      var kind = VALIDATION_KINDS[info['$Type']];
+      if (!kind) return;
+      var message = captionOf(v.Message);
+      var rule = { attribute: shortName(v.Attribute), kind: kind, message: message ? pageClip(message) : null };
+      if (kind === 'range') {
+        // Only the bounds the range's type uses: a "greater than or equal to"
+        // keeps an old maximum in the file, and reading it would invent one.
+        var type = info.TypeOfRange;
+        rule.min = type === 'SmallerThanOrEqualTo' ? null : validationBound(info.UseMinValue, info.MinValue, info.MinAttribute);
+        rule.max = type === 'GreaterThanOrEqualTo' ? null : validationBound(info.UseMaxValue, info.MaxValue, info.MaxAttribute);
+      } else if (kind === 'regex') {
+        var rx = info.RegExIdentifier || info.RegularExpression;
+        rule.regex = typeof rx === 'string' && rx ? rx : null;
+      } else if (kind === 'maxLength') {
+        rule.max = typeof info.MaxLength === 'number' ? info.MaxLength : null;
+      } else if (kind === 'equals') {
+        rule.to = validationBound(info.UseValue, info.EqualsToValue, info.EqualsToAttribute);
+      }
+      out.push(rule);
+    });
+    return out;
+  }
+
   function accessRightsToLetter(rights) {
     if (rights === 'ReadWrite') return 'rw';
     if (rights === 'ReadOnly') return 'r';
@@ -2338,6 +2384,9 @@
             });
           });
         });
+
+        var validations = readValidationRules(raw.ValidationRules);
+        if (validations.length) entity.validations = validations;
       });
 
       payload(pm.doc.Associations).forEach(function (a) {

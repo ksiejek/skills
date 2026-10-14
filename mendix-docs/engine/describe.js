@@ -8,10 +8,11 @@
  *
  *  - the AI pack, which MxScout writes: the model as the documentation
  *    already reads it — every flow as its steps with the data they set, every
- *    entity with its members and associations — in a dense text a model reads
- *    cheaply, one section per module, an index of line ranges at the top so
- *    an agent reads one module at a time, and a fingerprint per flow so the
- *    next run describes only what changed;
+ *    entity with its members and associations, who may read, write, create
+ *    and delete it, and the validation rules that refuse a save — in a
+ *    dense text a model reads cheaply, one section per module, an index of
+ *    line ranges at the top so an agent reads one module at a time, and a
+ *    fingerprint per flow so the next run describes only what changed;
  *  - the descriptions file, which the agent writes and MxScout imports: JSON,
  *    checked here before anything of it is kept.
  *
@@ -62,12 +63,17 @@
     if (f.kind === 'page') return fnv(JSON.stringify([f.params, f.roles]));
     return fnv(JSON.stringify([f.params, f.returns, f.workflow]));
   }
+  // An entity's fingerprint is its members and associations only — not its access rules or its
+  // validation rules, which the pack lists under it (accessLines, validationLines). A description of
+  // an entity says what it holds; a role gaining write access does not make that out of date, and
+  // adding those lines to the pack did not mark every entity's description out of date.
   function entityHash(e, assoc) { return fnv(JSON.stringify([e.attributes, e.generalization, assoc])); }
 
   // ---------- the pack ----------
-  function cut(v) {
+  function cut(v, max) {
+    max = max || MAX_VALUE;
     var s = String(v === null || v === undefined ? '' : v).replace(/\s+/g, ' ').trim();
-    return s.length > MAX_VALUE ? s.slice(0, MAX_VALUE - 1) + '…' : s;
+    return s.length > max ? s.slice(0, max - 1) + '…' : s;
   }
   function short(qn) { return String(qn || '').split('.').pop(); }
 
@@ -141,6 +147,54 @@
     return parts.join(' | ');
   }
 
+  // Who may do what with an entity: one line per module role an access rule names, under the
+  // entity's line. "read" lists the members it may read, "write" those it may change too; a member
+  // left out is one it may not touch. "assoc" is the same for the associations the entity owns, said
+  // only when it owns some. Then create and delete, and the rows: all of them, or only those the
+  // XPath lets through, kept as the model has it. An entity no rule names gets "access none".
+  // skills/mendix-describe/reference/pack-format.md.
+  var XPATH_MAX = 300;
+  function memberSet(names, ok) {
+    var yes = names.filter(ok), no = names.filter(function (n) { return !ok(n); });
+    if (!yes.length) return 'none';
+    if (!no.length) return 'all';
+    return no.length < yes.length ? 'all except ' + no.join(', ') : yes.join(', ');
+  }
+  function accessLines(e, data, out) {
+    // No rule: no module role reaches it from the client; only a flow can.
+    if (!(e.access || []).length) { out.push('  access none'); return; }
+    var owned = data.associations.filter(function (a) { return a.from === e.qn; }).map(function (a) { return a.name; });
+    (e.access || []).forEach(function (r) {
+      var m = r.members || {};
+      // The associations the entity owns and those the rule names; every other member it names is an
+      // attribute — the entity's own, or one it inherits, which a rule on a specialisation names too.
+      var assocs = owned.slice(), isAssoc = {};
+      owned.concat(r.assocs || []).forEach(function (k) { isAssoc[k] = true; if (assocs.indexOf(k) === -1) assocs.push(k); });
+      var attrs = e.attributes.map(function (a) { return a.name; });
+      Object.keys(m).forEach(function (k) { if (!isAssoc[k] && attrs.indexOf(k) === -1) attrs.push(k); });
+      function reads(k) { return m[k] === 'r' || m[k] === 'rw'; }
+      function writes(k) { return m[k] === 'rw'; }
+      var parts = [];
+      if (attrs.length) parts.push('read ' + memberSet(attrs, reads), 'write ' + memberSet(attrs, writes));
+      parts.push(r.create ? 'create' : 'no create', r.del ? 'delete' : 'no delete');
+      if (assocs.length) parts.push('assoc read ' + memberSet(assocs, reads), 'assoc write ' + memberSet(assocs, writes));
+      out.push('  access ' + r.role + ': ' + parts.join(' · ') + ' — ' + (r.xpath ? 'only ' + cut(r.xpath, XPATH_MAX) : 'all rows'));
+    });
+  }
+
+  // What refuses a save before any flow runs: one line per validation rule, under the access lines.
+  function bound(b) { return !b ? '?' : b.attribute ? 'attribute ' + b.attribute : cut(b.value); }
+  function validationLines(e, out) {
+    (e.validations || []).forEach(function (v) {
+      var what = v.kind;
+      if (v.kind === 'range') what = v.min && v.max ? 'range ' + bound(v.min) + '..' + bound(v.max) : v.min ? 'range ≥ ' + bound(v.min) : v.max ? 'range ≤ ' + bound(v.max) : 'range';
+      else if (v.kind === 'regex') what = 'regex ' + (v.regex || '?');
+      else if (v.kind === 'maxLength') what = 'max length ' + (v.max === null || v.max === undefined ? '?' : v.max);
+      else if (v.kind === 'equals') what = 'equals ' + bound(v.to);
+      out.push('  valid ' + v.attribute + ': ' + what + (v.message ? ' — ' + JSON.stringify(cut(v.message)) : ''));
+    });
+  }
+
   // data is what MxDocsData.build returns.
   function pack(data) {
     var own = data.modules.filter(function (m) { return !m.marketplace && (m.microflows.length + m.nanoflows.length + m.pages.length + m.entities.length); });
@@ -149,7 +203,12 @@
       var out = ['## module ' + m.name];
       if (m.entities.length) {
         out.push('### entities');
-        m.entities.forEach(function (q) { out.push(entityLine(data.entities[q], data)); });
+        m.entities.forEach(function (q) {
+          var e = data.entities[q];
+          out.push(entityLine(e, data));
+          accessLines(e, data, out);
+          validationLines(e, out);
+        });
       }
       m.microflows.concat(m.nanoflows, m.pages).forEach(function (k) {
         out.push('');
@@ -166,11 +225,12 @@
       (data.mendix ? 'mendix: ' + data.mendix : null),
       'generated: ' + data.generatedAt,
       'read with: the mendix-describe skill (skills/mendix-describe in the MxScout repository); it says what to write and in what format',
-      'roles: ' + data.roles.map(function (r) { return r.name; }).join(', '),
+      // Each user role with the module roles it carries: an entity's access lines name module roles.
+      'roles: ' + data.roles.map(function (r) { return r.name + (r.moduleRoles && r.moduleRoles.length ? ' (' + r.moduleRoles.join(', ') + ')' : ''); }).join('; '),
       data.scheduled.length ? 'scheduled events: ' + data.scheduled.map(function (s) { return short(s.name) + ' → ' + (s.microflow || '?') + (s.enabled ? '' : ' (off)'); }).join('; ') : null,
       data.services.length ? 'published services: ' + data.services.map(function (s) { return s.name + (s.kind ? ' (' + s.kind + ')' : ''); }).join('; ') : null,
       market.length ? 'not included: ' + market.length + ' Marketplace modules — ' + market.join(', ') : null,
-      'legend: MF microflow, NF nanoflow, PG page, E entity; #xxxxxxxx is a fingerprint — copy it into the description; {member=value} is the data a step sets or passes; → owns an association to, ← is owned by',
+      'legend: MF microflow, NF nanoflow, PG page, E entity; #xxxxxxxx is a fingerprint — copy it into the description; {member=value} is the data a step sets or passes; → owns an association to, ← is owned by; under an entity, "access <module role>:" is what that role may read, write, create and delete, and on which rows, and "valid <attribute>:" a validation rule that refuses a save',
       ''
     ].filter(function (l) { return l !== null; });
     var indexHead = ['## index', 'module | lines | microflows | nanoflows | pages | entities'];

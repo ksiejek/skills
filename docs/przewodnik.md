@@ -441,3 +441,18 @@ czego nie widzi, i odsyła do ekranów Security i Pages.
   dokumentacja i model się różnią, wygrywa model, a agent nazywa nieaktualny opis.
 - **mendix-docs 3.4.0:** `docs.js docs <app.mpr> [descriptions.json]` robi ten sam plik
   MD. Skill czyta go jako mapę i ma nowe polecenie `question`.
+
+### Zmiana 2026-10-14: reguły dostępu i walidacje w pakiecie
+
+Pod każdą encją w pakiecie AI są teraz linie, które agent łatwo znajdzie:
+- `access <rola modułu>: read … · write … · create · delete — only [XPath]`,
+- `valid <atrybut>: required / unique / range / regex / max length — "komunikat"`.
+
+Nagłówek pakietu podaje, które role użytkownika mają które role modułów. Zgłoszenia i
+pytania typu „kto może…” albo „czemu nie da się zapisać” agent sprawdza wprost.
+
+Poza pakietem zostają warunki widoczności i edytowalności widgetów na stronach.
+
+Walidacje czyta czytnik `.mpr` dopiero od tej wersji. Żeby pojawiły się w projekcie,
+wczytaj model ponownie (⋯ → Replace model). Odciski flow, stron i encji się nie zmieniły,
+więc opisy nie stają się nieaktualne.

@@ -481,6 +481,8 @@
         attributes: (en.attributes || []).map(function (a) { return { name: a.name, type: a.enumerationQualifiedName ? 'Enumeration ' + a.enumerationQualifiedName : a.type + (a.length ? '(' + a.length + ')' : '') }; }),
         roles: rules.map(function (r) { return r.moduleRole; }).filter(function (v, i, all) { return v && all.indexOf(v) === i; }),
         rules: rules.length,
+        // What refuses a save (mpr.js readValidationRules), for the AI pack; most entities have none.
+        validations: en.validations || [],
         // Who may do what with it, one entry per rule: the module role, the
         // user roles that carry it, how many members it reads and writes,
         // create and delete, and the XPath that limits the rows, kept exact.
@@ -494,7 +496,9 @@
             read: read, write: write, create: !!r.allowCreate, del: !!r.allowDelete,
             xpath: r.xpathConstraint || null,
             // Each member's own access, name -> 'rw' | 'r' | '' — what "read 10 of 19" is made of.
-            members: (function () { var o = {}; members.forEach(function (m) { Object.keys(m).forEach(function (k) { o[k.slice(k.lastIndexOf('.') + 1)] = m[k] || ''; }); }); return o; })()
+            members: (function () { var o = {}; members.forEach(function (m) { Object.keys(m).forEach(function (k) { o[k.slice(k.lastIndexOf('.') + 1)] = m[k] || ''; }); }); return o; })(),
+            // Which of those members are associations, so the AI pack can tell them from attributes.
+            assocs: Object.keys(r.assocAccess || {}).map(function (k) { return k.slice(k.lastIndexOf('.') + 1); })
           };
         })
       };

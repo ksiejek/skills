@@ -101,7 +101,12 @@ person wants an answer, not a file.
    notes, For developers, a change or ticket that touched it.
 2. Verify in the pack: grep it for the names the documentation gave you (or
    the words of the question when there is none), read those flows, and follow
-   the case as far as the question goes.
+   the case as far as the question goes. When the question is who may see,
+   change, create or delete something, read the `access <module role>:` lines
+   under the entity (`grep -n "access Sales.Clerk"`; the header's `roles:`
+   says which user roles carry that module role); when it is why a save is
+   refused, the entity's `valid <attribute>:` lines as well as the flow that
+   saves it (`reference/pack-format.md`, "A module").
 3. Answer in a few paragraphs, citing the flows, entities, conditions and
    roles by their qualified names, and say what the model cannot show
    (data, configuration, what runs outside it). Point out a description that
@@ -320,7 +325,8 @@ you write no code for it: you propose.**
 3. **Design the solution in Mendix terms, the way this application does
    things.** Which microflows, nanoflows, pages, entities, attributes,
    associations, enumerations (and their values), security rules (module
-   roles, entity access, who may start a flow), scheduled events and
+   roles, entity access — the pack's `access` lines say what each role has
+   now — who may start a flow), validation rules, scheduled events and
    integrations to **add, change or remove**, each by its qualified name —
    an existing one as the pack names it, a new one named by the application's
    own conventions. Find those first in the developers' context and the module

@@ -116,21 +116,33 @@ be a ticket — a description, an update, one more process, a change, a question
      conditions (the XPath in `[…]`); what a step **sets** (`{member=value}`);
      what is committed, deleted, sent, and to whom;
    - the **validations**: a `validation feedback` or a `show message` on a
-     branch, a decision that ends the flow early;
+     branch, a decision that ends the flow early — and the entity's own
+     validation rules, the `valid <attribute>:` lines under its `E` line
+     (`grep -n "valid " pack.md` within the module), which refuse a save
+     before any flow runs, with the message the user sees;
    - **who may run it**: the `roles:` of a flow or a page, and the user roles
-     in the header;
+     in the header — each with the module roles it carries;
+   - **who may see or change the data**: the `access <module role>:` lines
+     under the entity's `E` line (`grep -n "access Sales.Clerk" pack.md`) —
+     which attributes that role may read and write, whether it may create and
+     delete, which associations, and on which rows (the XPath after `only`).
+     An attribute a role's line does not list is one it cannot see; `access
+     none` means no role reaches the entity from the client at all. When a
+     ticket says "I cannot see / edit / delete X", or "a user sees records
+     that are not theirs", start here;
    - **what starts it**: a page's button (`from:`), a scheduled event (the
      header lists them, and which are off), a published service, a before or
      after commit event;
    - **statuses**: the enumeration and its values, and every flow that sets
      them.
 
-   The pack does **not** carry entity access rules (who may read or write which
-   member, XPath constraints on access), a widget's visibility or editability
-   condition on a page, or an entity's own validation rules. When the verdict
-   hangs on one of those, say so: ask the person to look in MxScout (the
-   **Security** screen for entity access, the **Pages** screen for the page)
-   and tell you, or put it in `needs`. Do not guess it.
+   The pack does **not** carry a widget's visibility or editability condition
+   on a page, or a page's own checks on a field (a field marked required, a
+   validation expression on an input). When the verdict hangs on one of
+   those, say so: ask the person to look at the page on MxScout's **Pages**
+   screen and tell you, or put it in `needs`. Do not guess it. Entity access
+   and the entity's validation rules *are* in the pack (above,
+   `../mendix-describe/reference/pack-format.md`).
 
    When the documentation and the model disagree, **the model wins**: base the
    verdict on the pack, and say in the reasoning which description is stale
@@ -155,7 +167,8 @@ be a ticket — a description, an update, one more process, a change, a question
    link is inferred; `low` when it rests on what the model does not show.
    **Cite evidence for every claim** — each place the verdict rests on, as
    `kind`, `target` (the qualified name as the pack has it) and `what` it
-   shows. Write the reasoning (`story`, at least 80 words, paragraphs): what
+   shows — an access line as `security` with the entity as `target`, a
+   validation rule as `attribute` with `Module.Entity.Attribute`. Write the reasoning (`story`, at least 80 words, paragraphs): what
    the ticket expects, what the model does instead, why that is or is not a
    fault. Then the `summary`: the answer in one to three sentences.
 
