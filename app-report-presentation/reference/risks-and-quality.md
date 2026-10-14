@@ -21,6 +21,11 @@ becomes one P3 risk that names them.
 
 ## Levels
 
+P1–P3 in every report, whatever the technology or the client. When a client
+uses its own scale (Critical/High/Medium/Low, Blocker/Major/Minor …), map it
+onto P1–P3 once, write the mapping in the report's notes, and show P1–P3 —
+never two scales side by side.
+
 Three levels, named by **when to fix**, judged by the **worst consequence the
 facts show** — not by how much code is involved, how often it repeats, or how
 untidy it looks.

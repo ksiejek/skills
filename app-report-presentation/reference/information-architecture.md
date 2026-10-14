@@ -36,9 +36,10 @@ REVIEW                 what needs attention
   For developers  41
 ```
 
-- **Group names.** Default *Application · Structure · Review*. A report on a
-  model-driven platform may call the middle group *Model*; keep the meaning
-  ("what it is made of"), not the word.
+- **Group names.** *Application · Structure · Review*, in every technology —
+  a model-driven platform's report too (its "model" pages sit under
+  Structure). One name everywhere is what lets a reader of two reports find
+  the same thing in the same place.
 - **Order inside a group** follows the reader's questions: what it is → what
   it does → how it is divided → how it fits around. Data before logic (a
   reader needs to know the records before the flows that move them make

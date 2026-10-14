@@ -59,7 +59,7 @@ application; the analysis may expose more or fewer kinds.
 | Integration | Published / consumed REST, OData, web services | `REST` `ODATA` `WS` |
 | Role | User roles → module roles | — |
 
-Menu: Application (Overview, Processes, Modules, Architecture) · Model
+Menu: Application (Overview, Processes, Modules, Architecture) · Structure
 (Entities, Microflows, Nanoflows, Pages) · Review (Risks, Model quality, For
 developers).
 

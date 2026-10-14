@@ -6,8 +6,11 @@ argument-hint: plan | build | review
 
 # Presenting an application's documentation as a readable report
 
-> **Status: DRAFT for review.** Distilled from a documentation reader that
+> **Status: 1.0 (2026-10-14).** Distilled from a documentation reader that
 > works well in practice (a model-driven app explorer's exported report).
+> Decided: the middle menu group is **Structure** in every technology; the
+> default palette in `assets/tokens.css` is the palette; risks use **P1–P3**
+> everywhere (a client's own scale is mapped onto it, never shown instead).
 > Every rule here is meant to hold for any technology and any language;
 > where a rule came from one technology, it says so.
 

@@ -18,7 +18,7 @@ Stan na **2026-10-14**:
 | **mendix-docs** | ta sama dokumentacja prosto z `.mpr`, bez MxScout, jako jeden plik HTML | `skills/mendix-docs-source/` (gotowa kopia: `skills/mendix-docs/`) | `~/.claude/skills/mendix-docs` | prywatny |
 | **mendix-change-proposal** | propozycja zmiany flow lub domain modelu jako plik do narysowania w MxScaffold | `MxScout-Dev/skills/mendix-change-proposal/` | nie, agent czyta go z repo | prywatny (tylko Dev) |
 | **advisor-bridge** | stan, architektura i plany projektu dla doradcy (git → Google Drive) | `advisor-bridge/skill/advisor-bridge/` | nie znalazłem kopii w `~/.claude/skills` na tym Macu | prywatny |
-| **app-report-presentation** (szkic) | jak przedstawić dokumentację dowolnej aplikacji: menu, układ, czytelność, języki | `skills/app-report-presentation/` | nie | prywatny, szkic |
+| **app-report-presentation** (1.0) | jak przedstawić dokumentację dowolnej aplikacji: menu, układ, czytelność, języki | `skills/app-report-presentation/` | nie | prywatny, szkic |
 
 **Co wybrać:**
 - Chcę oglądać i klikać w MxScout, z kodem i modelem obok → **mendix-describe**.
@@ -169,23 +169,24 @@ są w repo `ksiejek/advisor-bridge` (`README.md` i `skill/advisor-bridge/SKILL.m
   niczego nie buduje.**
 - Bez sekretów i danych klientów.
 
-## app-report-presentation (szkic)
+## app-report-presentation (1.0)
 
 Ogólne zasady, niezależne od technologii: jak z wyników analizy zrobić raport, który ktoś
 przeczyta. Obejmują menu i jego grupy, kolejność stron, to, co strona pokazuje najpierw,
 dwie warstwy prozy, kiedy diagram pomaga, jak listować ryzyka, typografię, kolory, tryb
 jasny i ciemny oraz język etykiet. Polecenia: `plan | build | review`.
 
-**Czeka na decyzje:**
-- „Structure” czy „Model”,
-- paleta kolorów,
-- P1–P3 jako uniwersalna skala,
-- terminy po polsku i po niemiecku.
+**Decyzje (2026-10-14):**
+- środkowa grupa menu nazywa się **Structure** w każdej technologii,
+- paleta to ta z `assets/tokens.css`,
+- ryzyka to **P1–P3** wszędzie; skalę klienta mapuje się na P1–P3, nigdy nie pokazuje obu.
+
+Etykiety po polsku i niemiecku warto, żeby przeczytał native speaker.
 
 Szablon już jest: `assets/` (tokeny, komponenty, ikony, `report.js`, `build.js`,
 przykład *Riverside Orders* jako `template.html`).
 
-Do czasu tych decyzji szkicu nie instaluję i nie commituję.
+Instalacja: `./install.sh app-report-presentation` (jest w `install.sh`).
 
 ## Zasady, których się trzymam
 
