@@ -41,9 +41,13 @@ Two ways, and the rest of this file works the same for both:
   node agent.js send descriptions.json      hand the result to MxScout
   ```
 
-  Pass `--url` and `--token`, or set `MXSCOUT_URL` and `MXSCOUT_TOKEN`. It
-  refuses any address that is not this machine. The token is the person's:
-  never write it into a file you leave behind.
+  Give it the token as `MXSCOUT_TOKEN` in the environment (and the address as
+  `MXSCOUT_URL` when it is not the default), rather than `--token` and `--url`:
+  an argument is visible to every process on the machine while the command
+  runs, and stays in the shell's history. It refuses any address that is not
+  this machine, follows no redirect, and gives up on a call with no answer
+  within 30 seconds (`MXSCOUT_TIMEOUT_MS` sets the wait). The token is the
+  person's: never write it into a file you leave behind.
 - **From a file.** `<Project>.mxscout-ai-pack.md`, exported from MxScout's
   Documentation. Read a module by the line range the index gives. The person
   may give you the documentation's Markdown copy beside it (Export
@@ -106,7 +110,10 @@ person wants an answer, not a file.
    under the entity (`grep -n "access Sales.Clerk"`; the header's `roles:`
    says which user roles carry that module role); when it is why a save is
    refused, the entity's `valid <attribute>:` lines as well as the flow that
-   saves it (`reference/pack-format.md`, "A module").
+   saves it (`reference/pack-format.md`, "A module"); when it is why someone
+   cannot see a button or edit a field, the page's `shows`, `editable` and
+   `read-only` lines and the `### SN` blocks of the snippets it `places`
+   (`grep -n "shows Cancel"`; pack-format.md, "A page's conditional widgets").
 3. Answer in a few paragraphs, citing the flows, entities, conditions and
    roles by their qualified names, and say what the model cannot show
    (data, configuration, what runs outside it). Point out a description that
@@ -212,7 +219,12 @@ The pack is large (a real app is ~1.7 MB, ~470k tokens). Never read it whole.
    node check-descriptions.js check <pack.md> descriptions.json
    ```
 
-   Fix every error. Warnings about length or missing hashes are worth fixing too.
+   Fix every error. Warnings about length or missing hashes are worth fixing too;
+   one that says "MxScout keeps N" means the import drops or cuts what is past
+   it (`reference/descriptions-format.md`, "What MxScout keeps"). `merge` joins
+   parts by the rules MxScout imports a file with `"add": true` by — a risk told
+   again replaces the earlier one by its id (or its level and title), a process
+   by its name — and when every part it is given adds, the merged file adds too.
 6. **Hand it over.** A file without `"add": true` **replaces everything**
    MxScout keeps for the project. So if you described only some of the
    modules, or the project already has descriptions you did not start from,

@@ -97,9 +97,9 @@ lines or its validation lines. A role gaining write access, or a new
 validation rule, does not put the entity's description out of date (and
 these lines were added without moving any fingerprint).
 
-**Not in the pack:** a widget's visibility or editability condition on a
-page, and the client-side validation a page does on a field (the Pages
-screen in MxScout shows both).
+**Not in the pack:** the client-side validation a page does on a field — an
+input's own *required* or custom validation message (the Pages screen in
+MxScout shows it).
 
 Then one block per microflow, nanoflow and page:
 
@@ -134,4 +134,81 @@ steps:
 - `↩ back to step N` — the flow goes back up to step N and runs it again: a
   loop built from a jump rather than a `for each` / `while`.
 - `(disabled)` — Studio Pro skips that step.
-- Pages carry `roles`, `in` and `from` only.
+- Pages carry `roles`, `in` and `from`, and then the widgets that are shown
+  or editable only on a condition — nothing about the widgets that are not.
+
+## A page's conditional widgets, and snippets
+
+```
+### PG Orders.Order_Edit #7e6f5a4b
+roles: Clerk, Manager
+in: Order: Orders.Order
+from: microflow ACT_OpenOrder
+  shows Cancel order (button) — when $Order/Status = Orders.ENUM_OrderStatus.Placed
+  shows Refunds (tab) — for roles Orders.Manager · holds Refund, Amount, Reason
+  shows Discount (text box) in Lines (list view) — when Orders.Order.HasDiscount is true
+  shows Approve (button) — when $currentObject/Total > 1000; for roles Orders.Manager
+  editable Number (text box) — never
+  editable Status (drop-down) — when Orders.Order.Status is Draft or Placed
+  editable Delivery (data view) — when $Order/Shipped = false (and the inputs inside it)
+  read-only DeliveryDate (date picker) — inside History (list view), which is not editable
+  places Orders.AddressBlock (snippet) — see SN Orders.AddressBlock
+
+### SN Orders.AddressBlock
+on pages: Order_Edit, Customer_Edit
+  shows Country (combo box) — when $Address/IsAbroad
+```
+
+Under a page, indented by two spaces, one line per condition, in the order
+the widgets are on the page (`grep -n "shows Cancel"`, `grep -n "editable Status"`):
+
+- `shows <widget> (<kind>) — …` — the widget is visible only when the
+  condition holds: `when <expression>` (the Mendix expression as the model
+  has it, cut at 300 characters with `…`), `when <attribute> is <value> or
+  <value>` (visible on an attribute's value — an enumeration value's name,
+  or `true` / `false`; `$Param/` before it when it is not the object in
+  context), and `for roles <module role>, …` (visible only to users with one
+  of those module roles; the header's `roles:` line says which user roles
+  carry them). Two of them, separated by `;`, must both hold. A widget that
+  holds others ends in `· holds …` — the buttons and fields inside it, hidden
+  with it (eight at most, then `+N`). **A widget with no line of its own is
+  still hidden when one around it is** — find the button in the `holds` of
+  the lines above it.
+- `editable <widget> (<kind>) — never` — an input that only shows its value.
+  `— when …` — editable only on that condition (same forms as above). A data
+  view editable only on a condition says so `(and the inputs inside it)`; an
+  input in it with no condition of its own carries the same condition
+  `(from <data view>)`.
+- `read-only <widget> (<kind>) — inside <data view or list view>, which is
+  not editable` — the input is editable itself, but the data view or list
+  view around it is not, so it only shows its value. (A list view is not
+  editable unless set to be, so this is common in lists.)
+- `places <snippet> (snippet) — see SN <snippet>` — the page places a
+  snippet whose own widgets have such lines; they are under that snippet's
+  `### SN` block, once, not on every page that places it. When the page
+  places it inside a data view that is not editable, the line says so, and
+  then none of the snippet's inputs are editable there.
+
+`<widget>` is the widget's caption — a label, a button's caption, a tab's —
+or, without one, the attribute an input shows, or the widget's name in Studio
+Pro (`container3`). A text widget's caption is its text, with `{Attribute}`
+where a value goes. A row of a layout grid is `row 2 of <grid>`. When two
+lines would name the same widget, the place it is in follows: `in <data view,
+list view or tab> (<kind>)`.
+
+At most 200 lines a page or a snippet, then `… N more widgets shown or
+editable on a condition`. These lines are **not** part of the page's
+fingerprint: they were added without moving any.
+
+`### SN Module.Snippet` — a snippet whose widgets are shown or editable on a
+condition, in its module's section after the pages, with `on pages:` the
+pages that place it (six, then `+N`). It has no fingerprint and nothing is
+described for it; it is there to be read with the pages that place it.
+
+**For "I can't see …" and "I can't edit …":** find the page, then `grep` its
+block for `shows`, `editable`, `read-only` and the widget's caption — and the
+`### SN` blocks of the snippets it `places`. A button that has no line and is
+not in any `holds` is shown to everyone who can open the page (the page's
+`roles:`); then the cause is elsewhere — the access rules on the entity
+(`access` lines: a member a role may not write is read-only to it whatever the
+page says), the data, or a condition in a flow.

@@ -37,7 +37,7 @@ everything after the first build.
 
 ## What it does not do
 
-It writes nothing into the Mendix project and reads only the `.mpr` and
-`mprcontents/`. It opens no connection. It sees what is saved in Studio Pro,
+It writes nothing into the Mendix project — a file named inside its folder is
+refused — and reads only the `.mpr` and `mprcontents/`. It opens no connection. It sees what is saved in Studio Pro,
 not unsaved work. Version 2 (the Orbit Desk portal, documents 01–03, `translate`,
 `write docs` and `export`) is gone: see CHANGELOG.md.

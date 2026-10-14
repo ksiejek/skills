@@ -65,7 +65,9 @@ before you start, and say so if they may have unsaved work.
 **Where to work:** a folder of its own **outside the project** — ask the
 person, or propose `<project's parent>/<App>-docs`. The pack, the part files,
 `descriptions.json` and the report go there. Never write into the project's
-folder: it is somebody's working copy under version control.
+folder: it is somebody's working copy under version control. `docs.js` refuses
+to — a file named inside it, or the report's default name when run from inside
+it — and says so.
 
 For `build`, show the person the modules from `status` and ask which to
 describe — all of them, or a few — and fetch those one at a time.

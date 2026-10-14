@@ -9,7 +9,9 @@
  *  - check-descriptions.js and reference/ from mendix-describe: one checker and one set of rules for
  *    both skills (Karol, 2026-10-14: "exactly the same skill");
  *  - engine/ from public/: the files MxScout runs to read a .mpr and draw the documentation, unchanged.
- * The folder is emptied first. No dependencies — Node only.
+ * The folder is emptied first — only when it is empty already or holds an earlier copy of the skill
+ * (SKILL.md and VERSION in it); any other folder is refused, so a mistyped path empties nothing.
+ * VERSION says the skill's version and the MxScout commit it was packed from. No dependencies — Node only.
  */
 'use strict';
 const fs = require('fs');
@@ -17,6 +19,7 @@ const path = require('path');
 const vm = require('vm');
 
 const os = require('os');
+const { execFileSync } = require('child_process');
 const args = process.argv.slice(2);
 const at = args.indexOf('--mxscout');
 const ROOT = at >= 0 ? args.splice(at, 2)[1] : (process.env.MXSCOUT_DIR || path.join(os.homedir(), 'Projects', 'MxScout'));
@@ -38,6 +41,13 @@ const ENGINE = ['sqlite.js', 'bson.js', 'mpr.js', 'docs-data.js', 'describe.js',
 const fonts = F.fontsIn(fs.readFileSync(path.join(PUBLIC, 'tokens.css'), 'utf8')).map((u) => F.fontPath(u));
 const licences = fs.readdirSync(path.join(PUBLIC, 'fonts')).filter((f) => /^OFL-.*\.txt$/.test(f)).map((f) => 'fonts/' + f);
 
+// Emptied only when it is the skill already, or nothing at all.
+let there = null;
+try { there = fs.readdirSync(dest).filter((f) => f !== '.DS_Store'); } catch (e) { there = null; }
+if (there && there.length && !(there.indexOf('SKILL.md') !== -1 && there.indexOf('VERSION') !== -1)) {
+  console.error('Refusing to empty ' + dest + ': it is not empty and holds no earlier copy of the skill (no SKILL.md and VERSION in it). Name an empty folder, or the skill\'s own.');
+  process.exit(1);
+}
 fs.rmSync(dest, { recursive: true, force: true });
 fs.mkdirSync(dest, { recursive: true });
 ['SKILL.md', 'docs.js', 'README.md', 'CHANGELOG.md'].forEach((f) => copy(path.join(__dirname, f), path.join(dest, f)));
@@ -45,5 +55,8 @@ copy(path.join(DESCRIBE, 'check-descriptions.js'), path.join(dest, 'check-descri
 fs.readdirSync(path.join(DESCRIBE, 'reference')).forEach((f) => copy(path.join(DESCRIBE, 'reference', f), path.join(dest, 'reference', f)));
 ENGINE.concat(fonts, licences).forEach((f) => copy(path.join(PUBLIC, f), path.join(dest, 'engine', f)));
 const version = (fs.readFileSync(path.join(__dirname, 'CHANGELOG.md'), 'utf8').match(/^## (\d+\.\d+\.\d+)/m) || [])[1] || '?';
-fs.writeFileSync(path.join(dest, 'VERSION'), version + '\n');
-console.log('mendix-docs ' + version + ' in ' + dest + ' — ' + ENGINE.length + ' engine files, ' + fonts.length + ' fonts.');
+// The MxScout commit the engine and the shared rules come from: which copy a report was built with.
+let commit = '?';
+try { commit = execFileSync('git', ['-C', ROOT, 'rev-parse', '--short', 'HEAD'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || '?'; } catch (e) { commit = '?'; }
+fs.writeFileSync(path.join(dest, 'VERSION'), version + ' (MxScout ' + commit + ')\n');
+console.log('mendix-docs ' + version + ' (MxScout ' + commit + ') in ' + dest + ' — ' + ENGINE.length + ' engine files, ' + fonts.length + ' fonts.');

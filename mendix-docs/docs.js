@@ -19,7 +19,8 @@
  *
  * <app.mpr> is the project's .mpr, or the folder that holds it. A Mendix 10+ project keeps its
  * documents in mprcontents/ beside the .mpr; that is read too, nothing else. Nothing is written into
- * the project: only the files named on the command line, wherever they are.
+ * the project: only the files named on the command line — and a file anywhere in the .mpr's folder is
+ * refused, the report's default name included when run from inside it (real paths, links followed).
  *
  * The engine: engine/ beside this file in an installed skill, or public/ of the MxScout repository
  * named by MXSCOUT_DIR when run from the source — the same files either way (pack-skill.js copies them).
@@ -38,7 +39,22 @@ function engineDir() {
   if (fs.existsSync(path.join(own, 'docs-file.js'))) return own;
   const repo = process.env.MXSCOUT_DIR ? path.join(process.env.MXSCOUT_DIR, 'public') : null;
   if (repo && fs.existsSync(path.join(repo, 'docs-file.js'))) return repo;
-  fail('The engine is missing: no engine/ beside docs.js. Reinstall the skill.');
+  if (process.env.MXSCOUT_DIR) fail('The engine is missing: no engine/ beside docs.js, and MXSCOUT_DIR (' + process.env.MXSCOUT_DIR + ') has no public/docs-file.js — point it at an MxScout repository.');
+  fail('The engine is missing: no engine/ beside docs.js. Reinstall the skill (pack-skill.js), or — running it from its source — set MXSCOUT_DIR to an MxScout repository.');
+}
+
+// Every file this writes, checked first: never inside the project's folder (the .mpr's, links followed —
+// it is somebody's working copy under version control), and a failed write said as one.
+let projectDir = null;
+function realOrSelf(p) { try { return fs.realpathSync(p); } catch (e) { return path.resolve(p); } }
+function writeOut(file, text) {
+  // A file already there is followed to where it really is (a link into the project counts as the project).
+  const full = path.resolve(file);
+  const target = fs.existsSync(full) ? realOrSelf(full) : path.join(realOrSelf(path.dirname(full)), path.basename(full));
+  if (projectDir && (target === projectDir || target.startsWith(projectDir + path.sep))) {
+    fail('Refusing to write ' + file + ': it is inside the Mendix project\'s folder (' + projectDir + '). Work in a folder of its own outside the project and write there.');
+  }
+  try { fs.writeFileSync(file, text); } catch (e) { fail('Could not write ' + file + ': ' + ((e && e.message) || e)); }
 }
 
 // MxScout's browser files, each an IIFE that puts one object on window, run in a context of their own.
@@ -101,24 +117,30 @@ function indexOf(lines) {
 }
 
 const args = process.argv.slice(2);
-function take(name) {
+function take(name, what) {
   const i = args.indexOf(name);
   if (i < 0) return null;
   const v = args[i + 1];
+  if (v === undefined || /^--/.test(v)) fail(name + ' needs ' + what + ' after it.');
   args.splice(i, 2);
-  return v === undefined ? null : v;
+  return v;
 }
 function flag(name) { const i = args.indexOf(name); if (i < 0) return false; args.splice(i, 1); return true; }
 
 (async function () {
-  const out = take('--out'), only = take('--modules'), all = flag('--all');
+  const out = take('--out', 'a file name'), only = take('--modules', 'module names, comma-separated'), all = flag('--all');
   const [cmd, where, arg] = args;
   if (!/^(status|module|pack|report|docs)$/.test(cmd || '')) {
     console.error('Usage: node docs.js status <app.mpr> | module <app.mpr> <Name> [--out f] | pack <app.mpr> <file> | report <app.mpr> [descriptions.json] [--out f.html] [--modules A,B] [--all] | docs <app.mpr> [descriptions.json] [--out docs.md]');
     process.exit(2);
   }
+  if (cmd === 'module' && !arg) fail('Name the module: node docs.js module <app.mpr> <Name>. `status` lists them.');
+  if (cmd === 'pack' && !arg) fail('Name the file to write the pack to: node docs.js pack <app.mpr> <file>.');
+  const named = only === null ? null : only.split(',').map((s) => s.trim()).filter(Boolean);
+  if (named && !named.length) fail('--modules names no module: give their names, comma-separated (`status` lists them).');
   const E = engine();
   const mpr = findMpr(where);
+  projectDir = realOrSelf(path.dirname(path.resolve(mpr)));
   const model = await readModel(E, mpr);
   const data = E.MxDocsData.build(model, null);
 
@@ -126,8 +148,7 @@ function flag(name) { const i = args.indexOf(name); if (i < 0) return false; arg
     const text = E.MxDescribe.pack(data).text;
     const lines = text.split('\n');
     if (cmd === 'pack') {
-      if (!arg) fail('Name the file to write the pack to.');
-      fs.writeFileSync(arg, text);
+      writeOut(arg, text);
       console.log('Wrote ' + arg + ' — for the checker, not for reading whole.');
       return;
     }
@@ -144,7 +165,7 @@ function flag(name) { const i = args.indexOf(name); if (i < 0) return false; arg
     const mod = mods.find((m) => m.name === arg);
     if (!mod) fail('No module ' + arg + ' in the pack. `status` lists them.');
     const section = lines.slice(mod.from - 1, mod.to).join('\n') + '\n';
-    if (out) { fs.writeFileSync(out, section); console.log('Wrote ' + out + ' (' + section.split('\n').length + ' lines).'); } else process.stdout.write(section);
+    if (out) { writeOut(out, section); console.log('Wrote ' + out + ' (' + section.split('\n').length + ' lines).'); } else process.stdout.write(section);
     return;
   }
 
@@ -164,14 +185,13 @@ function flag(name) { const i = args.indexOf(name); if (i < 0) return false; arg
   if (cmd === 'docs') {
     const made = E.MxDocsFile.forAgent(E.MxDocsFile.withDerived(data));
     if (!made) { console.log('No documentation yet: no descriptions.json was given, so nothing has been understood before. Read the pack by module.'); return; }
-    if (out) { fs.writeFileSync(out, made.text); console.log('Wrote ' + out + ' (' + made.text.split('\n').length + ' lines) — ' + note + '. What an agent understood earlier; verify against the pack.'); }
+    if (out) { writeOut(out, made.text); console.log('Wrote ' + out + ' (' + made.text.split('\n').length + ' lines) — ' + note + '. What an agent understood earlier; verify against the pack.'); }
     else process.stdout.write(made.text);
     return;
   }
 
   // ---- report: the file MxScout's "Export documentation" writes ----
   const keep = {};
-  const named = only ? only.split(',').map((s) => s.trim()).filter(Boolean) : null;
   data.modules.forEach((m) => { keep[m.name] = named ? named.indexOf(m.name) !== -1 : all || !m.marketplace; });
   if (named) named.forEach((n) => { if (!keep[n]) fail('No module ' + n + ' in this project.'); });
   const F = E.MxDocsFile;
@@ -182,8 +202,9 @@ function flag(name) { const i = args.indexOf(name); if (i < 0) return false; arg
     css[0] = css[0].replace(u, 'url("data:font/woff2;base64,' + b.toString('base64') + '")');
   });
   const scripts = F.SCRIPTS.map((f) => fs.readFileSync(path.join(E.dir, f), 'utf8'));
-  const html = F.build(doc, css.join('\n'), doc.project, scripts);
+  // The page in the language the descriptions are written in (docs-file.js keeps English when it is no language tag).
+  const html = F.build(doc, css.join('\n'), doc.project, scripts, (doc.ai && doc.ai.language) || undefined);
   const file = out || F.fileName(doc);
-  fs.writeFileSync(file, html);
+  writeOut(file, html);
   console.log('Wrote ' + file + ' — ' + doc.modules.length + ' modules, ' + note + '. Open it in a browser; it needs nothing else.');
 })().catch((e) => fail('Could not read the project: ' + ((e && e.message) || e)));

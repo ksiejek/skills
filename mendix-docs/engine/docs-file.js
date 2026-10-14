@@ -79,11 +79,19 @@
     ].join('\n');
   }
 
-  // css: the sheets of SHEETS joined, fonts inlined; scripts: the sources of SCRIPTS, in order.
-  function build(data, css, title, scripts) {
+  // The page's language: the one given, or the one the descriptions were written in, when it is a
+  // language tag ("pl", "en-GB"); otherwise English, the language of the reader's own labels.
+  function langOf(data, lang) {
+    var l = typeof lang === 'string' ? lang : data && data.ai && data.ai.language;
+    return typeof l === 'string' && /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(l.trim()) ? l.trim() : 'en';
+  }
+
+  // css: the sheets of SHEETS joined, fonts inlined; scripts: the sources of SCRIPTS, in order;
+  // lang (optional): the page's language, by default the descriptions'.
+  function build(data, css, title, scripts, lang) {
     return [
       '<!doctype html>',
-      '<html lang="en"><head><meta charset="utf-8">',
+      '<html lang="' + langOf(data, lang) + '"><head><meta charset="utf-8">',
       '<meta name="viewport" content="width=device-width, initial-scale=1">',
       // The project's documentation, not the tool's (redesign spec 10 §1): no tool is named in it.
       '<title>' + String(title).replace(/[<>&"]/g, '') + ' – documentation</title>',

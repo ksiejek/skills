@@ -23,11 +23,15 @@
  *       through flows that exist, a proposal and model changes that name what
  *       is there, unless they add it; every ticket (skills/mendix-ticket-check)
  *       a verdict, its reasoning, evidence that names what is in the pack, and
- *       for a bug the change that fixes it. Exit code 1 on errors.
+ *       for a bug the change that fixes it. It warns about anything over the
+ *       bounds MxScout keeps (CAPS below; reference/descriptions-format.md,
+ *       "What MxScout keeps"). Exit code 1 on errors.
  *
  *   node check-descriptions.js merge <out.json> <part.json> [<part.json> …]
- *       One file from several, later parts winning per name (a change or a ticket per id) —
- *       for describing module by module, or in parallel, one part per batch.
+ *       One file from several, later parts winning per name (a change or a ticket per id,
+ *       a risk per title) — for describing module by module, or in parallel, one part per
+ *       batch. By the rules MxScout imports a file with "add": true by; parts that all
+ *       add make a file that adds.
  *
  * The format it checks is the one public/describe.js in MxScout parses. If the
  * two ever disagree, MxScout is the one that is right: it is what the person
@@ -40,7 +44,7 @@ const DESC_FORMAT = 'mxscout-descriptions';
 const KINDS = { MF: 'microflows', NF: 'nanoflows', PG: 'pages' };
 const TABLES = ['modules', 'microflows', 'nanoflows', 'pages', 'entities'];
 // A summary is two to four sentences; a story is several paragraphs (reference/business-narrative.md).
-const LIMITS = { flow: 400, entity: 300, module: 600, summary: 900, story: 12000, storyMin: 300 };
+const LIMITS = { flow: 300, entity: 300, module: 600, summary: 900, story: 12000, storyMin: 300 };
 
 // ---------- reading the pack ----------
 function readPack(text) {
@@ -159,6 +163,176 @@ function todo(pack, desc) {
   };
 }
 
+// ---------- what MxScout keeps ----------
+// The bounds public/describe.js parse() cuts a file to: so many entries in a list, so many characters in a
+// text. Past them MxScout drops the rest of the list, or cuts the text short — without a word, so the checker
+// says it. reference/descriptions-format.md ("What MxScout keeps") lists the same numbers, and test 48 holds
+// these against parse() itself.
+const STORY_MAX = 16000;
+const CAPS = {
+  file: { project: 200, language: 20, by: 200, written: 40 },
+  app: { summary: 6000, story: STORY_MAX, audienceText: 1000, audience: 30, who: 120, what: 600, processes: 200 },
+  process: { name: 200, summary: 2000, story: STORY_MAX, steps: 100, step: 600, flows: 60, flow: 300 },
+  // A diagram: items per list, ways per decision, and how deep a way's "then" may nest below the top list.
+  diagram: { items: 60, ways: 6, depth: 6, decision: 200, label: 60, end: 160, join: 200, step: 200, who: 60 },
+  table: { text: 4000, story: STORY_MAX },
+  notes: { sections: 16, title: 160, text: 6000, items: 60, item: 800, columns: 6, column: 60, rows: 80, cell: 500 },
+  c4: { nodes: 100, id: 40, name: 80, note: 140, group: 60, links: 250, label: 60, diagramNote: 600, open: 30, question: 500 },
+  risks: { list: 2000, title: 300, detail: 3000, fix: 1000, where: 40, place: 300 },
+  context: { list: 80, key: 300, text: 1000 },
+  changes: { list: 100, id: 80, title: 200, asked: 2000, date: 40, summary: 2000, story: STORY_MAX, steps: 100, step: 600, flows: 60, flow: 300,
+    changes: 60, target: 300, what: 1000, roles: 30, role: 120, data: 3000, risks: 30, open: 30, question: 1000, effort: 300 },
+  tickets: { list: 200, id: 80, title: 200, reported: 8000, source: 300, date: 40, summary: 2000, story: STORY_MAX, steps: 100, step: 600, flows: 60, flow: 300,
+    evidence: 60, target: 300, what: 1000, needs: 30, need: 1000, reply: 4000, risks: 30 },
+  // A change's or a ticket's own risks.
+  smallRisk: { title: 300, detail: 3000, fix: 1000 }
+};
+function caps(desc, warn) {
+  const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
+  // A list MxScout takes as it is: entries past the cap are dropped. Returns the entries it keeps.
+  const list = (what, v, n) => {
+    if (!Array.isArray(v)) return [];
+    if (v.length > n) warn(what + ': ' + v.length + ' entries — MxScout keeps ' + n + '; the rest is dropped.');
+    return v.slice(0, n);
+  };
+  // A text MxScout cuts at so many characters, once trimmed.
+  const text = (what, v, n) => { if (typeof v === 'string' && v.trim().length > n) warn(what + ' is ' + v.trim().length + ' characters — MxScout keeps ' + n + '; the rest is cut off.'); };
+  // A list of sentences: the empty ones are not counted, the rest is cut at n, each at max characters.
+  const texts = (what, v, n, max) => {
+    if (!Array.isArray(v)) return;
+    const kept = v.filter((x) => typeof x === 'string' && x.trim());
+    if (kept.length > n) warn(what + ': ' + kept.length + ' entries — MxScout keeps ' + n + '; the rest is dropped.');
+    kept.slice(0, n).forEach((x, i) => text(what + '[' + i + ']', x, max));
+  };
+  const D = CAPS.diagram;
+  const diagram = (what, items, depth) => {
+    if (!Array.isArray(items)) return;
+    if (depth > D.depth) { warn(what + ': nested ' + depth + ' deep — MxScout keeps ' + D.depth + ' levels of "then" under the top; this is dropped.'); return; }
+    list(what, items, D.items).forEach((x, i) => {
+      const w = what + '[' + i + ']';
+      if (!obj(x)) return;
+      if (typeof x.decision === 'string' && x.decision.trim()) {
+        text(w + '.decision', x.decision, D.decision);
+        list(w + '.ways', x.ways, D.ways).forEach((y, j) => {
+          if (!obj(y)) return;
+          const wy = w + '.ways[' + j + ']';
+          text(wy + '.label', y.label, D.label); text(wy + '.end', y.end, D.end); text(wy + '.join', y.join, D.join);
+          diagram(wy + '.then', y.then, depth + 1);
+        });
+      } else if (typeof x.step === 'string' && x.step.trim()) { text(w + '.step', x.step, D.step); text(w + '.who', x.who, D.who); }
+      else text(w + '.end', x.end, D.end);
+    });
+  };
+  const smallRisks = (what, v, n) => list(what, v, n).forEach((r, i) => {
+    if (!obj(r)) return;
+    const S = CAPS.smallRisk;
+    text(what + '[' + i + '].title', r.title, S.title); text(what + '[' + i + '].detail', r.detail, S.detail); text(what + '[' + i + '].fix', r.fix, S.fix);
+  });
+  Object.keys(CAPS.file).forEach((k) => text('"' + k + '"', desc[k], CAPS.file[k]));
+  const a = obj(desc.app);
+  if (a) {
+    const A = CAPS.app, P = CAPS.process;
+    text('app.summary', a.summary, A.summary); text('app.story', a.story, A.story);
+    if (typeof a.audience === 'string') text('app.audience', a.audience, A.audienceText);
+    list('app.audience', a.audience, A.audience).forEach((u, i) => { if (obj(u)) { text('app.audience[' + i + '].who', u.who, A.who); text('app.audience[' + i + '].what', u.what, A.what); } });
+    list('app.processes', a.processes, A.processes).forEach((p, i) => {
+      if (!obj(p)) return;
+      const w = 'process "' + (typeof p.name === 'string' ? p.name : i) + '"';
+      text(w + ' name', p.name, P.name); text(w + ' summary', p.summary, P.summary); text(w + ' story', p.story, P.story);
+      texts(w + ' steps', p.steps, P.steps, P.step); texts(w + ' flows', p.flows, P.flows, P.flow);
+      diagram(w + ' diagram', p.diagram, 0);
+    });
+  }
+  TABLES.forEach((k) => {
+    const t = obj(desc[k]);
+    if (!t) return;
+    Object.keys(t).forEach((name) => {
+      const v = t[name], w = k + ' ' + name;
+      text(w, typeof v === 'string' ? v : v && (typeof v.text === 'string' ? v.text : v.summary), CAPS.table.text);
+      if (!obj(v)) return;
+      text(w + ' story', v.story, CAPS.table.story);
+      if (k !== 'modules') return;
+      const N = CAPS.notes;
+      list(w + ' notes', v.notes, N.sections).forEach((sec, i) => {
+        if (!obj(sec)) return;
+        const ws = w + ' notes[' + i + ']';
+        text(ws + '.title', sec.title, N.title); text(ws + '.text', sec.text, N.text);
+        list(ws + '.items', sec.items, N.items).forEach((x, j) => text(ws + '.items[' + j + ']', x, N.item));
+        const tb = obj(sec.table);
+        if (!tb) return;
+        const cols = list(ws + '.table.columns', tb.columns, N.columns);
+        cols.forEach((c, j) => text(ws + '.table.columns[' + j + ']', c, N.column));
+        list(ws + '.table.rows', tb.rows, N.rows).forEach((r, j) => (Array.isArray(r) ? r : []).slice(0, cols.length).forEach((c, m) => {
+          if (typeof c === 'string' && c.replace(/\s+/g, ' ').trim().length > N.cell) warn(ws + '.table.rows[' + j + '][' + m + '] is ' + c.replace(/\s+/g, ' ').trim().length + ' characters — MxScout keeps ' + N.cell + '; the rest is cut off.');
+        }));
+      });
+    });
+  });
+  const c4 = obj(desc.c4);
+  if (c4) {
+    const C = CAPS.c4;
+    ['context', 'containers'].forEach((k) => {
+      const d = obj(c4[k]);
+      if (!d) return;
+      const w = 'c4.' + k;
+      list(w + '.nodes', d.nodes, C.nodes).forEach((n, i) => {
+        if (!obj(n)) return;
+        const wn = w + '.nodes[' + i + ']';
+        text(wn + '.id', n.id, C.id); text(wn + '.name', n.name, C.name); text(wn + '.note', n.note, C.note); text(wn + '.group', n.group, C.group);
+      });
+      list(w + '.links', d.links, C.links).forEach((l, i) => { if (obj(l)) text(w + '.links[' + i + '].label', l.label, C.label); });
+      text(w + '.note', d.note, C.diagramNote);
+    });
+    list('c4.open', c4.open, C.open).forEach((x, i) => text('c4.open[' + i + ']', x, C.question));
+  }
+  const R = CAPS.risks;
+  list('"risks"', desc.risks, R.list).forEach((r, i) => {
+    if (!obj(r)) return;
+    const w = 'risks[' + i + ']';
+    text(w + '.title', r.title, R.title); text(w + '.detail', r.detail, R.detail); text(w + '.fix', r.fix, R.fix);
+    texts(w + '.where', r.where, R.where, R.place);
+  });
+  const cx = obj(desc.context);
+  if (cx) {
+    const X = CAPS.context;
+    [['where', 'topic', 'place'], ['conventions', 'pattern', 'meaning']].forEach(([k, f1, f2]) => list('context.' + k, cx[k], X.list).forEach((x, i) => {
+      if (obj(x)) { text('context.' + k + '[' + i + '].' + f1, x[f1], X.key); text('context.' + k + '[' + i + '].' + f2, x[f2], X.text); }
+    }));
+    texts('context.pitfalls', cx.pitfalls, X.list, X.text);
+  }
+  const H = CAPS.changes;
+  list('"changes"', desc.changes, H.list).forEach((c, i) => {
+    if (!obj(c)) return;
+    const w = 'change ' + (typeof c.id === 'string' ? '"' + c.id + '"' : '[' + i + ']');
+    text(w + ' id', c.id, H.id); text(w + ' title', c.title, H.title); text(w + ' asked', c.asked, H.asked); text(w + ' date', c.date, H.date);
+    [['now', c.now], ['proposal', c.proposal]].forEach(([side, v]) => {
+      if (!obj(v)) return;
+      text(w + ' ' + side + ' summary', v.summary, H.summary); text(w + ' ' + side + ' story', v.story, H.story);
+      texts(w + ' ' + side + ' steps', v.steps, H.steps, H.step);
+      if (side === 'now') texts(w + ' now flows', v.flows, H.flows, H.flow);
+      diagram(w + ' ' + side + ' diagram', v.diagram, 0);
+    });
+    if (obj(c.proposal)) list(w + ' proposal.changes', c.proposal.changes, H.changes).forEach((x, j) => {
+      if (obj(x)) { text(w + ' proposal.changes[' + j + '].target', x.target, H.target); text(w + ' proposal.changes[' + j + '].what', x.what, H.what); }
+    });
+    if (obj(c.impact)) { texts(w + ' impact.flows', c.impact.flows, H.flows, H.flow); texts(w + ' impact.roles', c.impact.roles, H.roles, H.role); text(w + ' impact.data', c.impact.data, H.data); }
+    smallRisks(w + ' risks', c.risks, H.risks);
+    texts(w + ' open', c.open, H.open, H.question);
+    text(w + ' effort', c.effort, H.effort);
+  });
+  const T = CAPS.tickets;
+  list('"tickets"', desc.tickets, T.list).forEach((t, i) => {
+    if (!obj(t)) return;
+    const w = 'ticket ' + (typeof t.id === 'string' ? '"' + t.id + '"' : '[' + i + ']');
+    ['id', 'title', 'reported', 'source', 'date', 'summary', 'story', 'reply'].forEach((k) => text(w + ' ' + k, t[k], T[k]));
+    const tr = obj(t.traced);
+    if (tr) { texts(w + ' traced.steps', tr.steps, T.steps, T.step); texts(w + ' traced.flows', tr.flows, T.flows, T.flow); diagram(w + ' traced.diagram', tr.diagram, 0); }
+    list(w + ' evidence', t.evidence, T.evidence).forEach((x, j) => { if (obj(x)) { text(w + ' evidence[' + j + '].target', x.target, T.target); text(w + ' evidence[' + j + '].what', x.what, T.what); } });
+    texts(w + ' needs', t.needs, T.needs, T.need);
+    smallRisks(w + ' risks', t.risks, T.risks);
+  });
+}
+
 // ---------- check ----------
 function check(pack, desc) {
   const problems = [];
@@ -181,7 +355,6 @@ function check(pack, desc) {
   // Notes on a module: sections of text, lines and one small table (reference/module-notes.md).
   function notes(what, list) {
     if (!Array.isArray(list)) { err(what + ': "notes" must be a list of sections.'); return; }
-    if (list.length > 16) warn(what + ': ' + list.length + ' sections — MxScout keeps the first 16.');
     list.forEach((s, i) => {
       const w = what + ' notes[' + i + ']' + (s && typeof s.title === 'string' ? ' "' + s.title + '"' : '');
       if (!s || typeof s !== 'object' || typeof s.title !== 'string' || !s.title.trim()) { err(w + ': a section needs a "title" — MxScout drops it otherwise.'); return; }
@@ -192,7 +365,6 @@ function check(pack, desc) {
       if (t !== undefined) {
         if (!t || typeof t !== 'object' || !Array.isArray(t.columns) || !Array.isArray(t.rows)) err(w + ': a "table" needs "columns" and "rows" (lists).');
         else {
-          if (t.columns.length > 6) warn(w + ': ' + t.columns.length + ' columns — MxScout keeps six.');
           t.rows.forEach((r, j) => { if (!Array.isArray(r)) err(w + ' row ' + j + ' is not a list of cells.'); else if (r.length !== t.columns.length) warn(w + ' row ' + j + ' has ' + r.length + ' cells for ' + t.columns.length + ' columns.'); });
         }
       }
@@ -203,10 +375,8 @@ function check(pack, desc) {
   function diagram(what, d) {
     if (d === undefined) return;
     if (!d || typeof d !== 'object' || !Array.isArray(d.nodes) || !d.nodes.length) { err(what + ': needs a non-empty "nodes" list.'); return; }
-    // Bounds sized on a large application (a large application, 2026-10-14: a dozen systems around it, five groups
-    // of people, the runtime's parts) with room to spare — the import keeps this many and drops the rest.
-    if (d.nodes.length > 100) warn(what + ': ' + d.nodes.length + ' nodes — MxScout keeps 100; group like systems together.');
-    if (Array.isArray(d.links) && d.links.length > 250) warn(what + ': ' + d.links.length + ' links — MxScout keeps 250.');
+    // The import keeps 100 nodes and 250 links — sized on a large application (2026-10-14: a dozen systems
+    // around it, five groups of people, the runtime's parts) with room to spare; caps() says when a file goes past.
     const ids = {};
     d.nodes.forEach((n, i) => {
       const w = what + ' nodes[' + i + ']';
@@ -230,7 +400,13 @@ function check(pack, desc) {
         if (x && typeof x.decision === 'string' && x.decision.trim()) {
           decisions++;
           if (!Array.isArray(x.ways) || x.ways.length < 2) warn(who + ': ' + w + ' is a decision with fewer than two ways.');
-          (Array.isArray(x.ways) ? x.ways : []).forEach((y, j) => { if (y && y.then !== undefined) walk(y.then, w + '.ways[' + j + '].then'); });
+          (Array.isArray(x.ways) ? x.ways : []).forEach((y, j) => {
+            // A way ends, goes on at a later step, or rejoins the main path — one of the three.
+            if (y && typeof y.end === 'string' && y.end.trim() && typeof y.join === 'string' && y.join.trim()) warn(who + ': ' + w + '.ways[' + j + '] has both "end" and "join" — it is drawn as ending there and the join is ignored; keep one.');
+            if (y && y.then !== undefined) walk(y.then, w + '.ways[' + j + '].then');
+          });
+        } else if (x && typeof x.step === 'string' && x.step.trim() && x.by !== undefined && x.by !== 'person' && x.by !== 'app') {
+          warn(who + ': ' + w + ' has "by": ' + JSON.stringify(x.by) + ' — it is "person" or "app"; MxScout draws it as a person\'s step.');
         } else if (!(x && ((typeof x.step === 'string' && x.step.trim()) || (typeof x.end === 'string' && x.end.trim())))) {
           err(who + ': ' + w + ' is neither a "step", a "decision" nor an "end" — MxScout drops it.');
         }
@@ -324,7 +500,6 @@ function check(pack, desc) {
       // Who uses it: groups of { who, what } (reference/descriptions-format.md); one sentence is still read.
       if (Array.isArray(a.audience)) {
         a.audience.forEach((u, i) => { if (!u || typeof u.who !== 'string' || !u.who.trim()) err('app.audience[' + i + '] has no "who" — MxScout drops the group.'); });
-        if (a.audience.length > 30) warn('app.audience has ' + a.audience.length + ' groups — MxScout keeps 30.');
       } else if (typeof a.audience === 'string') warn('app.audience is one sentence — write it as a list of { "who", "what" }, so the overview can show each group on its own line.');
       else if (a.audience !== undefined) err('app.audience must be a list of { "who", "what" }.');
       (Array.isArray(a.processes) ? a.processes : []).forEach((p, i) => {
@@ -362,7 +537,6 @@ function check(pack, desc) {
   if (desc.changes !== undefined) {
     if (!Array.isArray(desc.changes)) err('"changes" must be a list.');
     else {
-      if (desc.changes.length > 100) warn('"changes" has ' + desc.changes.length + ' entries — MxScout keeps 100.');
       const ids = {};
       desc.changes.forEach((c, i) => {
         const what = 'change ' + (c && typeof c.id === 'string' ? '"' + c.id + '"' : '[' + i + ']');
@@ -391,7 +565,6 @@ function check(pack, desc) {
           if (pr.diagram !== undefined) flowDiagram(what + ' proposal', pr.diagram, 'diagram');
           if (!Array.isArray(pr.changes) || !pr.changes.length) warn(what + ' proposal: no "changes" — list what to add, change or remove in the model.');
           else {
-            if (pr.changes.length > 60) warn(what + ' proposal: ' + pr.changes.length + ' model changes — MxScout keeps 60.');
             pr.changes.forEach((x, j) => {
               const w = what + ' proposal.changes[' + j + ']';
               if (!x || typeof x !== 'object') { err(w + ' is not an object.'); return; }
@@ -427,7 +600,6 @@ function check(pack, desc) {
   if (desc.tickets !== undefined) {
     if (!Array.isArray(desc.tickets)) err('"tickets" must be a list.');
     else {
-      if (desc.tickets.length > 200) warn('"tickets" has ' + desc.tickets.length + ' entries — MxScout keeps 200.');
       const ids = {};
       const changeIds = {};
       (Array.isArray(desc.changes) ? desc.changes : []).forEach((c) => { if (c && typeof c.id === 'string') changeIds[c.id] = true; });
@@ -442,7 +614,6 @@ function check(pack, desc) {
         if (t.confidence === undefined) warn(what + ': no "confidence" — shown as low; say how sure the model lets you be.');
         else if (CONFIDENCE.indexOf(t.confidence) === -1) warn(what + ': "confidence" "' + t.confidence + '" is not one of ' + CONFIDENCE.join(', ') + ' — shown as low.');
         if (typeof t.reported !== 'string' || !t.reported.trim()) warn(what + ': no "reported" — the ticket as it was pasted is what the page opens with.');
-        else if (t.reported.length > 8000) warn(what + ': "reported" is ' + t.reported.length + ' characters — MxScout keeps 8,000.');
         if (typeof t.summary !== 'string' || !t.summary.trim()) err(what + ': no "summary" — the answer in one to three sentences; MxScout drops the ticket without it.');
         else {
           if (t.summary.length > LIMITS.summary) warn(what + ': the summary is ' + t.summary.length + ' characters — the answer in one to three sentences; the reasoning belongs in "story".');
@@ -465,7 +636,6 @@ function check(pack, desc) {
         const ev = Array.isArray(t.evidence) ? t.evidence : [];
         if (t.evidence !== undefined && !Array.isArray(t.evidence)) err(what + ': "evidence" must be a list.');
         else if (!ev.length && t.verdict !== 'cannot-tell') warn(what + ': no "evidence" — name the places in the model the verdict rests on; they become links.');
-        if (ev.length > 60) warn(what + ': ' + ev.length + ' evidence rows — MxScout keeps 60.');
         ev.forEach((x, j) => {
           const w = what + ' evidence[' + j + ']';
           if (!x || typeof x !== 'object') { err(w + ' is not an object.'); return; }
@@ -493,6 +663,10 @@ function check(pack, desc) {
       });
     }
   }
+  // "replace" means something only beside "add": true; without it the file replaces everything anyway.
+  if (desc.replace !== undefined && desc.add !== true) warn('"replace" without "add": true — MxScout ignores it: a file without "add" replaces everything it keeps.');
+  else if (desc.replace !== undefined && !(Array.isArray(desc.replace) && desc.replace.indexOf('app') !== -1)) warn('"replace" must be ["app"] — MxScout ignores anything else.');
+  caps(desc, warn);
   return problems;
 }
 
@@ -509,20 +683,35 @@ const CHANGE_ACTIONS = ['add', 'change', 'remove'];
 const THEMES = ['access', 'secrets', 'logic', 'silent', 'delete', 'loops', 'schedule', 'dead', 'hardcoded', 'naming'];
 
 // ---------- merge ----------
+// The rules are MxScout's own for a file that says "add": true (public/describe.js merge), so that
+// merging parts here and importing them there one by one end the same — test 48 runs both on the
+// same files. The first part is the base when it does not say "add"; every other part is laid over it.
+function riskTitle(r) { return String((r && r.title) || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+function trimmed(v) { return typeof v === 'string' ? v.trim() : v; }
+const CONTEXT_KEYS = { where: ['topic', 'place'], conventions: ['pattern', 'meaning'] };
+// Who uses it, as the import reads it: groups with a "who", or one sentence.
+function audienceGiven(a) {
+  if (Array.isArray(a)) return a.some((u) => u && typeof u === 'object' && typeof u.who === 'string' && u.who.trim());
+  return typeof a === 'string' && !!a.trim();
+}
 function merge(parts) {
   const out = { format: DESC_FORMAT, version: 1 };
   parts.forEach((p) => {
-    ['project', 'language', 'by', 'written'].forEach((k) => { if (typeof p[k] === 'string' && p[k]) out[k] = p[k]; });
-    // A part that says "add": true (one more process) adds its processes to the application's, a process
-    // of the same name replaced; any other part's "app" is the whole of it.
+    // The project, its language and who wrote it: the first part that says; when it was written: the last.
+    ['project', 'language', 'by'].forEach((k) => { if (!out[k] && typeof p[k] === 'string' && p[k].trim()) out[k] = p[k]; });
+    if (typeof p.written === 'string' && p.written.trim()) out.written = p.written;
+    // A part that says "add": true (one more process) lays its application over the one before: its
+    // summary, its story and who uses it when it has them, its processes by name — one of the same name
+    // replaced, a new one at the end. Any other part's "app", or one with "replace": ["app"], is the whole of it.
     if (p.app && typeof p.app === 'object') {
       if (p.add === true && out.app && !(Array.isArray(p.replace) && p.replace.indexOf('app') !== -1)) {
         const procs = (Array.isArray(out.app.processes) ? out.app.processes : []).slice();
         (Array.isArray(p.app.processes) ? p.app.processes : []).forEach((x) => {
-          const i = procs.findIndex((q) => q && x && typeof q.name === 'string' && typeof x.name === 'string' && q.name.toLowerCase() === x.name.toLowerCase());
+          const i = procs.findIndex((q) => q && x && typeof q.name === 'string' && typeof x.name === 'string' && q.name.trim().toLowerCase() === x.name.trim().toLowerCase());
           if (i < 0) procs.push(x); else procs[i] = x;
         });
-        out.app = Object.assign({}, out.app, p.app.summary ? { summary: p.app.summary } : {}, p.app.story ? { story: p.app.story } : {}, { processes: procs });
+        out.app = Object.assign({}, out.app, p.app.summary ? { summary: p.app.summary } : {}, p.app.story ? { story: p.app.story } : {},
+          audienceGiven(p.app.audience) ? { audience: p.app.audience } : {}, { processes: procs });
       } else out.app = p.app;
     }
     if (p.c4 && typeof p.c4 === 'object') out.c4 = p.c4;
@@ -546,18 +735,35 @@ function merge(parts) {
       if (!p[k] || typeof p[k] !== 'object') return;
       out[k] = Object.assign(out[k] || {}, p[k]);
     });
-    // Risks and context come from several parts (one per module, and the application's): they add up,
-    // and the same risk written twice — same level, same title — is kept once, the later part winning.
+    // Risks and context come from several parts (one per module, and the application's): they add up.
+    // A risk is known by its title, case and spacing aside — written again, reworded or ranked at another
+    // level, the later copy takes its place; a context entry already there is not repeated.
     if (Array.isArray(p.risks)) {
-      out.risks = (out.risks || []).filter((r) => !p.risks.some((x) => x && r && x.level === r.level && x.title === r.title)).concat(p.risks);
+      out.risks = (out.risks || []).slice();
+      p.risks.forEach((x) => {
+        const i = riskTitle(x) ? out.risks.findIndex((y) => riskTitle(y) === riskTitle(x)) : -1;
+        if (i < 0) out.risks.push(x); else out.risks[i] = x;
+      });
     }
     if (p.context && typeof p.context === 'object') {
       out.context = out.context || {};
       ['where', 'conventions', 'pitfalls'].forEach((k) => {
-        if (Array.isArray(p.context[k])) out.context[k] = (out.context[k] || []).concat(p.context[k].filter((x) => !(out.context[k] || []).some((y) => JSON.stringify(y) === JSON.stringify(x))));
+        if (!Array.isArray(p.context[k])) return;
+        const keyOf = (x) => JSON.stringify(CONTEXT_KEYS[k] ? (x && typeof x === 'object' ? CONTEXT_KEYS[k].map((f) => trimmed(x[f])) : x) : trimmed(x));
+        const list = (out.context[k] || []).slice();
+        const seen = {};
+        list.forEach((x) => { seen[keyOf(x)] = true; });
+        p.context[k].forEach((x) => { const key = keyOf(x); if (!seen[key]) { seen[key] = true; list.push(x); } });
+        out.context[k] = list;
       });
     }
   });
+  // Parts that all add, with no whole file under them, make a file that adds too: imported, it is laid
+  // over what MxScout keeps, as each part would have been — not put in its place.
+  if (parts.length && parts.every((p) => p && p.add === true)) {
+    out.add = true;
+    if (parts.some((p) => Array.isArray(p.replace) && p.replace.indexOf('app') !== -1)) out.replace = ['app'];
+  }
   return out;
 }
 
@@ -607,4 +813,4 @@ if (require.main === module) {
   try { process.exitCode = main(process.argv.slice(2)); }
   catch (e) { console.error(e.message); process.exitCode = 2; }
 }
-module.exports = { readPack, readDocs, todo, check, merge, DESC_FORMAT };
+module.exports = { readPack, readDocs, todo, check, merge, DESC_FORMAT, CAPS };

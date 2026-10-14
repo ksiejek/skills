@@ -46,6 +46,12 @@ Markdown beside it once the project has descriptions, which the agent reads
 first as its map; **Stop sharing**, a reload or closing the tab takes both
 away. Skip step 4.
 
+The agent reads the token from `MXSCOUT_TOKEN` in its environment, which the
+skill tells it to prefer over `--token`: an argument is visible to other
+processes on the machine (`ps`) and stays in the shell's history. It talks only
+to MxScout on this machine, follows no redirect, and gives up on a call that
+has no answer within 30 seconds (`MXSCOUT_TIMEOUT_MS` changes that).
+
 The line alone does not set the agent describing: it connects, tells you what
 it sees, and asks what you want — describe the application (all or some
 modules), bring it up to date, one more process, a change, a ticket, or a
@@ -85,6 +91,13 @@ descriptions.json and check it with check-descriptions.js. Read long flows in
 full, never from a truncated excerpt. At the end, tell me how many were
 described, what stayed unclear, and how many tokens it took.
 ```
+
+`work.<Module>.md` is the agent's own notes on a module, which SKILL.md asks it
+to keep while it reads that module: where each case starts, the statuses it
+sets, the decisions, the records looked up by name, the messages that go out.
+The main processes are traced from those notes afterwards, not from the module
+summaries. The files stay in the working folder: they are never imported into
+MxScout and never sent to it, and you may delete them when the work is done.
 
 The same in Polish:
 
@@ -170,7 +183,9 @@ The other two commands:
 
 - `check <pack> <descriptions.json>` — checks a file against the pack before
   you import it.
-- `merge <out.json> <part.json> …` — joins per-module parts into one file.
+- `merge <out.json> <part.json> …` — joins per-module parts into one file,
+  by the rules MxScout imports a file that adds by; parts that all add make a
+  file that adds.
 
 The formats are in `reference/pack-format.md` and
 `reference/descriptions-format.md`.

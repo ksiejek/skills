@@ -1,5 +1,30 @@
 # mendix-docs — changes
 
+## 3.4.1 – 2026-10-14
+
+- **Nothing is written into the project's folder.** `docs.js` refuses any file
+  inside the `.mpr`'s folder — `--out`, the pack's file, and the report's
+  default name when run from inside it — by real paths, links followed, and
+  says to work in a folder outside the project.
+- **Clearer failures:** `--out` with no file name after it, `module` with no
+  name, `--modules` that names nothing (it no longer builds an empty report),
+  a file that cannot be written (said as such, not as a project that cannot be
+  read), and, run from its source with no engine, the hint to set
+  `MXSCOUT_DIR`.
+- **The report's page is in the descriptions' language** (`"language"`), when
+  that is a language tag; English otherwise.
+- **`pack-skill.js` empties only an empty folder or an earlier copy of the
+  skill** (one holding `SKILL.md` and `VERSION`) and refuses any other, so a
+  mistyped path loses nothing. `VERSION` names the MxScout commit the skill was
+  packed from: `3.4.1 (MxScout <commit>)`.
+- mendix-describe's checker: its `merge` joins parts by the rules MxScout
+  imports by (who uses it in a part that adds, a risk told again at another
+  level, the context without repeats; parts that all add make a file that
+  adds), and `check` warns about everything past the bounds MxScout keeps
+  (`reference/descriptions-format.md`, "What MxScout keeps"), a diagram step
+  `"by"` neither person nor app, a way that both ends and joins, and
+  `"replace"` without `"add"`. A flow's description: under 300 characters.
+
 ## 3.4.0 – 2026-10-14
 
 - **`docs <app.mpr> [descriptions.json] [--out docs.md]`**: the documentation

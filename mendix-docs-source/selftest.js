@@ -26,11 +26,21 @@ try {
   ok(['SKILL.md', 'docs.js', 'check-descriptions.js', 'reference/business-narrative.md', 'engine/mpr.js', 'engine/docs-file.js', 'engine/fonts/InstrumentSans.woff2'].every((f) => fs.existsSync(path.join(skill, f))),
     'the installable copy has its own files, mendix-describe’s checker and references, and the engine');
   ok(fs.readFileSync(path.join(skill, 'engine', 'docs-view.js'), 'utf8') === fs.readFileSync(path.join(MX, 'public', 'docs-view.js'), 'utf8'), 'the engine is MxScout’s files, unchanged');
+  ok(/^\d+\.\d+\.\d+ \(MxScout (?:[0-9a-f]{4,}|\?)\)\n$/.test(fs.readFileSync(path.join(skill, 'VERSION'), 'utf8')), 'VERSION says the skill’s version and the MxScout commit it was packed from: ' + fs.readFileSync(path.join(skill, 'VERSION'), 'utf8').trim());
+  const pack2 = (dest) => { try { execFileSync(process.execPath, [path.join(__dirname, 'pack-skill.js'), dest, '--mxscout', MX], { encoding: 'utf8', stdio: 'pipe' }); return null; } catch (e) { return e; } };
+  ok(pack2(skill) === null && fs.existsSync(path.join(skill, 'SKILL.md')), 'packing again into the skill’s own folder empties and refills it');
+  const precious = path.join(tmp, 'precious');
+  fs.mkdirSync(precious); fs.writeFileSync(path.join(precious, 'notes.txt'), 'keep me');
+  const refusedPack = pack2(precious);
+  ok(refusedPack && refusedPack.status === 1 && /Refusing to empty/.test(String(refusedPack.stderr)) && fs.readFileSync(path.join(precious, 'notes.txt'), 'utf8') === 'keep me',
+    'a folder that is not empty and is not the skill is refused, and left as it was');
 
   const proj = path.join(tmp, 'Sales');
   fs.mkdirSync(proj);
   fs.copyFileSync(path.join(MX, 'test', 'fixtures', 'mpr-v1.db'), path.join(proj, 'Sales.mpr'));
-  const run = (a) => execFileSync(process.execPath, [path.join(skill, 'docs.js')].concat(a), { encoding: 'utf8' });
+  const run = (a, opts) => execFileSync(process.execPath, [path.join(skill, 'docs.js')].concat(a), Object.assign({ encoding: 'utf8', stdio: 'pipe' }, opts || {}));
+  // A run that must fail: its exit code and what it said.
+  const refuse = (a, opts) => { try { run(a, opts); return { status: 0, said: '' }; } catch (e) { return { status: e.status, said: String(e.stderr) }; } };
 
   const status = run(['status', proj]);
   ok(/^project: Sales \(Mendix /.test(status) && /\nSales \| 2 \| 0 \| 2 \| 3/.test(status), 'status names the project and its modules');
@@ -71,6 +81,34 @@ try {
     'a description whose flow changed since is marked out of date, and --out writes it to a file');
   const todoDocs = execFileSync(process.execPath, [path.join(skill, 'check-descriptions.js'), 'todo', pack, mdOut, '--list'], { encoding: 'utf8' });
   ok(/Sales \(pack line \d+\): \d+ new, 1 changed/.test(todoDocs) && /^ {4}Sales\.CreateOrder$/m.test(todoDocs), 'the checker’s todo reads that Markdown in place of a descriptions file');
+
+  // Nothing is written into the project's folder: --out, the pack's file, the report's default name run from
+  // inside it, and a path through a link into it — all refused before anything is written.
+  const link = path.join(tmp, 'link-to-project');
+  fs.symlinkSync(proj, link);
+  const inside = [
+    ['report', proj, '--out', path.join(proj, 'report.html')],
+    ['pack', proj, path.join(proj, 'pack.md')],
+    ['docs', proj, path.join(tmp, 'descriptions.json'), '--out', path.join(link, 'docs.md')],
+    ['module', proj, 'Sales', '--out', path.join(proj, 'sub', '..', 'm.md')]
+  ].map((a) => refuse(a));
+  const byDefault = refuse(['report', '.'], { cwd: proj });
+  ok(inside.concat([byDefault]).every((r) => r.status === 1 && /Refusing to write .* inside the Mendix project's folder/.test(r.said)) &&
+    fs.readdirSync(proj).join() === 'Sales.mpr',
+    'a file inside the project’s folder is refused — --out, the pack, the report’s default name, a link into it — and nothing is written there');
+  const noOut = refuse(['report', proj, '--out']), noOut2 = refuse(['module', proj, 'Sales', '--out', '--all']);
+  ok(noOut.status === 1 && /--out needs a file name/.test(noOut.said) && noOut2.status === 1 && /--out needs a file name/.test(noOut2.said), '--out with no file name after it fails and says so');
+  const noName = refuse(['module', proj]);
+  ok(noName.status === 1 && /Name the module/.test(noName.said), 'module with no name asks for one');
+  const noMods = refuse(['report', proj, '--modules', ',', '--out', path.join(tmp, 'none.html')]);
+  ok(noMods.status === 1 && /--modules names no module/.test(noMods.said) && !fs.existsSync(path.join(tmp, 'none.html')), '--modules that names nothing fails instead of building an empty report');
+  const badWrite = refuse(['docs', proj, path.join(tmp, 'descriptions.json'), '--out', path.join(tmp, 'no', 'such', 'dir', 'docs.md')]);
+  ok(badWrite.status === 1 && /^Could not write /.test(badWrite.said) && !/could not read the project/i.test(badWrite.said), 'a write that fails is reported as a write error, not as the project unreadable: ' + badWrite.said.trim());
+  const noEngine = (() => { try { execFileSync(process.execPath, [path.join(__dirname, 'docs.js'), 'status', proj], { encoding: 'utf8', stdio: 'pipe', env: Object.assign({}, process.env, { MXSCOUT_DIR: '' }) }); return { status: 0, said: '' }; } catch (e) { return { status: e.status, said: String(e.stderr) }; } })();
+  ok(noEngine.status === 1 && /engine is missing/.test(noEngine.said) && /MXSCOUT_DIR/.test(noEngine.said), 'run from its source with no engine, it says to set MXSCOUT_DIR');
+  fs.writeFileSync(path.join(tmp, 'polish.json'), JSON.stringify(Object.assign({}, desc, { language: 'pl' })));
+  run(['report', proj, path.join(tmp, 'polish.json'), '--out', path.join(tmp, 'pl.html')]);
+  ok(/<html lang="en">/.test(html) && /<html lang="pl">/.test(fs.readFileSync(path.join(tmp, 'pl.html'), 'utf8')), 'the report’s page is in the descriptions’ language');
 
   // Mendix 10+: the documents are in mprcontents/ beside the .mpr. With the folder the project reads;
   // without it the skill says what is missing instead of building an empty report.

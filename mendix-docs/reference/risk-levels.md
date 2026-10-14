@@ -1,8 +1,10 @@
 # Risk levels P1–P3
 
-One definition, used by both skills: mendix-describe and mendix-docs. There is
-one copy, this one; mendix-docs gets it when its installable copy is put
-together.
+One definition, used by both skills: mendix-describe and mendix-docs. The
+canonical copy is in MxScout Dev, `skills/mendix-describe/reference/`; edit it
+there. The public MxScout repository and the skills repository carry copies of
+it, and mendix-docs gets the public MxScout's copy when its installable copy is
+put together.
 
 A risk is something in the model that can hurt the people using the
 application or the people changing it. Its level says **how soon it should be

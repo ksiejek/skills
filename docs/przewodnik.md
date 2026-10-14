@@ -457,3 +457,22 @@ Poza pakietem zostają warunki widoczności i edytowalności widgetów na strona
 Walidacje czyta czytnik `.mpr` dopiero od tej wersji. Żeby pojawiły się w projekcie,
 wczytaj model ponownie (⋯ → Replace model). Odciski flow, stron i encji się nie zmieniły,
 więc opisy nie stają się nieaktualne.
+
+### Zmiana 2026-10-14: domknięcie review, widgety w pakiecie, mendix-docs 3.4.1
+
+- **Pakiet AI:** pod stronami są linie `shows … — when …`, `editable … — never/when …` i
+  `read-only …`, czyli kto widzi i kto może edytować dany widget. Snippety są opisane raz,
+  w bloku `### SN`. Poza pakietem zostają już tylko walidacje pól na samej stronie.
+- **Checker i aplikacja scalają opisy tak samo:** te same zasady dla odbiorców, ryzyk i
+  kontekstu. Checker ostrzega o przekroczeniu każdego limitu, a tabela limitów jest w
+  `descriptions-format.md`.
+- **`agent.js`:** timeout 30 s (`MXSCOUT_TIMEOUT_MS`), blokada przekierowań, błąd w
+  jednej linii. Zalecany jest `MXSCOUT_TOKEN` zamiast `--token`.
+- **mendix-docs 3.4.1:**
+  - nie zapisuje niczego do folderu projektu;
+  - `pack-skill.js` nie czyści cudzego folderu;
+  - lepsze komunikaty błędów;
+  - język raportu bierze z opisów;
+  - `VERSION` podaje commit MxScout, z którego skill złożono;
+  - selftest 24/0.
+- **mendix-change-proposal (Dev):** poprawione nazwy przycisków i formatów.

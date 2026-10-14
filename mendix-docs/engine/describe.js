@@ -9,7 +9,8 @@
  *  - the AI pack, which MxScout writes: the model as the documentation
  *    already reads it — every flow as its steps with the data they set, every
  *    entity with its members and associations, who may read, write, create
- *    and delete it, and the validation rules that refuse a save — in a
+ *    and delete it, and the validation rules that refuse a save, every page
+ *    and snippet widget shown or editable only on a condition — in a
  *    dense text a model reads cheaply, one section per module, an index of
  *    line ranges at the top so an agent reads one module at a time, and a
  *    fingerprint per flow so the next run describes only what changed;
@@ -132,6 +133,154 @@
     if (f.kind !== 'page' && f.returns) out.push('returns: ' + f.returns);
     if (f.doc) out.push('doc: ' + cut(f.doc));
     if (f.kind !== 'page' && f.workflow) { out.push('steps:'); stepLines(f.workflow, 0, out); }
+    if (f.kind === 'page') widgetLines(f.preview, out);
+  }
+
+  // A page's widgets that are shown or editable only under a condition — the answer to "why can't
+  // the clerk see the Cancel button?" and "why is this field read-only?". One line per condition,
+  // under the page's own lines, from the widget tree mpr.js reads (readPageTree): "shows" for a
+  // widget visible only on an expression, an attribute's value or for some module roles, "editable"
+  // for an input (or a data view) editable never or only on a condition, and "read-only" for an input
+  // that is editable itself but sits in a data view or list view that is not. A widget with no
+  // condition gets no line; a conditional widget that holds others names the buttons and fields in
+  // it, since they are hidden with it. A snippet's widgets are listed once, in a "### SN" block of
+  // its own (snippetBlocks) — on a large project, written out on every page that places the snippet
+  // they were most of these lines — and a page that places one says so in a "places" line. None of it
+  // is part of a page's fingerprint (hashOf), so no page description went out of date when these
+  // lines were added. skills/mendix-describe/reference/pack-format.md.
+  var WIDGET_LINES_MAX = 200, COND_MAX = 300, HOLDS_MAX = 8;
+  var WIDGET_KINDS = { dataview: 'data view', listview: 'list view', tab: 'tab', row: 'row', grid: 'layout grid', snippet: 'snippet', text: 'text', image: 'image' };
+  var WIDGET_TYPES = { DivContainer: 'container', GroupBox: 'group box', DataGrid: 'data grid', TemplateGrid: 'template grid', TabControl: 'tab container' };
+  function widgetKind(n) {
+    if (n.kind === 'button') return n.link ? 'link' : 'button';
+    if (WIDGET_KINDS[n.kind]) return WIDGET_KINDS[n.kind];
+    var t = String(n.type || n.kind || 'widget');
+    return WIDGET_TYPES[t] || t.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+  }
+  function widgetLabel(n) {
+    if (n.kind === 'snippet' && n.snippet && !n.caption) return n.snippet;
+    return cut(n.caption || (n.kind === 'input' && n.attribute ? short(n.attribute) : null) || n.name || widgetKind(n), 80);
+  }
+  function condWords(c) {
+    var parts = [];
+    if (c.expression) parts.push('when ' + cut(c.expression, COND_MAX));
+    else if (c.attribute) {
+      var vals = c.values || [];
+      parts.push('when ' + (c.of ? c.of + '/' : '') + c.attribute + ' is ' + (vals.length ? vals.map(function (v) { return cut(v, 60); }).join(' or ') : 'none of its values (no value ticked)'));
+    }
+    if (c.roles && c.roles.length) parts.push('for roles ' + c.roles.join(', '));
+    return parts.join('; ') || 'on a condition the model leaves empty';
+  }
+  function widgetLines(preview, out) {
+    if (!preview || !preview.structure) return;
+    var lines = conditionLines(preview.structure, preview.snippets || {}, []);
+    lines.slice(0, WIDGET_LINES_MAX).forEach(function (l) { out.push(l); });
+    if (lines.length > WIDGET_LINES_MAX) out.push('  … ' + (lines.length - WIDGET_LINES_MAX) + ' more widgets shown or editable on a condition');
+  }
+  // The lines of one page's or snippet's widget tree, uncapped. A snippet's are the same on every page
+  // that places it, so they are worked out once per tree (`chain`, the snippets being read, only
+  // stops a snippet that places itself).
+  var treeLines = typeof WeakMap === 'function' ? new WeakMap() : null;
+  function conditionLines(structure, snippets, chain) {
+    var was = treeLines && treeLines.get(structure);
+    if (was) return was;
+    var found = [];
+    function kids(n) { return (n.widgets || []).concat(n.footer || []); }
+    // A snippet with lines of its own, and not one being read already.
+    function placed(n) {
+      var sn = n.kind === 'snippet' && n.snippet && chain.indexOf(n.snippet) === -1 ? snippets[n.snippet] : null;
+      return sn && sn.structure && conditionLines(sn.structure, snippets, chain.concat(n.snippet)).length ? sn : null;
+    }
+    // The buttons and fields under a widget, by label — a snippet's too: what is hidden with it.
+    function holds(n) {
+      var names = [];
+      (function inside(k, ch) {
+        var sn = k.kind === 'snippet' && k.snippet && ch.indexOf(k.snippet) === -1 ? snippets[k.snippet] : null;
+        var list = kids(k);
+        if (sn && sn.structure) { ch = ch.concat(k.snippet); (sn.structure.regions || []).forEach(function (r) { list = list.concat(r.widgets || []); }); }
+        list.forEach(function (w) {
+          if (!w || typeof w !== 'object') return;
+          if (w.kind === 'button' || w.kind === 'input') { var l = widgetLabel(w); if (names.indexOf(l) === -1) names.push(l); }
+          inside(w, ch);
+        });
+      })(n, chain);
+      if (!names.length) return '';
+      return ' · holds ' + names.slice(0, HOLDS_MAX).join(', ') + (names.length > HOLDS_MAX ? ' +' + (names.length - HOLDS_MAX) : '');
+    }
+    // ctx: where a widget is (the nearest data widget or tab, to tell two widgets of one label apart),
+    // and the nearest data view or list view whose editability is not the default.
+    function walk(list, ctx) {
+      var rowNo = 0;
+      list.forEach(function (n) {
+        if (!n || typeof n !== 'object') return;
+        if (n.kind === 'row') rowNo++;
+        var label = n.kind === 'row' ? 'row ' + rowNo + (ctx.grid ? ' of ' + ctx.grid : '') : widgetLabel(n);
+        var kind = widgetKind(n), locked = ctx.locked;
+        function add(verb, rest) { found.push({ verb: verb, rest: rest, label: label, kind: kind, name: n.name, place: ctx.place }); }
+        if (n.visible) add('shows', condWords(n.visible) + holds(n));
+        if (n.kind === 'input') {
+          if (locked && locked.never && !n.readOnly) add('read-only', 'inside ' + locked.label + ' (' + locked.kind + '), which is not editable' + (n.editableIf ? ' (its own condition: ' + condWords(n.editableIf) + ')' : ''));
+          else if (n.readOnly) add('editable', 'never');
+          else if (n.editableIf) add('editable', condWords(n.editableIf));
+          else if (locked && locked.cond) add('editable', condWords(locked.cond) + ' (from ' + locked.label + ' (' + locked.kind + '))');
+        } else if (n.kind === 'dataview' && n.editableIf) add('editable', condWords(n.editableIf) + ' (and the inputs inside it)');
+        if (placed(n)) {
+          add('places', 'see SN ' + n.snippet +
+            (locked && locked.never ? '; inside ' + locked.label + ' (' + locked.kind + '), which is not editable, so neither are its inputs'
+              : locked && locked.cond ? '; inside ' + locked.label + ' (' + locked.kind + '), so its inputs are editable only ' + condWords(locked.cond) : ''));
+        }
+        var data = n.kind === 'dataview' || n.kind === 'listview';
+        var inner = { place: ctx.place, locked: locked, grid: n.kind === 'grid' ? label : ctx.grid };
+        if (data || n.kind === 'datagrid' || n.kind === 'gallery' || n.kind === 'datalist' || n.kind === 'tab') inner.place = label + ' (' + kind + ')';
+        // A data view or list view that is not editable makes every input in it read-only, and one editable
+        // on a condition, editable on that condition; one with the default leaves it as the one around it.
+        if (data && n.readOnly) inner.locked = { never: true, label: label, kind: kind };
+        else if (n.kind === 'dataview' && n.editableIf) inner.locked = { cond: n.editableIf, label: label, kind: kind };
+        walk(kids(n), inner);
+      });
+    }
+    walk((structure.regions || []).reduce(function (all, r) { return all.concat(r.widgets || []); }, []), {});
+    // Two lines about two different widgets of one label say where each is.
+    var seen = {}, lines = [], had = {};
+    found.forEach(function (x) { var k = x.verb + ' ' + x.label + ' (' + x.kind + ')'; seen[k] = (seen[k] || 0) + 1; });
+    found.forEach(function (x) {
+      var subject = x.label + ' (' + x.kind + ')';
+      if (seen[x.verb + ' ' + subject] > 1) subject += x.place ? ' in ' + x.place : x.name && x.name !== x.label ? ' [' + x.name + ']' : '';
+      var line = '  ' + x.verb + ' ' + subject + ' — ' + x.rest;
+      if (!had[line]) { had[line] = true; lines.push(line); }
+    });
+    if (treeLines) treeLines.set(structure, lines);
+    return lines;
+  }
+  // The snippets the pages of `own` modules place whose widgets have lines, each once, in its own
+  // module's section — or, when that module has no section of its own, in the first page's that
+  // places it: { module name: [lines] }.
+  function snippetBlocks(data, own) {
+    var found = {}, order = [], all = {};
+    own.forEach(function (m) {
+      m.pages.forEach(function (k) {
+        var f = data.flows[k], sn = (f && f.preview && f.preview.snippets) || {};
+        Object.keys(sn).forEach(function (q) {
+          all[q] = sn[q];
+          if (!found[q]) { found[q] = { pages: [], home: m.name }; order.push(q); }
+          found[q].pages.push(short(f.qn));
+        });
+      });
+    });
+    var names = {};
+    own.forEach(function (m) { names[m.name] = true; });
+    var blocks = {};
+    order.sort().forEach(function (q) {
+      var s = all[q], lines = s && s.structure ? conditionLines(s.structure, all, [q]) : [];
+      if (!lines.length) return;
+      var mod = q.split('.')[0], at = names[mod] ? mod : found[q].home, pages = found[q].pages;
+      var out = blocks[at] = blocks[at] || [];
+      out.push('', '### SN ' + q);
+      out.push('on pages: ' + pages.slice(0, 6).join(', ') + (pages.length > 6 ? ' +' + (pages.length - 6) : ''));
+      lines.slice(0, WIDGET_LINES_MAX).forEach(function (l) { out.push(l); });
+      if (lines.length > WIDGET_LINES_MAX) out.push('  … ' + (lines.length - WIDGET_LINES_MAX) + ' more widgets shown or editable on a condition');
+    });
+    return blocks;
   }
 
   function entityLine(e, data) {
@@ -199,6 +348,7 @@
   function pack(data) {
     var own = data.modules.filter(function (m) { return !m.marketplace && (m.microflows.length + m.nanoflows.length + m.pages.length + m.entities.length); });
     var market = data.modules.filter(function (m) { return m.marketplace; }).map(function (m) { return m.name; });
+    var snippetLines = snippetBlocks(data, own);
     var blocks = own.map(function (m) {
       var out = ['## module ' + m.name];
       if (m.entities.length) {
@@ -215,6 +365,7 @@
         var lines = flowLines(data.flows[k]);
         for (var i = 0; i < lines.length; i++) out.push(lines[i]);
       });
+      (snippetLines[m.name] || []).forEach(function (l) { out.push(l); });
       out.push('');
       return { m: m, lines: out };
     });
@@ -230,7 +381,7 @@
       data.scheduled.length ? 'scheduled events: ' + data.scheduled.map(function (s) { return short(s.name) + ' → ' + (s.microflow || '?') + (s.enabled ? '' : ' (off)'); }).join('; ') : null,
       data.services.length ? 'published services: ' + data.services.map(function (s) { return s.name + (s.kind ? ' (' + s.kind + ')' : ''); }).join('; ') : null,
       market.length ? 'not included: ' + market.length + ' Marketplace modules — ' + market.join(', ') : null,
-      'legend: MF microflow, NF nanoflow, PG page, E entity; #xxxxxxxx is a fingerprint — copy it into the description; {member=value} is the data a step sets or passes; → owns an association to, ← is owned by; under an entity, "access <module role>:" is what that role may read, write, create and delete, and on which rows, and "valid <attribute>:" a validation rule that refuses a save',
+      'legend: MF microflow, NF nanoflow, PG page, SN snippet, E entity; #xxxxxxxx is a fingerprint — copy it into the description; {member=value} is the data a step sets or passes; → owns an association to, ← is owned by; under an entity, "access <module role>:" is what that role may read, write, create and delete, and on which rows, and "valid <attribute>:" a validation rule that refuses a save; under a page or a snippet, "shows <widget>" is a widget visible only on a condition, "editable <widget>" one editable never or only on a condition, "read-only <widget>" an input inside a data view or list view that is not editable, and "places <snippet>" a snippet whose widgets have such lines under its SN block',
       ''
     ].filter(function (l) { return l !== null; });
     var indexHead = ['## index', 'module | lines | microflows | nanoflows | pages | entities'];
@@ -480,8 +631,10 @@
   // (Karol, 2026-10-14: after reading the documentation, "describe this process too" — the agent sends
   // the one process, and the flows it described for it, and nothing else is lost). A process of the same
   // name is replaced, a new one is added at the end; a flow, page, entity or module described again is
-  // replaced; a risk with a title already kept is not added twice; a change with an id already kept is
-  // replaced, a new one added at the end, and so is a ticket; the rest is kept as it was.
+  // replaced; a risk with a title already kept replaces it; a change with an id already kept is
+  // replaced, a new one added at the end, and so is a ticket; the rest is kept as it was. The skill's
+  // checker merges parts by the same rules (check-descriptions.js merge; test 48 runs both on the same files).
+  function riskTitle(r) { return String(r.title || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
   function merge(base, more) {
     var out = JSON.parse(JSON.stringify(base || {
       project: null, language: null, by: null, written: null, app: null,
@@ -497,7 +650,9 @@
       var a = out.app || (out.app = { summary: null, story: null, audience: null, users: [], processes: [] });
       if (more.app.summary) a.summary = more.app.summary;
       if (more.app.story) a.story = more.app.story;
-      if (more.app.users && more.app.users.length) { a.users = more.app.users; a.audience = more.app.audience; }
+      // Who uses it, when the part says — as groups or, in a file written before, as one sentence — replaces
+      // what was kept (the checker's merge does the same: skills/mendix-describe/check-descriptions.js).
+      if ((more.app.users && more.app.users.length) || more.app.audience) { a.users = more.app.users || []; a.audience = more.app.audience || null; }
       a.processes = a.processes || [];
       (more.app.processes || []).forEach(function (p) {
         var at = -1;
@@ -505,12 +660,23 @@
         if (at < 0) a.processes.push(p); else a.processes[at] = p;
       });
     }
-    var titles = {};
-    (out.risks = out.risks || []).forEach(function (r) { titles[r.title.toLowerCase()] = true; });
-    (more.risks || []).forEach(function (r) { if (!titles[r.title.toLowerCase()]) { titles[r.title.toLowerCase()] = true; out.risks.push(r); } });
+    // A risk is known by its title, case and spacing aside: written again — reworded, or ranked at
+    // another level — the newer copy takes the place of the one kept; a new one goes at the end.
+    out.risks = out.risks || [];
+    (more.risks || []).forEach(function (r) {
+      var k = riskTitle(r), at = -1;
+      out.risks.forEach(function (x, i) { if (at < 0 && riskTitle(x) === k) at = i; });
+      if (at < 0) out.risks.push(r); else out.risks[at] = r;
+    });
+    // The developers' context adds up, an entry already kept not repeated.
     if (more.context) {
       var c = out.context || (out.context = { where: [], conventions: [], pitfalls: [] });
-      c.where = c.where.concat(more.context.where); c.conventions = c.conventions.concat(more.context.conventions); c.pitfalls = c.pitfalls.concat(more.context.pitfalls);
+      ['where', 'conventions', 'pitfalls'].forEach(function (k) {
+        var seen = {};
+        c[k] = c[k] || [];
+        c[k].forEach(function (x) { seen[JSON.stringify(x)] = true; });
+        (more.context[k] || []).forEach(function (x) { var key = JSON.stringify(x); if (!seen[key]) { seen[key] = true; c[k].push(x); } });
+      });
     }
     if (more.c4) out.c4 = more.c4;
     out.changes = out.changes || [];

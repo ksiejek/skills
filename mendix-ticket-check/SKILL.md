@@ -78,7 +78,8 @@ be a ticket — a description, an update, one more process, a change, a question
 2. **Get the model.** Either:
    - **Connected** — the person pressed **Share with an agent** in MxScout's
      Documentation and gave you a line with an address and a token
-     (`--url`/`--token`, or `MXSCOUT_URL`/`MXSCOUT_TOKEN`):
+     (`MXSCOUT_TOKEN`/`MXSCOUT_URL` in the environment, rather than
+     `--token`/`--url`: an argument shows in the process list and the history):
 
      ```
      node ../mendix-describe/agent.js status                  the project, its modules, and the documentation
@@ -130,18 +131,29 @@ be a ticket — a description, an update, one more process, a change, a question
      none` means no role reaches the entity from the client at all. When a
      ticket says "I cannot see / edit / delete X", or "a user sees records
      that are not theirs", start here;
+   - **what a page shows and lets edit**: under the page's `### PG` line,
+     `shows <widget>` (visible only on an expression, an attribute's value or
+     for some module roles), `editable <widget>` (never, or only on a
+     condition) and `read-only <widget>` (inside a data view or list view
+     that is not editable) — and the `### SN` block of every snippet the page
+     `places`. When a ticket says "I can't see the Cancel button" or "this
+     field is read-only", grep the page's block for those lines and the
+     widget's caption (`grep -n "shows Cancel" pack.md`); a widget hidden with
+     the container around it is in that container's `· holds …`. No line and
+     no `holds` means the page shows it to everyone who may open the page —
+     look at the `access` lines and the data next;
    - **what starts it**: a page's button (`from:`), a scheduled event (the
      header lists them, and which are off), a published service, a before or
      after commit event;
    - **statuses**: the enumeration and its values, and every flow that sets
      them.
 
-   The pack does **not** carry a widget's visibility or editability condition
-   on a page, or a page's own checks on a field (a field marked required, a
-   validation expression on an input). When the verdict hangs on one of
-   those, say so: ask the person to look at the page on MxScout's **Pages**
-   screen and tell you, or put it in `needs`. Do not guess it. Entity access
-   and the entity's validation rules *are* in the pack (above,
+   The pack does **not** carry a page's own checks on a field (a field marked
+   required, a validation expression on an input). When the verdict hangs on
+   one of those, say so: ask the person to look at the page on MxScout's
+   **Pages** screen and tell you, or put it in `needs`. Do not guess it.
+   Entity access, the entity's validation rules and a page's conditional
+   widgets *are* in the pack (above,
    `../mendix-describe/reference/pack-format.md`).
 
    When the documentation and the model disagree, **the model wins**: base the

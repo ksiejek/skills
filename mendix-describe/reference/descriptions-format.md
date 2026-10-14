@@ -105,13 +105,13 @@ Paragraphs are separated by a blank line …",
 | Field | Required | Notes |
 |---|---|---|
 | `format`, `version` | yes | exactly as above, or MxScout refuses the file |
-| `add` | no | `true`: the file adds to the descriptions MxScout keeps instead of replacing them — one more process, or flows described since. A process of the same name is replaced and a new one added at the end; a flow, page, entity or module in the file replaces its old description; a risk already kept — the same `id`, or the same level and title — is replaced by the new copy, not added twice; everything else stays. Without it, an import replaces what was kept |
-| `replace` | no | with `"add": true` only: `["app"]` — the file's `app` (summary, story, who uses it, every process) replaces the overview kept, as when the overview was written again from the start; flows, modules, risks and the rest are still added to |
+| `add` | no | `true`: the file adds to the descriptions MxScout keeps instead of replacing them — one more process, or flows described since. The application's `summary`, `story` and `audience`, when the file has them, replace the ones kept; a process of the same name is replaced and a new one added at the end; a flow, page, entity or module in the file replaces its old description; a risk already kept — the same `id`, or the same level and title, case and spacing aside — is replaced in its place by the new copy (so a risk ranked at another level under the same `id` takes the old one's place), a new one is added at the end; a `context` entry already kept is not added twice; `project`, `language` and `by` stay as kept (the file's when none is), `written` is the file's; everything else stays. Without it, an import replaces what was kept. `check-descriptions.js merge` joins parts by the same rules, and when every part says `"add": true` the merged file says it too |
+| `replace` | no | with `"add": true` only: `["app"]` — the file's `app` (summary, story, who uses it, every process) replaces the overview kept, as when the overview was written again from the start; flows, modules, risks and the rest are still added to. Without `"add": true` it is ignored (the checker warns) |
 | `project`, `language`, `by`, `written` | no | `by` is shown as who wrote the descriptions |
 | `app.summary` | no, but write it | the first thing a business reader sees: 2–4 sentences, always shown |
 | `app.story` | no, but write it | the long description, paragraphs separated by a blank line; shown under the summary, folded |
 | `app.audience` | no | the groups of people who use the app, as many as there are: `{ "who", "what" }`, a short name and one sentence. The documentation's overview shows each group on a line of its own. A single sentence, as files before this were written, is still read and shown as one paragraph |
-| `app.processes[]` | no | every main process the application has, each with `name`, `summary` and `story` (one case, stage by stage, 200–400 words — `business-narrative.md`, "A process"); `steps`: one sentence each, naming who does what, as many as the case has; `diagram`, only when the process branches (`business-narrative.md`): a list of `{ "step", "who", "by": "person" \| "app" }`, `{ "decision", "ways": [{ "label", "then": [ … ], "end" }] }` and `{ "end" }` — a way with an `end` finishes there, one with `"join": "<a step's text>"` goes on at that step further on (rules tried in turn that all lead to the same next step), one with neither rejoins the main path, and `then` holds steps and decisions of its own; `flows` are qualified names from the pack and become links |
+| `app.processes[]` | no | every main process the application has, each with `name`, `summary` and `story` (one case, stage by stage, 200–400 words — `business-narrative.md`, "A process"); `steps`: one sentence each, naming who does what, as many as the case has; `diagram`, only when the process branches (`business-narrative.md`): a list of `{ "step", "who", "by": "person" \| "app" }`, `{ "decision", "ways": [{ "label", "then": [ … ], "end" }] }` and `{ "end" }` — a way with an `end` finishes there, one with `"join": "<a step's text>"` goes on at that step further on (rules tried in turn that all lead to the same next step), one with neither rejoins the main path, and `then` holds steps and decisions of its own; `flows` are qualified names from the pack and become links. A step's `by` is `person` (the default) or `app`; a way has an `end` or a `join`, not both — with both it ends there |
 | `modules` | no | module name → `{ "summary", "story", "notes" }`; a plain string is read as the summary. `notes`: sections for a developer, see `module-notes.md` |
 | `c4` | no | the architecture, levels 1 and 2: `context` and `containers` (nodes and links) and `open` (what the model does not show), see `c4.md` |
 | `microflows`, `nanoflows`, `pages`, `entities` | no | qualified name → `{ "hash", "text" }`, or just the text |
@@ -247,9 +247,9 @@ anywhere. It is sent as a part of its own, with `"add": true` and only
 | `open[]` | no | the questions the model cannot answer — for the person |
 | `effort` | no | a rough size, in words |
 
-MxScout keeps up to 100 changes, 60 model changes per change, 100 steps and 60
-flows on each side, 30 risks, 30 open questions and 30 roles; text is cut at the
-lengths the rest of the file is. Both stories are plain prose like every other
+MxScout keeps up to 100 changes, 60 model changes per change, 100 steps on each
+side, 60 flows in `now` and 60 in `impact`, 30 risks, 30 open questions and 30
+roles; text is cut at the lengths "What MxScout keeps" below gives. Both stories are plain prose like every other
 `story`: paragraphs separated by a blank line, no markup.
 
 ## Tickets
@@ -339,5 +339,32 @@ retrieve with `Status != Cancelled` added.
 | `risks[]` | no | as a change's: `level` (`P1`–`P3`) and `title` required, `detail`, `fix` |
 
 MxScout keeps up to 200 tickets, 60 evidence rows, 100 steps and 60 flows per
-ticket, 30 needs and 30 risks; text is cut at the lengths the rest of the file
-is. The story is plain prose like every other `story`.
+ticket, 30 needs and 30 risks; text is cut at the lengths "What MxScout keeps"
+below gives. The story is plain prose like every other `story`.
+
+## What MxScout keeps
+
+MxScout reads the file within bounds, and past them it drops the rest of a list
+or cuts a text short — without a word. `check-descriptions.js check` warns about
+each one a file goes past ("MxScout keeps N; the rest is dropped"). The numbers
+are generous: a description that respects `business-narrative.md` never meets
+them. A text is counted once trimmed.
+
+| Where | Entries kept | Characters kept |
+|---|---|---|
+| `project`, `language`, `by`, `written` | | 200, 20, 200, 40 |
+| `app` | | `summary` 6,000, `story` 16,000; `audience` as one sentence 1,000 |
+| `app.audience[]` | 30 groups | `who` 120, `what` 600 |
+| `app.processes[]` | 200 | `name` 200, `summary` 2,000, `story` 16,000 |
+| a process's `steps[]`, `flows[]` | 100 steps, 60 flows | a step 600, a flow 300 |
+| a `diagram` (a process's, a change's, a ticket's) | 60 items in each list, 6 ways per decision; a way's `then` nests at most 6 levels under the top list, deeper is dropped | `step` and `decision` 200, `who` 60, `label` 60, `end` 160, `join` 200 |
+| `modules`, `microflows`, `nanoflows`, `pages`, `entities` | | the text (or a module's `summary`) 4,000, a `story` 16,000 |
+| a module's `notes[]` | 16 sections; 60 `items`, 6 `columns` and 80 `rows` in each | `title` 160, `text` 6,000, an item 800, a column 60, a cell 500 |
+| `c4.context`, `c4.containers` | 100 nodes, 250 links | a node's `id` 40, `name` 80, `note` 140, `group` 60; a link's `label` 60; the diagram's `note` 600 |
+| `c4.open[]` | 30 | 500 each |
+| `risks[]` | 2,000; 40 places in each `where` | `id` up to 80 (a longer one is dropped, and the risk known by its level and title), `title` 300, `detail` 3,000, `fix` 1,000, a place 300 |
+| `verify[]` | 500 | `why` 1,000 |
+| `context.where[]`, `context.conventions[]`, `context.pitfalls[]` | 80 each | `topic` and `pattern` 300, `place`, `meaning` and a pitfall 1,000 |
+| `changes[]` | 100; per change 100 steps on each side, 60 flows in `now`, 60 model changes, 60 `impact.flows`, 30 `impact.roles`, 30 risks, 30 `open` | `id` 80, `title` 200, `asked` 2,000, `date` 40, each side's `summary` 2,000 and `story` 16,000, a step 600, a flow 300, a model change's `target` 300 and `what` 1,000, a role 120, `impact.data` 3,000, a question 1,000, `effort` 300 |
+| `tickets[]` | 200; per ticket 100 traced steps, 60 traced flows, 60 evidence rows, 30 `needs`, 30 risks | `id` 80, `title` 200, `reported` 8,000, `source` 300, `date` 40, `summary` 2,000, `story` 16,000, a step 600, a flow 300, an evidence row's `target` 300 and `what` 1,000, a need 1,000, `reply` 4,000 |
+| a change's or a ticket's `risks[]` | 30 | `title` 300, `detail` 3,000, `fix` 1,000 |
