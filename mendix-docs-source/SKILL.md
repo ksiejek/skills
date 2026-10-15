@@ -103,6 +103,22 @@ refuses to write anything else there. The report and your working files go in
 a folder of your own, as below. (When MxScout itself is at hand, its
 mendix-describe skill does the same work through the same folder.)
 
+**Inside the Mendix project — `mxscout/`, shared through the app's git.**
+When the team keeps MxScout's files in the Mendix project itself
+(`<MendixProject>/mxscout/mxscout.json`), its committed `mxscout/docs/` — the
+documentation by topic, `index.md` the map, the solved cases in
+`mxscout/knowledge/` listed in it — is written from the descriptions in
+`mxscout/descriptions/`. Bring it up to date with no MxScout at all:
+
+```
+node docs.js repo <MendixProject>                mxscout/docs/ from the .mpr, descriptions/ and knowledge/,
+                                                 byte for byte as MxScout writes it; nothing when it is current
+```
+
+It is the one place `docs.js` writes inside a Mendix project: `mxscout/docs/`,
+nothing else. It never runs git: the person commits `mxscout/`. (The
+mendix-describe skill's `agent.js update-docs` does the same.)
+
 **Where to work:** a folder of its own **outside the project** — ask the
 person, or propose `<project's parent>/<App>-docs`. The pack, the part files,
 `descriptions.json` and the report go there. Never write into the project's
@@ -460,7 +476,8 @@ entity.
 - `docs.js` — `status`, `module`, `pack`, `docs`, `report`: reading the `.mpr`
   (or an MxScout project folder's `model.json`), the documentation as
   Markdown, and building the report; `send`: a descriptions file into an
-  MxScout project folder's `inbox/`. Node only, no install.
+  MxScout project folder's `inbox/`; `repo`: `mxscout/docs/` inside a Mendix
+  project, as MxScout writes it. Node only, no install.
 - `engine/` — MxScout's own files that read the model and draw the report,
   unchanged. Never edit them here.
 - `check-descriptions.js` — `todo`, `check`, `merge`. Node only, no install.

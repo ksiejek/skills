@@ -9,7 +9,7 @@ The folder name is the skill's `name:` in its `SKILL.md`.
 |---|---|---|
 | `mendix-describe/` | Writes business-readable documentation of a Mendix app from an MxScout project — the project folder MxScout keeps on disk (the first way: `project.json`, `documentation.md`, `ai-pack.md`, results into `inbox/`), a running MxScout sharing a project with an agent, or a `.mxscout-ai-pack.md` file — as a descriptions file MxScout takes in. | **The MxScout Dev repository** (`skills/mendix-describe/`), which has everything the public MxScout's copy has plus risk triage (risk ids, re-checking fixed risks, false positives, risks people raised in comments). This folder is a copy of the Dev one. |
 | `mendix-assist/` | Your help on a Mendix app against its model, kept as Assist items: a Service Desk ticket checked (bug, works as designed, data or configuration, or cannot tell — with the evidence, a reply to paste back and for a bug a proposed fix), a Jira issue worked out, an idea worked out as a change, or other help. Asks the kind and the number first, notices what is missing and says what to ask the reporter, takes the reporter's answer back, and sets an item's status and planned date. One file per item in the project folder (`assist/<kind>/<id>.json`); never in a package or an export. Replaces mendix-ticket-check. Uses mendix-describe's tools, so it is installed beside it. | **The MxScout Dev repository** (`skills/mendix-assist/`). This folder is a copy. |
-| `mendix-docs/` | Documents a Mendix app straight from its `.mpr` (or an MxScout project folder's `model.json`, handing results back into its `inbox/`), with nothing else running, as one offline HTML report (the same report MxScout exports). | **Here.** `mendix-docs/` is the installable copy, packed from `mendix-docs-source/`. |
+| `mendix-docs/` | Documents a Mendix app straight from its `.mpr` (or an MxScout project folder's `model.json`, handing results back into its `inbox/`; or, with `docs.js repo`, writing a Mendix project's committed `mxscout/docs/` as MxScout does), with nothing else running, as one offline HTML report (the same report MxScout exports). | **Here.** `mendix-docs/` is the installable copy, packed from `mendix-docs-source/`. |
 | `app-report-presentation/` | How to lay out any application's documentation as a readable report or small portal, with a ready visual kit in `assets/` (tokens, components, icons, renderer, `build.js`, an example report). | **Here.** |
 
 `mendix-docs-source/` holds mendix-docs' own files (`SKILL.md`, `docs.js`,
@@ -72,7 +72,7 @@ pack has no `## risk triage` section.
 
 ```
 node mendix-docs-source/pack-skill.js mendix-docs --mxscout ~/Projects/MxScout
-node mendix-docs-source/selftest.js --mxscout ~/Projects/MxScout   # expect "24 passed, 0 failed"
+node mendix-docs-source/selftest.js --mxscout ~/Projects/MxScout   # expect "36 passed, 0 failed"
 ```
 
 `pack-skill.js` empties the destination first — only when it is empty or holds

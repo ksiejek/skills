@@ -1279,3 +1279,18 @@ button.dx-dm-can.link:hover { border-color:var(--acc); color:var(--acc-text); }
 .dx-ch-cols.one { grid-template-columns:minmax(0,1fr); }
 .dx-ch-cols.one .dx-ch-col.proposal { padding-left:0; border-left:0; }
 @media (max-width: 720px) { .dx-as-plan { margin-left:0; } .dx-as-hist li { grid-template-columns:1fr; gap:2px; } }
+
+/* ---- Solved cases (docs-knowledge.js) and an Assist item's link to its case ---- */
+.dx-kn-kind { display:inline-block; font:600 10.5px/17px var(--font-mono); padding:0 7px; border-radius:5px; vertical-align:1px; white-space:nowrap; color:var(--acc-text); background:var(--acc-soft); }
+.dx-kn-old { display:inline-block; font:600 10.5px/17px var(--font-mono); padding:0 7px; border-radius:5px; vertical-align:1px; white-space:nowrap; color:var(--p2); background:var(--p2bg); }
+.dx-pl-t small .dx-kn-kind, .dx-pl-t small .dx-kn-old { margin-left:2px; }
+.dx-kn-stale { max-width:900px; border-left:3px solid var(--p2); }
+.dx-kn-path { font:12px var(--font-mono); color:var(--muted); }
+.dx-kn-about { display:flex; flex-direction:column; gap:8px; }
+.dx-kn-sec { max-width:900px; }
+.dx-kn-sec p { margin:0 0 8px; line-height:1.6; }
+.dx-kn-list { margin:0 0 8px; padding-left:20px; line-height:1.6; }
+.dx-kn-h4 { margin:10px 0 4px; font:600 13px/1.4 var(--font-ui); }
+.dx-kn-pre { margin:0 0 8px; padding:10px 12px; border-radius:8px; background:var(--raised); font:12px/1.5 var(--font-mono); white-space:pre-wrap; overflow-wrap:anywhere; }
+.dx-as-case { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; max-width:900px; margin:0; }
+.dx-as-case code { font:12px var(--font-mono); }

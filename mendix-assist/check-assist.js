@@ -13,7 +13,19 @@
  *       last update and title — and the files still waiting in inbox/. Read it before answering, so you
  *       know what is open, planned and closed.
  *
- * The format is reference/assist-format.md. This file reads; it writes nothing.
+ *   node check-assist.js knowledge <knowledge/<id>-<slug>.md>
+ *       Checks a case note (reference/knowledge-format.md) before it is committed or handed to MxScout: the
+ *       front matter, the five sections, the file's name against its id — and personal data: an e-mail
+ *       address, a phone number, an IBAN, a "Reported by" line or a long number is an error.
+ *
+ *   node check-assist.js cases <folder> [--find "words names"] [--pack ai-pack.md]
+ *       The solved cases in knowledge/ — the Mendix project, its mxscout/, or a project folder — one line
+ *       each from the front matter, the best matches for --find first; which commit each was checked against
+ *       beside the one HEAD names now; and with --pack, a case whose flows or pages changed since (their
+ *       fingerprints moved) or are gone is marked "may be out of date". Read it before working a new item.
+ *
+ * The formats are reference/assist-format.md and reference/knowledge-format.md; a case note is read with
+ * mendix-describe's repodocs.js (MxScout's own), beside this skill. This file reads; it writes nothing.
  */
 'use strict';
 const fs = require('fs');
@@ -28,7 +40,7 @@ const OPEN_STATUSES = ['open', 'waiting', 'in-progress'];
 const QSTATUSES = ['open', 'answered', 'dropped'];
 const FROM = ['reporter', 'person', 'agent'];
 const QID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const UPDATE_FIELDS = ['id', 'kind', 'update', 'updated', 'status', 'planned', 'closed', 'history', 'thread', 'questions'];
+const UPDATE_FIELDS = ['id', 'kind', 'update', 'updated', 'status', 'planned', 'closed', 'history', 'thread', 'questions', 'knowledge'];
 const VERDICTS = ['bug', 'as-designed', 'data-config', 'cannot-tell'];
 const CONFIDENCE = ['high', 'medium', 'low'];
 const FEASIBLE = ['yes', 'partly', 'no'];
@@ -36,7 +48,9 @@ const BY = ['person', 'agent'];
 const CHANGE_KINDS = ['microflow', 'nanoflow', 'page', 'entity', 'attribute', 'association', 'enumeration', 'security', 'scheduled event', 'integration', 'other'];
 const ACTIONS = ['add', 'change', 'remove'];
 const LEVELS = ['P1', 'P2', 'P3'];
-const COMMON = ['id', 'kind', 'title', 'reported', 'source', 'created', 'updated', 'status', 'planned', 'closed', 'history', 'questions', 'thread', 'language', 'modelVersion'];
+const COMMON = ['id', 'kind', 'title', 'reported', 'source', 'created', 'updated', 'status', 'planned', 'closed', 'history', 'questions', 'thread', 'language', 'modelVersion', 'knowledge'];
+// The case note an item's solution is recorded in (reference/knowledge-format.md): knowledge/<id>-<slug>.md.
+const KNOWLEDGE_PATH = /^knowledge\/[A-Za-z0-9][A-Za-z0-9._-]*\.md$/;
 const OWN = {
   ticket: ['verdict', 'confidence', 'summary', 'story', 'traced', 'evidence', 'needs', 'reply', 'fix', 'risk'],
   jira: ['summary', 'story', 'scope', 'proposal', 'impact', 'risks', 'open', 'effort', 'reply'],
@@ -129,6 +143,8 @@ function check(envelope, opts) {
       ['planned', 'closed'].forEach((k) => { if (it[k] !== undefined && it[k] !== null && !isDate(it[k])) err(w + ': "' + k + '" must be an ISO date (YYYY-MM-DD): ' + JSON.stringify(it[k]) + '.'); });
       if ((it.status === 'done' || it.status === 'dropped') && !it.closed) warn(w + ': it is ' + it.status + ' — set "closed" to the date it was.');
       if (OPEN_STATUSES.indexOf(it.status) !== -1 && it.closed) warn(w + ': it is ' + it.status + ' but has "closed" — leave "closed" out until it is done or dropped.');
+      if (it.knowledge !== undefined && it.knowledge !== null && !(typeof it.knowledge === 'string' && KNOWLEDGE_PATH.test(it.knowledge) && it.knowledge.indexOf('..') === -1)) err(w + ': "knowledge" must be the case note\'s path, knowledge/<id>-<slug>.md.');
+      else if (typeof it.knowledge === 'string' && str(it.id) && it.knowledge.slice(10).indexOf(it.id) !== 0) warn(w + ': "knowledge" names ' + it.knowledge + ', whose file name does not start with the item\'s id.');
     };
     const history = (required) => {
       if (it.history === undefined && !required) return;
@@ -207,7 +223,7 @@ function check(envelope, opts) {
       if (!isDateOrTime(it.updated)) err(w + ': "updated" is required (an ISO date).');
       const unknown = Object.keys(it).filter((k) => UPDATE_FIELDS.indexOf(k) === -1);
       if (unknown.length) err(w + ': an update carries only ' + UPDATE_FIELDS.join(', ') + ' — to change ' + unknown.join(', ') + ', send the whole item without "update".');
-      if (!['status', 'planned', 'closed', 'history', 'thread', 'questions'].some((k) => it[k] !== undefined)) warn(w + ': the update changes nothing.');
+      if (!['status', 'planned', 'closed', 'history', 'thread', 'questions', 'knowledge'].some((k) => it[k] !== undefined)) warn(w + ': the update changes nothing.');
       statusAndDates();
       history(false);
       const qids = questions(true);
@@ -379,6 +395,105 @@ function check(envelope, opts) {
   return { errors, warnings };
 }
 
+// ---------- solved cases (reference/knowledge-format.md) ----------
+// The case note's rules are MxScout's own (public/repodocs.js), carried by mendix-describe beside this skill.
+function repoDocs() {
+  const file = path.join(__dirname, '..', 'mendix-describe', 'repodocs.js');
+  if (!fs.existsSync(file)) throw new Error('mendix-describe is not installed beside this skill (no ../mendix-describe/repodocs.js) — a case note is read with it.');
+  const vm = require('vm');
+  const ctx = { console, TextEncoder, crypto: require('crypto').webcrypto };
+  ctx.window = ctx;
+  vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(file, 'utf8'), ctx, { filename: 'repodocs.js' });
+  return ctx.MxRepoDocs;
+}
+// A case note on disk, checked: { errors, warnings, value }.
+function checkCase(file) {
+  const text = fs.readFileSync(file, 'utf8');
+  const r = repoDocs().caseCheck(text, 'knowledge/' + path.basename(file));
+  if (path.basename(path.dirname(path.resolve(file))) !== 'knowledge') r.warnings.push('It is not in a knowledge/ folder yet — it goes into mxscout/knowledge/ (or knowledge/ of a project folder).');
+  return r;
+}
+// Where the solved cases are: <Mendix project>/mxscout/knowledge, <mxscout>/knowledge, <project folder>/knowledge —
+// or a Mendix project with no MxScout at all: its mxscout/knowledge (which may not be there yet).
+function knowledgeOf(folder) {
+  if (path.basename(folder) === 'knowledge') return folder;
+  if (fs.existsSync(path.join(folder, 'mxscout', 'mxscout.json')) || (fs.existsSync(path.join(folder, 'mxscout')) && !fs.existsSync(path.join(folder, 'project.json')))) return path.join(folder, 'mxscout', 'knowledge');
+  if (fs.existsSync(path.join(folder, 'mxscout.json')) || fs.existsSync(path.join(folder, 'project.json'))) return path.join(folder, 'knowledge');
+  if (fs.readdirSync(folder).some((f) => /\.mpr$/i.test(f))) return path.join(folder, 'mxscout', 'knowledge');
+  return path.join(folder, 'knowledge');
+}
+// The commit HEAD names in the git repository the folder is in (read as files, no git program), or null.
+function headOf(dir) {
+  let d = path.resolve(dir);
+  for (let i = 0; i < 8; i++) {
+    let git = path.join(d, '.git');
+    try {
+      if (fs.statSync(git).isFile()) { const m = /^gitdir:\s*(.+)$/m.exec(fs.readFileSync(git, 'utf8')); git = m ? path.resolve(d, m[1].trim()) : null; }
+      if (git) {
+        const head = fs.readFileSync(path.join(git, 'HEAD'), 'utf8').trim();
+        const ref = /^ref:\s*(refs\/\S+)$/.exec(head);
+        if (!ref) return /^[0-9a-f]{40,64}$/.test(head) ? head : null;
+        const common = fs.existsSync(path.join(git, 'commondir')) ? path.resolve(git, fs.readFileSync(path.join(git, 'commondir'), 'utf8').trim()) : git;
+        try { return fs.readFileSync(path.join(common, ref[1]), 'utf8').trim(); } catch (e) {
+          const l = (fs.readFileSync(path.join(common, 'packed-refs'), 'utf8').split('\n')).find((x) => x.endsWith(' ' + ref[1]));
+          return l ? l.split(' ')[0] : null;
+        }
+      }
+    } catch (e) { /* not here */ }
+    const up = path.dirname(d);
+    if (up === d) break;
+    d = up;
+  }
+  return null;
+}
+// The cases, with how well each matches the words (front matter first, then the text), and whether the flows
+// and pages they name changed since (with a pack: their fingerprints).
+function cases(folder, opts) {
+  opts = opts || {};
+  const R = repoDocs();
+  const dir = knowledgeOf(folder);
+  const out = { dir, cases: [], unreadable: [], head: headOf(dir) };
+  let names = [];
+  try { names = fs.readdirSync(dir).filter((f) => /\.md$/i.test(f) && f[0] !== '.').sort(); } catch (e) { return out; }
+  const words = String(opts.find || '').toLowerCase().split(/[\s,;]+/).filter((w) => w.length > 1);
+  const pack = opts.pack || null;
+  names.forEach((f) => {
+    const text = fs.readFileSync(path.join(dir, f), 'utf8');
+    const r = R.caseCheck(text, 'knowledge/' + f);
+    if (!r.value) { out.unreadable.push(f + ': ' + r.errors[0]); return; }
+    const c = r.value;
+    const front = [c.id, c.title, c.kind, c.status].concat(c.flows, c.entities, c.pages, c.keywords, c.related).join(' ').toLowerCase();
+    const all = text.toLowerCase();
+    const score = words.reduce((n, w) => n + (front.indexOf(w) !== -1 ? 3 : all.indexOf(w) !== -1 ? 1 : 0), 0);
+    const changed = [];
+    if (pack) c.flows.concat(c.pages).forEach((qn) => {
+      const now = pack.microflows[qn] || pack.nanoflows[qn] || pack.pages[qn];
+      if (!now) { if (pack.modules[String(qn).split('.')[0]]) changed.push(qn + ' is not in the model any more'); return; }
+      if (c.fingerprints[qn] && c.fingerprints[qn] !== now.hash) changed.push(qn + ' changed since (#' + c.fingerprints[qn] + ' → #' + now.hash + ')');
+    });
+    out.cases.push({ id: c.id, kind: c.kind, status: c.status, solved: c.solved || '', model: c.model, title: c.title, file: 'knowledge/' + f, score, changed,
+      problem: R.caseSummary(c), problems: r.errors.length });
+  });
+  if (words.length) out.cases.sort((a, b) => b.score - a.score || (a.file < b.file ? -1 : 1));
+  return out;
+}
+function printCases(r, opts) {
+  if (!r.cases.length && !r.unreadable.length) { console.log('No solved cases in ' + r.dir + ' yet.'); return; }
+  const shown = opts.find ? r.cases.filter((c) => c.score > 0) : r.cases;
+  console.log((opts.find ? shown.length + ' of ' + r.cases.length + ' cases match' : r.cases.length + ' case' + (r.cases.length === 1 ? '' : 's')) + ' in ' + r.dir + (r.head ? ' (HEAD is ' + r.head.slice(0, 7) + ')' : '') + ':');
+  shown.forEach((c) => {
+    console.log(c.id + ' | ' + c.kind + ' | ' + c.status + ' | solved ' + (c.solved || '?') + ' | ' + c.title + ' | ' + c.file + (opts.find ? ' | match ' + c.score : ''));
+    if (c.problem) console.log('    ' + c.problem);
+    const at = c.model ? 'checked against ' + c.model.slice(0, 7) + (r.head ? (r.head.indexOf(c.model) === 0 ? ' — HEAD' : ' — not HEAD: git log --oneline ' + c.model.slice(0, 12) + '..HEAD shows what moved since') : '') : 'model commit not known';
+    console.log('    ' + at);
+    if (c.changed.length) console.log('    may be out of date: ' + c.changed.join('; '));
+    if (c.problems) console.log('    (the note has ' + c.problems + ' problem(s) — node check-assist.js knowledge ' + c.file + ')');
+  });
+  r.unreadable.forEach((u) => console.log('not a case note: ' + u));
+  if (shown.length) console.log('Read a matching case whole before you work the new item out, and cite it by its id.');
+}
+
 // ---------- list ----------
 // Where the Assist items and the inbox are: the project folder itself — or, for a project kept inside the
 // Mendix project (mxscout/), its .local/, which is this machine's only: Assist items are personal, never committed.
@@ -432,7 +547,7 @@ function printList(folder, r) {
 function main(argv) {
   const args = argv.slice();
   const take = (name) => { const i = args.indexOf(name); if (i < 0) return null; const v = args[i + 1]; args.splice(i, 2); return v === undefined ? null : v; };
-  const packFile = take('--pack'), kind = take('--kind'), status = take('--status');
+  const packFile = take('--pack'), kind = take('--kind'), status = take('--status'), find = take('--find');
   const [cmd, arg] = args;
   if (cmd === 'check' && arg) {
     let env;
@@ -453,9 +568,26 @@ function main(argv) {
     printList(localOf(arg), list(arg, { kind, status }));
     return 0;
   }
-  console.error('Usage: node check-assist.js check <file.json> [--pack ai-pack.md] | list <project-folder> [--kind ticket|jira|idea|other] [--status open,in-progress]');
+  if (cmd === 'knowledge' && arg) {
+    if (!fs.existsSync(arg)) { console.error('No such file: ' + arg); return 1; }
+    let r;
+    try { r = checkCase(arg); } catch (e) { console.error(e.message); return 1; }
+    r.errors.forEach((m) => console.log('error: ' + m));
+    r.warnings.forEach((m) => console.log('warning: ' + m));
+    console.log(r.errors.length ? r.errors.length + ' error(s): fix them before the note is committed — MxScout would refuse it.' : 'OK: ' + r.value.kind + ' ' + r.value.id + ' — ' + r.value.path + (r.warnings.length ? ', ' + r.warnings.length + ' warning(s)' : '') + '.');
+    return r.errors.length ? 1 : 0;
+  }
+  if (cmd === 'cases' && arg) {
+    if (!fs.existsSync(arg)) { console.error('No such folder: ' + arg); return 1; }
+    const early = [];
+    const pack = packFile ? loadPack(packFile, (m) => early.push(m)) : null;
+    early.forEach((m) => console.log('warning: ' + m));
+    try { printCases(cases(arg, { find, pack }), { find }); } catch (e) { console.error(e.message); return 1; }
+    return 0;
+  }
+  console.error('Usage: node check-assist.js check <file.json> [--pack ai-pack.md] | list <project-folder> [--kind ticket|jira|idea|other] [--status open,in-progress] | knowledge <note.md> | cases <folder> [--find "words"] [--pack ai-pack.md]');
   return 2;
 }
 
 if (require.main === module) process.exit(main(process.argv.slice(2)));
-module.exports = { check, list, localOf, main, FORMAT, KINDS, FOLDERS, STATUSES, QSTATUSES, VERDICTS };
+module.exports = { check, list, localOf, main, checkCase, cases, knowledgeOf, FORMAT, KINDS, FOLDERS, STATUSES, QSTATUSES, VERDICTS };

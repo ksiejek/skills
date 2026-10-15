@@ -79,25 +79,30 @@ finds it by itself); through the channel run them as they are. Where they say
     mxscout.json       id, name, contentLanguage, describedAt (the commit the descriptions describe)
     descriptions/      the descriptions in small files (app.json, processes/, modules/, risks.json, c4.json, context.json)
     docs/              the documentation as Markdown by topic — docs/index.md is the map; manifest.json
-    knowledge/         (to come) solved cases, one Markdown file each — search it first when it is there
+    knowledge/         the solved cases, one Markdown note each — search it first (mendix-assist writes them)
     .local/            this machine only, never committed: documentation.md, ai-pack.md, inbox/, assist/
   ```
 
-  The pack and the whole documentation are in `.local/` — there only when
-  MxScout opened the project on this machine; when they are missing, read
-  `docs/` (committed) as the map, and ask the person to open the project in
-  MxScout once before you describe. `status` compares the commit the
-  descriptions describe with the one HEAD names. Hand your result over with
-  **`node agent.js write descriptions.json --folder <MendixProject>`**: it puts
-  the descriptions straight into `descriptions/` (a file with `"add": true` is
-  laid over what is there), writes only the files that changed, and stamps
-  `mxscout.json` with the commit HEAD names — MxScout need not be open; when it
-  is, it takes them within seconds, with Undo, and writes `docs/` from them.
-  When it is not, ask the person to open the project in MxScout once before
-  committing, so the commit carries a `docs/` that matches. (`send` still
-  hands a file to `.local/inbox/`.) Never edit `docs/` or `mxscout.json` by
-  hand, never touch anything outside `mxscout/`, and **never run git that
-  writes** — no commit, pull, push, checkout: committing is the person's.
+  The whole documentation is in `.local/` — there only when MxScout opened the
+  project on this machine; when it is missing, read `docs/` (committed) as the
+  map. The pack too: without `.local/ai-pack.md`, `status`, `module` and
+  `pack` make it from the `.mpr` beside `mxscout/` with MxScout's own engine
+  (this skill's `engine/`, MxScout's files unchanged) — no MxScout needed.
+  `status` compares the commit the descriptions describe with the one HEAD
+  names. Hand your result over with **`node agent.js write descriptions.json
+  --folder <MendixProject>`**: it puts the descriptions straight into
+  `descriptions/` (a file with `"add": true` is laid over what is there),
+  writes only the files that changed, stamps `mxscout.json` with the commit
+  HEAD names, and then **brings `docs/` up to date** from them — the same
+  files, byte for byte, MxScout writes (its index lists the solved cases in
+  `knowledge/` too). MxScout need not be open; when it is, it takes them within
+  seconds, with Undo, and finds `docs/` current. `node agent.js update-docs
+  --folder <MendixProject>` does that last step alone — after a solved case
+  was added to `knowledge/`, say; it writes nothing when `docs/manifest.json`
+  says `docs/` is made from these already. (`send` still hands a file to
+  `.local/inbox/`.) Never edit `docs/` or `mxscout.json` by hand, never touch
+  anything outside `mxscout/`, and **never run git that writes** — no commit,
+  pull, push, checkout: committing is the person's.
 - **From a running MxScout, with no files.** The person pressed **Share with an
   agent** in the project's Documentation (the Agent channel tab) and pasted you
   a line with an address and a token. The same commands without `--folder`
@@ -189,7 +194,12 @@ below.
 person wants an answer, not a file.
 
 1. Find it in the documentation first: the process that tells it, the module
-   notes, For developers, a change or ticket that touched it.
+   notes, For developers, a change or ticket that touched it — and the solved
+   cases in `mxscout/knowledge/` (`docs/index.md` lists them; `grep -ril
+   "<word>" mxscout/knowledge/`): a case that met this question before says
+   what was found then. Cite it by its id, and check it against the pack — it
+   may be out of date. When the question was really a problem someone met
+   and it got solved, the mendix-assist skill writes it down there.
 2. Verify in the pack: grep it for the names the documentation gave you (or
    the words of the question when there is none), read those flows, and follow
    the case as far as the question goes. When the question is who may see,
@@ -323,8 +333,9 @@ The pack is large (a real app is ~1.7 MB, ~470k tokens). Never read it whole.
    that should take the place of the old one.
    In a project folder: `node agent.js send descriptions.json --folder <folder>`
    (it lands in `inbox/`); inside the Mendix project: `node agent.js write
-   descriptions.json --folder <MendixProject>` (straight into `descriptions/`),
-   then remind the person to commit `mxscout/` on its own; through the channel: `node agent.js send
+   descriptions.json --folder <MendixProject>` (straight into `descriptions/`,
+   and `docs/` brought up to date from them), then remind the person to
+   commit `mxscout/` on its own; through the channel: `node agent.js send
    descriptions.json`. Tell the person what you sent. MxScout saves it at once
    and shows it with **Undo** — unless they turned that off, or the file would
    replace descriptions already kept (a file without `"add"`), when it waits

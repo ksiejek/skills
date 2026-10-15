@@ -5,7 +5,8 @@
  *
  * It checks that every example in reference/assist-format.md passes the checker (so the format and the
  * checker cannot drift apart), that what MxScout would refuse is an error, that `list` reads a project
- * folder's assist/ and inbox/, and that the command line answers with the right exit codes. It writes
+ * folder's assist/ and inbox/, that a solved case's note is checked — personal data among it — and found
+ * by `cases`, and that the command line answers with the right exit codes. It writes
  * only into a temporary folder of its own, removed at the end.
  */
 'use strict';
@@ -13,7 +14,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { check, list } = require('./check-assist.js');
+const { check, list, cases } = require('./check-assist.js');
 
 let passed = 0, failed = 0;
 function ok(cond, message) {
@@ -152,6 +153,40 @@ try {
   ok(list(app).items.length === 1 && list(path.join(app, 'mxscout')).items.length === 1, 'list: the Mendix project, or its mxscout/, reads the items in mxscout/.local/assist/');
   r = run(['list', app]);
   ok(r.code === 0 && /SALES-88/.test(r.out), 'list on the command line, given the Mendix project');
+
+  // ---- a solved case: the note, checked, and found ----
+  const kf = fs.readFileSync(path.join(__dirname, 'reference', 'knowledge-format.md'), 'utf8');
+  const note = (/```markdown\n([\s\S]*?)\n```/.exec(kf) || [])[1] + '\n';
+  ok(/^---\nid: "SD-4711"/.test(note), 'knowledge-format.md carries a whole case note as its example');
+  const kdir = path.join(app, 'mxscout', 'knowledge');
+  fs.mkdirSync(kdir, { recursive: true });
+  const kfile = path.join(kdir, 'SD-4711-cancelled-orders-still-in-the-queue.md');
+  fs.writeFileSync(kfile, note);
+  r = run(['knowledge', kfile]);
+  ok(r.code === 0 && /^OK: ticket SD-4711/m.test(r.out) && !/warning/.test(r.out), 'knowledge: the format\'s example passes, with no warning: ' + r.out.trim().split('\n').pop());
+  const bad = (edit, name) => { const f = path.join(kdir, name || 'SD-4711-x.md'); fs.writeFileSync(f, edit(note)); const x = run(['knowledge', f]); fs.unlinkSync(f); return x; };
+  r = bad((t) => t.replace('A clerk\'s queue', 'Reported by Anna Nowak (anna.nowak@example.com, +48 600 700 800): a clerk\'s queue'));
+  ok(r.code === 1 && /an e-mail address/.test(r.out) && /a phone number/.test(r.out) && /who reported it/.test(r.out), 'knowledge: an e-mail address, a phone number and a "Reported by" line are errors — no personal data');
+  r = bad((t) => t.replace('Records in a list', 'Order 281474976710657 and records in a list'));
+  ok(r.code === 1 && /a long number/.test(r.out), 'knowledge: a long number (a record id from production) is an error');
+  r = bad((t) => t.replace('## What did not work', '## Notes'));
+  ok(r.code === 1 && /"## What did not work" is missing/.test(r.out), 'knowledge: each of the five sections is required');
+  r = bad((t) => t.replace('status: "solved"', 'status: "fixed"'));
+  ok(r.code === 1 && /"status" must be one of solved, workaround, wont-fix, as-designed/.test(r.out), 'knowledge: the status is one of its list');
+  r = bad((t) => t, 'other-name.md');
+  ok(r.code === 1 && /must start with the id/.test(r.out), 'knowledge: the file name starts with the id');
+  r = bad((t) => t.replace(/^---\n/, ''));
+  ok(r.code === 1 && /front matter/.test(r.out), 'knowledge: a note without front matter cannot be read');
+  fs.writeFileSync(path.join(kdir, 'SALES-90-discount-rules.md'), note.replace(/SD-4711/g, 'SALES-90').replace('kind: "ticket"', 'kind: "jira"').replace(/Cancelled orders still in the queue/g, 'Discount rules').replace(/"queue", "cancelled", "status", "clerk"/, '"discount"').replace(/"Orders\.ACT_Queue_Retrieve", "Orders\.ACT_Order_Cancel"/, '"Sales.ACT_Discount"').replace(/fingerprints: .*\n/, '').replace(/\n# [\s\S]*$/, '\n# SALES-90 — Discount rules\n\n## Problem\n\nDiscounts were applied twice.\n\n## Cause\n\nTwo flows applied them.\n\n## Solution\n\nOne does now.\n\n## What did not work\n\nNothing else was tried.\n\n## How to recognise it next time\n\nA price lower than expected.\n'));
+  const found = cases(app, { find: 'queue cancelled' });
+  ok(found.cases.length === 2 && found.cases[0].id === 'SD-4711' && found.cases[0].score > found.cases[1].score, 'cases: every note in mxscout/knowledge/, the best match first');
+  const packText = ['format: mxscout-ai-pack 1', 'project: OrderPortal', '', '## module Orders', '### MF Orders.ACT_Queue_Retrieve #77777777', '### MF Orders.ACT_Order_Cancel #0b9a3e44'].join('\n') + '\n';
+  fs.writeFileSync(path.join(tmp, 'pack.md'), packText);
+  r = run(['cases', app, '--find', 'queue', '--pack', path.join(tmp, 'pack.md')]);
+  ok(r.code === 0 && /of 2 cases match/.test(r.out) && /may be out of date: Orders\.ACT_Queue_Retrieve changed since \(#5c0e7d21 → #77777777\)/.test(r.out) && !/ACT_Order_Cancel changed/.test(r.out),
+    'cases --pack: a flow whose fingerprint moved since the case marks it "may be out of date"');
+  ok(/checked against a1b2c3d/.test(r.out), 'cases says which commit each case was checked against');
+  ok(cases(path.join(tmp, 'Sales')).cases.length === 0 && /No solved cases/.test(run(['cases', path.join(tmp, 'Sales')]).out), 'cases: a project with no knowledge/ says so');
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
 }

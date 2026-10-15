@@ -40,10 +40,18 @@ For a project MxScout keeps in a folder, give that folder in place of the
 descriptions from its `descriptions.json`, and `node docs.js send <folder>
 descriptions.json` hands the result back through its `inbox/`.
 
+For a project kept inside the Mendix project (`mxscout/`, shared through the
+app's git), `node docs.js repo <MendixProject>` writes `mxscout/docs/` — the
+documentation by topic, its manifest, the index of the solved cases in
+`mxscout/knowledge/` — from the `.mpr`, the descriptions in
+`mxscout/descriptions/` and the case notes, byte for byte as MxScout does, and
+nothing when `docs/manifest.json` says it is current.
+
 ## What it does not do
 
 It writes nothing into the Mendix project — a file named inside its folder is
-refused — and reads only the `.mpr` and `mprcontents/` (or, from an MxScout
+refused; the one exception is `repo`, which writes `mxscout/docs/` and nothing
+else — and reads only the `.mpr` and `mprcontents/` (or, from an MxScout
 project folder, its `project.json`, `model.json` and `descriptions.json`,
 writing only into its `inbox/`, with `send`). It opens no connection. It sees what is saved in Studio Pro,
 not unsaved work. Version 2 (the Orbit Desk portal, documents 01–03, `translate`,

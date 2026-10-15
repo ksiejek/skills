@@ -151,6 +151,7 @@
       proc: ['M3 4h.01M3 8h.01M3 12h.01', 'M6 4h7M6 8h7M6 12h7'],
       change: ['M2.5 5h8.5M8.5 2.5L11 5 8.5 7.5', 'M13.5 11H5M7.5 8.5L5 11l2.5 2.5'],
       ticket: ['M2 4.5h12v2.2a1.4 1.4 0 0 0 0 2.6v2.2H2V9.3a1.4 1.4 0 0 0 0-2.6z', 'M10 5v1M10 7.5v1M10 10v1'],
+      case: ['M3 2.5h7.5a2 2 0 0 1 2 2v9H5a2 2 0 0 1-2-2z', 'M6 7.5l1.5 1.5 3-3'],
       module: ['M8 1.8l5.5 3v6.4L8 14.2l-5.5-3V4.8z', 'M2.5 4.8L8 7.8l5.5-3M8 7.8v6.4'],
       flow: ['M3 6.4a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2zM13.4 6.4a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2z', 'M6 5.5h4.5v5H6zM4.6 8H6M10.5 8h1.3'],
       entity: ['M2.5 3h11v10h-11z', 'M2.5 6.5h11M6.5 6.5V13'],
@@ -664,6 +665,7 @@
         if (X.conv.length) { w('### Naming'); w(); table(['Pattern', 'What it means here', 'Names'], X.conv.map(function (c) { return [raw(code(c[0])), c[1], c[2] ? String(c[2]) : '—']; })); }
         if (X.pit.length) { w('### Before you change'); w(); X.pit.forEach(function (p, i) { w((i + 1) + '. ' + esc(p[0])); }); w(); }
       }
+      if (data.cases && data.cases.length && window.MxDocsKnowledge) out.push(window.MxDocsKnowledge.markdown(data.cases)); // only when the export was asked for them
       return out.join('\n').replace(/\n{3,}/g, '\n\n').replace(/\s+$/, '') + '\n';
     }
 
@@ -892,6 +894,8 @@
       var procs = data.ai && data.ai.app && data.ai.app.processes || [];
       // The Assist page: only in MxScout, which hands it the items (opts.assist) — never in the exported file.
       var assist = opts.assist || null;
+      // The solved cases (docs-knowledge.js): handed over by MxScout (opts.cases), or in the file's data when the export was asked for them.
+      var cases = opts.cases || (data.cases && data.cases.length ? { items: function () { return data.cases; } } : null);
       function assistOpen() { return (assist.items() || []).filter(function (x) { return x.status === 'open' || x.status === 'in-progress' || x.status === 'waiting'; }).length; }
       // The application's full description lives on Processes (as its item 0), so the page is there when either is.
       var procPage = !!(data.ai && data.ai.app && (procs.length || data.ai.app.story || data.ai.app.summary));
@@ -902,12 +906,12 @@
       var GROUPS = [
         ['Application', [['start', 'Overview', 'home'], procPage ? ['processes', 'Processes', 'proc'] : null, ['modules', 'Modules', 'module'], ['arch', 'Architecture', 'arch']]],
         ['Model', [['domain', 'Entities', 'entity'], ['refs:microflow', 'Microflows', 'flow'], ['refs:nanoflow', 'Nanoflows', 'nano'], ['refs:page', 'Pages', 'page']]],
-        ['Review', [risks.length ? ['risks', 'Risks', 'risk'] : null, assist ? ['assist', 'Assist', 'ticket'] : null, ['quality', 'Model quality', 'quality'], devCtx ? ['dev', 'For developers', 'dev'] : null]]
+        ['Review', [risks.length ? ['risks', 'Risks', 'risk'] : null, assist ? ['assist', 'Assist', 'ticket'] : null, cases ? ['cases', 'Solved cases', 'case'] : null, ['quality', 'Model quality', 'quality'], devCtx ? ['dev', 'For developers', 'dev'] : null]]
       ].map(function (g) { return [g[0], g[1].filter(Boolean)]; });
       var NAV = [];
       GROUPS.forEach(function (g) { g[1].forEach(function (r) { var v = r[0].split(':')[0]; if (!NAV.some(function (x) { return x[0] === v; })) NAV.push([v, r[1], r[2]]); }); });
       var counts = { processes: procs.length, modules: data.kpi.modules, 'refs:microflow': data.kpi.microflows, 'refs:nanoflow': data.kpi.nanoflows, 'refs:page': data.kpi.pages, domain: data.kpi.entities,
-        quality: data.quality.unreached.length, risks: risks.length, dev: devCount };
+        quality: data.quality.unreached.length, risks: risks.length, dev: devCount, cases: cases ? (cases.items() || []).length : 0 };
       var navBtns = {};
       var initial = String(data.project || '?').charAt(0).toUpperCase();
       var side = h('nav', { class: 'dx-side', 'aria-label': 'Documentation' }, [
@@ -990,7 +994,7 @@
       //   #/flows/{Module.Name}   ?seg=all|mf|nf|pg the list, ?step=N the step, ?var=Name the trace
       //   #/domain/{Module}/{Entity}
       //   #/architecture?s={section}  #/risks/{R-012}  #/quality/{check}  #/developers/{tab}
-      var ROUTE_OF = { start: '', processes: 'processes', assist: 'assist', modules: 'modules', refs: 'flows', domain: 'domain', arch: 'architecture', risks: 'risks', quality: 'quality', dev: 'developers' };
+      var ROUTE_OF = { start: '', processes: 'processes', assist: 'assist', cases: 'cases', modules: 'modules', refs: 'flows', domain: 'domain', arch: 'architecture', risks: 'risks', quality: 'quality', dev: 'developers' };
       var VIEW_OF = {};
       Object.keys(ROUTE_OF).forEach(function (k) { VIEW_OF[ROUTE_OF[k]] = k; });
       // Addresses written before these routes existed still open.
@@ -1031,6 +1035,7 @@
           st.akind = ak[0] || null; st.aid = ak[1] || null;
         }
         if (st.view === 'risks' || st.view === 'quality' || st.view === 'dev') st.sub = arg;
+        if (st.view === 'cases') st.cid = arg ? 'knowledge/' + arg + '.md' : null;
         if (st.view === 'risks') rf = { lv: /^P[123]$/.test(q.lv) ? q.lv : null, th: PAT[q.th] ? q.th : null, mod: q.mod || null, q: q.q || '', group: q.group === 'mod' ? 'mod' : 'sev' };
         st.sec = (st.view === 'start' || st.view === 'arch') && q.s ? q.s : null;
       }
@@ -1051,6 +1056,7 @@
         if (s.view === 'modules' && s.module) arg = s.module;
         if (s.view === 'processes') arg = String(s.proc || 0);
         if (s.view === 'assist' && s.akind) arg = s.akind + (s.aid ? '/' + s.aid : '');
+        if (s.view === 'cases' && s.cid) arg = String(s.cid).replace(/^knowledge\//, '').replace(/\.md$/, '');
         if ((s.view === 'risks' || s.view === 'quality' || s.view === 'dev') && s.sub) arg = s.sub;
         if ((s.view === 'start' || s.view === 'arch') && s.sec) q = 's=' + encodeURIComponent(s.sec);
         if (s.view === 'modules' || s.view === 'arch' || s.view === 'dev') {
@@ -1240,12 +1246,12 @@
 
       // ---------- drawing ----------
       // A page this data has no drawing for — an address of the Tickets or Changes pages there were — is the Overview.
-      var DRAW = { start: drawStart, processes: drawProcesses, assist: drawAssist, modules: drawModules, refs: drawRefs, domain: drawDomain, quality: drawQuality, risks: drawRisks, dev: drawDev, arch: drawArch };
+      var DRAW = { start: drawStart, processes: drawProcesses, assist: drawAssist, cases: drawCases, modules: drawModules, refs: drawRefs, domain: drawDomain, quality: drawQuality, risks: drawRisks, dev: drawDev, arch: drawArch };
       function draw() {
         Object.keys(navBtns).forEach(function (k) { navBtns[k].classList.toggle('on', k === st.view || (st.view === 'refs' && k === 'refs:' + (st.seg === 'nanoflow' || st.seg === 'page' ? st.seg : 'microflow'))); });
         var kept = scrollsOf(root);
         clear(list); clear(main); clear(headTools);
-        if ((st.view === 'risks' && !risks.length) || (st.view === 'dev' && !devCtx) || (st.view === 'processes' && !procPage) || (st.view === 'assist' && !assist) || !DRAW[st.view]) st.view = 'start';
+        if ((st.view === 'risks' && !risks.length) || (st.view === 'dev' && !devCtx) || (st.view === 'processes' && !procPage) || (st.view === 'assist' && !assist) || (st.view === 'cases' && !cases) || !DRAW[st.view]) st.view = 'start';
         onScroll = null;
         root.setAttribute('data-view', st.view);
         root.classList.toggle('no-list', st.view === 'refs' || st.view === 'domain' || st.view === 'start' || st.view === 'quality' || st.view === 'risks' || st.view === 'dev' || st.view === 'arch');
@@ -1579,10 +1585,16 @@
       // items over (opts.assist); the exported file has neither the items nor the file that draws them.
       function drawAssist() {
         if (!window.MxDocsAssist) { main.appendChild(h('div', { class: 'dx-note', text: 'This copy cannot draw the Assist page.' })); return; }
-        window.MxDocsAssist.draw({ h: h, ln: ln, list: list, main: main, setTitle: setTitle, project: data.project, st: st, assist: assist,
+        window.MxDocsAssist.draw({ h: h, ln: ln, list: list, main: main, setTitle: setTitle, project: data.project, st: st, assist: assist, cases: cases,
           keep: function (p) { Object.keys(p).forEach(function (k) { st[k] = p[k]; }); if (opts.onState) opts.onState(st); },
           paragraphs: paragraphs, plural: plural, flowRows: flowRows, diagram: processDiagram,
           place: function (qn, kind) { return window.MxDocsChanges ? window.MxDocsChanges.place(data, flowKey, qn, { microflow: 1, nanoflow: 1, page: 1, entity: 1, attribute: 1, association: 1 }[kind] ? kind : 'other') : null; } });
+      }
+      // The solved cases (knowledge.js), drawn by docs-knowledge.js — in MxScout, and in an export that was asked for them.
+      function drawCases() {
+        if (!window.MxDocsKnowledge) { main.appendChild(h('div', { class: 'dx-note', text: 'This copy cannot draw the solved cases.' })); return; }
+        window.MxDocsKnowledge.draw({ h: h, ln: ln, list: list, main: main, setTitle: setTitle, project: data.project, st: st, cases: cases, data: data, plural: plural,
+          keep: function (p) { Object.keys(p).forEach(function (k) { st[k] = p[k]; }); if (opts.onState) opts.onState(st); }, flow: function (qn) { var k = flowKey(qn); return k ? { key: k, f: data.flows[k] } : null; } });
       }
       // The risks on a process: those whose places include one of its flows, P1 first, each once.
       function processRisks(p) {

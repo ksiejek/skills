@@ -15,7 +15,8 @@
  *                       app.json, processes/<slug>.json, modules/<Module>.json, risks.json, c4.json, context.json
  *   docs/               the documentation as Markdown, one file per topic, each with YAML front matter,
  *                       and manifest.json (every file, its id, kind and content hash)
- *   knowledge/          (to come) one Markdown file per solved case — committed
+ *   knowledge/          one Markdown file per solved case (a ticket, a Jira issue, an idea) with front matter —
+ *                       committed; written by an agent (or by MxScout, from a note an agent handed in)
  *   GUIDE.md            the team's user guide (public/guide-team.md, as this MxScout ships it)
  *   AGENTS.md           how any AI agent should read this folder
  *   README.md           what this folder is, and the team's workflow
@@ -30,10 +31,13 @@
  * replaced only by a NEWER MxScout (stamp, newer): a teammate with an older one never downgrades them.
  *
  * This file is pure: what each file holds, splitting the descriptions into files and joining them
- * back, the documentation split by topic, the conflict markers git leaves. It reads nothing and
- * writes nothing — store.js does (through folder.js) — and it runs in Node too, with the
- * documentation engine (docs-data.js, describe.js, reportdata.js, docs-view.js, docs-file.js), so a
- * tool that reads a .mpr itself writes byte-identical files. One generator, two places it runs.
+ * back, the documentation split by topic, the conflict markers git leaves, and the solved cases in
+ * knowledge/ — read, checked (personal data among it), listed in docs/index.md and docs/manifest.json.
+ * It reads nothing and writes nothing — store.js does (through folder.js) — and it runs in Node too,
+ * with the documentation engine (docs-data.js, describe.js, reportdata.js, docs-view.js, docs-file.js),
+ * so a tool that reads a .mpr itself writes byte-identical files. One generator, two places it runs:
+ * the mendix-describe skill carries a copy (agent.js update-docs), and mendix-assist's checker reads
+ * a case note with the functions below.
  */
 (function () {
   'use strict';
@@ -50,7 +54,8 @@
   var ROLES = [
     ['mxscout.json', 'The project: its id, name, the language written content is in, and which version of the app the descriptions describe. Committed.'],
     ['descriptions/', 'The descriptions an AI agent wrote, split into small files — app.json, processes/, modules/, risks.json, c4.json, context.json — so a git conflict stays small. Committed.'],
-    ['docs/', 'The documentation as Markdown, one file per topic, each with front matter; index.md is the map; manifest.json lists every file with its content hash. Written only when the descriptions change. Committed.'],
+    ['docs/', 'The documentation as Markdown, one file per topic, each with front matter; index.md is the map; manifest.json lists every file with its content hash. Written only when the descriptions or the solved cases change. Committed.'],
+    ['knowledge/', 'The solved cases: one Markdown file per ticket, Jira issue or idea an agent helped solve — the problem, its cause, the solution and what did not work — with front matter to search by. Written by the agent, committed with the fix; never any personal data. Committed.'],
     // MxScout Dev: the comments and what was decided about the risks are the team's knowledge too.
     ['comments/', 'The comments on the model, one file per comment — its author, severity, status and history. Merged by id when read back, the newest change winning. Committed.'],
     ['triage.json', 'What was decided about the risks — false positive, fixed, reopened — with the reason. Read back per risk, the latest decision winning. Committed.'],
@@ -250,7 +255,6 @@
       '| Entry | What it is |',
       '|---|---|'
     ].concat(ROLES.map(function (r) { return '| `' + r[0] + '` | ' + r[1] + ' |'; })).concat([
-      '| `knowledge/` | (to come) One Markdown file per solved ticket or Jira issue, with front matter. Committed. |',
       '| `GUIDE.md` | The team\'s guide to working with this folder. Committed. |',
       '',
       '## What is committed, and what is not',
@@ -269,6 +273,16 @@
       '3. One person brings the descriptions up to date, with an agent (the mendix-describe skill).',
       '4. Commit `mxscout/` on its own, as "Update documentation", and push.',
       '5. The others pull. Their MxScout takes the newer files and writes nothing back.',
+      '',
+      '## Solved cases',
+      '',
+      'When a ticket, a Jira issue or an idea is solved — in MxScout or in a conversation with an agent alone —',
+      'the agent writes a note into `knowledge/`: the problem, its cause, the solution, what did not work and how',
+      'to recognise it next time, with front matter (id, kind, flows, entities, pages, keywords) to search by.',
+      'It never holds personal data: no names of reporters, no e-mail addresses or phone numbers, no customer',
+      'data, no record ids from production. Commit it with the fix — the commit is the approval. Before working',
+      'a new item, an agent searches `knowledge/` for a similar case first and cites it. `docs/index.md` lists',
+      'the cases; MxScout shows them under Solved cases.',
       '',
       'Whether Studio Pro\'s commit dialog picks up new files outside the model is not verified. If it does',
       'not, commit `mxscout/` with a git client.',
@@ -296,8 +310,9 @@
       '',
       '    Documentation of this Mendix app: see mxscout/AGENTS.md.',
       '',
-      '`docs/` and `docs/manifest.json` are also what a company pipeline can ingest (a wiki, a search index):',
-      'every file has a stable id and a content hash. MxScout uploads nothing itself.',
+      '`docs/`, `knowledge/` and `docs/manifest.json` are also what a company pipeline can ingest (a wiki, a',
+      'search index): every file has front matter, and the manifest gives each its id and a content hash, so a',
+      'pipeline uploads only what changed. MxScout uploads nothing itself; the committed files are the source.',
       ''
     ]).join('\n');
   }
@@ -314,8 +329,11 @@
       '2. Check how current it is. `mxscout.json` names the commit the descriptions describe (`describedAt`).',
       '   `git log --oneline <describedAt>..HEAD` in the repository lists what changed since; treat what',
       '   those commits touched as possibly out of date.',
-      '3. Solved cases go in `knowledge/` (one Markdown file per ticket or Jira issue). Search it first for',
-      '   a similar problem before working one out again.',
+      '3. Solved cases are in `knowledge/`, one Markdown file each (a ticket, a Jira issue, an idea). Before',
+      '   working a new one out, search it first — grep the front matter for its keywords and the flow, entity',
+      '   and page names — and cite a similar case by its id. When you solve one, write a note there (the',
+      '   mendix-assist skill\'s reference/knowledge-format.md: no personal data), and tell the person to commit',
+      '   it with the fix.',
       '   `comments/` holds reviewers\' comments on the model, one file each, and `triage.json` what was',
       '   decided about each risk (false positive, fixed) — read them beside `docs/risks.md`.',
       '4. If the mendix-describe and mendix-assist skills are installed, use them: mendix-describe to bring',
@@ -362,7 +380,8 @@
 
   // The files of docs/: data is the documentation's data of the own modules with the descriptions on it
   // (MxDocsFile.withDerived(MxDocsFile.subset(…)) after MxDescribe.attach); ctx: { id, app, describedAt,
-  // descriptions (the hash of the descriptions they are made from), cases: [{ path, title }] }.
+  // descriptions (the hash of the descriptions and the cases they are made from), cases: the files of
+  // knowledge/ as [{ path, text }] — the ones that read as a case note are listed in index.md and the manifest }.
   // Resolves with [{ path, text }], docs/manifest.json last. The same input gives the same bytes: the
   // date the model was read and anything shown in the reader's time zone are left out.
   function docsFiles(data, ctx) {
@@ -450,19 +469,190 @@
     if (procIndex.length) { idx.push('## Processes', ''); procIndex.forEach(function (p, i) { idx.push((i + 1) + '. [' + esc(p[0]) + '](' + p[1] + ')' + (p[2] ? ' — ' + esc(oneLine(p[2])) : '')); }); idx.push(''); }
     if (modIndex.length) { idx.push('## Modules', ''); modIndex.forEach(function (m) { idx.push('- [`' + m[0] + '`](' + m[1] + ')' + (m[2] ? ' — ' + esc(oneLine(m[2])) : '')); }); idx.push(''); }
     idx.push('## Solved cases', '');
-    var cases = (ctx.cases || []).slice().sort(function (a, b) { return a.path < b.path ? -1 : 1; });
-    if (cases.length) cases.forEach(function (c) { idx.push('- [' + esc(c.title || c.path) + '](../' + c.path + ')'); });
-    else idx.push('None yet. `knowledge/` beside `docs/` will hold one Markdown file per solved ticket or Jira issue — search it first for a similar problem.');
+    var cases = casesOf(ctx.cases);
+    if (cases.length) {
+      idx.push('One file per solved ticket, Jira issue or idea in `knowledge/` — search them first for a similar problem.', '');
+      cases.forEach(function (c) { idx.push(caseLine(c)); });
+    } else idx.push('None yet. `knowledge/` beside `docs/` holds one Markdown file per solved ticket, Jira issue or idea — search it first for a similar problem.');
     files.unshift(file(meta('index', appName, null, 'docs/index.md', 'index'), body(idx)));
 
-    return Promise.all(files.map(function (f) { return sha256(f.text); })).then(function (hashes) {
+    // The solved cases are listed in the manifest beside the documentation, so a pipeline that ingests both
+    // finds every committed file with its id and hash; they are not written here — they are the agent's.
+    var listed = files.map(function (f) { return { path: f.path, text: f.text, entry: { path: f.path, id: f.meta.id, kind: f.meta.kind, name: f.meta.name, module: f.meta.module } }; })
+      .concat(cases.map(function (c) { return { path: c.path, text: c.text, entry: { path: c.path, id: id + '/case/' + c.id, kind: 'case', name: c.title, module: null, case: c.kind, status: c.status } }; }));
+    return Promise.all(listed.map(function (f) { return sha256(f.text); })).then(function (hashes) {
       var manifest = { format: MANIFEST_FORMAT, version: 1, app: appName, described: described, descriptions: ctx.descriptions || null,
-        files: files.map(function (f, i) { return { path: f.path, id: f.meta.id, kind: f.meta.kind, name: f.meta.name, module: f.meta.module, sha256: hashes[i] }; })
+        files: listed.map(function (f, i) { return Object.assign(f.entry, { sha256: hashes[i] }); })
           .sort(function (a, b) { return a.path < b.path ? -1 : 1; }) };
       return files.map(function (f) { return { path: f.path, text: f.text }; })
         .sort(function (a, b) { return a.path < b.path ? -1 : 1; })
         .concat([{ path: 'docs/manifest.json', text: json(manifest) }]);
     });
+  }
+
+  // ---------- the solved cases: knowledge/<id>-<slug>.md ----------
+  // One Markdown file per case an agent helped solve, written by the agent itself (the mendix-assist skill,
+  // reference/knowledge-format.md) or handed to MxScout to write. YAML front matter — every value JSON (a
+  // string in double quotes, null, a list in brackets, an object in braces), which YAML reads too — then the
+  // five sections, their headings always English, their text in the project's language.
+  var CASE_KINDS = ['ticket', 'jira', 'idea', 'other'];
+  var CASE_STATUSES = ['solved', 'workaround', 'wont-fix', 'as-designed'];
+  var CASE_SECTIONS = ['Problem', 'Cause', 'Solution', 'What did not work', 'How to recognise it next time'];
+  var CASE_KEYS = ['id', 'kind', 'title', 'status', 'solved', 'model', 'flows', 'entities', 'pages', 'keywords', 'related', 'language', 'fingerprints'];
+  var CASE_LISTS = { flows: 1, entities: 1, pages: 1, keywords: 1, related: 1 };
+  var CASE_KEY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;
+  var CASE_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+  var CASE_DIR = 'knowledge/';
+  var MAX_CASE = 64 * 1024;
+
+  // A front-matter value as written: JSON first; a bare list "[a, b]", a quoted or a plain scalar as YAML has them.
+  function fmValue(raw) {
+    var v = String(raw).trim();
+    if (v === '') return '';
+    try { return JSON.parse(v); } catch (e) { /* not JSON: read as YAML's plain forms */ }
+    if (/^\[.*\]$/.test(v)) return v.slice(1, -1).split(',').map(function (x) { return x.trim().replace(/^(["'])(.*)\1$/, '$2'); }).filter(Boolean);
+    if (v === '~' || v === 'null') return null;
+    return v.replace(/^'(.*)'$/, '$1');
+  }
+  // The file's text → { meta, sections: { Problem: text, … }, order: [headings], extra: [headings], error }.
+  function caseRead(text) {
+    var t = String(text || '').replace(/\r\n?/g, '\n');
+    if (t.length > MAX_CASE) return { error: 'it is larger than ' + (MAX_CASE / 1024) + ' KB' };
+    if (conflicted(t)) return { error: 'it has git\'s conflict markers — resolve it in git first' };
+    var m = /^---\n([\s\S]*?)\n---[ \t]*(?:\n|$)/.exec(t);
+    if (!m) return { error: 'it does not start with front matter between two "---" lines' };
+    var meta = {}, last = null;
+    m[1].split('\n').forEach(function (line) {
+      var kv = /^([A-Za-z][A-Za-z0-9_-]*):[ \t]*(.*)$/.exec(line), item = /^\s+-\s+(.*)$/.exec(line);
+      if (kv) { last = kv[1]; meta[last] = fmValue(kv[2]); return; }
+      // A YAML block list under a key with nothing after its colon: "flows:" then "  - Orders.X".
+      if (item && last && (meta[last] === '' || Array.isArray(meta[last]))) { if (meta[last] === '') meta[last] = []; meta[last].push(fmValue(item[1])); }
+    });
+    var sections = {}, order = [], at = null;
+    t.slice(m[0].length).split('\n').forEach(function (line) {
+      var h = /^##[ \t]+(.+?)[ \t]*#*[ \t]*$/.exec(line);
+      if (h && !/^###/.test(line)) { at = h[1]; order.push(at); sections[at] = []; return; }
+      if (at) sections[at].push(line);
+    });
+    Object.keys(sections).forEach(function (k) { sections[k] = sections[k].join('\n').replace(/^\s+|\s+$/g, ''); });
+    return { meta: meta, sections: sections, order: order };
+  }
+  function caseText(v, max) { return typeof v === 'string' && v.trim() ? v.trim().slice(0, max || 300) : null; }
+  function caseList(v) { return (Array.isArray(v) ? v : typeof v === 'string' && v.trim() ? [v] : []).map(function (x) { return caseText(String(x == null ? '' : x), 200); }).filter(Boolean).slice(0, 200); }
+  // A case's id: the tracker's key for a ticket or a Jira issue (with a digit in it), a slug for an idea or other help.
+  function caseIdOk(id, kind) {
+    if (typeof id !== 'string') return false;
+    return kind === 'ticket' || kind === 'jira' ? CASE_KEY.test(id) && /\d/.test(id) : CASE_SLUG.test(id) && id.length <= 80;
+  }
+  // Where a case is kept: knowledge/<id>-<slug of the title>.md — knowledge/<id>.md when the id is that slug already.
+  function caseFile(id, title) {
+    var s = slug(title || '').slice(0, 50).replace(/-+$/, '');
+    return CASE_DIR + id + (s && s !== 'item' && s !== String(id).toLowerCase() ? '-' + s : '') + '.md';
+  }
+  function caseNameOk(path, id) {
+    var name = String(path || '').replace(/^(?:.*\/)?knowledge\//, '');
+    return name === id + '.md' || (name.indexOf(id + '-') === 0 && /^[A-Za-z0-9._-]+\.md$/.test(name) && !/\.\./.test(name));
+  }
+
+  // What a note must not hold: personal data, said plainly. [{ what, sample }] — each kind once.
+  var PERSONAL = [
+    ['an e-mail address', /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/],
+    ['a phone number', /(?:^|[^\w+])(?:\+|00)\d{1,3}[\s.-]?(?:\(?\d{1,4}\)?[\s.-]?){2,5}\d{2,4}(?!\w)|(?:^|[^\w.-])\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{3,4}(?![\w.-])/],
+    ['a bank account number (IBAN)', /\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){3,7}\b/],
+    ['who reported it', /\b(?:reported|requested|raised|opened|submitted|logged) by\b|^\s*(?:reporter|reported|requester|customer|client|caller|contact|user|zgłaszając[ay]|zgłosił[a]?|klient(?:ka)?|kontakt)\s*:/im],
+    ['a long number — a record id from production, an account or a phone number', /(?:^|[^\w.])\d{9,}(?![\w.])/]
+  ];
+  function casePersonal(text) {
+    var body = String(text || '').replace(/^---\n[\s\S]*?\n---/, function (fm) { return fm.replace(/^(model|fingerprints):.*$/gm, ''); });
+    var out = [];
+    PERSONAL.forEach(function (p) { var m = p[1].exec(body); if (m) out.push({ what: p[0], sample: m[0].trim().slice(0, 60) }); });
+    return out;
+  }
+
+  // A case note checked: { value, errors, warnings }. value is null when it cannot be read at all. path, when
+  // given, is where it is kept (knowledge/<file>.md) and must agree with its id. The same rules MxScout keeps
+  // a note by and mendix-assist's checker (check-assist.js knowledge) says.
+  var DAY = /^\d{4}-\d{2}-\d{2}$/;
+  var LANG_CODE = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})?$/;
+  function caseCheck(text, path) {
+    var errors = [], warnings = [];
+    var r = caseRead(text);
+    if (r.error) return { value: null, errors: ['The note cannot be read: ' + r.error + '.'], warnings: warnings };
+    var f = r.meta;
+    var kind = CASE_KINDS.indexOf(f.kind) !== -1 ? f.kind : null;
+    if (!kind) errors.push('"kind" must be one of ' + CASE_KINDS.join(', ') + '.');
+    var id = typeof f.id === 'string' ? f.id.trim() : null;
+    if (!id) errors.push('"id" is required — the ticket\'s number or the issue\'s key, or the idea\'s slug.');
+    else if (kind && !caseIdOk(id, kind)) errors.push('"id" ' + JSON.stringify(id) + ' is not ' + (kind === 'ticket' || kind === 'jira' ? 'the tracker\'s key as given (letters, digits, dots, hyphens, with a digit in it)' : 'a slug (lower-case letters, digits and single hyphens)') + '.');
+    var title = caseText(f.title, 200);
+    if (!title) errors.push('"title" is required — the case in a line.');
+    if (CASE_STATUSES.indexOf(f.status) === -1) errors.push('"status" must be one of ' + CASE_STATUSES.join(', ') + '.');
+    if (typeof f.solved !== 'string' || !DAY.test(f.solved)) errors.push('"solved" must be the date it was solved (YYYY-MM-DD).');
+    if (f.model !== undefined && f.model !== null && !(typeof f.model === 'string' && /^[0-9a-f]{7,64}$/.test(f.model))) errors.push('"model" must be the commit it was checked against (hex), or null.');
+    if (f.model === undefined) warnings.push('"model" is missing — the commit the case was checked against (null when it is not known).');
+    if (typeof f.language !== 'string' || !LANG_CODE.test(f.language)) errors.push('"language" must be an ISO 639 code ("en", "pl").');
+    Object.keys(CASE_LISTS).forEach(function (k) { if (f[k] !== undefined && !Array.isArray(f[k])) errors.push('"' + k + '" must be a list ([] when there is nothing).'); });
+    var fp = {};
+    if (f.fingerprints !== undefined && f.fingerprints !== null) {
+      if (typeof f.fingerprints !== 'object' || Array.isArray(f.fingerprints)) errors.push('"fingerprints" must be an object: { "Module.Flow": "5c0e7d21" }, the fingerprints the pack gives.');
+      else Object.keys(f.fingerprints).forEach(function (q) { if (/^[0-9a-f]{8}$/.test(String(f.fingerprints[q]))) fp[q] = String(f.fingerprints[q]); else errors.push('"fingerprints": ' + q + ' is not an 8-character fingerprint as the pack gives it.'); });
+    }
+    Object.keys(f).forEach(function (k) { if (CASE_KEYS.indexOf(k) === -1) warnings.push('"' + k + '" is not a field of a case note; it is ignored.'); });
+    var lists = {};
+    Object.keys(CASE_LISTS).forEach(function (k) { lists[k] = caseList(f[k]); });
+    if (!lists.flows.length && !lists.entities.length && !lists.pages.length) warnings.push('No flows, entities or pages named — the next agent finds a case by them.');
+    if (!lists.keywords.length) warnings.push('No "keywords" — the words someone would search for (the symptom, the screen, the message).');
+    CASE_SECTIONS.forEach(function (h) { if (!r.sections[h]) errors.push('The section "## ' + h + '" is ' + (r.sections[h] === undefined ? 'missing' : 'empty') + '.'); });
+    var known = r.order.filter(function (h) { return CASE_SECTIONS.indexOf(h) !== -1; });
+    if (known.join('|') !== CASE_SECTIONS.filter(function (h) { return r.sections[h] !== undefined; }).join('|')) warnings.push('The sections are not in the order ' + CASE_SECTIONS.join(', ') + '.');
+    r.order.filter(function (h) { return CASE_SECTIONS.indexOf(h) === -1; }).forEach(function (h) { warnings.push('"## ' + h + '" is not one of the sections; it is kept as text under the one before it.'); });
+    if (path && id && !caseNameOk(path, id)) errors.push('The file name must start with the id: ' + caseFile(id, title).slice(CASE_DIR.length) + ' (it is ' + String(path).replace(/^(?:.*\/)?/, '') + ').');
+    casePersonal(text).forEach(function (p) { errors.push('It holds ' + p.what + ' ("' + p.sample + '") — no personal data in a note: leave it out, or say it generally ("the reporter", "a customer").'); });
+    var value = !id || !kind || !title ? null : {
+      id: id, kind: kind, title: title, status: CASE_STATUSES.indexOf(f.status) !== -1 ? f.status : 'solved', solved: typeof f.solved === 'string' && DAY.test(f.solved) ? f.solved : null,
+      model: typeof f.model === 'string' && /^[0-9a-f]{7,64}$/.test(f.model) ? f.model : null, flows: lists.flows, entities: lists.entities, pages: lists.pages,
+      keywords: lists.keywords, related: lists.related, language: typeof f.language === 'string' && LANG_CODE.test(f.language) ? f.language : 'en', fingerprints: fp,
+      sections: CASE_SECTIONS.map(function (h) { return { title: h, text: r.sections[h] || '' }; }),
+      path: path ? CASE_DIR + String(path).replace(/^(?:.*\/)?knowledge\//, '') : caseFile(id, title)
+    };
+    return { value: value, errors: errors, warnings: warnings };
+  }
+  // A note as MxScout keeps and lists it: read, and kept only with no error. → the case, with its text, or null.
+  function caseOf(file) {
+    if (!file || !/^knowledge\/[^/]+\.md$/.test(String(file.path || '')) || String(file.path).indexOf('..') !== -1) return null;
+    var c = caseCheck(file.text, file.path);
+    return c.value && !c.errors.length ? Object.assign(c.value, { text: String(file.text) }) : null;
+  }
+  // [{ path, text }] → the cases that can be listed, in path order (one per path).
+  function casesOf(files) {
+    var seen = {};
+    return (files || []).map(caseOf).filter(function (c) { if (!c || seen[c.path]) return false; seen[c.path] = true; return true; })
+      .sort(function (a, b) { return a.path < b.path ? -1 : a.path > b.path ? 1 : 0; });
+  }
+  // The text of a section, as one line: the first sentence.
+  function caseSummary(c, which) {
+    var s = (c.sections || []).filter(function (x) { return x.title === (which || 'Problem'); })[0];
+    return s ? oneLine(s.text.replace(/^[-*]\s+/gm, '')) : '';
+  }
+  // A case on docs/index.md: "- [SD-4711 — Cancelled orders stay in the queue](../knowledge/SD-4711-….md) — ticket, solved 2026-10-15: <the problem, in a line>"
+  function caseLine(c) {
+    var one = caseSummary(c);
+    return '- [' + esc(c.id + ' — ' + c.title) + '](../' + c.path + ') — ' + c.kind + (c.status !== 'solved' ? ' (' + c.status + ')' : '') + (c.solved ? ', solved ' + c.solved : '') + (one ? ': ' + esc(one) : '');
+  }
+  // A case note written from its parts — what MxScout writes when a note comes in pieces, and how the
+  // format's examples are made: the front matter in CASE_KEYS order, then the title and the five sections.
+  function caseNote(c) {
+    var fm = ['---'];
+    CASE_KEYS.forEach(function (k) {
+      if (k === 'fingerprints') { if (c.fingerprints && Object.keys(c.fingerprints).length) fm.push('fingerprints: ' + JSON.stringify(c.fingerprints)); return; }
+      var v = c[k];
+      fm.push(k + ': ' + (CASE_LISTS[k] ? JSON.stringify(caseList(v)) : v === undefined || v === null ? 'null' : JSON.stringify(String(v))));
+    });
+    fm.push('---', '', '# ' + c.id + ' — ' + c.title, '');
+    var by = {};
+    (c.sections || []).forEach(function (s) { by[s.title] = s.text; });
+    CASE_SECTIONS.forEach(function (h) { fm.push('## ' + h, '', String(by[h] || '').replace(/\s+$/, ''), ''); });
+    return fm.join('\n');
   }
 
   // ---------- hashes ----------
@@ -482,6 +672,9 @@
     projectJson: projectJson, conflicted: conflicted, sides: sides,
     gitignore: gitignore, readme: readme, agents: agents, guide: guide,
     stamp: stamp, parseStamp: parseStamp, newer: newer, skillVersion: skillVersion, skillFiles: skillFiles, SKILLS_DIR: SKILLS_DIR, SKILLS: SKILLS,
-    docsFiles: docsFiles, descriptionsHash: descriptionsHash, sha256: sha256
+    docsFiles: docsFiles, descriptionsHash: descriptionsHash, sha256: sha256,
+    CASE_KINDS: CASE_KINDS, CASE_STATUSES: CASE_STATUSES, CASE_SECTIONS: CASE_SECTIONS, CASE_KEYS: CASE_KEYS,
+    caseRead: caseRead, caseCheck: caseCheck, caseOf: caseOf, casesOf: casesOf, caseFile: caseFile, caseIdOk: caseIdOk, casePersonal: casePersonal,
+    caseSummary: caseSummary, caseLine: caseLine, caseNote: caseNote
   };
 })();

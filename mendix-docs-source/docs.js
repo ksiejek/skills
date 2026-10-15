@@ -20,6 +20,15 @@
  *   node docs.js send <folder> <descriptions.json>        an MxScout project folder only: the descriptions,
  *                                                         written whole into its inbox/ for MxScout to take
  *
+ *   node docs.js repo <MendixProject>                     a project kept INSIDE the Mendix project (mxscout/,
+ *                                                         shared through the app's git): mxscout/docs/ — the
+ *                                                         documentation by topic, its manifest, the index of the
+ *                                                         solved cases in mxscout/knowledge/ — written from the
+ *                                                         .mpr beside it and mxscout/descriptions/, byte for byte
+ *                                                         as MxScout writes it; nothing when docs/manifest.json
+ *                                                         says docs/ is made from these already. The one place
+ *                                                         this writes inside a Mendix project: mxscout/docs/.
+ *
  * <app.mpr> is the project's .mpr, or the folder that holds it. A Mendix 10+ project keeps its
  * documents in mprcontents/ beside the .mpr; that is read too, nothing else. Nothing is written into
  * the project: only the files named on the command line — and a file anywhere in the .mpr's folder is
@@ -40,7 +49,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const ENGINE_FILES = ['sqlite.js', 'bson.js', 'mpr.js', 'docs-data.js', 'describe.js', 'reportdata.js', 'docs-changes.js', 'docs-tickets.js', 'docs-view.js', 'docs-file.js'];
+const ENGINE_FILES = ['sqlite.js', 'bson.js', 'mpr.js', 'modelversion.js', 'docs-data.js', 'describe.js', 'reportdata.js', 'docs-changes.js', 'docs-tickets.js', 'docs-view.js', 'docs-file.js', 'repodocs.js'];
 
 function fail(message) { console.error(message); process.exit(1); }
 
@@ -71,7 +80,7 @@ function writeOut(file, text) {
 // The reader (docs-view.js) touches `document` only when it draws, so an empty one is enough to load it.
 function engine() {
   const dir = engineDir();
-  const ctx = { console, TextDecoder, TextEncoder, document: {} };
+  const ctx = { console, TextDecoder, TextEncoder, document: {}, crypto: require('crypto').webcrypto, Blob, Response, DecompressionStream, setTimeout, clearTimeout };
   ctx.window = ctx; ctx.self = ctx;
   vm.createContext(ctx);
   ENGINE_FILES.forEach((f) => vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8'), ctx, { filename: f }));
@@ -145,6 +154,89 @@ function indexOf(lines) {
   return out;
 }
 
+
+// ---------- repo: mxscout/docs/ inside the Mendix project, as MxScout writes it (public/repodocs.js) ----------
+// The model from the .mpr, its version from the project's .git (modelversion.js, as the browser reads it: plain
+// files), the descriptions joined from mxscout/descriptions/ with the commit mxscout.json says they describe, the
+// solved cases from mxscout/knowledge/ — and docs/ written only when what it is made from is not what its
+// manifest names; a file only when its text changed; one the manifest listed that is not made any more, removed.
+function gitSource(repoDir) {
+  const git = path.join(repoDir, '.git');
+  let st = null;
+  try { st = fs.statSync(git); } catch (e) { return null; }
+  if (st.isFile()) return { kind: 'file' };
+  const read = (p) => { try { return fs.readFileSync(path.join(git, p)); } catch (e) { return null; } };
+  return { kind: 'dir',
+    text: (p, tail) => { const b = read(p); return Promise.resolve(b === null ? null : (tail && b.length > tail ? b.subarray(b.length - tail) : b).toString('utf8')); },
+    bytes: (p) => { const b = read(p); return Promise.resolve(b === null ? null : new Uint8Array(b)); } };
+}
+function filesUnder(dir, rel, re) {
+  const out = [];
+  (function walk(d, at) {
+    let list = [];
+    try { list = fs.readdirSync(d, { withFileTypes: true }); } catch (e) { return; }
+    list.forEach((n) => {
+      if (n.name[0] === '.') return;
+      if (n.isDirectory()) { if (re.deep) walk(path.join(d, n.name), at + n.name + '/'); }
+      else if (re.test(n.name)) out.push({ path: rel + at + n.name, text: fs.readFileSync(path.join(d, n.name), 'utf8') });
+    });
+  })(dir, '');
+  return out.sort((a, b) => (a.path < b.path ? -1 : 1));
+}
+async function repoDocs(E, where) {
+  const repoDir = path.resolve(where);
+  const mx = path.join(repoDir, 'mxscout');
+  let pj = null;
+  try { pj = JSON.parse(fs.readFileSync(path.join(mx, 'mxscout.json'), 'utf8')); } catch (e) { pj = null; }
+  if (!pj || pj.format !== 'mxscout-project' || pj.layout !== 2) fail(repoDir + ' is not a Mendix project with MxScout\'s files in mxscout/ (no mxscout/mxscout.json with "layout": 2).');
+  const R = E.MxRepoDocs;
+  const jsonRe = /\.json$/i; jsonRe.deep = true;
+  const parts = filesUnder(path.join(mx, 'descriptions'), 'descriptions/', jsonRe);
+  const bad = parts.filter((p) => R.conflicted(p.text)).map((p) => p.path);
+  if (bad.length) fail('mxscout/' + bad[0] + ' has a git conflict: resolve it first.');
+  const joined = R.join(parts, pj.describedAt && pj.describedAt.commit ? pj.describedAt : null);
+  if (joined.error) fail(joined.error);
+  if (!joined.value) { console.log('No descriptions in mxscout/descriptions/: docs/ is made from them, so there is nothing to write.'); return; }
+  const value = E.MxDescribe.parse(JSON.stringify(joined.value)).value;
+  const cases = filesUnder(path.join(mx, 'knowledge'), 'knowledge/', /\.md$/i);
+  const hash = await R.descriptionsHash(R.split(E.MxDescribe.toFile(value)).concat(R.casesOf(cases).map((c) => ({ path: c.path, text: c.text }))), value.describedAt);
+  let man = null, manText = null;
+  try { manText = fs.readFileSync(path.join(mx, 'docs', 'manifest.json'), 'utf8'); man = JSON.parse(manText); } catch (e) { man = null; }
+  if (man && man.descriptions === hash) { console.log('docs/ is current — made from these descriptions and solved cases already; nothing written.'); return; }
+  const mprs = fs.readdirSync(repoDir).filter((f) => /\.mpr$/i.test(f));
+  if (mprs.length !== 1) fail(mprs.length ? 'More than one .mpr in ' + repoDir + '.' : 'No .mpr in ' + repoDir + '.');
+  const model = await readModel(E, path.join(repoDir, mprs[0]));
+  model.version = await E.MxModelVersion.readGit(gitSource(repoDir), path.basename(repoDir));
+  const data = E.MxDocsData.build(model, { id: pj.id, name: pj.name });
+  E.MxDescribe.attach(data, value);
+  const own = {};
+  data.modules.forEach((m) => { own[m.name] = !m.marketplace; });
+  const files = await R.docsFiles(E.MxDocsFile.withDerived(E.MxDocsFile.subset(data, own)), { id: pj.id, app: pj.name, describedAt: value.describedAt || null, descriptions: hash, cases: cases });
+  let had = man && Array.isArray(man.files) ? man.files.map((f) => String(f.path || '')) : [];
+  if (manText !== null && !man) { const mdRe = /\.md$/i; mdRe.deep = true; had = had.concat(filesUnder(path.join(mx, 'docs'), 'docs/', mdRe).map((f) => f.path)); }
+  had = had.filter((p, i, all) => /^docs\/[^/.][^\u0000]*\.(md|json)$/.test(p) && p.indexOf('..') === -1 && all.indexOf(p) === i);
+  const now = {};
+  let wrote = 0;
+  files.forEach((f) => {
+    now[f.path] = true;
+    // Only ever under mxscout/docs/: the one place this writes inside the Mendix project.
+    const full = path.join(mx, f.path);
+    if (!/^docs\//.test(f.path) || !full.startsWith(path.join(mx, 'docs') + path.sep)) fail('Refusing to write ' + f.path + ': only mxscout/docs/ is written.');
+    let was = null;
+    try { was = fs.readFileSync(full, 'utf8'); } catch (e) { was = null; }
+    if (was !== f.text) {
+      fs.mkdirSync(path.dirname(full), { recursive: true });
+      const tmp = path.join(path.dirname(full), '.' + path.basename(full) + '.tmp');
+      fs.writeFileSync(tmp, f.text);
+      fs.renameSync(tmp, full);
+      wrote++;
+    }
+  });
+  const gone = had.filter((p) => !now[p]);
+  gone.forEach((p) => { try { fs.unlinkSync(path.join(mx, p)); } catch (e) { /* gone already */ } });
+  console.log('docs/ written: ' + wrote + ' of ' + files.length + ' file(s) changed' + (gone.length ? ', ' + gone.length + ' removed' : '') + ' — the same files MxScout writes. Commit mxscout/ with it (this never runs git).');
+}
+
 const args = process.argv.slice(2);
 function take(name, what) {
   const i = args.indexOf(name);
@@ -162,8 +254,13 @@ function flag(name) { const i = args.indexOf(name); if (i < 0) return false; arg
   if (modelDir) args.splice(1, 0, modelDir);
   const [cmd, where] = args;
   let arg = args[2];
+  if (cmd === 'repo') {
+    if (!where) fail('Name the Mendix project: node docs.js repo <MendixProject> (the folder with the .mpr and mxscout/).');
+    await repoDocs(engine(), where);
+    return;
+  }
   if (!/^(status|module|pack|report|docs|send)$/.test(cmd || '')) {
-    console.error('Usage: node docs.js status <app.mpr> | module <app.mpr> <Name> [--out f] | pack <app.mpr> <file> | report <app.mpr> [descriptions.json] [--out f.html] [--modules A,B] [--all] | docs <app.mpr> [descriptions.json] [--out docs.md] | send <MxScout folder> <descriptions.json>   (<app.mpr> may be an MxScout project folder, or --model <folder>)');
+    console.error('Usage: node docs.js status <app.mpr> | module <app.mpr> <Name> [--out f] | pack <app.mpr> <file> | report <app.mpr> [descriptions.json] [--out f.html] [--modules A,B] [--all] | docs <app.mpr> [descriptions.json] [--out docs.md] | send <MxScout folder> <descriptions.json> | repo <MendixProject>   (<app.mpr> may be an MxScout project folder, or --model <folder>)');
     process.exit(2);
   }
   const folder = mxscoutFolder(where);

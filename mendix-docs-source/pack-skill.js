@@ -36,7 +36,8 @@ const ctx = { window: {} };
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(PUBLIC, 'docs-file.js'), 'utf8'), ctx);
 const F = ctx.window.MxDocsFile;
-const ENGINE = ['sqlite.js', 'bson.js', 'mpr.js', 'docs-data.js', 'describe.js', 'reportdata.js', 'docs-changes.js', 'docs-tickets.js', 'docs-view.js', 'docs-file.js']
+// modelversion.js and repodocs.js: `docs.js repo` writes mxscout/docs/ inside a Mendix project as MxScout does.
+const ENGINE = ['sqlite.js', 'bson.js', 'mpr.js', 'modelversion.js', 'docs-data.js', 'describe.js', 'reportdata.js', 'docs-changes.js', 'docs-tickets.js', 'docs-view.js', 'docs-file.js', 'repodocs.js']
   .concat(Array.from(F.SHEETS), Array.from(F.SCRIPTS));
 const fonts = F.fontsIn(fs.readFileSync(path.join(PUBLIC, 'tokens.css'), 'utf8')).map((u) => F.fontPath(u));
 const licences = fs.readdirSync(path.join(PUBLIC, 'fonts')).filter((f) => /^OFL-.*\.txt$/.test(f)).map((f) => 'fonts/' + f);

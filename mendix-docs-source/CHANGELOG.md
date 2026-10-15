@@ -1,5 +1,20 @@
 # mendix-docs — changes
 
+## 3.6.0 – 2026-10-15
+
+- **`docs.js repo <MendixProject>`** — for a project kept inside the Mendix
+  project (`mxscout/`, shared through the app's git): writes `mxscout/docs/`
+  — the documentation by topic, `index.md` the map, `manifest.json` with every
+  file's SHA-256 — from the `.mpr` beside `mxscout/`, the descriptions in
+  `mxscout/descriptions/` and the solved cases in `mxscout/knowledge/`, byte for
+  byte as MxScout writes it (its own `repodocs.js`, and `modelversion.js` for
+  the commit the model is at, now in `engine/`). Nothing is written when
+  `docs/manifest.json` says `docs/` is made from these already; a file only
+  when its text changed; nowhere in the Mendix project but `mxscout/docs/`. It
+  never runs git.
+- The index lists the solved cases (id, title, the problem in a line, the
+  path) and the manifest names each case file, as MxScout 1.11.0 does.
+
 ## 3.5.0 – 2026-10-15
 
 - **An MxScout project folder works in place of the `.mpr`.** Named where a

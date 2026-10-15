@@ -1,6 +1,6 @@
 ---
 name: mendix-assist
-description: Your help on a Mendix application from MxScout, against its model — a Service Desk ticket checked (bug, works as designed, data or configuration, or cannot tell — with how sure, the evidence, a reply to paste back and, for a bug, a proposed fix), a Jira issue worked out (feasibility, scope, which parts of the app it touches, a proposed solution in Mendix terms, risks, open questions, effort), an idea worked out as a change (how it works now, traced, and the proposal), or other help (a question about how the app works, an analysis) — each kept as an Assist item with its number, a status (open, in progress, done, dropped), a planned date and a history, in the MxScout project folder or sent through the agent channel. Asks first what kind it is and the ticket's or issue's number. Notices what is missing and says what to ask the reporter, and when the answer comes back ("I got the reporter's answer for PROJ-12", "zgłaszający odpisał") records it and checks again. Also updates an item's status or planned date ("PROJ-12 is done", "plan the idea for 2026-11-20", "drop JIRA-77"). Use when started with /mendix-assist, or asked "help with a ticket", "check this ticket", "is this a bug?", "I have a Jira", "work out this Jira", "I have an idea", "pomóż z ticketem", "mam ticket", "sprawdź zgłoszenie", "czy ten ticket ma rację bytu", "zbadaj Jirę", "mam Jirę", "rozpisz Jirę", "mam pomysł", "pomóż mi z aplikacją", "zamknij ticket", "zaplanuj na". Needs the mendix-describe skill installed beside it.
+description: Your help on a Mendix application from MxScout, against its model — a Service Desk ticket checked (bug, works as designed, data or configuration, or cannot tell — with how sure, the evidence, a reply to paste back and, for a bug, a proposed fix), a Jira issue worked out (feasibility, scope, which parts of the app it touches, a proposed solution in Mendix terms, risks, open questions, effort), an idea worked out as a change (how it works now, traced, and the proposal), or other help (a question about how the app works, an analysis) — each kept as an Assist item with its number, a status (open, in progress, done, dropped), a planned date and a history, in the MxScout project folder or sent through the agent channel. Asks first what kind it is and the ticket's or issue's number. Notices what is missing and says what to ask the reporter, and when the answer comes back ("I got the reporter's answer for PROJ-12", "zgłaszający odpisał") records it and checks again. Also updates an item's status or planned date ("PROJ-12 is done", "plan the idea for 2026-11-20", "drop JIRA-77"). Before working a new item it searches the solved cases in mxscout/knowledge/ and cites a similar one; when a case is solved it writes the case note there itself — the problem, the cause, the solution, the dead ends, no personal data — and tells the person to commit it with the fix ("add it to the documentation", "dołóż to do dokumentacji"). Use when started with /mendix-assist, or asked "help with a ticket", "check this ticket", "is this a bug?", "I have a Jira", "work out this Jira", "I have an idea", "pomóż z ticketem", "mam ticket", "sprawdź zgłoszenie", "czy ten ticket ma rację bytu", "zbadaj Jirę", "mam Jirę", "rozpisz Jirę", "mam pomysł", "pomóż mi z aplikacją", "zamknij ticket", "zaplanuj na". Needs the mendix-describe skill installed beside it.
 ---
 
 # mendix-assist: your help on a Mendix application
@@ -24,6 +24,14 @@ Each becomes one **Assist item**, kept by MxScout under its number with a
 status, an optional planned date and a history, so it can be found later and
 its state is known next time. The format is `reference/assist-format.md` —
 read it before you write an item.
+
+And when it is **solved**, a **case note** stays behind in the Mendix
+project's `mxscout/knowledge/` — committed with the fix — so that any agent on
+any machine, with or without MxScout, finds it next time: this was the
+problem, this was the solution, these were the dead ends. You search those
+notes **before** you work a new item out, and you write one **yourself**
+when a case is solved ("Solved cases" below; the format is
+`reference/knowledge-format.md`).
 
 **You never change the model, and you never contact a tracker.** You do not
 open a ticket's or an issue's address, call Jira, the Service Desk or any other
@@ -83,6 +91,11 @@ items kept).
 4. **MxScout owns `assist/`.** You read it; you never write, rename or delete
    anything in it. Results go into `inbox/`, through the channel, or into a
    file the person imports.
+5. **Solved cases are the team's, and you write them.** Unlike an Assist
+   item, a case note in `knowledge/` is committed with the app: write it
+   there yourself when a case is solved, never with personal data in it — no
+   names, e-mail addresses, phone numbers, customer data or record ids from
+   production.
 
 ## Language
 
@@ -129,6 +142,7 @@ Three ways, the **project folder** first:
   inbox/               where you hand results back; MxScout takes a file at once, with Undo
   assist/tickets/<id>.json   assist/jira/<id>.json   assist/ideas/<id>.json   assist/other/<id>.json
                        the Assist items, one file per item — MxScout's; read them, never write them
+  knowledge/<id>-<slug>.md   the solved cases, one note per case — search them first; you write them
   ```
 
   Read the current items with
@@ -144,9 +158,9 @@ Three ways, the **project folder** first:
   check-assist.js list <MendixProject>` (or its `mxscout/`) reads
   `.local/assist/` and `.local/inbox/`; hand results back into
   `mxscout/.local/inbox/`. The committed `mxscout/docs/` (Markdown by topic,
-  `docs/index.md` the map) is there even when `.local/` is not; and when
-  `mxscout/knowledge/` exists, search its solved cases first for a similar
-  problem. Never write anywhere else in the Mendix project, and never run git
+  `docs/index.md` the map) is there even when `.local/` is not; and
+  `mxscout/knowledge/` holds the solved cases — search them first, and write
+  one there when a case is solved ("Solved cases" below). Never write anywhere else in the Mendix project, and never run git
   that writes.
 - **The agent channel** — the person pressed **Share with an agent** in
   MxScout's Documentation and gave you a line with an address and a token
@@ -177,6 +191,11 @@ Three ways, the **project folder** first:
    `contentLanguage` from `project.json`. Connected: `status` (it prints the
    language), and `docs --out docs.md` when there is documentation. Do not
    start working yet.
+1a. **Search the solved cases first** — before any work on a new item (see
+   "Solved cases" below): `node check-assist.js cases <MendixProject or
+   folder> --find "<words from the paste, flow and entity names>"`, then read
+   the matching notes whole. Cite a similar case by its id ("This looks like
+   SD-4650, solved on 2026-09-02: …") and say whether it may be out of date.
 2. **Ask what kind it is — unless it is obvious.** Service Desk ticket, Jira,
    Idea or Other. A pasted report with steps and "expected" is a ticket; "I
    have a Jira" is Jira; "I have an idea" / "mam pomysł" is an idea; a plain
@@ -398,13 +417,93 @@ odpisał w SD-4720: …":
    enough (`reference/assist-format.md`, "An update"). Tell the person what
    changed: the verdict before and after, and why.
 
+## Solved cases
+
+A **case note** is what stays behind when an item is solved: one Markdown
+file per case in `knowledge/`, with front matter to find it by and five
+sections — Problem, Cause, Solution, What did not work, How to recognise it
+next time. The format, an example and the rules are
+`reference/knowledge-format.md`; read it before you write one.
+
+Where `knowledge/` is:
+
+- inside the Mendix project (`<MendixProject>/mxscout/mxscout.json`):
+  `<MendixProject>/mxscout/knowledge/` — committed with the app;
+- a project folder of its own (`project.json`): `<folder>/knowledge/`;
+- a Mendix project with no MxScout at all (no `mxscout/` yet, or only
+  `mxscout/knowledge/`): `<MendixProject>/mxscout/knowledge/` — make it. The
+  notes need nothing else; they are plain Markdown in the app's git.
+
+### Before you work a new item: search
+
+Do this before tracing anything, for every kind:
+
+1. List and search: `node check-assist.js cases <MendixProject> --find
+   "<keywords>"` — the words of the paste (the symptom, the screen, the
+   message), and the flow, page and entity names the documentation points
+   you to. It reads the front matter first (id, title, kind, flows,
+   entities, pages, keywords), then the text, and puts the best matches
+   first. `grep -ril "<word>" mxscout/knowledge/` does the same by hand.
+2. Read each matching note whole. **Cite** a similar one by its id in your
+   answer and in the item (`story`, or a history entry): "Similar to
+   SD-4650 (solved 2026-09-02): the queue's retrieve missed a status added
+   later." Say what is the same and what is not — never assume it is the same
+   case.
+3. **Is it still true?** A note names the commit it was checked against
+   (`model`) and, usually, the fingerprints of its flows. With the pack, add
+   `--pack <ai-pack.md>` (or `node ../mendix-describe/agent.js pack pack.md`
+   first): a flow whose fingerprint moved, or that is gone, marks the case
+   **may be out of date** — say so, and check the flow as it is now. Without
+   fingerprints, compare `model` with HEAD (`cases` prints both; `git log
+   --oneline <model>..HEAD` in the Mendix project lists what moved).
+
+### When a case is solved: write the note yourself
+
+When an item is **solved** — the person says so ("SD-4711 is done", "that
+fixed it", "zrobione"), you set its status to `done`, the conversation
+clearly reached a fix the person accepted, or the person asks ("add it to the
+documentation", "dołóż to do dokumentacji") — write the case note **without
+asking**:
+
+1. Write `knowledge/<id>-<slug>.md` as `reference/knowledge-format.md` says:
+   the item's id and kind, the title, `status` (`solved`, `workaround`,
+   `wont-fix`, `as-designed`), `solved` today, `model` (the pack's `model
+   commit:` line, or `git rev-parse HEAD` in the Mendix project — read-only),
+   the flows, entities and pages it is about, keywords someone would search
+   for, related case ids, the language, and the fingerprints of its flows from
+   the pack. The five sections in the project's language, headings in English.
+   An existing note for the same id: rewrite that file in place.
+2. **Strip personal data** before you write: no reporter's or anyone's name,
+   no "Reported by", no e-mail address, phone number, customer data, record or
+   order number from production. Say "the reporter", "a customer", "an order
+   in the Shipped status".
+3. Check it: `node check-assist.js knowledge <the file>` — fix every error
+   (personal data is an error) and read the warnings.
+4. When there is an Assist item, link it: send an update with `"knowledge":
+   "knowledge/<id>-<slug>.md"` (`reference/assist-format.md`), so MxScout
+   shows **In the documentation** on it.
+5. Bring `mxscout/docs/` up to date — its index lists the cases:
+   `node ../mendix-describe/agent.js update-docs --folder <MendixProject>`
+   (inside the Mendix project; it writes nothing when docs/ is current).
+   MxScout, when it is open on the project, does it by itself.
+6. **Tell the person**, in one line: "I recorded case SD-4711 in
+   mxscout/knowledge/SD-4711-cancelled-orders-still-in-the-queue.md — commit
+   it with the fix." The commit is the approval; nothing else asks for one.
+
+You may not be able to write into the folder (the agent channel only): then
+hand the note to MxScout — `node ../mendix-describe/agent.js send
+<note>.md` into the folder's inbox, or an envelope `{ "format":
+"mxscout-knowledge", "version": 1, "cases": [{ "text": "…" }] }` through the
+channel — and MxScout writes it into `knowledge/`, with Undo.
+
 ## Status and planned date
 
 Every item has a `status` — `open`, `waiting` (for the reporter's answers;
 the default while a question is open), `in-progress`, `done` or `dropped` —
 and may have a `planned` date. The person tells you in plain words:
 
-- "SD-4711 is done" / "zamknij SD-4711" → `done`, `closed` today;
+- "SD-4711 is done" / "zamknij SD-4711" → `done`, `closed` today — and write
+  its case note ("Solved cases" above), with `knowledge` in the update;
 - "start on SALES-88" → `in-progress`;
 - "plan the idea reorder-from-history for 2026-11-20" / "zaplanuj na …" →
   `planned`;
@@ -465,8 +564,12 @@ questions, or what would settle a `cannot-tell` — those are theirs.
 
 - `reference/assist-format.md` — the item and the envelope, every field per
   kind, full examples, a status update, the migration from descriptions.
-- `check-assist.js` — `check <file> [--pack ai-pack.md]` and `list <folder>
-  [--kind …] [--status …]`. Node only, no install.
+- `reference/knowledge-format.md` — the case note: where it goes, its front
+  matter and sections, an example, no personal data.
+- `check-assist.js` — `check <file> [--pack ai-pack.md]`, `list <folder>
+  [--kind …] [--status …]`, `knowledge <note.md>` (a case note, personal data
+  included) and `cases <folder> [--find "…"] [--pack ai-pack.md]` (the solved
+  cases, best matches first, which may be out of date). Node only, no install.
 - `selftest.js` — the checker's own test, with invented items:
   `node selftest.js`.
 - `README.md` — for the person: how to install it and start.

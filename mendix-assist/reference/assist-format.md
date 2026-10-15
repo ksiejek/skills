@@ -60,8 +60,9 @@ and thread and append your entries.
 
 **An update** carries only what changed — `"update": true` with the item's
 `id` and `kind`, `updated`, and any of `status`, `planned`, `closed`, new
-`history` and `thread` entries, and `questions` (a new one whole; for one
-MxScout keeps, its `id`, `status` and `answered` alone). MxScout merges it into
+`history` and `thread` entries, `questions` (a new one whole; for one
+MxScout keeps, its `id`, `status` and `answered` alone), and `knowledge` (the
+solved case's note, once you wrote it). MxScout merges it into
 the item it keeps and leaves every other field as it was. Use it for a status
 or a planned date, and to record what the reporter said; when the facts change
 the verdict or the proposal, send the whole item. An update for an item MxScout
@@ -100,6 +101,7 @@ Each item still records the language it was written in, as `language`.
 | `history[]` | yes | what happened to the item, oldest first: `{ "date", "what", "by" }` — `date` ISO, `what` a sentence, `by` `"person"` (the person said it: "PROJ-12 is done") or `"agent"` (you did it: "Checked against the model: bug, high"). A new item has at least one entry |
 | `questions[]` | no | what to ask the reporter (see "Questions and the thread" below): `{ "id", "text", "why", "status", "asked", "answered" }` |
 | `thread[]` | no | the exchange with the reporter, oldest first and append-only: `{ "date", "from", "text", "answers" }` |
+| `knowledge` | no | the solved case this item's solution is recorded in — the case note's path, `"knowledge/SD-4711-cancelled-orders-still-in-the-queue.md"` (`reference/knowledge-format.md`). Set it when you write the note; MxScout then shows **In the documentation** on the item, linking to the case |
 | `modelVersion` | no | the model version the item was checked against, as the AI pack's or documentation's `model:` line names it — `"main @ a1b2c3d"`, or the commit's first seven characters. Text, at most 120 characters; MxScout shows it beside the item ("checked against the model at main @ a1b2c3d"). Leave it out when the pack says the version is unknown |
 | `language` | no | the language the agent wrote the item in, as an ISO 639 code (`"en"`, `"pl"`, `"de"`; a region may follow, `"pt-BR"`). Default `"en"`: everything written into an item is English unless the person chose another language when the agent asked. Field names, kinds, statuses and list values are always English; `reported` stays as pasted, in its own language |
 
@@ -487,7 +489,9 @@ the fields that changed and the thread):
 
 ## Example: a status update
 
-The person says "SD-4711 is done". An update carries only what changed:
+The person says "SD-4711 is done". You write the solved case's note
+(`reference/knowledge-format.md`), and send an update that carries only what
+changed — the status, and where the case is recorded:
 
 ```json
 {
@@ -501,8 +505,10 @@ The person says "SD-4711 is done". An update carries only what changed:
       "updated": "2026-10-20",
       "status": "done",
       "closed": "2026-10-20",
+      "knowledge": "knowledge/SD-4711-cancelled-orders-still-in-the-queue.md",
       "history": [
-        { "date": "2026-10-20", "what": "Marked done.", "by": "person" }
+        { "date": "2026-10-20", "what": "Marked done.", "by": "person" },
+        { "date": "2026-10-20", "what": "Recorded as a solved case in knowledge/.", "by": "agent" }
       ]
     }
   ]

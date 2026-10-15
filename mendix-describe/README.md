@@ -66,9 +66,14 @@ Mendix project (mxscout/)** on New project, and MxScout keeps the project in
 map), `AGENTS.md`; `.local/` (the pack, the whole documentation, the inbox,
 your Assist items) stays on your machine. Say "Use the mendix-describe skill on
 mxscout/" in the Mendix project. The agent writes the descriptions straight
-into `descriptions/` (`node agent.js write … --folder <MendixProject>`); MxScout
-takes them while the project is open and writes `docs/`. Then commit `mxscout/`
-on its own and push. Neither the skill nor MxScout runs git for you.
+into `descriptions/` (`node agent.js write … --folder <MendixProject>`) and
+brings `docs/` up to date itself — the same files MxScout writes, made with
+MxScout's own engine (in `engine/`, MxScout's files unchanged), from the `.mpr`
+beside `mxscout/` — so a team that works with an agent alone keeps `docs/`
+current without MxScout; `node agent.js update-docs --folder <MendixProject>`
+does that step alone (after a solved case was added to `knowledge/`, say).
+MxScout, when open, takes them too. Then commit `mxscout/` on its own and
+push. Neither the skill nor MxScout runs git for you.
 `node check-descriptions.js todo --folder <MendixProject>` works there too.
 
 **Through MxScout's agent channel (no folder).** Open the project →

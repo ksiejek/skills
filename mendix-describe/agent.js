@@ -16,6 +16,11 @@
  *     puts the descriptions straight into descriptions/ (MxScout need not be open; when it is, it takes
  *     them within seconds, with Undo) and stamps them with the commit HEAD names; `send` still hands a file
  *     to .local/inbox/. This never runs git: committing mxscout/ is the person's.
+ *     docs/ is made from the descriptions and the solved cases in knowledge/ — by MxScout, and here too, so
+ *     a team that works with an agent alone keeps it current: `write` and `update-docs` read the model from
+ *     the .mpr beside mxscout/ with MxScout's own engine (engine/, the files MxScout runs in the browser,
+ *     unchanged) and write docs/ byte for byte as MxScout would. Without .local/ai-pack.md (MxScout never ran
+ *     on this machine), status, module and pack make the pack from the .mpr the same way.
  *
  *  2. The agent channel. MxScout, when the person presses "Share with an agent" in a project's
  *     Documentation, holds the AI pack in memory and gives out a token — and, when the project has
@@ -34,7 +39,12 @@
  *                                           Never read it whole; read it by module.
  *   node agent.js send <descriptions.json>  hand the finished descriptions to MxScout; the person accepts them there
  *   node agent.js write <descriptions.json> inside the Mendix project only: the descriptions written into
- *                                           mxscout/descriptions/ directly ("add": true lays them over what is there)
+ *                                           mxscout/descriptions/ directly ("add": true lays them over what is there),
+ *                                           then docs/ brought up to date from them (update-docs)
+ *   node agent.js update-docs               inside the Mendix project only: mxscout/docs/ — the documentation by
+ *                                           topic, its manifest, the index of solved cases — written from the .mpr,
+ *                                           descriptions/ and knowledge/, as MxScout writes it; nothing when
+ *                                           docs/manifest.json says it is made from these already
  *
  * Channel: prefer the environment for the token: an argument is visible to every process on the machine
  * (ps) and stays in the shell's history. The url defaults to http://127.0.0.1:4288. The person gets both
@@ -172,6 +182,157 @@ function shaped(f) {
   return out;
 }
 
+
+// ---------- MxScout's engine, carried in engine/: the model from the .mpr, the pack, docs/ ----------
+// The same files MxScout runs in the browser (public/), copied unchanged — the test suite checks they are —
+// each an IIFE that puts one object on window, run here in a context of their own. Nothing else is loaded.
+// MxScout Dev: what was decided about the risks (triage.js) and how the Risks page draws it (docs-triage.js) too.
+const ENGINE = ['sqlite.js', 'bson.js', 'mpr.js', 'modelversion.js', 'docs-data.js', 'describe.js', 'reportdata.js', 'triage.js', 'docs-triage.js', 'docs-view.js', 'docs-file.js'];
+let engineCtx = null;
+function engine() {
+  if (engineCtx) return engineCtx;
+  const dir = path.join(__dirname, 'engine');
+  if (!fs.existsSync(path.join(dir, 'docs-file.js'))) fail('This copy of mendix-describe has no engine/ folder: reinstall the skill (MxScout writes it whole into .claude/skills/).');
+  const vm = require('vm');
+  const ctx = { console, TextDecoder, TextEncoder, document: {}, crypto: require('crypto').webcrypto, Blob, Response, DecompressionStream, setTimeout, clearTimeout };
+  ctx.window = ctx; ctx.self = ctx;
+  vm.createContext(ctx);
+  ENGINE.forEach((f) => vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8'), ctx, { filename: f }));
+  vm.runInContext(fs.readFileSync(path.join(__dirname, 'repodocs.js'), 'utf8'), ctx, { filename: 'repodocs.js' });
+  engineCtx = ctx;
+  return ctx;
+}
+// The Mendix project's .git, as MxScout's modelversion.js reads it in the browser: plain files, no git program.
+function gitSource(repoDir) {
+  const git = path.join(repoDir, '.git');
+  let st = null;
+  try { st = fs.statSync(git); } catch (e) { return null; }
+  if (st.isFile()) return { kind: 'file' };
+  const read = (p) => { try { return fs.readFileSync(path.join(git, p)); } catch (e) { return null; } };
+  return {
+    kind: 'dir',
+    text: (p, tail) => { const b = read(p); return Promise.resolve(b === null ? null : (tail && b.length > tail ? b.subarray(b.length - tail) : b).toString('utf8')); },
+    bytes: (p) => { const b = read(p); return Promise.resolve(b === null ? null : new Uint8Array(b)); }
+  };
+}
+// The model of the Mendix project, read from its .mpr (and mprcontents/ for Mendix 10+) — what MxScout reads.
+async function mprModel(repoDir) {
+  const E = engine();
+  const mprs = fs.readdirSync(repoDir).filter((f) => /\.mpr$/i.test(f));
+  if (mprs.length !== 1) throw new Error(mprs.length ? 'more than one .mpr in ' + repoDir : 'no .mpr in ' + repoDir);
+  const buf = fs.readFileSync(path.join(repoDir, mprs[0]));
+  const contents = path.join(repoDir, 'mprcontents');
+  let asked = 0, found = 0;
+  const model = await E.MxMpr.buildModel({
+    mprBytes: buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.length), appName: mprs[0].replace(/\.mpr$/i, ''),
+    readContentsFile: (rel) => {
+      asked++;
+      const f = path.join(contents, rel);
+      if (!f.startsWith(contents + path.sep)) return null;
+      try { const b = fs.readFileSync(f); found++; return b.buffer.slice(b.byteOffset, b.byteOffset + b.length); } catch (e) { return null; }
+    }
+  });
+  if (asked && !found) throw new Error('the .mpr names ' + asked + ' documents in mprcontents/ and none of them could be read');
+  model.version = await E.MxModelVersion.readGit(gitSource(repoDir), path.basename(repoDir));
+  return model;
+}
+// The solved cases in knowledge/, as files: [{ path: 'knowledge/<name>.md', text }].
+function caseFiles(dir) {
+  let names = [];
+  try { names = fs.readdirSync(path.join(dir, 'knowledge')).filter((f) => /\.md$/i.test(f) && f[0] !== '.').sort(); } catch (e) { return []; }
+  return names.map((f) => ({ path: 'knowledge/' + f, text: fs.readFileSync(path.join(dir, 'knowledge', f), 'utf8') }));
+}
+// MxScout Dev: the team's comments (comments/<id>.json) and what was decided about the risks (triage.json), as
+// mxscout/ holds them — the files, for what docs/ is made from, and the comments as MxScout lists them (by
+// severity, the newest first) with the decisions, for the Risks the documentation draws.
+function devFiles(dir) {
+  const out = [];
+  let names = [];
+  try { names = fs.readdirSync(path.join(dir, 'comments')).filter((f) => /\.json$/i.test(f) && f[0] !== '.').sort(); } catch (e) { names = []; }
+  names.forEach((f) => out.push({ path: 'comments/' + f, text: fs.readFileSync(path.join(dir, 'comments', f), 'utf8') }));
+  try { out.push({ path: 'triage.json', text: fs.readFileSync(path.join(dir, 'triage.json'), 'utf8') }); } catch (e) { /* none */ }
+  return out;
+}
+const RANK = { critical: 0, high: 1, medium: 2, low: 3 };
+function devState(files) {
+  const comments = [];
+  let triage = null;
+  files.forEach((f) => {
+    let v = null;
+    try { v = JSON.parse(f.text); } catch (e) { v = null; }
+    if (f.path === 'triage.json') { if (v && v.format === 'mxscout-triage') triage = v.triage || null; } else if (v && v.id && v.target) comments.push(v);
+  });
+  comments.sort((a, b) => (RANK[a.severity] !== RANK[b.severity] ? RANK[a.severity] - RANK[b.severity] : String(b.updatedAt).localeCompare(String(a.updatedAt))));
+  return { comments, triage };
+}
+// The documentation's data of the own modules, with the descriptions on it — as MxScout's docs.js makes it.
+async function docsData(E, model, project, value, dev) {
+  const data = E.MxDocsData.build(model, { id: project.id, name: project.name });
+  E.MxDescribe.attach(data, value);
+  // MxScout Dev: only open and reopened risks count; the rest with what was decided (triage.js apply).
+  if (dev) {
+    const st = devState(dev);
+    E.MxTriage.init({ store: { get: () => Promise.resolve(null), put: () => Promise.resolve(), delete: () => Promise.resolve() }, findings: () => st.comments, render: () => {} });
+    await E.MxTriage.restore(project.id, st.triage ? { projectId: project.id, risks: E.MxTriage.clean(st.triage), updatedAt: null } : null);
+    E.MxTriage.apply(data, project.id, value);
+  }
+  return data;
+}
+// mxscout/docs/ brought up to date, as store.js and docs.js write it in the browser: only when what it is made
+// from — the descriptions, the commit they describe, the solved cases — is not what docs/manifest.json names;
+// a file only when its text changed; one the manifest listed and that is not made any more, removed.
+// → { state: 'current' | 'written' | 'none', wrote, removed, files }
+async function updateDocs(project, parts) {
+  const E = engine(), R = E.MxRepoDocs;
+  const repoDir = path.dirname(folder);
+  const at = project.describedAt && project.describedAt.commit ? project.describedAt : null;
+  const joined = R.join(parts, at);
+  if (joined.error) throw new Error(joined.error);
+  let man = null, manText = null;
+  try { manText = fs.readFileSync(path.join(folder, 'docs', 'manifest.json'), 'utf8'); man = JSON.parse(manText); } catch (e) { man = null; }
+  let had = man && Array.isArray(man.files) ? man.files.map((f) => String(f.path || '')) : [];
+  if (manText !== null && !man) {
+    (function walk(d, rel) { let l = []; try { l = fs.readdirSync(d, { withFileTypes: true }); } catch (e) { return; } l.forEach((n) => { if (n.isDirectory()) walk(path.join(d, n.name), rel + n.name + '/'); else if (/\.md$/i.test(n.name)) had.push('docs/' + rel + n.name); }); })(path.join(folder, 'docs'), '');
+  }
+  had = had.filter((p, i, all) => /^docs\/[^/.][^\u0000]*\.(md|json)$/.test(p) && p.indexOf('..') === -1 && all.indexOf(p) === i);
+  const drop = (paths) => paths.forEach((p) => { try { fs.unlinkSync(path.join(folder, p)); } catch (e) { /* gone already */ } });
+  if (!joined.value) {
+    if (manText === null) return { state: 'none', wrote: 0, removed: 0, files: 0 };
+    drop(had.filter((p) => p !== 'docs/manifest.json').concat(['docs/manifest.json']));
+    return { state: 'none', wrote: 0, removed: had.length, files: 0 };
+  }
+  const value = E.MxDescribe.parse(JSON.stringify(joined.value)).value;
+  const cases = caseFiles(folder);
+  const listed = R.casesOf(cases).map((c) => ({ path: c.path, text: c.text }));
+  const dev = devFiles(folder);
+  const hash = await R.descriptionsHash(R.split(E.MxDescribe.toFile(value)).concat(dev, listed), value.describedAt);
+  if (man && man.descriptions === hash) return { state: 'current', wrote: 0, removed: 0, files: man.files.length };
+  const model = await mprModel(repoDir);
+  const data = await docsData(E, model, project, value, dev);
+  const own = {};
+  data.modules.forEach((m) => { own[m.name] = !m.marketplace; });
+  const files = await R.docsFiles(E.MxDocsFile.withDerived(E.MxDocsFile.subset(data, own)), { id: project.id, app: project.name, describedAt: value.describedAt || null, descriptions: hash, cases: cases });
+  const now = {};
+  let wrote = 0;
+  files.forEach((f) => {
+    now[f.path] = true;
+    let was = null;
+    try { was = fs.readFileSync(path.join(folder, f.path), 'utf8'); } catch (e) { was = null; }
+    if (was !== f.text) { writeWhole(path.join(folder, f.path), f.text); wrote++; }
+  });
+  const gone = had.filter((p) => !now[p]);
+  drop(gone);
+  return { state: 'written', wrote, removed: gone.length, files: files.length };
+}
+// The pack, made from the .mpr when MxScout has not written .local/ai-pack.md on this machine.
+async function packFromMpr(project, parts) {
+  const E = engine(), R = E.MxRepoDocs;
+  const joined = R.join(parts, project.describedAt && project.describedAt.commit ? project.describedAt : null);
+  const value = joined.value ? E.MxDescribe.parse(JSON.stringify(joined.value)).value : null;
+  const data = await docsData(E, await mprModel(path.dirname(folder)), project, value, devFiles(folder));
+  return E.MxDescribe.pack(E.MxDocsFile.withDerived(data)).text;
+}
+
 // The pack's own index: "module | from-to | microflows | nanoflows | pages | entities", 1-based, inclusive.
 function parseIndex(lines) {
   const at = lines.indexOf('## index');
@@ -270,18 +431,22 @@ function sendTo(ib) {
   {
     let body;
     try { body = fs.readFileSync(arg, 'utf8'); } catch (e) { fail('Cannot read ' + arg + '.'); }
-    let json;
-    try { json = JSON.parse(body); } catch (e) { fail('Cannot read ' + arg + ' as JSON.'); }
-    if (!json || json.format !== 'mxscout-descriptions') fail(arg + ' is not a descriptions file (it should say "format": "mxscout-descriptions").');
+    // A descriptions file, Assist items or a solved case (an envelope, or the case note itself, a .md file).
+    const note = /\.md$/i.test(arg);
+    let json = null;
+    if (!note) { try { json = JSON.parse(body); } catch (e) { fail('Cannot read ' + arg + ' as JSON.'); } }
+    if (note ? !/^---\r?\n/.test(body) : !json || ['mxscout-descriptions', 'mxscout-assist', 'mxscout-knowledge'].indexOf(json.format) === -1) {
+      fail(arg + (note ? ' is not a case note (it should start with its front matter, "---").' : ' is not a descriptions file, Assist items or a solved case (its "format" should be "mxscout-descriptions", "mxscout-assist" or "mxscout-knowledge").'));
+    }
     fs.mkdirSync(ib, { recursive: true });
     // Written whole: a hidden temporary file first, renamed into place — MxScout never reads half of it.
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const base = path.basename(arg).replace(/\.json$/i, '').replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 60) || 'descriptions';
-    const name = stamp + '-' + base + '.json';
+    const base = path.basename(arg).replace(/\.(json|md)$/i, '').replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 60) || 'descriptions';
+    const name = stamp + '-' + base + (note ? '.md' : '.json');
     const tmp = path.join(ib, '.' + name + '.tmp');
     fs.writeFileSync(tmp, body);
     fs.renameSync(tmp, path.join(ib, name));
-    console.log('Written to ' + path.join(ib, name) + '. MxScout takes it while the project is open — saved at once, with Undo, unless the person turned that off, or it is a whole file that would replace the descriptions kept: then it waits for them to press Import them.');
+    console.log('Written to ' + path.join(ib, name) + '. MxScout takes it while the project is open — saved at once, with Undo, unless the person turned that off, or it is a whole file that would replace the descriptions kept: then it waits for them to press Import them.' + (note || (json && json.format === 'mxscout-knowledge') ? ' A solved case is written into knowledge/.' : ''));
   }
 }
 
@@ -293,78 +458,102 @@ function inRepoFolder(project, read, inbox) {
   const parts = descriptionFiles();
   const conflicted = parts.filter((p) => R.conflicted(p.text)).map((p) => p.path);
   const at = project.describedAt && project.describedAt.commit ? project.describedAt : null;
-  if (cmd === 'status') {
-    const pack = read('ai-pack.md', false), docs = read('documentation.md', false);
-    console.log('project: ' + project.name + ' — kept in the Mendix project, ' + folder + ' (layout 2: mxscout/ is committed with the app; .local/ is this machine\'s)');
-    console.log(languageLine(project.contentLanguage || null));
-    console.log('model in the repository: ' + (head ? (head.branch ? head.branch + ' @ ' : '') + head.short + (head.message ? ' · ' + head.message : '') : 'unknown — no readable .git beside mxscout/'));
-    if (!parts.length) console.log('descriptions: none yet in mxscout/descriptions/');
-    else if (conflicted.length) console.log('descriptions: GIT CONFLICT in ' + conflicted.join(', ') + ' — resolve it (or keep one side in MxScout) before anything else');
-    else if (!at) console.log('descriptions: ' + parts.length + ' files in mxscout/descriptions/, describing a version that is not known');
-    else if (head && head.commit === at.commit) console.log('descriptions: describe HEAD (' + at.short + ') — up to date. Nothing to update unless the person asks for more.');
-    else console.log('descriptions: describe ' + at.short + (at.date ? ' (' + at.date.slice(0, 10) + ')' : '') + '; HEAD is ' + (head ? head.short : 'unknown') +
-      ' — what changed: git log --oneline ' + at.short + '..HEAD in ' + repoDir + ' (local, read-only); combine it with check-descriptions.js todo --folder and describe only that');
-    let docsState = 'none yet';
-    try {
-      const man = JSON.parse(fs.readFileSync(path.join(folder, 'docs', 'manifest.json'), 'utf8'));
-      docsState = man.descriptions ? 'made from ' + (man.described ? man.described.slice(0, 7) : 'an unknown version') : 'unknown';
-    } catch (e) { docsState = fs.existsSync(path.join(folder, 'docs')) ? 'docs/manifest.json unreadable (a git conflict?) — MxScout writes docs/ again' : 'none yet'; }
-    console.log('docs: ' + docsState + ' — committed Markdown, docs/index.md is the map; MxScout writes docs/ from the descriptions');
-    if (pack) console.log('pack: .local/ai-pack.md' + (header(pack, 'model') ? ' · model ' + header(pack, 'model') : '') + (header(pack, 'generated') ? ' · read ' + header(pack, 'generated') : ''));
-    else console.log('pack: none on this machine — open the project in MxScout once (it writes .local/ai-pack.md); until then read docs/ and the model in Studio Pro');
-    const modules = pack ? parseIndex(pack.split('\n')) : null;
-    if (modules) { console.log('module | lines | microflows | nanoflows | pages | entities'); modules.forEach((m) => console.log(m.name + ' | ' + m.from + '-' + m.to + ' | ' + m.microflows + ' | ' + m.nanoflows + ' | ' + m.pages + ' | ' + m.entities)); }
-    if (docs) console.log('documentation: ' + path.join(local, 'documentation.md') + ' (the whole documentation; read it first, as the map)');
-    const waiting = fs.existsSync(inbox) ? fs.readdirSync(inbox).filter((f) => /\.json$/i.test(f) && f[0] !== '.') : [];
-    console.log('inbox: ' + (waiting.length ? waiting.length + ' file(s) waiting in .local/inbox/: ' + waiting.join(', ') : 'empty'));
-    console.log('commit: MxScout never runs git. When the descriptions are updated, the person commits mxscout/ on its own ("Update documentation").');
-  } else if (cmd === 'docs') {
-    const docs = read('documentation.md', false);
-    const text = docs || (fs.existsSync(path.join(folder, 'docs', 'index.md')) ? null : '');
-    if (text === null) { console.log('No .local/documentation.md on this machine. Read ' + path.join(folder, 'docs', 'index.md') + ' — the map — and the files it links: the same documentation, by topic.'); return; }
-    if (!text) { console.log('No documentation yet: this project has no descriptions. The AI pack is all there is — read it by module.'); return; }
-    if (out) { fs.writeFileSync(out, text); console.log('Wrote ' + out + ' (' + text.split('\n').length + ' lines) — what an agent understood earlier; verify against the pack.'); } else process.stdout.write(text);
-  } else if (cmd === 'module' && arg) {
-    const pack = read('ai-pack.md', true);
-    const lines = pack.split('\n');
-    const mod = (parseIndex(lines) || []).find((m) => m.name === arg);
-    if (!mod) fail('No module ' + arg + ' in .local/ai-pack.md (its ## index lists the modules).');
-    const text = lines.slice(mod.from - 1, mod.to).join('\n') + '\n';
-    if (out) { fs.writeFileSync(out, text); console.log('Wrote ' + out + ' (' + text.split('\n').length + ' lines).'); } else process.stdout.write(text);
-  } else if (cmd === 'pack' && arg) {
-    fs.writeFileSync(arg, read('ai-pack.md', true));
-    console.log('Wrote ' + arg + ' — for the checker, not for reading whole.');
-  } else if (cmd === 'send' && arg) {
-    sendTo(inbox);
-  } else if (cmd === 'write' && arg) {
-    if (conflicted.length) fail('mxscout/' + conflicted[0] + ' has a git conflict: resolve it first (or keep one side in MxScout), then write.');
-    let given;
-    try { given = JSON.parse(fs.readFileSync(arg, 'utf8')); } catch (e) { fail('Cannot read ' + arg + ' as JSON.'); }
-    if (!given || given.format !== 'mxscout-descriptions') fail(arg + ' is not a descriptions file (it should say "format": "mxscout-descriptions").');
-    if (Array.isArray(given.tickets) || Array.isArray(given.changes)) console.log('Note: tickets and changes are not descriptions — the mendix-assist skill keeps them as Assist items. Left out.');
-    const joined = R.join(parts, at);
-    if (joined.error) fail(joined.error + ' — fix it before writing.');
-    const merged = given.add === true && joined.value ? require('./check-descriptions.js').merge([joined.value, given]) : given;
-    const file = shaped(merged);
-    const next = R.split(file), now = {};
-    let wrote = 0, removed = 0;
-    next.forEach((p) => {
-      now[p.path] = true;
-      const full = path.join(folder, p.path);
-      let was = null;
-      try { was = fs.readFileSync(full, 'utf8'); } catch (e) { was = null; }
-      if (was !== p.text) { writeWhole(full, p.text); wrote++; }
-    });
-    parts.forEach((p) => { if (!now[p.path]) { fs.unlinkSync(path.join(folder, p.path)); removed++; } });
-    // mxscout.json: the version they describe is HEAD now; the language, when the file sets it.
-    const lang = given.setLanguage === true && typeof given.language === 'string' ? given.language.trim().toLowerCase().slice(0, 20) : project.contentLanguage || null;
-    const pj = R.projectJson({ id: project.id, name: project.name, contentLanguage: lang }, head);
-    if (read('mxscout.json', false) !== pj) writeWhole(path.join(folder, 'mxscout.json'), pj);
-    console.log('Wrote ' + wrote + ' file(s) in ' + path.join(folder, 'descriptions') + (removed ? ', removed ' + removed : '') + (wrote || removed ? '' : ' — nothing changed') +
-      '; they describe ' + (head ? (head.branch ? head.branch + ' @ ' : '') + head.short : 'a version that is not known (no readable .git)') + '.');
-    console.log('docs/ is made from them by MxScout: while the project is open in MxScout it takes them within seconds (with Undo) and writes docs/; otherwise ask the person to open it there once before committing, so the commit carries docs/ that match.');
-    console.log('Then the person commits mxscout/ on its own: git add mxscout && git commit -m "Update documentation" (MxScout never runs git).');
-  } else usage();
+  // The pack: .local/ai-pack.md when MxScout wrote it on this machine, else made from the .mpr (engine/).
+  const packText = async (need) => {
+    const local = read('ai-pack.md', false);
+    if (local) return { text: local, from: '.local/ai-pack.md' };
+    try { return { text: await packFromMpr(project, conflicted.length ? [] : parts), from: 'made from the .mpr (MxScout has not written .local/ai-pack.md on this machine)' }; }
+    catch (e) { if (need) fail('No .local/ai-pack.md, and the pack could not be made from the .mpr: ' + ((e && e.message) || e)); return null; }
+  };
+  const docsLine = (r) => r.state === 'current' ? 'docs/ is current — made from these descriptions and solved cases already; nothing written.'
+    : r.state === 'none' ? 'docs/: no descriptions, so no documentation' + (r.removed ? ' — removed the ' + r.removed + ' file(s) it had.' : '.')
+    : 'docs/ written from them: ' + r.wrote + ' of ' + r.files + ' file(s) changed' + (r.removed ? ', ' + r.removed + ' removed' : '') + ' — the same files MxScout writes.';
+  return (async function () {
+    if (cmd === 'status') {
+      const docs = read('documentation.md', false);
+      const pack = await packText(false);
+      console.log('project: ' + project.name + ' — kept in the Mendix project, ' + folder + ' (layout 2: mxscout/ is committed with the app; .local/ is this machine\'s)');
+      console.log(languageLine(project.contentLanguage || null));
+      console.log('model in the repository: ' + (head ? (head.branch ? head.branch + ' @ ' : '') + head.short + (head.message ? ' · ' + head.message : '') : 'unknown — no readable .git beside mxscout/'));
+      if (!parts.length) console.log('descriptions: none yet in mxscout/descriptions/');
+      else if (conflicted.length) console.log('descriptions: GIT CONFLICT in ' + conflicted.join(', ') + ' — resolve it (or keep one side in MxScout) before anything else');
+      else if (!at) console.log('descriptions: ' + parts.length + ' files in mxscout/descriptions/, describing a version that is not known');
+      else if (head && head.commit === at.commit) console.log('descriptions: describe HEAD (' + at.short + ') — up to date. Nothing to update unless the person asks for more.');
+      else console.log('descriptions: describe ' + at.short + (at.date ? ' (' + at.date.slice(0, 10) + ')' : '') + '; HEAD is ' + (head ? head.short : 'unknown') +
+        ' — what changed: git log --oneline ' + at.short + '..HEAD in ' + repoDir + ' (local, read-only); combine it with check-descriptions.js todo --folder and describe only that');
+      let docsState = 'none yet';
+      try {
+        const man = JSON.parse(fs.readFileSync(path.join(folder, 'docs', 'manifest.json'), 'utf8'));
+        docsState = man.descriptions ? 'made from ' + (man.described ? man.described.slice(0, 7) : 'an unknown version') : 'unknown';
+      } catch (e) { docsState = fs.existsSync(path.join(folder, 'docs')) ? 'docs/manifest.json unreadable (a git conflict?) — node agent.js update-docs writes docs/ again' : 'none yet'; }
+      console.log('docs: ' + docsState + ' — committed Markdown, docs/index.md is the map; made from the descriptions and the solved cases (MxScout writes it, or node agent.js update-docs)');
+      const cases = R.casesOf(caseFiles(folder));
+      console.log('solved cases: ' + (cases.length ? cases.length + ' in mxscout/knowledge/ — search them first for a similar problem (grep the front matter), and cite one by its id' : 'none yet in mxscout/knowledge/'));
+      if (pack) console.log('pack: ' + pack.from + (header(pack.text, 'model') ? ' · model ' + header(pack.text, 'model') : '') + (header(pack.text, 'generated') ? ' · read ' + header(pack.text, 'generated') : ''));
+      else console.log('pack: none — no .local/ai-pack.md on this machine, and the .mpr could not be read; read docs/ and the model in Studio Pro');
+      const modules = pack ? parseIndex(pack.text.split('\n')) : null;
+      if (modules) { console.log('module | lines | microflows | nanoflows | pages | entities'); modules.forEach((m) => console.log(m.name + ' | ' + m.from + '-' + m.to + ' | ' + m.microflows + ' | ' + m.nanoflows + ' | ' + m.pages + ' | ' + m.entities)); }
+      if (docs) console.log('documentation: ' + path.join(local, 'documentation.md') + ' (the whole documentation; read it first, as the map)');
+      const waiting = fs.existsSync(inbox) ? fs.readdirSync(inbox).filter((f) => /\.(json|md)$/i.test(f) && f[0] !== '.') : [];
+      console.log('inbox: ' + (waiting.length ? waiting.length + ' file(s) waiting in .local/inbox/: ' + waiting.join(', ') : 'empty'));
+      console.log('commit: MxScout never runs git. When the descriptions are updated, the person commits mxscout/ on its own ("Update documentation").');
+    } else if (cmd === 'docs') {
+      const docs = read('documentation.md', false);
+      const text = docs || (fs.existsSync(path.join(folder, 'docs', 'index.md')) ? null : '');
+      if (text === null) { console.log('No .local/documentation.md on this machine. Read ' + path.join(folder, 'docs', 'index.md') + ' — the map — and the files it links: the same documentation, by topic.'); return; }
+      if (!text) { console.log('No documentation yet: this project has no descriptions. The AI pack is all there is — read it by module.'); return; }
+      if (out) { fs.writeFileSync(out, text); console.log('Wrote ' + out + ' (' + text.split('\n').length + ' lines) — what an agent understood earlier; verify against the pack.'); } else process.stdout.write(text);
+    } else if (cmd === 'module' && arg) {
+      const pack = await packText(true);
+      const lines = pack.text.split('\n');
+      const mod = (parseIndex(lines) || []).find((m) => m.name === arg);
+      if (!mod) fail('No module ' + arg + ' in the pack (' + pack.from + '; its ## index lists the modules).');
+      const text = lines.slice(mod.from - 1, mod.to).join('\n') + '\n';
+      if (out) { fs.writeFileSync(out, text); console.log('Wrote ' + out + ' (' + text.split('\n').length + ' lines).'); } else process.stdout.write(text);
+    } else if (cmd === 'pack' && arg) {
+      const pack = await packText(true);
+      fs.writeFileSync(arg, pack.text);
+      console.log('Wrote ' + arg + ' — for the checker, not for reading whole' + (pack.from === '.local/ai-pack.md' ? '.' : ' (' + pack.from + ').'));
+    } else if (cmd === 'send' && arg) {
+      sendTo(inbox);
+    } else if (cmd === 'update-docs') {
+      if (conflicted.length) fail('mxscout/' + conflicted[0] + ' has a git conflict: resolve it first (or keep one side in MxScout), then update docs/.');
+      let r;
+      try { r = await updateDocs(project, parts); } catch (e) { fail('docs/ could not be written: ' + ((e && e.message) || e)); }
+      console.log(docsLine(r));
+      if (r.state === 'written' || r.removed) console.log('Commit mxscout/ with it: git add mxscout && git commit -m "Update documentation" (MxScout never runs git).');
+    } else if (cmd === 'write' && arg) {
+      if (conflicted.length) fail('mxscout/' + conflicted[0] + ' has a git conflict: resolve it first (or keep one side in MxScout), then write.');
+      let given;
+      try { given = JSON.parse(fs.readFileSync(arg, 'utf8')); } catch (e) { fail('Cannot read ' + arg + ' as JSON.'); }
+      if (!given || given.format !== 'mxscout-descriptions') fail(arg + ' is not a descriptions file (it should say "format": "mxscout-descriptions").');
+      if (Array.isArray(given.tickets) || Array.isArray(given.changes)) console.log('Note: tickets and changes are not descriptions — the mendix-assist skill keeps them as Assist items. Left out.');
+      const joined = R.join(parts, at);
+      if (joined.error) fail(joined.error + ' — fix it before writing.');
+      const merged = given.add === true && joined.value ? require('./check-descriptions.js').merge([joined.value, given]) : given;
+      const file = shaped(merged);
+      const next = R.split(file), now = {};
+      let wrote = 0, removed = 0;
+      next.forEach((p) => {
+        now[p.path] = true;
+        const full = path.join(folder, p.path);
+        let was = null;
+        try { was = fs.readFileSync(full, 'utf8'); } catch (e) { was = null; }
+        if (was !== p.text) { writeWhole(full, p.text); wrote++; }
+      });
+      parts.forEach((p) => { if (!now[p.path]) { fs.unlinkSync(path.join(folder, p.path)); removed++; } });
+      // mxscout.json: the version they describe is HEAD now; the language, when the file sets it.
+      const lang = given.setLanguage === true && typeof given.language === 'string' ? given.language.trim().toLowerCase().slice(0, 20) : project.contentLanguage || null;
+      const pj = R.projectJson({ id: project.id, name: project.name, contentLanguage: lang }, head);
+      if (read('mxscout.json', false) !== pj) writeWhole(path.join(folder, 'mxscout.json'), pj);
+      console.log('Wrote ' + wrote + ' file(s) in ' + path.join(folder, 'descriptions') + (removed ? ', removed ' + removed : '') + (wrote || removed ? '' : ' — nothing changed') +
+        '; they describe ' + (head ? (head.branch ? head.branch + ' @ ' : '') + head.short : 'a version that is not known (no readable .git)') + '.');
+      // docs/ follows them here and now, as MxScout would write it — so the commit carries docs/ that match.
+      try { console.log(docsLine(await updateDocs(JSON.parse(pj), descriptionFiles()))); }
+      catch (e) { console.log('docs/ was not brought up to date (' + ((e && e.message) || e) + '): MxScout writes it the next time the project is open there — or run node agent.js update-docs once the .mpr can be read.'); }
+      console.log('Then the person commits mxscout/ on its own: git add mxscout && git commit -m "Update documentation" (MxScout never runs git).');
+    } else usage();
+  })().catch((e) => fail('agent.js: ' + ((e && e.message) || e)));
 }
 
 // ---------- the channel ----------
@@ -437,7 +626,7 @@ function viaChannel() {
 }
 
 function usage() {
-  console.error('Usage: node agent.js status | docs [--out file] | module <Name> [--out file] | pack <file> | send <descriptions.json> | write <descriptions.json>\n' +
+  console.error('Usage: node agent.js status | docs [--out file] | module <Name> [--out file] | pack <file> | send <descriptions.json> | write <descriptions.json> | update-docs\n' +
     '  in a project folder: --folder <dir> (or MXSCOUT_FOLDER, or run it inside the folder); inside a Mendix project: its directory or its mxscout/\n' +
     '  through the agent channel: MXSCOUT_TOKEN, MXSCOUT_URL (or --token T, --url U)');
   process.exit(2);
@@ -446,5 +635,6 @@ function usage() {
 if (folder) {
   if (!fs.existsSync(path.join(folder, 'project.json')) && !repo) fail('No project.json or mxscout.json in ' + folder + ' — that is not an MxScout project folder, nor a Mendix project with MxScout\'s files in mxscout/. In MxScout: Documentation → Folder shows where the project is kept.');
   if (cmd === 'write' && !repo) fail('write is for a project kept inside the Mendix project (mxscout/); in a project folder of its own, use send — MxScout takes it from inbox/.');
+  if (cmd === 'update-docs' && !repo) fail('update-docs is for a project kept inside the Mendix project (mxscout/docs/); a project folder of its own has no docs/ — MxScout writes documentation.md there.');
   inFolder();
 } else viaChannel();

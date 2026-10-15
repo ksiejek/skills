@@ -83,6 +83,22 @@ to write**: English unless you say otherwise, and kept for the project from
 then on ("from now on in Polish" changes it). Then it restates what it understood, asks only what blocks the
 work, traces it through the model and hands the item back.
 
+### Solved cases
+
+Before it works a new item out, the agent searches the **solved cases** in
+the Mendix project's `mxscout/knowledge/` — one Markdown note per case — and
+cites a similar one by its id, saying whether it may be out of date. When a
+case is **solved** — you say it is done, or "add it to the documentation" /
+"dołóż to do dokumentacji" — it writes the note itself: the problem, the
+cause, the solution, what did not work, how to recognise it next time, with
+no personal data (no names, e-mail addresses, phone numbers, customer data or
+record ids from production). It tells you where: "I recorded case SD-4711 in
+mxscout/knowledge/ — commit it with the fix." **The commit is the approval.**
+The next person's agent finds it there — with MxScout or without. The format
+is `reference/knowledge-format.md`; `node check-assist.js knowledge <note>`
+checks a note, `node check-assist.js cases <MendixProject> --find "…"` searches
+them.
+
 ## Examples
 
 A Service Desk ticket:

@@ -154,6 +154,40 @@ try {
     'send writes the descriptions whole into its inbox/: ' + sent.join(','));
   const notDesc = refuse(['send', mxf, pack]);
   ok(notDesc.status === 1 && /as JSON|not a descriptions file/.test(notDesc.said), 'and refuses what is not a descriptions file');
+
+  // repo: mxscout/docs/ inside a Mendix project, the same bytes as MxScout's — here against mendix-describe's
+  // agent.js (MxScout's suite holds that one to the browser byte for byte), from the same .mpr, .git,
+  // descriptions/ and knowledge/; nothing when it is current; and nowhere but mxscout/docs/.
+  const repo = path.join(tmp, 'ShopApp');
+  const put = (rel, text) => { fs.mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true }); fs.writeFileSync(path.join(repo, rel), text); };
+  fs.mkdirSync(repo);
+  fs.copyFileSync(path.join(MX, 'test', 'fixtures', 'mpr-v1.db'), path.join(repo, 'ShopApp.mpr'));
+  const C = 'c'.repeat(40);
+  put('.git/HEAD', 'ref: refs/heads/main\n');
+  put('.git/refs/heads/main', C + '\n');
+  put('.git/logs/HEAD', '0'.repeat(40) + ' ' + C + ' S <s@x> 1760500000 +0200\tcommit (initial): First version\n');
+  put('mxscout/mxscout.json', JSON.stringify({ format: 'mxscout-project', layout: 2, id: 'shop', name: 'ShopApp', contentLanguage: 'en', describedAt: null }, null, 2) + '\n');
+  put('mxscout/knowledge/SD-4711-orders-created-twice.md', ['---', 'id: "SD-4711"', 'kind: "ticket"', 'title: "Orders created twice"', 'status: "solved"', 'solved: "2026-10-15"', 'model: "' + C + '"',
+    'flows: ["Sales.CreateOrder"]', 'entities: []', 'pages: []', 'keywords: ["duplicate"]', 'related: []', 'language: "en"', '---', '', '# SD-4711 — Orders created twice', '',
+    '## Problem', '', 'Every new order showed twice.', '', '## Cause', '', 'A second commit.', '', '## Solution', '', 'One commit.', '', '## What did not work', '', 'Nothing else was tried.', '',
+    '## How to recognise it next time', '', 'Doubled rows.', ''].join('\n'));
+  const agentJs = path.join(MX, 'skills', 'mendix-describe', 'agent.js');
+  const viaAgent = execFileSync(process.execPath, [agentJs, 'write', '--folder', repo, path.join(tmp, 'descriptions.json')], { encoding: 'utf8', env: Object.assign({}, process.env, { MXSCOUT_TOKEN: '', MXSCOUT_FOLDER: '' }) });
+  ok(/docs\/ written from them/.test(viaAgent), 'mendix-describe’s agent.js write puts the descriptions into mxscout/ and writes docs/');
+  const docsDir = path.join(repo, 'mxscout', 'docs');
+  const byAgent = {};
+  (function walk(d, rel) { fs.readdirSync(d, { withFileTypes: true }).forEach((e) => { if (e.isDirectory()) walk(path.join(d, e.name), rel + e.name + '/'); else byAgent[rel + e.name] = fs.readFileSync(path.join(d, e.name), 'utf8'); }); })(docsDir, '');
+  ok(/docs\/ is current/.test(run(['repo', repo])), 'repo writes nothing when docs/manifest.json says docs/ is made from these already');
+  fs.rmSync(docsDir, { recursive: true });
+  const before = fs.readdirSync(repo).sort().join();
+  const wroteRepo = run(['repo', repo]);
+  const differ = Object.keys(byAgent).filter((k) => !fs.existsSync(path.join(docsDir, k)) || fs.readFileSync(path.join(docsDir, k), 'utf8') !== byAgent[k]);
+  ok(/^docs\/ written: \d+ of \d+ file\(s\) changed/.test(wroteRepo) && Object.keys(byAgent).length > 4 && !differ.length, 'repo writes mxscout/docs/ byte for byte as MxScout does' + (differ.length ? ': differ ' + differ.join(', ') : ''));
+  ok(/SD-4711 — Orders created twice/.test(byAgent['index.md']) && JSON.parse(byAgent['manifest.json']).files.some((f) => f.path === 'knowledge/SD-4711-orders-created-twice.md' && f.kind === 'case'),
+    'its index lists the solved cases, and its manifest names each case file');
+  ok(fs.readdirSync(repo).sort().join() === before && !fs.existsSync(path.join(repo, 'mxscout', 'docs', 'report.html')), 'and nothing is written in the Mendix project outside mxscout/docs/');
+  const notRepo = refuse(['repo', proj]);
+  ok(notRepo.status === 1 && /not a Mendix project with MxScout's files in mxscout/.test(notRepo.said), 'repo on a Mendix project without mxscout/ says so');
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
