@@ -18,7 +18,7 @@ The folder name is the skill's `name:` in its `SKILL.md`.
 engine, the checker, the references) is taken from MxScout when it is packed,
 so it cannot drift. Edit `mendix-docs-source/`, never `mendix-docs/` by hand.
 
-The guide to forward to people, in English and Polish in one file: [`docs/guide.md`](docs/guide.md). Karol's working notes, with dated reviews (Polish): [`docs/przewodnik.md`](docs/przewodnik.md).
+The guide to forward to people, in English and Polish in one file: [`docs/guide.md`](docs/guide.md), and as one offline HTML page with a language switch, [`docs/guide.html`](docs/guide.html) (built from MxScout's `public/guide-team.md` by `docs/build-guide-html.py`; run it again after the guide changes). Karol's working notes, with dated reviews (Polish): [`docs/przewodnik.md`](docs/przewodnik.md).
 
 ## Install — and keep up to date with git
 
