@@ -122,6 +122,24 @@ finds it by itself); through the channel run them as they are. Where they say
 
 ## When you connect: ask, do not start
 
+**Started with nothing — no folder named, no line pasted.** Run `status` first,
+where you were started: `agent.js` finds `mxscout/` in a Mendix project (or a
+project folder) by itself, in this folder or above it. Only when it finds none,
+tell the person what it printed, in this order:
+
+1. **The folder, once per project — the way to recommend.** In MxScout: open
+   the project → its menu → **Keep in the Mendix project (mxscout/)…** → choose
+   the Mendix project folder (the one with the `.mpr`); a new project: **New
+   project → In the Mendix project (mxscout/)**. From then on you read the files
+   yourself — MxScout need not be open, nothing to press, nothing to reload, and
+   the team gets the same files through git. Then they start you in that
+   folder, or tell you its path.
+2. **Share with an agent — for this session only**, when they cannot keep the
+   project in a folder right now.
+
+Never ask them to load or import the model again: MxScout already has it; it
+only has to be written where you can read it.
+
 Connecting is not a request to describe the application. Run `status` (in a
 folder, read `README.md` and `project.json` too), then — when it says there is
 documentation — `docs --out docs.md` (in a folder, `documentation.md` is that

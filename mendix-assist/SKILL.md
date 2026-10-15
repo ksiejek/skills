@@ -162,6 +162,13 @@ Three ways, the **project folder** first:
   `mxscout/knowledge/` holds the solved cases — search them first, and write
   one there when a case is solved ("Solved cases" below). Never write anywhere else in the Mendix project, and never run git
   that writes.
+- **Started with nothing** — no folder named, no line pasted: run
+  `node ../mendix-describe/agent.js status` where you were started; it finds
+  `mxscout/` (or a project folder) here or above by itself. When it finds none,
+  recommend the folder first, as mendix-describe's "When you connect" says: in
+  MxScout, the project's menu → **Keep in the Mendix project (mxscout/)…**,
+  once per project, and nothing to press after that. The channel below is for
+  this session only. Never ask them to load the model again.
 - **The agent channel** — the person pressed **Share with an agent** in
   MxScout's Documentation and gave you a line with an address and a token
   (`MXSCOUT_TOKEN`/`MXSCOUT_URL` in the environment rather than

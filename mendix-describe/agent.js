@@ -98,6 +98,25 @@ function findFolder() {
   return null;
 }
 const folder = findFolder();
+// No MxScout folder here: is this (or a folder above) a Mendix project — a .mpr — that has no mxscout/ yet?
+function mendixHere() {
+  let dir = folderArg ? path.resolve(folderArg.replace(/^~(?=$|\/)/, process.env.HOME || '~')) : process.cwd();
+  for (let i = 0; i < 6; i++) {
+    let mpr = null;
+    try { mpr = fs.readdirSync(dir).find((f) => /\.mpr$/i.test(f)); } catch (e) { mpr = null; }
+    if (mpr) return { dir, mpr };
+    const up = path.dirname(dir);
+    if (up === dir) break;
+    dir = up;
+  }
+  return null;
+}
+function noProject() {
+  const m = mendixHere();
+  const share = 'Or, for this session only: in MxScout, Documentation → Agent channel → Share with an agent → Copy for the agent, then set MXSCOUT_TOKEN (or pass --token).';
+  if (m) return 'This is a Mendix project (' + m.mpr + ') without MxScout\'s files in it yet. Once: in MxScout, open the project → its menu → Keep in the Mendix project (mxscout/)… → choose ' + m.dir + ' (or, for a new project: New project → In the Mendix project (mxscout/)). Then run this again — it finds mxscout/ by itself, no Share needed. ' + share;
+  return 'No MxScout project here. Best, once per project: in MxScout, open the project → its menu → Keep in the Mendix project (mxscout/)… and choose the Mendix project folder (the one with the .mpr); then run this in that folder, or pass --folder <that folder>. ' + share;
+}
 // Layout 2: mxscout/ inside the Mendix project. What stays on this machine is in its .local/.
 const repo = !!(folder && readProject(path.join(folder, 'mxscout.json')));
 const local = folder ? (repo ? path.join(folder, '.local') : folder) : null;
@@ -563,7 +582,7 @@ function viaChannel() {
   let host;
   try { host = new URL(base).hostname; } catch (e) { fail('Not an address: ' + base); }
   if (host !== '127.0.0.1' && host !== 'localhost') fail('Refusing ' + base + ': MxScout is on this machine, at 127.0.0.1.');
-  if (!token) fail('No project folder and no token. Give the MxScout project folder (--folder <dir>, or run this inside it) — or, for the channel: in MxScout, Documentation → Agent channel → Share with an agent → Copy for the agent, then set MXSCOUT_TOKEN (or pass --token).');
+  if (!token) fail(noProject());
   const waitMs = Number(process.env.MXSCOUT_TIMEOUT_MS) > 0 ? Number(process.env.MXSCOUT_TIMEOUT_MS) : 30000;
   const gaveUp = () => 'MxScout at ' + base + ' did not answer within ' + (waitMs / 1000) + ' s — is it busy, or stopped? (MXSCOUT_TIMEOUT_MS sets the wait.)';
 
@@ -633,6 +652,7 @@ function usage() {
 }
 
 if (folder) {
+  if (!fs.existsSync(path.join(folder, 'project.json')) && !repo && mendixHere()) fail(noProject());
   if (!fs.existsSync(path.join(folder, 'project.json')) && !repo) fail('No project.json or mxscout.json in ' + folder + ' — that is not an MxScout project folder, nor a Mendix project with MxScout\'s files in mxscout/. In MxScout: Documentation → Folder shows where the project is kept.');
   if (cmd === 'write' && !repo) fail('write is for a project kept inside the Mendix project (mxscout/); in a project folder of its own, use send — MxScout takes it from inbox/.');
   if (cmd === 'update-docs' && !repo) fail('update-docs is for a project kept inside the Mendix project (mxscout/docs/); a project folder of its own has no docs/ — MxScout writes documentation.md there.');
