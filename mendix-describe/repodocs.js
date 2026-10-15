@@ -57,7 +57,7 @@
     ['docs/', 'The documentation as Markdown, one file per topic, each with front matter; index.md is the map; manifest.json lists every file with its content hash. Written only when the descriptions or the solved cases change. Committed.'],
     ['knowledge/', 'The solved cases: one Markdown file per ticket, Jira issue or idea an agent helped solve — the problem, its cause, the solution and what did not work — with front matter to search by. Written by the agent, committed with the fix; never any personal data. Committed.'],
     // MxScout Dev: the comments and what was decided about the risks are the team's knowledge too.
-    ['comments/', 'The comments on the model, one file per comment — its author, severity, status and history. Merged by id when read back, the newest change winning. Committed.'],
+    ['comments/', 'The comments on the model, one file per comment — its author, severity, status and history. Merged by id when read back, the newest change winning; a file deleted there (a pull) deletes the comment here, unless it was changed here since. Committed.'],
     ['triage.json', 'What was decided about the risks — false positive, fixed, reopened — with the reason. Read back per risk, the latest decision winning. Committed.'],
     ['AGENTS.md', 'How any AI agent should read this folder. Committed.'],
     ['README.md', 'What this folder is, and how a team works with it. Committed.'],
