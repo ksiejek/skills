@@ -1,7 +1,7 @@
 # MxScout & Claude — the full guide · pełny przewodnik
 
-> The team's copy of this guide (sections 1–11) ships inside MxScout and is written into each project as `mxscout/GUIDE.md`. This full copy adds mendix-docs.
-> Wersja dla zespołu (punkty 1–11) jest w MxScout i trafia do każdego projektu jako `mxscout/GUIDE.md`. Ta pełna wersja dokłada mendix-docs.
+> The team's copy of this guide (sections 1–12) ships inside MxScout and is written into each project as `mxscout/GUIDE.md` and, as one page, `mxscout/GUIDE.html`. This full copy adds mendix-docs.
+> Wersja dla zespołu (punkty 1–12) jest w MxScout i trafia do każdego projektu jako `mxscout/GUIDE.md` oraz, jako jedna strona, `mxscout/GUIDE.html`. Ta pełna wersja dokłada mendix-docs.
 
 **[English](#english)** · **[Polski](#polski)**
 

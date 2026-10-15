@@ -8,6 +8,8 @@
 # - mendix-assist/    likewise, from MxScout Dev's skills/mendix-assist;
 # - mendix-docs/      is re-packed from mendix-docs-source/ with MxScout's engine and
 #                     mendix-describe's checker and references;
+# - docs/guide.html   is copied from MxScout's public/guide-team.html (the team guide's one canonical
+#                     page, which MxScout makes from its guide-team.md with tools/build-guide.js);
 # - the mendix-docs selftest runs on MxScout's own test fixture.
 # No dependencies: bash, cp and Node 18 or later.
 set -euo pipefail
@@ -45,6 +47,14 @@ fi
 
 echo "mendix-docs <- mendix-docs-source + $MXSCOUT_DIR"
 node "$HERE/mendix-docs-source/pack-skill.js" "$HERE/mendix-docs" --mxscout "$MXSCOUT_DIR"
+
+GUIDE_SRC="$MXSCOUT_DIR/public/guide-team.html"
+if [ -f "$GUIDE_SRC" ]; then
+  echo "docs/guide.html <- $GUIDE_SRC"
+  cp "$GUIDE_SRC" "$HERE/docs/guide.html"
+else
+  echo "  note: no $GUIDE_SRC (an MxScout before 1.13.0) - docs/guide.html left as it is"
+fi
 
 echo "selftest"
 node "$HERE/mendix-docs-source/selftest.js" --mxscout "$MXSCOUT_DIR"
