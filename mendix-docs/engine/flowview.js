@@ -121,6 +121,9 @@
       node.addEventListener('scroll', function () { u.scroll[name] = { owner: owner, top: node.scrollTop, left: node.scrollLeft }; }, { passive: true });
       return node;
     }
+    // A pane's place across the app drawn again (app.js keeps every box marked data-keep-scroll): the key names
+    // this screen's kind and the item it shows, so another flow, step or page starts at the top.
+    function placeKey(name, owner) { return (opts.noun || 'microflows') + '|' + name + '|' + owner; }
 
     // ---------- the list ----------
     function listColumn() {
@@ -356,7 +359,7 @@
     function stepPanel(entry, an, ctx, inStudio) {
       var it = u.step ? an.byNo[u.step] : null;
       if (!it || (it.b.t !== 'step' && it.b.t !== 'split' && it.b.t !== 'loop')) {
-        return h('section', { class: 'mf-panel mf-step', 'aria-label': 'Selected step' }, [h('p', { class: 'xe-empty', text: 'Click a step in the drawing to see everything it does.' })]);
+        return h('section', { class: 'mf-panel mf-step', 'aria-label': 'Selected step', 'data-keep-scroll': placeKey(inStudio ? 'step-in' : 'step', entry.key + '|') }, [h('p', { class: 'xe-empty', text: 'Click a step in the drawing to see everything it does.' })]);
       }
       var b = it.b, c = b.card || {}, p = c.props || {};
       var tileNode = b.t === 'step' ? window.MxFlowGraph.tile(c, 36) : h('span', { class: 'mf-dec-tile', 'aria-hidden': 'true' }, [h('span', { class: 'fg-rhomb' })]);
@@ -395,7 +398,7 @@
           type: 'button', class: 'mf-studio-link', onclick: function () { u.mode = 'modeler'; u.studio = false; rerender(); }
         }, ['Show in the Modeler', icon('arrow', 13)])]));
       }
-      return h('section', { class: 'mf-panel mf-step', 'aria-label': 'Selected step' }, out);
+      return h('section', { class: 'mf-panel mf-step', 'aria-label': 'Selected step', 'data-keep-scroll': placeKey(inStudio ? 'step-in' : 'step', entry.key + '|' + u.step) }, out);
     }
 
     // ---------- the flow as a whole (spec 02 §6.6), and what calls a flow or opens a page ----------
@@ -472,7 +475,7 @@
       var top = levels(risks)[0];
       var calls = entry.calls.filter(function (c) { return c.kind !== 'page'; }).sort(function (a, b) { return a.qn.localeCompare(b.qn); });
       var by = entry.calledBy;
-      return h('section', { class: 'mf-panel mf-rail', 'aria-label': 'About this ' + entry.kind }, [
+      return h('section', { class: 'mf-panel mf-rail', 'aria-label': 'About this ' + entry.kind, 'data-keep-scroll': placeKey('rail', entry.key) }, [
         descBlock(entry),
         stats([[entry.steps, entry.steps === 1 ? 'step' : 'steps'], [entry.params.length, entry.params.length === 1 ? 'parameter' : 'parameters'],
           [by.length, by.length === 1 ? 'caller' : 'callers'], [risks.length, risks.length === 1 ? 'risk' : 'risks', top ? 'lv-' + top.toLowerCase() : null]]),
@@ -587,7 +590,7 @@
       var side = h('div', { class: 'mf-side tab-' + tab }, [tabs, h('div', { class: 'mf-panels' }, [stepPanel(entry, an, ctx), railPanel(entry, risks)])]);
       return h('section', { class: 'mf-detail', 'aria-label': 'Selected ' + entry.kind + ': ' + entry.name }, [
         head(entry, buttons),
-        h('div', { class: 'mf-body' }, [
+        h('div', { class: 'mf-body', 'data-keep-scroll': placeKey('body', entry.key) }, [
           h('div', { class: 'mf-flow', 'aria-label': 'Flow of ' + entry.name }, [traceBar(an), keep(h('div', { class: 'mf-canvas' }, [graph]), 'canvas', entry.key)]),
           side
         ])
@@ -612,14 +615,14 @@
         B = window.MxStudioView.board(entry, an, { selected: open ? u.step : null, qn: entry.qn, name: entry.name, inline: true, onPick: onPick });
         boards.set(u, { entry: entry, an: an, B: B });
       }
-      var about = u.about ? h('aside', { class: 'mf-about', 'aria-label': 'About ' + entry.name }, [
+      var about = u.about ? h('aside', { class: 'mf-about', 'aria-label': 'About ' + entry.name, 'data-keep-scroll': placeKey('about', entry.key) }, [
         h('div', { class: 'mf-about-head' }, [h('span', { class: 'xe-caps', text: 'About this ' + KIND_WORD[entry.kind].toLowerCase() }),
           h('button', { type: 'button', class: 'mf-x', 'aria-label': 'Close', text: '×', onclick: function () { u.about = false; rerender(); } })]),
         railPanel(entry, risks)
       ]) : null;
       return h('section', { class: 'mf-detail', 'aria-label': 'Selected ' + entry.kind + ': ' + entry.name }, [
         head(entry, buttons),
-        h('div', { class: 'mf-body board' + (about ? ' with-about' : '') }, [
+        h('div', { class: 'mf-body board' + (about ? ' with-about' : ''), 'data-keep-scroll': placeKey('body', entry.key) }, [
           h('div', { class: 'mf-board', 'aria-label': 'Flow of ' + entry.name }, [
             keep(B.strip, 'canvas', entry.key),
             h('div', { class: 'mf-board-foot' }, [h('span', { class: 'mf-board-note', text: B.note }), B.zoomBar])
@@ -642,7 +645,7 @@
         : null;
       var win = h('div', { class: 'mf-step-win', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Step ' + u.step + ' of ' + entry.name }, [
         h('div', { class: 'mf-step-win-head' }, [h('span', { class: 'xe-caps', text: 'Step ' + u.step + ' · ' + P.title }), go, x]),
-        h('div', { class: 'mf-step-win-body' }, [
+        h('div', { class: 'mf-step-win-body', 'data-keep-scroll': placeKey('step-win', entry.key + '|' + u.step) }, [
           h('div', { class: 'mf-step-win-insp' }, [stepPanel(entry, an, ctx, true)]),
           h('div', { class: 'mf-step-win-props' }, [h('h3', { class: 'xe-caps', text: 'Properties, as in Studio Pro' }), h('div', { class: 'sv-groups' }, P.groups)])
         ])
@@ -690,7 +693,7 @@
       if (!preview) {
         return h('section', { class: 'mf-detail', 'aria-label': 'Selected page: ' + entry.name }, [
           head(entry, actions),
-          h('div', { class: 'mf-page' }, [h('p', { class: 'xe-empty', text: 'This model was read before MxScout drew pages. Read the project again to see the page drawn.' })]
+          h('div', { class: 'mf-page', 'data-keep-scroll': placeKey('page', entry.key) }, [h('p', { class: 'xe-empty', text: 'This model was read before MxScout drew pages. Read the project again to see the page drawn.' })]
             .concat(pageFacts(entry, null)))
         ]);
       }
@@ -750,11 +753,11 @@
       ]);
       var aboutBtn = h('button', { type: 'button', class: 'mf-btn mf-about-open' + (st.about ? ' on' : ''), 'aria-expanded': st.about ? 'true' : 'false',
         onclick: function () { st.about = !st.about; st.sel = null; rerender(); } }, ['About this page']);
-      var win = picked ? pageWindow('Selected on ' + entry.name, [picked], function () { st.sel = null; rerender(); })
-        : st.about ? pageWindow('About this page', pageFacts(entry, preview), function () { st.about = false; rerender(); }) : null;
+      var win = picked ? pageWindow('Selected on ' + entry.name, [picked], function () { st.sel = null; rerender(); }, placeKey('pp-win', entry.key + '|' + JSON.stringify(st.sel)))
+        : st.about ? pageWindow('About this page', pageFacts(entry, preview), function () { st.about = false; rerender(); }, placeKey('pp-win', entry.key + '|about')) : null;
       return h('section', { class: 'mf-detail', 'aria-label': 'Selected page: ' + entry.name }, [
         head(entry, [aboutBtn].concat(actions)),
-        h('div', { class: 'mf-body board' }, [
+        h('div', { class: 'mf-body board', 'data-keep-scroll': placeKey('body', entry.key) }, [
           h('div', { class: 'mf-board pp-board' }, [
             keep(strip, 'canvas', entry.key),
             h('div', { class: 'mf-board-foot' }, [
@@ -769,11 +772,11 @@
     }
     // A window over the drawing, as a flow's step opens in one: what the page
     // is, or the element clicked on it.
-    function pageWindow(title, kids, close) {
+    function pageWindow(title, kids, close, place) {
       var x = h('button', { type: 'button', class: 'mf-x', 'aria-label': 'Close', text: '×', onclick: close });
       var win = h('div', { class: 'mf-step-win pp-win', role: 'dialog', 'aria-modal': 'true', 'aria-label': title }, [
         h('div', { class: 'mf-step-win-head' }, [h('span', { class: 'xe-caps', text: title }), x]),
-        h('div', { class: 'pp-win-body' }, kids)
+        h('div', { class: 'pp-win-body', 'data-keep-scroll': place || null }, kids)
       ]);
       var scrim = h('div', { class: 'mf-step-scrim', onclick: function (e) { if (e.target === scrim) close(); } }, [win]);
       scrim.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
@@ -812,7 +815,7 @@
           lv.length ? h('span', { class: 'xb xb-' + lv[0].toLowerCase(), text: lv[0] }) : null
         ]);
       });
-      return h('section', { class: 'mf-mods', 'aria-label': 'Modules' }, [
+      return h('section', { class: 'mf-mods', 'aria-label': 'Modules', 'data-keep-scroll': placeKey('mods', u.show || 'all') }, [
         h('div', { class: 'mf-mods-head' }, [
           h('div', null, [h('h2', { class: 'mf-mods-title', text: 'Pick a module' }),
             h('p', { class: 'mf-mods-sub', text: names.length + ' modules, ' + src.items.length + ' ' + noun + '.' })]),

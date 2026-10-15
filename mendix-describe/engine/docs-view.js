@@ -1272,6 +1272,13 @@
         if ((st.view === 'risks' && !allRisks.length) || (st.view === 'dev' && !devCtx) || (st.view === 'processes' && !procPage) || (st.view === 'assist' && !assist) || (st.view === 'cases' && !cases) || !DRAW[st.view]) st.view = 'start';
         onScroll = null;
         root.setAttribute('data-view', st.view);
+        // The page's own scrolling boxes keep their place while it is the same page and the same item on it —
+        // drawn again by a click on it, or with the whole app around it (a change in the project's folder, a
+        // message going away: Karol, 2026-10-15, "the page jumps back to the top by itself"). Another page, or
+        // another item, has another key, and starts at the top.
+        var place = (opts.only || (opts.preview ? 'preview' : 'file')) + '|' + hashOf(st).split('?')[0];
+        main.setAttribute('data-keep-scroll', 'dx-main|' + place);
+        list.setAttribute('data-keep-scroll', 'dx-list|' + (opts.only || (opts.preview ? 'preview' : 'file')) + '|' + st.view + '|' + (st.view === 'assist' ? st.akind || '' : ''));
         root.classList.toggle('no-list', st.view === 'refs' || st.view === 'domain' || st.view === 'start' || st.view === 'quality' || st.view === 'risks' || st.view === 'dev' || st.view === 'arch');
         DRAW[st.view]();
         putScrolls(root, kept);
@@ -2113,7 +2120,7 @@
           h('span', { title: 'Its rows are what an OQL query returns, served read-only' }, [h('i', { class: 'dx-dm-mk view' }), 'View entity']),
           h('span', { title: 'An association: * at the entity that owns it, 1 at the one it points to (* at both ends for a reference set)' }, [h('b', { class: 'mono', text: '* 1' }), 'association']),
           h('span', { title: 'An association to an entity in another module, listed at the foot of the box' }, [h('b', { text: '↗' }), 'other module'])]);
-        var wrapEl = h('div', { class: 'dx-dm-wrap' }, [scaler]);
+        var wrapEl = h('div', { class: 'dx-dm-wrap', 'data-keep-scroll': 'dm-wrap:' + scope + '|' + mod + '|' + (sel || '') }, [scaler]);
         // Ctrl (or ⌘) and the wheel zoom too, as in Studio Pro — a trackpad's pinch arrives the same
         // way — keeping the point under the pointer where it is.
         wrapEl.addEventListener('wheel', function (ev) {
@@ -2138,7 +2145,7 @@
           ]);
         } else {
           var cnt = function (n) { return Dm.assoc.filter(function (a) { return a[1] === mod + '.' + n || a[2] === mod + '.' + n; }).length; };
-          add(canvas, h('div', { class: 'dx-dm-list', role: 'table' }, [h('div', { class: 'dx-dm-lr head', role: 'row' }, ['Entity', 'Kind', 'Attributes', 'Associations', 'Access rules', 'Description'].map(function (x) { return h('span', { text: x }); }))]
+          add(canvas, h('div', { class: 'dx-dm-list', role: 'table', 'data-keep-scroll': 'dm-list:' + scope + '|' + mod }, [h('div', { class: 'dx-dm-lr head', role: 'row' }, ['Entity', 'Kind', 'Attributes', 'Associations', 'Access rules', 'Description'].map(function (x) { return h('span', { text: x }); }))]
             .concat(names.map(function (n) {
               var e = E[n];
               return ln(pickEntity(n), { class: 'dx-dm-lr' + (n === sel ? ' on' : ''), role: 'row' }, [h('span', { class: 'mono dx-dm-ln' }, [marker(e), n]), h('span', { text: kindOf(e) }),
@@ -2149,7 +2156,7 @@
 
         // ---- the inspector ----
         if (!sel) {
-          main.appendChild(h('div', { class: 'dx-dm' }, [modList, canvas, h('aside', { class: 'dx-dm-insp', 'aria-label': 'Entity' }, [
+          main.appendChild(h('div', { class: 'dx-dm', 'data-keep-scroll': 'dm:' + scope + '|' + mod + '|' }, [modList, canvas, h('aside', { class: 'dx-dm-insp', 'aria-label': 'Entity', 'data-keep-scroll': 'dm-insp:' + scope + '|' + mod + '|' }, [
             h('div', { class: 'dx-dm-ih' }, [
               h('div', { class: 'dx-dm-meta' }, [h('span', { text: 'Module' })]),
               h('h2', { class: 'mono', text: mod }),
@@ -2229,7 +2236,7 @@
         var note = null;
         if (!e.pers) note = sel + ' is not stored in the database. Its access rules still apply on the client.';
         else if (e.access.length && e.access.every(function (r) { return !r[4] && !r[5]; })) note = 'No module role can create or delete ' + sel + ' from the client.';
-        var insp = h('aside', { class: 'dx-dm-insp', 'aria-label': 'Entity' }, [
+        var insp = h('aside', { class: 'dx-dm-insp', 'aria-label': 'Entity', 'data-keep-scroll': 'dm-insp:' + scope + '|' + mod + '|' + sel }, [
           h('div', { class: 'dx-dm-ih' }, [
             h('div', { class: 'dx-dm-meta' }, [h('span', null, ['Entity in ', h('span', { class: 'mono', text: mod })]), h('span', { 'aria-hidden': 'true', text: '·' }), h('span', { class: 'dx-dm-kind' }, [marker(e), kindOf(e)])]),
             h('h2', { class: 'mono', text: sel }),
@@ -2267,7 +2274,7 @@
             ]);
           }) : [h('span', { class: 'dx-empty', text: 'No access rule: no module role reaches it from the client.' })]))
         ]);
-        main.appendChild(h('div', { class: 'dx-dm' + (view === 'list' ? ' list' : '') }, [modList, canvas, insp]));
+        main.appendChild(h('div', { class: 'dx-dm' + (view === 'list' ? ' list' : ''), 'data-keep-scroll': 'dm:' + scope + '|' + mod + '|' + sel + '|' + view }, [modList, canvas, insp]));
         // the chosen box in view
         var onBox = stage.querySelector('.dx-dm-box.on');
         if (view === 'diagram' && onBox) requestFrame(function () { var wrapEl = canvas.querySelector('.dx-dm-wrap'); if (!wrapEl || !onBox.isConnected) return; var r = onBox.getBoundingClientRect(), c = wrapEl.getBoundingClientRect(); if (r.right > c.right || r.bottom > c.bottom || r.left < c.left || r.top < c.top) { wrapEl.scrollTop += (r.top - c.top) - (c.height - r.height) / 2; wrapEl.scrollLeft += (r.left - c.left) - (c.width - r.width) / 2; } });
@@ -2803,7 +2810,7 @@
         });
         // The status filter (risk triage) and whose a risk is: docs-triage.js.
         var statusBar = TRI.statusBar({ h: h, everything: everything, inOrigin: inOrigin, rf: rf, setF: setF, shown: triaged.length || people, people: people, agents: agents });
-        var listCol = h('section', { class: 'dx-rk-list', 'aria-label': 'Findings' }, [
+        var listCol = h('section', { class: 'dx-rk-list', 'aria-label': 'Findings', 'data-keep-scroll': 'rk-list' }, [
           statusBar,
           h('div', { class: 'dx-rk-lh' }, [
             h('div', { class: 'dx-rk-lh-row' }, [h('b', { text: anyF ? shown.length + ' of ' + plural(all.length, 'finding', 'findings') : plural(all.length, 'finding', 'findings') }),
@@ -2819,7 +2826,7 @@
         ].concat(rows));
 
         // ---- the finding ----
-        var detail = h('article', { class: 'dx-rk-detail', 'aria-label': 'Finding' });
+        var detail = h('article', { class: 'dx-rk-detail', 'aria-label': 'Finding', 'data-keep-scroll': 'rk-detail:' + (cur ? riskId(cur.i) : '') });
         if (cur) {
           var idx = shown.indexOf(cur), gKey = byMod ? cur.mod : cur.lv;
           var inG = shown.filter(function (x) { return (byMod ? x.mod : x.lv) === gKey; });
@@ -2958,7 +2965,7 @@
                 : h('ol', { class: 'dx-dv-pits' }, gm[k].map(function (it) { return h('li', null, [h('span', { class: 'mono', text: it.no }), h('span', null, richText(it.a))]); }))]));
           });
         }
-        main.appendChild(h('div', { class: 'dx-dv' }, [tabsBar, h('div', { class: 'dx-dv-body' }, [facet, h('section', { class: 'dx-dv-main' }, [body])])]));
+        main.appendChild(h('div', { class: 'dx-dv' }, [tabsBar, h('div', { class: 'dx-dv-body' }, [facet, h('section', { class: 'dx-dv-main', 'data-keep-scroll': 'dv-main:' + tab + '|' + (mod || '') }, [body])])]));
       }
 
       draw();
