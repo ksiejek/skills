@@ -497,7 +497,7 @@
   // would the solution be"): the process as it works today, the proposed solution, the concrete changes to
   // the model, and what they touch. A proposal: MxScout shows it, and nothing of it is applied anywhere.
   // Text only, bounded; an entry without an id or a title is dropped, and so is a model change with an
-  // action it does not know. The fields and their bounds: descriptions-format.md, "changes".
+  // action it does not know. The fields and their bounds: migration.md, "Changes (older files only)".
   var CHANGE_STATUS = { proposed: true, accepted: true, done: true, dropped: true };
   var CHANGE_KINDS = { microflow: true, nanoflow: true, page: true, entity: true, attribute: true, association: true, enumeration: true, security: true, 'scheduled event': true, integration: true, other: true };
   var CHANGE_ACTIONS = { add: true, change: true, remove: true };
@@ -560,7 +560,7 @@
   // it, the places in the model that show it, what would settle it, a reply to paste back, and for a bug
   // the change that would fix it (an id among the Assist page's Ideas). An agent's judgement: MxScout shows it and
   // acts on none of it; a source address is kept as text and never opened. An entry without an id, a
-  // title, a verdict or a summary is dropped. The fields and their bounds: descriptions-format.md, "Tickets".
+  // title, a verdict or a summary is dropped. The fields and their bounds: migration.md, "Tickets (older files only)".
   var TICKET_VERDICTS = { bug: true, 'as-designed': true, 'data-config': true, 'cannot-tell': true };
   var CONFIDENCE = { high: true, medium: true, low: true };
   function ticketOf(t) {

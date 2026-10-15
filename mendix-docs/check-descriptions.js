@@ -12,12 +12,16 @@
  *       --out docs.md, which lands in the work folder): what is described
  *       there, and what is marked out of date, is read from it.
  *
- *   node check-descriptions.js todo --folder <project folder> [--list]
+ *   node check-descriptions.js todo --folder <project folder> [--list] [--refresh]
  *       The same, for a project MxScout keeps in a folder: its ai-pack.md and
  *       its descriptions.json. For a project kept inside the Mendix project
  *       (mxscout/), give the Mendix project's directory or its mxscout/: the
- *       pack is .local/ai-pack.md, the descriptions the files in descriptions/,
- *       joined by MxScout's own rules (repodocs.js beside this file).
+ *       pack is the current model's, as `agent.js snapshot` gives it — made
+ *       from the .mpr when the work folder has none of this model yet, so a
+ *       fresh checkout with no .local/ works (--refresh makes it again) — and
+ *       the descriptions are the files in descriptions/, joined by MxScout's
+ *       own rules (repodocs.js beside this file). The first line says which
+ *       snapshot it used.
  *
  *   node check-descriptions.js check <pack.md> <descriptions.json>
  *   node check-descriptions.js check --folder <project folder> <descriptions.json>
@@ -26,12 +30,13 @@
  *       matches, no description is empty or overlong, and the application,
  *       its processes and its modules each have both layers of
  *       reference/business-narrative.md; every risk has a level of
- *       reference/risk-levels.md, its places and a fix; every change (SKILL.md,
- *       "A change, when the person asks") has an id, how it works now traced
- *       through flows that exist, a proposal and model changes that name what
- *       is there, unless they add it; every ticket (an older file's; the mendix-assist skill writes Assist items now)
- *       a verdict, its reasoning, evidence that names what is in the pack, and
- *       for a bug the change that fixes it. It warns about anything over the
+ *       reference/risk-levels.md, its places and a fix; and, in an older file
+ *       (reference/migration.md — the mendix-assist skill writes Assist items
+ *       now), every change has an id, how it works now traced through flows
+ *       that exist, a proposal and model changes that name what is there,
+ *       unless they add it, and every ticket a verdict, its reasoning, evidence
+ *       that names what is in the pack, and for a bug the change that fixes
+ *       it. It warns about anything over the
  *       bounds MxScout keeps (CAPS below; reference/descriptions-format.md,
  *       "What MxScout keeps"). Exit code 1 on errors.
  *
@@ -76,6 +81,22 @@ function readPack(text) {
     if (m && module) pack.entities[module + '.' + m[1]] = { hash: m[2], module, line: i + 1 };
   });
   return pack;
+}
+
+// The model a pack was made from, as an id: a hash of its text without the header lines that say when, or at
+// which commit, it was made — the same model gives the same id, made by MxScout or by agent.js. agent.js prints
+// it as "snapshot: <id>"; a descriptions file may carry it as "snapshot", and agent.js write and send refuse
+// the file when the model is another one by then.
+function snapshotOf(text) {
+  const lines = String(text).replace(/\r\n/g, '\n').split('\n');
+  // Not the model either: MxScout Dev's "## risk triage", what people decided about the risks described, and
+  // the "## index", whose line numbers move with it.
+  let skip = false;
+  const body = lines.filter((l, i) => {
+    if (/^## /.test(l)) skip = l === '## risk triage' || l === '## index';
+    return !skip && !(i < 40 && /^(generated|model|model commit): /.test(l));
+  }).join('\n');
+  return require('crypto').createHash('sha256').update(body).digest('hex').slice(0, 12);
 }
 
 function readJson(file) {
@@ -352,7 +373,10 @@ function check(pack, desc) {
   const err = (text) => problems.push({ level: 'error', text });
   const warn = (text) => problems.push({ level: 'warning', text });
   // The two layers of reference/business-narrative.md, on the application, a process or a module.
-  // min: the fewest words a story of this kind should have (reference/business-narrative.md, "Where the two layers apply").
+  // min: a floor, not a target — below it a story of this kind is clearly too thin to say what it must
+  // (reference/business-narrative.md, "When a story is complete"); a warning, never an error. Karol found the
+  // documentation too short once, so the floor stays; the audit of 2026-10-15 found the old ranges pushed
+  // stories to be long for length's sake, so the floor is low and the message names what is missing instead.
   function layers(what, v, min) {
     const summary = typeof v === 'string' ? v : v && typeof v.summary === 'string' ? v.summary : null;
     const story = storyOf(v);
@@ -508,7 +532,7 @@ function check(pack, desc) {
       // A file that adds (one more process, say) to what MxScout keeps leaves the application's own layers as they are.
       if (desc.add !== true || (Array.isArray(desc.replace) && desc.replace.indexOf('app') !== -1)) {
         if (typeof a.summary !== 'string' || !a.summary.trim()) warn('app.summary is empty — it is the first thing a business reader sees.');
-        layers('app', a, { words: 300, why: 'the application\'s description is about 400–1,200 words: what it is for, who works in it, how a case goes, how it connects.' });
+        layers('app', a, { words: 150, why: 'clearly too thin for the application: say what it is for, who works in it, how a case goes through it and what it connects to (reference/business-narrative.md). Length follows what there is to tell; this is only a floor.' });
       }
       // Who uses it: groups of { who, what } (reference/descriptions-format.md); one sentence is still read.
       if (Array.isArray(a.audience)) {
@@ -517,7 +541,7 @@ function check(pack, desc) {
       else if (a.audience !== undefined) err('app.audience must be a list of { "who", "what" }.');
       (Array.isArray(a.processes) ? a.processes : []).forEach((p, i) => {
         if (!p || typeof p.name !== 'string' || !p.name.trim()) { err('app.processes[' + i + '] has no name.'); return; }
-        layers('process "' + p.name + '"', p, { words: 150, why: 'a process follows one case stage by stage, about 200–400 words, naming statuses, roles and messages. Trace it through its flows (SKILL.md, step 4), do not summarise it.' });
+        layers('process "' + p.name + '"', p, { words: 80, why: 'a process follows one case stage by stage, and this is clearly too thin to: say where it starts and who starts it, what is checked and decided on what data, what is recorded or sent, who approves or can refuse, what happens when it fails, and how it ends — with the real names of statuses, roles and messages. Trace it through its flows (SKILL.md, step 4), do not summarise it; as long as the case needs, no longer.' });
         if (!Array.isArray(p.flows) || p.flows.length < 2) warn('process "' + p.name + '": ' + (Array.isArray(p.flows) ? p.flows.length : 0) + ' flow' + ((Array.isArray(p.flows) && p.flows.length === 1) ? '' : 's') + ' listed — a process is carried by the flows on its way; list each one you followed.');
         // Steps a reader follows, each saying who does what (reference/business-narrative.md, "A process"):
         // as many as the case has (Karol, 2026-10-14: a count here only cut real processes short).
@@ -563,7 +587,7 @@ function check(pack, desc) {
         const now = c.now, pr = c.proposal;
         if (!now || typeof now !== 'object') err(what + ': "now" must be an object — how it works today is half of a change.');
         else {
-          layers(what + ' now', now, { words: 120, why: 'how it works now follows one case through its flows, stage by stage, about 150–400 words (SKILL.md, "A change", step 2). Trace it, do not summarise it.' });
+          layers(what + ' now', now, { words: 80, why: 'how it works now follows one case through its flows, stage by stage, and this is clearly too thin to: where it starts, what is checked, what is set, how it ends (SKILL.md, "A change", step 2). Trace it, do not summarise it.' });
           const steps = Array.isArray(now.steps) ? now.steps.filter((x) => typeof x === 'string' && x.trim()) : [];
           if (steps.length < 2) warn(what + ' now: ' + steps.length + ' step' + (steps.length === 1 ? '' : 's') + ' — write each step of how it works today, naming who does what.');
           const flows = Array.isArray(now.flows) ? now.flows : [];
@@ -573,7 +597,7 @@ function check(pack, desc) {
         }
         if (!pr || typeof pr !== 'object') err(what + ': "proposal" must be an object — the solution is the other half of a change.');
         else {
-          layers(what + ' proposal', pr, { words: 60, why: 'the proposal says in plain words how the solution works for the people using it.' });
+          layers(what + ' proposal', pr, { words: 40, why: 'clearly too thin: the proposal says in plain words how the solution works for the people using it.' });
           if (!Array.isArray(pr.steps) || !pr.steps.length) warn(what + ' proposal: no steps — write how the case goes once the change is made.');
           if (pr.diagram !== undefined) flowDiagram(what + ' proposal', pr.diagram, 'diagram');
           if (!Array.isArray(pr.changes) || !pr.changes.length) warn(what + ' proposal: no "changes" — list what to add, change or remove in the model.');
@@ -905,19 +929,29 @@ function main(argv) {
   // --folder <MxScout project folder>: its ai-pack.md is the pack, and — for todo — its
   // descriptions.json the descriptions (MxScout writes both there; see agent.js).
   let rest = given0.slice();
+  const refreshing = rest.indexOf('--refresh') !== -1;
+  rest = rest.filter((a) => a !== '--refresh');
   const fi = rest.indexOf('--folder');
   let joined; // layout 2: the descriptions joined from descriptions/, or null when there are none
   const folderGiven = fi !== -1 ? rest[fi + 1] || null : null;
   if (fi !== -1) {
     let dir = rest[fi + 1];
     rest.splice(fi, 2);
-    // Inside the Mendix project (layout 2): its mxscout/, with the pack in .local/.
+    // Inside the Mendix project (layout 2): its mxscout/; the pack is the current model's, as agent.js makes it.
     if (dir && fs.existsSync(path.join(dir, 'mxscout', 'mxscout.json'))) dir = path.join(dir, 'mxscout');
     const repo = !!dir && fs.existsSync(path.join(dir, 'mxscout.json'));
-    const local = repo ? path.join(dir, '.local') : dir;
-    if (!dir || !fs.existsSync(path.join(local, 'ai-pack.md'))) throw new Error('No ' + (repo ? '.local/' : '') + 'ai-pack.md in ' + dir + ' — is it an MxScout project folder, with the project open in MxScout once' + (repo ? ' on this machine' : '') + '?');
-    const pack = path.join(local, 'ai-pack.md'), desc = path.join(dir, 'descriptions.json');
+    let pack = path.join(dir || '', 'ai-pack.md');
+    const desc = path.join(dir || '', 'descriptions.json');
     if (repo) {
+      // One resolver of the current model for every command (agent.js snapshot): made from the .mpr when the
+      // work folder has no pack of this model yet — a fresh checkout with no .local/ needs nothing else.
+      const r = require('child_process').spawnSync(process.execPath, [path.join(__dirname, 'agent.js'), 'snapshot', '--json', '--folder', dir].concat(refreshing ? ['--refresh'] : []),
+        { encoding: 'utf8', env: Object.assign({}, process.env, { MXSCOUT_TOKEN: '' }) });
+      let snap = null;
+      try { snap = r.status === 0 ? JSON.parse(r.stdout) : null; } catch (e) { snap = null; }
+      if (!snap || !snap.file) throw new Error('No pack of the model in ' + dir + ': ' + (String(r.stderr || r.stdout || '').trim().split('\n')[0] || 'agent.js snapshot gave none') + '.');
+      pack = snap.file;
+      console.log('snapshot: ' + snap.id + ' — ' + snap.from);
       const R = repoDocs(path.join(__dirname, 'repodocs.js'));
       const files = [];
       (function walk(d, rel) {
@@ -936,8 +970,13 @@ function main(argv) {
       joined = j.value;
       if (cmd === 'todo') rest = [pack].concat(rest);
       else if (cmd === 'check') rest = [pack].concat(rest);
-    } else if (cmd === 'todo') rest = [pack].concat(fs.existsSync(desc) ? [desc] : [], rest);
-    else if (cmd === 'check') rest = [pack].concat(rest);
+    } else {
+      // A project folder of its own: ai-pack.md, which MxScout writes there and rewrites when it reads the model again.
+      if (!dir || !fs.existsSync(pack)) throw new Error('No ai-pack.md in ' + dir + ' — is it an MxScout project folder, with the project open in MxScout once?');
+      console.log('snapshot: ' + snapshotOf(fs.readFileSync(pack, 'utf8')) + ' — ai-pack.md as MxScout wrote it');
+      if (cmd === 'todo') rest = [pack].concat(fs.existsSync(desc) ? [desc] : [], rest);
+      else if (cmd === 'check') rest = [pack].concat(rest);
+    }
   }
   const list = rest.indexOf('--list') !== -1;
   // A file named without a path is the agent's own, in the work folder (read from here when it is not there).
@@ -980,7 +1019,7 @@ function main(argv) {
     console.log('Wrote ' + args[0] + ': ' + n + ' descriptions' + (merged.changes ? ', ' + merged.changes.length + ' change' + (merged.changes.length === 1 ? '' : 's') : '') + (merged.tickets ? ', ' + merged.tickets.length + ' ticket' + (merged.tickets.length === 1 ? '' : 's') : '') + ' from ' + (args.length - 1) + ' parts.');
     return 0;
   }
-  console.log('Usage:\n  node check-descriptions.js todo  <pack.md> [descriptions.json | docs.md] [--list]\n  node check-descriptions.js todo  --folder <project folder> [--list]\n  node check-descriptions.js check <pack.md> <descriptions.json>\n  node check-descriptions.js check --folder <project folder> <descriptions.json>\n  node check-descriptions.js merge <out.json> <part.json> [<part.json> …]');
+  console.log('Usage:\n  node check-descriptions.js todo  <pack.md> [descriptions.json | docs.md] [--list]\n  node check-descriptions.js todo  --folder <project folder> [--list] [--refresh]\n  node check-descriptions.js check <pack.md> <descriptions.json>\n  node check-descriptions.js check --folder <project folder> <descriptions.json>\n  node check-descriptions.js merge <out.json> <part.json> [<part.json> …]');
   return 2;
 }
 
@@ -988,4 +1027,4 @@ if (require.main === module) {
   try { process.exitCode = main(process.argv.slice(2)); }
   catch (e) { console.error(e.message); process.exitCode = 2; }
 }
-module.exports = { readPack, readDocs, todo, check, merge, DESC_FORMAT, CAPS, workplace };
+module.exports = { readPack, readDocs, todo, check, merge, snapshotOf, DESC_FORMAT, CAPS, workplace };

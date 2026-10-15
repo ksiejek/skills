@@ -386,7 +386,9 @@ you write no code for it: you propose.**
    flows and one attribute").
 5. **Write a part that adds** — `<work>/descriptions.change.json`, with
    `"add": true` and **only** `"changes": [ … ]` (the fields are in
-   `reference/descriptions-format.md`, "changes", with a full example): an `id`
+   `reference/migration.md`, "Changes", with a full example — MxScout now keeps
+   a change as an Assist item, but this skill's own report still reads this
+   shape, so here it is what you write): an `id`
    (a slug, `cancel-order`), the `title`, what was `asked` in the person's own
    words, the `date`; `now` with its `summary`, its `story` — the case stage by
    stage, 150–400 words, as `reference/business-narrative.md` says under "A
@@ -510,6 +512,8 @@ entity.
   `todo` also takes `docs.md` in place of `descriptions.json`.
 - `reference/pack-format.md` — how to read the pack, line by line.
 - `reference/descriptions-format.md` — the JSON you write, with an example.
+- `reference/migration.md` — the `changes` and `tickets` this skill's report
+  shows (its Changes and Tickets pages); MxScout moves them to its Assist page.
 - `reference/business-narrative.md` — the two layers: what a summary and a
   description are, how long, how they are shown.
 - `reference/risk-levels.md` — what P1, P2 and P3 mean and how to calibrate

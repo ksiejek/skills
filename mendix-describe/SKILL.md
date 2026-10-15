@@ -1,6 +1,6 @@
 ---
 name: mendix-describe
-description: Write business-readable documentation of a Mendix application from an MxScout project — a project folder MxScout keeps on disk (the first way in), a running MxScout sharing a project, or an AI pack file — what the application is for, its main processes and its modules, each as a short summary and a long description, and one or two sentences on each microflow and nanoflow, the risks in the model ranked P1–P3, and what a developer should know before changing it — as a descriptions file MxScout imports into its Documentation. Also works out a change the person wants made — how that part works now and a proposed solution in Mendix terms — for MxScout's Assist page (its Ideas tab), brings the descriptions up to date after the model changed, and answers questions about how the application works — reading the documentation MxScout shares first, as the map, and the pack to verify. Given only a folder, or an address and token, it asks what the person wants instead of starting to describe. Use when told "use mendix-describe on <folder>" or "on this folder" (a folder with project.json, documentation.md, ai-pack.md and inbox/ that MxScout writes — or a Mendix project with MxScout's files in mxscout/: mxscout.json, descriptions/, docs/, AGENTS.md), or when started inside such a folder, or given a `.mxscout-ai-pack.md` file, or an address and token of a running MxScout that is sharing a project, or asked to describe or document a Mendix app for the business from MxScout, or to work out a change to it ("I want customers to be able to cancel an order").
+description: Write and keep up to date the business documentation of a Mendix application from MxScout, and answer questions about how it works. Reads an MxScout project (mxscout/ in a Mendix project, a project folder with project.json and ai-pack.md, a running MxScout sharing a project, or a .mxscout-ai-pack.md file) and writes what the app is for, its main processes and modules (a summary and a long description each), a line on every microflow and nanoflow, risks ranked P1-P3 and notes for developers, as descriptions MxScout shows. Brings them up to date after the model changed, adds one more process, and answers with evidence from the current model. Use when told "use mendix-describe", "describe this app", "build the documentation", "update the documentation", "zbuduj dokumentację", "zaktualizuj dokumentację", "opisz aplikację", "opisz jeszcze ten proces", "how does it work", "jak działa", "kto może". Tickets, Jira issues, ideas and changes to work out and track are mendix-assist's.
 ---
 
 # Describing a Mendix application for the business
@@ -105,22 +105,43 @@ finds it by itself); through the channel run them as they are. Where they say
 
   The whole documentation is in `.local/` — there only when MxScout opened the
   project on this machine; when it is missing, read `docs/` (committed) as the
-  map. The pack too: without `.local/ai-pack.md`, `status`, `module` and
-  `pack` make it from the `.mpr` beside `mxscout/` with MxScout's own engine
-  (this skill's `engine/`, MxScout's files unchanged) — no MxScout needed.
+  map. **The pack is always the model as it is now.** `status`, `module`,
+  `pack`, `write`, `send`, `case` and `check-descriptions.js todo/check
+  --folder` take it from one place: made from the `.mpr` (and `mprcontents/`)
+  beside `mxscout/` with MxScout's own engine (this skill's `engine/`, MxScout's
+  files unchanged), kept in the work folder under a stamp of the model — the
+  `.mpr`'s content, the `mprcontents/` files with their sizes and times, the
+  commit HEAD names, the engine's version — and made again whenever that stamp
+  changes. A fresh checkout with no `.local/` needs nothing else, and no MxScout.
+  `--refresh` makes it again regardless. `.local/ai-pack.md` carries no such
+  stamp, so it is used only when the `.mpr` cannot be read, and then the
+  command says **UNVERIFIED**. Every command prints `snapshot: <id> — <how it
+  was made>`: say which snapshot your answer or your file rests on, and put
+  that id in your descriptions file as `"snapshot": "<id>"` — `write` and
+  `send` refuse the file if the model has changed since.
   `status` compares the commit the descriptions describe with the one HEAD
   names. Hand your result over with **`node agent.js write
-  <work>/descriptions.json --folder <MendixProject>`**: it puts the descriptions straight into
-  `descriptions/` (a file with `"add": true` is laid over what is there),
-  writes only the files that changed, stamps `mxscout.json` with the commit
-  HEAD names, and then **brings `docs/` up to date** from them — the same
-  files, byte for byte, MxScout writes (its index lists the solved cases in
-  `knowledge/` too). MxScout need not be open; when it is, it takes them within
+  <work>/descriptions.json --folder <MendixProject>`**. It **checks it first**
+  — the format and its version, the schema, every name against the current
+  model, the snapshot (another project's name is a warning) — and on one
+  error writes nothing and exits with 1. Then it lays your file **over** what is in `descriptions/` (merge, as
+  `"add": true` does — nothing your file does not name is removed; `--replace`
+  makes your file the whole of the descriptions and lists what goes), stamps
+  `mxscout.json` with the commit HEAD names, and **brings `docs/` up to date**
+  from them — the same files, byte for byte, MxScout writes (its index lists
+  the solved cases in `knowledge/` too). All of it is made first and put in
+  place only when every part could be made; what it replaces is kept in the
+  work folder (`backup/`). **`--dry-run` first** prints what would be added,
+  changed and removed (`--json` as JSON) and writes nothing — use it before a
+  `--replace`. MxScout need not be open; when it is, it takes them within
   seconds, with Undo, and finds `docs/` current. `node agent.js update-docs
   --folder <MendixProject>` does that last step alone — after a solved case
   was added to `knowledge/`, say; it writes nothing when `docs/manifest.json`
-  says `docs/` is made from these already. (`send` still hands a file to
-  `.local/inbox/`.) Never edit `docs/` or `mxscout.json` by hand, never write
+  says `docs/` is made from these already **and** every file the manifest lists
+  is there with its SHA-256. A file missing or changed is reported, with exit
+  code 1: `update-docs --repair` writes it again; `verify-docs` only checks.
+  (`send` still hands a file to `.local/inbox/`, checked the same way.) Never
+  edit `docs/` or `mxscout.json` by hand, never write
   anything else into the Mendix project — in `mxscout/` or out of it — and
   **never run git that writes** — no commit, pull, push, checkout: committing
   is the person's.
@@ -172,12 +193,18 @@ described and how much of that is out of date) and ask what they want:
   modules and let them choose);
 - **bring the description up to date** after the model changed;
 - **one more process** the documentation does not tell, or tells too thinly;
-- **a change** they want made;
-- **a ticket, a Jira issue or an idea** to work out (the mendix-assist skill);
+- **a change** they want made, or **a ticket, a Jira issue or an idea** to
+  work out — the mendix-assist skill keeps those, as Assist items;
 - **a question** about how something in the application works.
 
 Never start a full description unasked: on a real application it is hours of
 work and the person may want something else entirely.
+
+**Ask only what is really missing.** What the request already says is
+settled: "update the descriptions of Sales" names the work and the module —
+do it, keep the other modules as they are, and do not ask which. The
+project's language, when it is set (`status` prints it), is never asked
+again. One question at a time, and only one that changes what you do.
 
 ## The language you write in — kept for the project
 
@@ -346,11 +373,17 @@ The pack is large (a real app is ~1.7 MB, ~470k tokens). Never read it whole.
    the parts' risks and context up.
 
    **Before you merge, read your processes as their reader would.** Each
-   story about 200–400 words, one case followed from start to end, with the
+   story **complete** (`reference/business-narrative.md`, "When a story is
+   complete"): one case followed from where it starts to how it ends — who
+   starts it, what is checked and decided on what data, what is recorded or
+   sent, who approves or can refuse, what happens when it fails — with the
    real names of statuses, roles, messages and looked-up records in it; a
-   diagram on every process that branches; the flows listed. A process that
-   reads like a paragraph about the business in general is not done: trace
-   it again.
+   diagram on every process that branches; the flows listed. As long as the
+   case needs: a simple process says it in a few short paragraphs, a long one
+   takes more. A process that reads like a paragraph about the business in
+   general is not done: trace it again. (The checker warns when a story is
+   clearly too thin — under about 80 words for a process — never about a long
+   one that is complete.)
 5. **Merge and check:**
 
    ```
@@ -358,24 +391,29 @@ The pack is large (a real app is ~1.7 MB, ~470k tokens). Never read it whole.
    node check-descriptions.js check <work>/pack.md <work>/descriptions.json
    ```
 
-   Fix every error. Warnings about length or missing hashes are worth fixing too;
+   Fix every error — `agent.js write` and `send` run the same check and write
+   nothing while there is one. Warnings about length or missing hashes are worth fixing too;
    one that says "MxScout keeps N" means the import drops or cuts what is past
    it (`reference/descriptions-format.md`, "What MxScout keeps"). `merge` joins
    parts by the rules MxScout imports a file with `"add": true` by — a risk told
    again replaces the earlier one by its id (or its level and title), a process
    by its name — and when every part it is given adds, the merged file adds too.
-6. **Hand it over.** A file without `"add": true` **replaces everything**
-   MxScout keeps for the project. So if you described only some of the
-   modules, or the project already has descriptions you did not start from,
-   put `"add": true` at the top of `<work>/descriptions.json` — MxScout then keeps the
-   rest and puts yours on top. Leave it out only for a complete description
-   that should take the place of the old one.
+6. **Hand it over.** Put `"snapshot": "<id>"` (from `status`) at the top of
+   `<work>/descriptions.json`. Through MxScout's import (`send`, a file) a file
+   without `"add": true` **replaces everything** MxScout keeps for the project.
+   So if you described only some of the modules, or the project already has
+   descriptions you did not start from, put `"add": true` there too — MxScout
+   then keeps the rest and puts yours on top. Leave it out only for a complete
+   description that should take the place of the old one.
    In a project folder: `node agent.js send <work>/descriptions.json --folder <folder>`
    (it lands in `inbox/`); inside the Mendix project: `node agent.js write
-   <work>/descriptions.json --folder <MendixProject>` (straight into `descriptions/`,
-   and `docs/` brought up to date from them), then remind the person to
+   <work>/descriptions.json --folder <MendixProject>` (laid over `descriptions/`
+   — `write` merges whether the file says `"add"` or not; only `--replace`
+   makes it the whole, after a `--dry-run` that shows what goes — and `docs/`
+   brought up to date from them), then remind the person to
    commit `mxscout/` on its own; through the channel: `node agent.js send
-   <work>/descriptions.json`. Tell the person what you sent. MxScout saves it at once
+   <work>/descriptions.json`. Each checks the file first and sends nothing
+   while it has an error. Tell the person what you sent. MxScout saves it at once
    and shows it with **Undo** — unless they turned that off, or the file would
    replace descriptions already kept (a file without `"add"`), when it waits
    for **Import them** in the project's Documentation. From a file: tell them
@@ -419,7 +457,10 @@ push, so the others pull it.
    so, and update only what `todo` lists. MxScout stamps what you send with the
    model's version itself — do not write `describedAt`.
 1. In a project folder — or inside the Mendix project, given its directory or
-   `mxscout/` — `node check-descriptions.js todo --folder <folder> --list`. Through the channel: `node agent.js pack <work>/pack.md` and `node agent.js
+   `mxscout/` — `node check-descriptions.js todo --folder <folder> --list`
+   (inside the Mendix project it reads the model as it is now, from the `.mpr`
+   — after a pull, on a fresh checkout with no `.local/`, without MxScout —
+   and its first line says which snapshot). Through the channel: `node agent.js pack <work>/pack.md` and `node agent.js
    docs --out <work>/docs.md`, then `node check-descriptions.js todo <work>/pack.md <work>/docs.md
    --list` (from files: the earlier `descriptions.json` in place of `docs.md`).
    It lists the new flows and the ones whose description is out of date — that
@@ -489,17 +530,25 @@ process the overview should have, the ones you were asked for among them.
 The person may also come with something they want **changed**: "customers
 should be able to cancel an order until it ships". They want to see, before
 anyone builds it, how that part of the application works today and what the
-solution would be. It becomes one entry on the **Assist** page, under **Ideas** — not a
-process: how it works now and the proposal side by side, the concrete changes
-to the model, and what they touch. **You never change the model itself, and
-you write no code for it: you propose.**
+solution would be. **You never change the model itself, and you write no
+code for it: you propose.**
+
+A change is kept as an **Assist item of kind `idea`** on MxScout's **Assist**
+page (its Ideas tab) — not as a process, and not in a descriptions file. The
+**mendix-assist** skill writes it: its "An idea" section, its
+`../mendix-assist/reference/assist-format.md` for the fields, its `check-assist.js check` before
+it goes, and `node agent.js send <work>/assist.<id>.json` to hand it over (the
+same command that sends descriptions; it checks the file and sends nothing
+while it has an error). When your agent does not load skills by itself, read
+`../mendix-assist/SKILL.md` and follow it. The way to work it out is the same
+in both skills:
 
 1. **Restate the change and ask what is unclear.** Say back in two or three
    sentences what you understood — who wants to do what, and what should
    happen — and ask about what changes the design: who may do it, until when,
    what happens to what was already done ("is a cancelled order's payment
    refunded, or is that someone else's job?"). Do not go on while the request
-   can mean two different solutions.
+   can mean two different solutions; do not ask what the request already says.
 2. **Trace how it works now** exactly as "One more process" steps 1 and 2 say:
    the documentation first for the process, the module notes, For developers'
    conventions and pitfalls, and the earlier changes; then put the pack in a
@@ -528,27 +577,20 @@ you write no code for it: you propose.**
    its risks, ranked by `reference/risk-levels.md`; the questions the model
    cannot answer (`open`); and, when you can tell, a rough effort ("small: two
    flows and one attribute").
-5. **Write a part that adds** — `<work>/descriptions.change.json`, with
-   `"add": true` and **only** `"changes": [ … ]` (the fields are in
-   `reference/descriptions-format.md`, "changes", with a full example): an `id`
-   (a slug, `cancel-order`), the `title`, what was `asked` in the person's own
-   words, the `date`; `now` with its `summary`, its `story` — the case stage by
-   stage, 150–400 words, as `reference/business-narrative.md` says under "A
-   process" — its `steps`, its `flows` and, when it branches, a `diagram`;
-   `proposal` with the same and its `changes`, one entry per model change
-   (`kind`, `target`, `action`, `what`); `impact`, `risks`, `open`, `effort`.
-   A change with an `id` MxScout already keeps replaces it — that is how you
-   revise one after the person's answer.
-6. **Check and hand it over:**
+5. **Write it as an idea and hand it over** — the item `{ "kind": "idea",
+   "id": "cancel-order", … }` with `now`, `proposal` (and its `changes`, one
+   per model change), `impact`, `risks`, `open`, `effort`, in an envelope
+   `{ "format": "mxscout-assist", "version": 1, "items": [ … ] }`; then
+   `node ../mendix-assist/check-assist.js check <work>/assist.cancel-order.json`
+   and `node agent.js send <work>/assist.cancel-order.json`. The same id sent
+   again replaces it — that is how you revise one after the person's answer.
+   Tell the person the idea is on the **Assist** page, under **Ideas**, and
+   list the open questions — those are theirs to answer.
 
-   ```
-   node check-descriptions.js check <work>/pack.md <work>/descriptions.change.json
-   node agent.js send <work>/descriptions.change.json
-   ```
-
-   From a file, the person imports it with **Import descriptions…**; it adds
-   the same way. Then tell the person the change is on the **Assist** page, under **Ideas**,
-   and list the open questions — those are theirs to answer.
+Do not write `changes` (or `tickets`) into a descriptions file: that is the
+older format, which MxScout still reads and moves to Assist, and which
+`agent.js write` refuses. It is described in `reference/migration.md`, for
+reading an older file only.
 
 In MxScout Dev, a proposal can also be drawn — the changed flows and domain
 model on a canvas — with the mendix-change-proposal skill.
@@ -563,11 +605,7 @@ file and follow it). It uses this skill's `agent.js` and `check-descriptions.js`
 traces the case as "One more process" says and designs a solution as "A change"
 says, and writes an **Assist item** — a ticket's verdict with its evidence, a
 proposal, a status and a planned date — which MxScout keeps locally, never in
-the exported documentation. Do not answer a ticket as a process, and do not
-write `tickets` into a descriptions file: descriptions no longer carry them,
-nor `changes` — MxScout moves the ones an older file had into Assist. A change
-the person asks for here is worked out by the steps below and kept as an Assist
-idea (mendix-assist's format), not sent as `changes`.
+the exported documentation. Do not answer a ticket as a process.
 
 ## Risk triage: what a person already decided
 
@@ -594,7 +632,10 @@ On every update:
    again, same id, and say in its `detail` what still shows it — MxScout
    reopens it. Gone: leave it out — MxScout marks it verified. Do this in the
    full file (the one without `"add": true`): a file that adds says nothing
-   about the risks it leaves out.
+   about the risks it leaves out. Inside the Mendix project, write that full
+   file with `node agent.js write <work>/descriptions.json --replace` (after a
+   `--dry-run` that shows what goes): `write` merges otherwise, and a risk it
+   leaves out stays.
 3. **Do not raise a `false-positive` again** — unless the model changed so that
    the person's reason (the `note`) no longer holds. Then report it with the
    same id and say in its `detail` why the reason no longer holds.
@@ -658,9 +699,11 @@ entity.
 ## Files
 
 - `reference/pack-format.md` — how to read the pack, line by line.
-- `reference/descriptions-format.md` — the JSON you write, with an example, a
-  change's, with another, and a checked ticket's, with a third — the last two
-  as older files carried them; mendix-assist writes those as Assist items now.
+- `reference/descriptions-format.md` — the JSON you write, with an example.
+- `reference/migration.md` — **older files only**: the `changes` and `tickets`
+  a descriptions file once carried, which MxScout moves to its Assist page.
+  Read it to understand such a file; never write that format (mendix-assist
+  writes Assist items).
 - `reference/business-narrative.md` — the two layers: what a summary and a
   description are, how long, how they are shown. Shared with mendix-docs.
 - `reference/risk-levels.md` — what P1, P2 and P3 mean and how to calibrate
@@ -673,10 +716,14 @@ entity.
 - `check-descriptions.js todo` also takes the documentation (`<work>/docs.md`) in
   place of a descriptions file, and `--folder <folder>` for a project folder
   or a Mendix project with `mxscout/`.
-- `agent.js` — `workdir`, `status`, `docs`, `module`, `pack`, `send`, and
-  `write`, `update-docs` and `case` (a solved case's note, mendix-assist's)
-  inside the Mendix project: a project folder (`--folder`, or run inside it)
-  or a running MxScout that is sharing. Node only, no install.
+- `agent.js` — `workdir`, `snapshot`, `status`, `docs`, `module`, `pack`,
+  `send`, and `write`, `update-docs`, `verify-docs` and `case` (a solved
+  case's note, mendix-assist's) inside the Mendix project: a project folder
+  (`--folder`, or run inside it) or a running MxScout that is sharing.
+  `write`, `send`, `case` and `update-docs` check first, write nothing on an
+  error (exit code 1) and take `--dry-run` (`--json`); `write` takes
+  `--replace`, `update-docs` `--repair`, and `status`, `snapshot`, `module`,
+  `pack` `--refresh`. Node only, no install.
 - `repodocs.js` — MxScout's own rules for the files in `mxscout/` (a copy of
   its `public/repodocs.js`, unchanged): `agent.js` and `check-descriptions.js`
   split and join the descriptions with it, exactly as MxScout does.

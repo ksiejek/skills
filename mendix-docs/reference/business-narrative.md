@@ -46,9 +46,24 @@ worth having.
 
 | Part | Summary | Description |
 |---|---|---|
-| The application | 2–4 sentences | 4–10 paragraphs, about 400–1,200 words |
-| Each main process (as many as the application has) | 1–3 sentences | 3–5 short paragraphs, about 200–400 words |
-| Each module | 1–3 sentences | 2–6 paragraphs, about 150–600 words |
+| The application | 2–4 sentences | several paragraphs: what it is for, who works in it, how a case goes through it, what it connects to |
+| Each main process (as many as the application has) | 1–3 sentences | a few short paragraphs, one case stage by stage |
+| Each module | 1–3 sentences | a few paragraphs: what it holds, what it does for whom, what it hands to other modules |
+
+**When a story is complete.** A description is done when it says what its
+reader needs, not when it reaches a length: a simple process is told in a few
+short paragraphs, a long one with many ways takes more, and neither is padded.
+For a process (and how a change works now) that is: where the case starts and
+who starts it; what is checked and decided, and on what data; what is recorded
+or sent, and to whom; who approves or can refuse; what has a deadline; what
+happens when something fails; how it ends — each with the real names of the
+statuses, roles, messages and records looked up by name. For the application:
+what it is for, who works in it, how a case goes through it and what it
+connects to. For a module: what it holds, what it does and for whom, and what
+it hands to other modules. Then stop. The checker warns only when a story is
+clearly too thin to say that — under about 150 words for the application, 80
+for a process or for how a change works now — never because a complete one is
+short.
 
 **A process** is the one place where more detail beats more words. Its
 description follows one case from start to end, a paragraph a stage: who
@@ -71,9 +86,9 @@ cares about, in their words, not every check a flow makes; one rule tried in
 turn is a chain of decisions, each with its way out ("found") that `join`s the
 step all of them lead to, and the main path going on down ("not found").
 
-**A change** (mendix-describe's "A change, when the person asks") has two
+**A change** (an Assist idea: mendix-describe's "A change, when the person asks", mendix-assist's "An idea") has two
 stories. How it works **now** is a process story by the rules above — one case,
-stage by stage, 150–400 words, naming statuses, roles and messages — told so
+stage by stage, complete as above, naming statuses, roles and messages — told so
 that the place where the change would go in is plain. The **proposal** says how
 the case goes once the change is made, for the people who use it: what they see
 and do, what the application checks and records, who is told, what happens when
