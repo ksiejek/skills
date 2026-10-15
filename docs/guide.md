@@ -241,7 +241,9 @@ builds the same documentation straight from a `.mpr`, with nothing else
 running, as one offline HTML file: *"/mendix-docs build <path to the Mendix
 project>"*. It can also update it (*"I made changes"*), describe one more
 process, describe a change, check a ticket, and answer questions. Install it
-from the Skills repository with `install.sh`.
+from the Skills repository with `install.sh` (`install.sh --codex` for Codex
+too: into `~/.codex/skills/`, for newer Codex versions that load skills; in
+Codex, say *"use the mendix-docs skill"* instead of `/mendix-docs`).
 
 ---
 
@@ -479,4 +481,7 @@ buduje tę samą dokumentację prosto z pliku `.mpr`, bez niczego innego, jako
 jeden plik HTML do czytania offline: *„/mendix-docs zbuduj dokumentację
 <ścieżka do projektu Mendix>”*. Potrafi też ją zaktualizować (*„zrobiłem
 zmiany”*), opisać jeszcze jeden proces, opisać zmianę, sprawdzić ticket i
-odpowiadać na pytania. Instalacja z repozytorium Skills przez `install.sh`.
+odpowiadać na pytania. Instalacja z repozytorium Skills przez `install.sh`
+(`install.sh --codex` także dla Codexa: do `~/.codex/skills/`, dla nowszych
+wersji Codexa, które ładują skille; w Codexie zamiast `/mendix-docs` powiedz
+*„use the mendix-docs skill”*).

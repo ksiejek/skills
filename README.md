@@ -40,6 +40,17 @@ git -C ~/Projects/Skills pull
 then start a new Claude Code session. `./install.sh mendix-docs` links one
 skill only.
 
+**Codex.** The skills are plain Markdown and Node scripts, not tied to Claude.
+`./install.sh --codex` links them into Codex's skills folder as well —
+`$CODEX_HOME/skills/`, or `~/.codex/skills/` when `CODEX_HOME` is not set —
+for newer Codex versions that load skills in the same `SKILL.md` format (an
+older folder of that name there goes to `skills-backup/` beside it). It
+combines with names: `./install.sh --codex mendix-docs`. Restart Codex after.
+`/mendix-assist` and `/mendix-docs` are Claude Code's; in Codex, say "use the
+mendix-assist skill". In a Mendix project with `mxscout/`, Codex does not load
+`.claude/skills/` by itself: the team guide's "Using Codex" (section 4) says
+what to add to the repository's root `AGENTS.md`.
+
 ### Copying instead of linking
 
 Copy a skill's folder into `~/.claude/skills/<name>/`:
