@@ -2,8 +2,8 @@
 # Links the skills in this repository into Claude Code, so `git pull` here updates them at once.
 #   ./install.sh                         all skills
 #   ./install.sh mendix-docs             only the ones named
-#   ./install.sh --codex [names…]        also into Codex's skills folder, for newer Codex versions that load
-#                                        skills: $CODEX_HOME/skills, or ~/.codex/skills when CODEX_HOME is not set
+#   ./install.sh --codex [names…]        also for Codex: into ~/.agents/skills (where Codex looks now) and
+#                                        $CODEX_HOME/skills, or ~/.codex/skills when CODEX_HOME is not set (older)
 # A skill folder already in ~/.claude/skills (or Codex's skills folder) that is not a link is moved to
 # skills-backup/<name>-<date> beside it, never deleted. No dependencies: bash and ln.
 set -euo pipefail
@@ -45,7 +45,9 @@ link_into() {
 }
 
 link_into "$DEST" "$BACKUP"
-if [ "$CODEX" = yes ]; then link_into "$CODEX_DIR/skills" "$CODEX_DIR/skills-backup"; fi
+# Codex looks for a user's skills in ~/.agents/skills now and still reads $CODEX_HOME/skills (marked deprecated in
+# its source, 2026-10-15): both, so newer and older Codex versions find them.
+if [ "$CODEX" = yes ]; then link_into "$HOME/.agents/skills" "$HOME/.agents/skills-backup"; link_into "$CODEX_DIR/skills" "$CODEX_DIR/skills-backup"; fi
 echo
 if [ "$CODEX" = yes ]; then
   echo "Done. Update later with: git -C \"$HERE\" pull   (the links follow it; restart Claude Code and Codex to reload)."

@@ -42,7 +42,7 @@ URL, or comment anywhere: you write a reply the person may paste themselves.
 It uses the **mendix-describe** skill's tools, which must be installed
 **beside it** — the two folders side by side in the same skills folder (in
 MxScout's repository `skills/mendix-describe` and `skills/mendix-assist`;
-installed, `~/.claude/skills/` — or Codex's `~/.codex/skills/`, or
+installed, `~/.claude/skills/` — or Codex's `~/.agents/skills/` or `~/.codex/skills/`, or
 `.claude/skills/` in a Mendix project — copies or symlinks). Every path below that
 starts with `../mendix-describe/` is relative to **this file's folder**; run
 the scripts by that full path from wherever you work. If that folder is not

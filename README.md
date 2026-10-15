@@ -18,7 +18,7 @@ The folder name is the skill's `name:` in its `SKILL.md`.
 engine, the checker, the references) is taken from MxScout when it is packed,
 so it cannot drift. Edit `mendix-docs-source/`, never `mendix-docs/` by hand.
 
-The guide to forward to people, in English and Polish in one file: [`docs/guide.md`](docs/guide.md), and the team's guide as one offline HTML page with a language switch, [`docs/guide.html`](docs/guide.html) — a copy of MxScout's `public/guide-team.html`, the one canonical page (MxScout makes it from its `public/guide-team.md` with `tools/build-guide.js`, serves it as Team guide and writes it into each project as `mxscout/GUIDE.html`; anyone can download it from <https://github.com/ksiejek/mxscout/blob/main/public/guide-team.html>). `./sync.sh` copies it here; it is not built in this repository. Karol's working notes, with dated reviews (Polish): [`docs/przewodnik.md`](docs/przewodnik.md).
+The guide to forward to people, in English and Polish in one file: [`docs/guide.md`](docs/guide.md) (built by `sync.sh` from MxScout's team guide plus [`docs/guide-mendix-docs.md`](docs/guide-mendix-docs.md) — edit those, not `guide.md`), and the team's guide as one offline HTML page with a language switch, [`docs/guide.html`](docs/guide.html) — a copy of MxScout's `public/guide-team.html`, the one canonical page (MxScout makes it from its `public/guide-team.md` with `tools/build-guide.js`, serves it as Team guide and writes it into each project as `mxscout/GUIDE.html`; anyone can download it from <https://github.com/ksiejek/mxscout/blob/main/public/guide-team.html>). `./sync.sh` copies it here; it is not built in this repository. Karol's working notes, with dated reviews (Polish): [`docs/przewodnik.md`](docs/przewodnik.md).
 
 ## Install — and keep up to date with git
 
@@ -41,8 +41,9 @@ then start a new Claude Code session. `./install.sh mendix-docs` links one
 skill only.
 
 **Codex.** The skills are plain Markdown and Node scripts, not tied to Claude.
-`./install.sh --codex` links them into Codex's skills folder as well —
-`$CODEX_HOME/skills/`, or `~/.codex/skills/` when `CODEX_HOME` is not set —
+`./install.sh --codex` links them into Codex's skills folders as well —
+`~/.agents/skills/`, where Codex looks now, and `$CODEX_HOME/skills/` (or
+`~/.codex/skills/` when `CODEX_HOME` is not set), which older versions read —
 for newer Codex versions that load skills in the same `SKILL.md` format (an
 older folder of that name there goes to `skills-backup/` beside it). It
 combines with names: `./install.sh --codex mendix-docs`. Restart Codex after.

@@ -359,7 +359,7 @@
       '',
       'The skills are Markdown and Node scripts, for any coding agent. When the team added them, they are in',
       '`.claude/skills/` at the repository\'s root, where Claude Code loads them; newer Codex versions load',
-      'skills installed in `~/.codex/skills/` (MxScout\'s `skills/install.sh --codex`). An agent that does not load skills by',
+      'skills installed in `~/.agents/skills/` or `~/.codex/skills/` (MxScout\'s `skills/install.sh --codex`). An agent that does not load skills by',
       'itself reads one and follows it: `.claude/skills/mendix-describe/SKILL.md` to write or update the',
       'documentation or to answer how the app works, `.claude/skills/mendix-assist/SKILL.md` for a ticket, a',
       'Jira issue or an idea. Run its scripts by paths relative to that `SKILL.md`. `/mendix-assist` is Claude',

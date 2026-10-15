@@ -58,7 +58,8 @@ ln -s "$PWD/skills/mendix-describe" "$PWD/skills/mendix-assist" ~/.claude/skills
 
 or let MxScout's `skills/install.sh` (Windows: `skills\install.ps1`) do it.
 For Codex, `skills/install.sh --codex` (`-Codex`) puts them into
-`~/.codex/skills/` as well, for newer Codex versions that load skills.
+Codex's `~/.agents/skills/` and `~/.codex/skills/` as well, for newer Codex versions
+that load skills.
 
 ## Start it
 

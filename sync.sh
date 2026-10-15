@@ -8,6 +8,8 @@
 # - mendix-assist/    likewise, from MxScout Dev's skills/mendix-assist;
 # - mendix-docs/      is re-packed from mendix-docs-source/ with MxScout's engine and
 #                     mendix-describe's checker and references;
+# - docs/guide.md     is built from MxScout's public/guide-team.md plus docs/guide-mendix-docs.md
+#                     (docs/build-full-guide.js) — edit those, never guide.md;
 # - docs/guide.html   is copied from MxScout's public/guide-team.html (the team guide's one canonical
 #                     page, which MxScout makes from its guide-team.md with tools/build-guide.js);
 # - the mendix-docs selftest runs on MxScout's own test fixture.
@@ -48,6 +50,7 @@ fi
 echo "mendix-docs <- mendix-docs-source + $MXSCOUT_DIR"
 node "$HERE/mendix-docs-source/pack-skill.js" "$HERE/mendix-docs" --mxscout "$MXSCOUT_DIR"
 
+node "$HERE/docs/build-full-guide.js" "$MXSCOUT_DIR"
 GUIDE_SRC="$MXSCOUT_DIR/public/guide-team.html"
 if [ -f "$GUIDE_SRC" ]; then
   echo "docs/guide.html <- $GUIDE_SRC"

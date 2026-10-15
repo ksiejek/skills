@@ -28,8 +28,8 @@ cp -r skills/mendix-describe ~/.claude/skills/
 
 On Windows that is `C:\Users\<you>\.claude\skills\mendix-describe`. MxScout's
 `skills/install.sh` (Windows: `skills\install.ps1`) installs it with
-mendix-assist beside it; `--codex` (`-Codex`) also into `~/.codex/skills/`, for
-newer Codex versions that load skills.
+mendix-assist beside it; `--codex` (`-Codex`) also into Codex's `~/.agents/skills/`
+and `~/.codex/skills/`, for newer Codex versions that load skills.
 
 ## 2. Give the agent the project
 
