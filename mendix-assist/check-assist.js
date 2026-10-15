@@ -13,10 +13,11 @@
  *       last update and title — and the files still waiting in inbox/. Read it before answering, so you
  *       know what is open, planned and closed.
  *
- *   node check-assist.js knowledge <knowledge/<id>-<slug>.md>
- *       Checks a case note (reference/knowledge-format.md) before it is committed or handed to MxScout: the
- *       front matter, the five sections, the file's name against its id — and personal data: an e-mail
- *       address, a phone number, an IBAN, a "Reported by" line or a long number is an error.
+ *   node check-assist.js knowledge <id>-<slug>.md
+ *       Checks a case note (reference/knowledge-format.md) — written in the work folder first — before
+ *       agent.js case puts it into knowledge/ or it is handed to MxScout: the front matter, the five sections,
+ *       the file's name against its id — and personal data: an e-mail address, a phone number, an IBAN, a
+ *       "Reported by" line or a long number is an error.
  *
  *   node check-assist.js cases <folder> [--find "words names"] [--pack ai-pack.md]
  *       The solved cases in knowledge/ — the Mendix project, its mxscout/, or a project folder — one line
@@ -25,7 +26,9 @@
  *       fingerprints moved) or are gone is marked "may be out of date". Read it before working a new item.
  *
  * The formats are reference/assist-format.md and reference/knowledge-format.md; a case note is read with
- * mendix-describe's repodocs.js (MxScout's own), beside this skill. This file reads; it writes nothing.
+ * mendix-describe's repodocs.js (MxScout's own), beside this skill. This file reads; it writes nothing. A file
+ * named without a path (check, knowledge, --pack) is looked for in the work folder first — node
+ * ../mendix-describe/agent.js workdir prints it — then here.
  */
 'use strict';
 const fs = require('fs');
@@ -411,7 +414,6 @@ function repoDocs() {
 function checkCase(file) {
   const text = fs.readFileSync(file, 'utf8');
   const r = repoDocs().caseCheck(text, 'knowledge/' + path.basename(file));
-  if (path.basename(path.dirname(path.resolve(file))) !== 'knowledge') r.warnings.push('It is not in a knowledge/ folder yet — it goes into mxscout/knowledge/ (or knowledge/ of a project folder).');
   return r;
 }
 // Where the solved cases are: <Mendix project>/mxscout/knowledge, <mxscout>/knowledge, <project folder>/knowledge —
@@ -544,11 +546,21 @@ function printList(folder, r) {
   if (r.waiting.length) console.log('waiting in inbox/ (not taken by MxScout yet — is the project open?): ' + r.waiting.join(', '));
 }
 
+// A file named without a path is the agent's own, in the work folder (mendix-describe's check-descriptions.js,
+// "the work folder": $MXSCOUT_WORK, or <temp>/mxscout-work/<project>) — or here, when it is only here.
+function inWork(file) {
+  if (!file) return file;
+  try {
+    const W = require(path.join(__dirname, '..', 'mendix-describe', 'check-descriptions.js')).workplace;
+    return W ? W.inWork(file, W.workFolder([process.cwd()]), true) : file;
+  } catch (e) { return file; }
+}
+
 function main(argv) {
   const args = argv.slice();
   const take = (name) => { const i = args.indexOf(name); if (i < 0) return null; const v = args[i + 1]; args.splice(i, 2); return v === undefined ? null : v; };
-  const packFile = take('--pack'), kind = take('--kind'), status = take('--status'), find = take('--find');
-  const [cmd, arg] = args;
+  const packFile = inWork(take('--pack')), kind = take('--kind'), status = take('--status'), find = take('--find');
+  const cmd = args[0], arg = cmd === 'check' || cmd === 'knowledge' ? inWork(args[1]) : args[1];
   if (cmd === 'check' && arg) {
     let env;
     try { env = JSON.parse(fs.readFileSync(arg, 'utf8')); } catch (e) { console.error(arg + ': ' + e.message.split('\n')[0]); return 1; }

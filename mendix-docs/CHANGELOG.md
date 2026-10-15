@@ -1,5 +1,22 @@
 # mendix-docs — changes
 
+## 3.7.0 – 2026-10-15
+
+- **The Mendix project stays clean** (mendix-describe's rule, MxScout 1.14.3):
+  everything made while working — the pack, the parts, `descriptions.json`,
+  notes — goes into a **work folder** outside the project, which the new
+  **`docs.js workdir [<app.mpr>]`** prints and `status` names: `$MXSCOUT_WORK`
+  when set, else `mxscout-work/<project>` in the system's temporary folder,
+  the same one mendix-describe uses (its `check-descriptions.js`, packed
+  beside `docs.js`, holds the rule). A file named without a path is there, and
+  every file written is said by its full path. A working file inside the
+  project is refused, as before. The report goes where it always did —
+  `--out`, or its default name in the current folder — except when that is
+  inside the project: then into the work folder, said plainly, instead of
+  refused. `SKILL.md` says it first, as a rule, and every example names the
+  work folder; for real work, set `MXSCOUT_WORK` to a folder the person keeps
+  (`<project's parent>/<App>-docs`), since `descriptions.json` is the only copy.
+
 ## 3.6.0 – 2026-10-15
 
 - **`docs.js repo <MendixProject>`** — for a project kept inside the Mendix

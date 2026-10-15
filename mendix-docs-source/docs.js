@@ -7,6 +7,10 @@
  * this reads the .mpr with MxScout's own engine — the same files MxScout runs in the browser, loaded
  * here unchanged — and builds the same documentation file MxScout exports.
  *
+ *   node docs.js workdir [<app.mpr>]                      the work folder: where everything made while working goes —
+ *                                                         the pack, the parts, descriptions.json, notes. $MXSCOUT_WORK,
+ *                                                         or <temp>/mxscout-work/<project>; a file named without a path
+ *                                                         is there (mendix-describe's rule, its check-descriptions.js)
  *   node docs.js status <app.mpr>                         the application and its modules, with counts
  *   node docs.js module <app.mpr> <Name> [--out f]        one module's section of the pack
  *   node docs.js pack <app.mpr> <file>                    the whole pack, to a FILE — for check-descriptions.js
@@ -31,8 +35,10 @@
  *
  * <app.mpr> is the project's .mpr, or the folder that holds it. A Mendix 10+ project keeps its
  * documents in mprcontents/ beside the .mpr; that is read too, nothing else. Nothing is written into
- * the project: only the files named on the command line — and a file anywhere in the .mpr's folder is
- * refused, the report's default name included when run from inside it (real paths, links followed).
+ * the project (Karol, 2026-10-15: the Mendix project stays clean): a file named without a path goes into
+ * the work folder, one named inside the .mpr's folder is refused (real paths, links followed) — and the
+ * report, which goes where it always did (--out, or its default name here), goes into the work folder
+ * instead when that is inside the project, and says so.
  *
  * In place of <app.mpr>, a project folder MxScout keeps (project.json, model.json, descriptions.json,
  * inbox/ …) — named there, or with --model <folder>: the model is read from its model.json, no .mpr
@@ -66,14 +72,38 @@ function engineDir() {
 // it is somebody's working copy under version control), and a failed write said as one.
 let projectDir = null, projectIsMxScout = false;
 function realOrSelf(p) { try { return fs.realpathSync(p); } catch (e) { return path.resolve(p); } }
-function writeOut(file, text) {
-  // A file already there is followed to where it really is (a link into the project counts as the project).
-  const full = path.resolve(file);
+// A file already there is followed to where it really is (a link into the project counts as the project).
+function insideProject(full) {
   const target = fs.existsSync(full) ? realOrSelf(full) : path.join(realOrSelf(path.dirname(full)), path.basename(full));
-  if (projectDir && (target === projectDir || target.startsWith(projectDir + path.sep))) {
-    fail('Refusing to write ' + file + ': it is inside the ' + (projectIsMxScout ? 'MxScout project folder, whose files are MxScout\'s' : 'Mendix project\'s folder') + ' (' + projectDir + '). Work in a folder of its own outside the project and write there' + (projectIsMxScout ? ' — results go to MxScout with `node docs.js send`.' : '.'));
+  return !!(projectDir && (target === projectDir || target.startsWith(projectDir + path.sep))) ||
+    !!wp().refusedWrite(full, wp().protectedRoots(starts.concat([path.dirname(full)])), false);
+}
+// → the full path written: a name without a path, in the work folder.
+function writeOut(file, text) {
+  const full = wp().inWork(file, workDir(), false);
+  if (insideProject(full)) {
+    fail('Refusing to write ' + full + ': it is inside the ' + (projectIsMxScout ? 'MxScout project folder, whose files are MxScout\'s' : 'Mendix project') + ' (' + (projectDir || path.dirname(full)) + '), which holds only the documentation. Keep working files in the work folder — name them without a path, or see node docs.js workdir' + (projectIsMxScout ? '; results go to MxScout with `node docs.js send`.' : '.'));
   }
-  try { fs.writeFileSync(file, text); } catch (e) { fail('Could not write ' + file + ': ' + ((e && e.message) || e)); }
+  // The work folder is made when first written to; a folder named in full must be there already.
+  try { if (full.startsWith(workDir() + path.sep)) fs.mkdirSync(path.dirname(full), { recursive: true }); fs.writeFileSync(full, text); } catch (e) { fail('Could not write ' + full + ': ' + ((e && e.message) || e)); }
+  return full;
+}
+
+// ---------- the work folder: mendix-describe's rule (its check-descriptions.js, packed beside this file) ----------
+let W = null, starts = [process.cwd()], workAt = null;
+function wp() { return W || (W = workplace()); }
+function workplace() {
+  const at = [path.join(__dirname, 'check-descriptions.js'), process.env.MXSCOUT_DIR ? path.join(process.env.MXSCOUT_DIR, 'skills', 'mendix-describe', 'check-descriptions.js') : null];
+  for (const f of at) { if (f && fs.existsSync(f)) { const w = require(f).workplace; if (w) return w; } }
+  fail('check-descriptions.js, with the work folder in it, is missing beside docs.js: reinstall the skill (pack-skill.js) from an MxScout of 1.14.3 or later.');
+}
+function workDir(make) {
+  if (!workAt) {
+    workAt = wp().workFolder(starts);
+    if (wp().refusedWrite(path.join(workAt, 'x'), wp().protectedRoots(starts.concat([workAt])), false)) fail('The work folder ' + workAt + ' is inside the project — set MXSCOUT_WORK to a folder outside it.');
+  }
+  if (make) { try { fs.mkdirSync(workAt, { recursive: true }); } catch (e) { fail('Cannot make the work folder ' + workAt + ': ' + ((e && e.message) || e)); } }
+  return workAt;
 }
 
 // MxScout's browser files, each an IIFE that puts one object on window, run in a context of their own.
@@ -254,13 +284,17 @@ function flag(name) { const i = args.indexOf(name); if (i < 0) return false; arg
   if (modelDir) args.splice(1, 0, modelDir);
   const [cmd, where] = args;
   let arg = args[2];
+  starts = [where ? path.resolve(where) : null, process.cwd()];
+  if (cmd === 'workdir') { console.log(workDir(true)); return; }
+  // A file the person or the agent names without a path — descriptions.json, a part — is in the work folder.
+  if (arg && (cmd === 'send' || cmd === 'report' || cmd === 'docs')) arg = wp().inWork(arg, workDir(), true);
   if (cmd === 'repo') {
     if (!where) fail('Name the Mendix project: node docs.js repo <MendixProject> (the folder with the .mpr and mxscout/).');
     await repoDocs(engine(), where);
     return;
   }
   if (!/^(status|module|pack|report|docs|send)$/.test(cmd || '')) {
-    console.error('Usage: node docs.js status <app.mpr> | module <app.mpr> <Name> [--out f] | pack <app.mpr> <file> | report <app.mpr> [descriptions.json] [--out f.html] [--modules A,B] [--all] | docs <app.mpr> [descriptions.json] [--out docs.md] | send <MxScout folder> <descriptions.json> | repo <MendixProject>   (<app.mpr> may be an MxScout project folder, or --model <folder>)');
+    console.error('Usage: node docs.js workdir [<app.mpr>] | status <app.mpr> | module <app.mpr> <Name> [--out f] | pack <app.mpr> <file> | report <app.mpr> [descriptions.json] [--out f.html] [--modules A,B] [--all] | docs <app.mpr> [descriptions.json] [--out docs.md] | send <MxScout folder> <descriptions.json> | repo <MendixProject>   (<app.mpr> may be an MxScout project folder, or --model <folder>)');
     process.exit(2);
   }
   const folder = mxscoutFolder(where);
@@ -309,8 +343,8 @@ function flag(name) { const i = args.indexOf(name); if (i < 0) return false; arg
     const text = E.MxDescribe.pack(data).text;
     const lines = text.split('\n');
     if (cmd === 'pack') {
-      writeOut(arg, text);
-      console.log('Wrote ' + arg + ' — for the checker, not for reading whole.');
+      const f = writeOut(arg, text);
+      console.log('Wrote ' + f + ' — for the checker, not for reading whole.');
       return;
     }
     const mods = indexOf(lines);
@@ -322,12 +356,13 @@ function flag(name) { const i = args.indexOf(name); if (i < 0) return false; arg
       mods.forEach((m) => console.log(m.name + ' | ' + m.microflows + ' | ' + m.nanoflows + ' | ' + m.pages + ' | ' + m.entities));
       const market = data.modules.filter((m) => m.marketplace).length;
       if (market) console.log('(' + market + ' Marketplace modules left out of the pack; the report leaves them out unless --all)');
+      console.log('work folder: ' + workDir() + ' — the pack, the parts, descriptions.json and your notes go here, never into the project');
       return;
     }
     const mod = mods.find((m) => m.name === arg);
     if (!mod) fail('No module ' + arg + ' in the pack. `status` lists them.');
     const section = lines.slice(mod.from - 1, mod.to).join('\n') + '\n';
-    if (out) { writeOut(out, section); console.log('Wrote ' + out + ' (' + section.split('\n').length + ' lines).'); } else process.stdout.write(section);
+    if (out) { const f = writeOut(out, section); console.log('Wrote ' + f + ' (' + section.split('\n').length + ' lines).'); } else process.stdout.write(section);
     return;
   }
 
@@ -348,7 +383,7 @@ function flag(name) { const i = args.indexOf(name); if (i < 0) return false; arg
     const lang = folder && folder.project.contentLanguage ? E.MxDescribe.languageName(folder.project.contentLanguage) : undefined;
     const made = E.MxDocsFile.forAgent(E.MxDocsFile.withDerived(data), folder ? { language: lang || null } : undefined);
     if (!made) { console.log('No documentation yet: no descriptions.json was given, so nothing has been understood before. Read the pack by module.'); return; }
-    if (out) { writeOut(out, made.text); console.log('Wrote ' + out + ' (' + made.text.split('\n').length + ' lines) — ' + note + '. What an agent understood earlier; verify against the pack.'); }
+    if (out) { const f = writeOut(out, made.text); console.log('Wrote ' + f + ' (' + made.text.split('\n').length + ' lines) — ' + note + '. What an agent understood earlier; verify against the pack.'); }
     else process.stdout.write(made.text);
     return;
   }
@@ -367,7 +402,12 @@ function flag(name) { const i = args.indexOf(name); if (i < 0) return false; arg
   const scripts = F.SCRIPTS.map((f) => fs.readFileSync(path.join(E.dir, f), 'utf8'));
   // The page in the language the descriptions are written in (docs-file.js keeps English when it is no language tag).
   const html = F.build(doc, css.join('\n'), doc.project, scripts, (doc.ai && doc.ai.language) || undefined);
-  const file = out || F.fileName(doc);
-  writeOut(file, html);
-  console.log('Wrote ' + file + ' — ' + doc.modules.length + ' modules, ' + note + '. Open it in a browser; it needs nothing else.');
+  // Where it always went — --out, or its default name in the current folder — unless that is inside the project:
+  // then into the work folder, said plainly.
+  let file = path.resolve(out || F.fileName(doc));
+  const moved = insideProject(file);
+  if (moved) file = path.join(workDir(), path.basename(file));
+  const wrote = writeOut(file, html);
+  console.log('Wrote ' + wrote + ' — ' + doc.modules.length + ' modules, ' + note + '. Open it in a browser; it needs nothing else.');
+  if (moved) console.log('(Not into the project, where ' + (out ? '--out' : 'its default name') + ' would have put it: the project holds only the documentation. It is in the work folder; move it where the person wants it.)');
 })().catch((e) => fail('Could not read the project: ' + ((e && e.message) || e)));

@@ -120,11 +120,15 @@ Bez argumentu skill pyta, co zrobić. Można też poprosić słowami: *„zbuduj
 ### Przebieg
 1. **Zapisz projekt w Studio Pro.** Skill czyta tylko to, co jest zapisane.
 2. Agent pyta o `.mpr` i o folder roboczy. Proponuje `<rodzic projektu>/<App>-docs`,
-   **poza** folderem projektu, bo do projektu nigdy nic nie zapisuje.
+   **poza** folderem projektu, i ustawia go jako `MXSCOUT_WORK` — do projektu nigdy nic
+   nie zapisuje (poza `mxscout/docs/` przez `docs.js repo`). Bez tego pliki robocze idą do
+   `mxscout-work/<projekt>` w folderze tymczasowym systemu (`node docs.js workdir` pokazuje
+   gdzie), a ten system może kiedyś wyczyścić.
 3. `node docs.js status <app.mpr>` pokazuje moduły, a **Ty wybierasz**, które opisać.
 4. Agent czyta moduł po module (`docs.js module`), pisze `descriptions.json` i sprawdza go
    tym samym checkerem co mendix-describe.
-5. `node docs.js report <app.mpr> descriptions.json --out <App>-documentation.html`.
+5. `node docs.js report <app.mpr> <work>/descriptions.json --out <App>-documentation.html`
+   (`<work>` to folder roboczy; raport, który trafiłby do projektu, ląduje w folderze roboczym).
 
 ### Instalacja i aktualizacja
 Skill składa się ze źródła w `mendix-docs-source/` i silnika MxScout, czyli tych samych plików, które

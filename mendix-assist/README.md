@@ -101,8 +101,21 @@ record ids from production). It tells you where: "I recorded case SD-4711 in
 mxscout/knowledge/ — commit it with the fix." **The commit is the approval.**
 The next person's agent finds it there — with MxScout or without. The format
 is `reference/knowledge-format.md`; `node check-assist.js knowledge <note>`
-checks a note, `node check-assist.js cases <MendixProject> --find "…"` searches
+checks a note, `node ../mendix-describe/agent.js case <note>` puts it into
+`knowledge/`, `node check-assist.js cases <MendixProject> --find "…"` searches
 them.
+
+### Your project stays clean
+
+The agent writes nothing into the Mendix project but the documentation: the
+case note in `mxscout/knowledge/`, and its items into the inbox in
+`mxscout/.local/`. Everything it makes while it works — the pack it greps,
+its notes, the item before it is sent — goes into a work folder outside the
+project, which `node ../mendix-describe/agent.js workdir` prints:
+`$MXSCOUT_WORK` when you set it, else `mxscout-work/<project>` in the
+system's temporary folder (on macOS under `/var/folders/…/T/`, on Windows
+`%TEMP%\mxscout-work\<project>`). `agent.js` refuses to write anything else
+into the project.
 
 ## Examples
 
@@ -173,11 +186,13 @@ SD-4711 jest zrobiony.  ·  Zaplanuj reorder-from-history na 2026-11-20.  ·  Po
 - `reference/assist-format.md` — the item and the envelope the agent hands
   back (`"format": "mxscout-assist"`), every field per kind, with examples.
 - `check-assist.js` — `check <file> [--pack ai-pack.md]` validates a file
-  before it goes into `inbox/`; `list <project-folder>` prints the items kept
+  before `agent.js send` puts it into `inbox/` (a file named without a path
+  is looked for in the work folder first); `list <project-folder>` prints the items kept
   under `assist/` with their status and planned date, and what is still
   waiting in `inbox/`.
-- `selftest.js` — `node selftest.js`: the checker over invented items, and
-  every example in the format reference.
+- `selftest.js` — `node selftest.js`: the checker over invented items, every
+  example in the format reference, and the work folder: working files land
+  there and the Mendix project gains only the documentation.
 
 Older descriptions files carried `tickets` and `changes`; MxScout moves those
 into Assist, and this skill writes Assist items only. It replaces the earlier

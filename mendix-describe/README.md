@@ -119,6 +119,17 @@ it where you keep the project.
 
 ## 3. Run the skill
 
+**Your project stays clean.** The agent writes nothing into the Mendix
+project but the documentation itself — `mxscout/descriptions/`, `docs/`,
+`knowledge/` and `mxscout.json`, through `agent.js` — and its results into
+the inbox. Everything it makes while it works (the pack it greps, its notes,
+the parts and the descriptions file before they are sent) goes into a work
+folder outside the project, which `node agent.js workdir` prints:
+`$MXSCOUT_WORK` when you set it, else `mxscout-work/<project>` in the
+system's temporary folder (on macOS under `/var/folders/…/T/`, on Windows
+`%TEMP%\mxscout-work\<project>`). `agent.js` refuses to write anything else
+into the project, and the agent never commits: that stays yours.
+
 **The language.** Everything the agent writes is in one language per project,
 **English by default**. MxScout keeps it with the project (Settings, or the
 Folder tab: *Language of written content*); the agent reads it first, and asks
@@ -143,7 +154,8 @@ reference/business-narrative.md, a summary and a long description. Draw the
 architecture, levels 1 and 2 (reference/c4.md). Also write the risks you find,
 ranked by reference/risk-levels.md, and the context for developers. Merge
 everything into
-descriptions.json and check it with check-descriptions.js. Read long flows in
+descriptions.json and check it with check-descriptions.js. Keep every working
+file in the work folder (node agent.js workdir), never in the project. Read long flows in
 full, never from a truncated excerpt. At the end, tell me how many were
 described, what stayed unclear, and how many tokens it took.
 ```
@@ -152,8 +164,9 @@ described, what stayed unclear, and how many tokens it took.
 to keep while it reads that module: where each case starts, the statuses it
 sets, the decisions, the records looked up by name, the messages that go out.
 The main processes are traced from those notes afterwards, not from the module
-summaries. The files stay in the working folder: they are never imported into
-MxScout and never sent to it, and you may delete them when the work is done.
+summaries. The files stay in the work folder, outside the project: they are
+never imported into MxScout and never sent to it, and you may delete them when
+the work is done.
 
 The same in Polish:
 
@@ -169,7 +182,8 @@ modułu obie warstwy z reference/business-narrative.md, podsumowanie i długi
 opis. Narysuj architekturę, poziomy 1 i 2 (reference/c4.md). Dopisz ryzyka wg
 reference/risk-levels.md i kontekst dla developera.
 Scal wszystko w descriptions.json
-i sprawdź check-descriptions.js. Długie flowy czytaj w całości, nie
+i sprawdź check-descriptions.js. Wszystkie pliki robocze trzymaj w folderze
+roboczym (node agent.js workdir), nigdy w projekcie. Długie flowy czytaj w całości, nie
 z ucinanych fragmentów. Na koniec podaj, ile opisano, co zostało
 niejasne i ile tokenów to zużyło.
 ```
@@ -182,8 +196,8 @@ yet, the agent takes that as the answer to its question and MxScout keeps it.)
 
 ## 4. Import the result (file route only)
 
-In MxScout: **Documentation** → **Import descriptions…** → pick
-`descriptions.json`.
+In MxScout: **Documentation** → **Import descriptions…** → pick the
+`descriptions.json` the agent names — it is in its work folder.
 
 The descriptions appear in the previews and in the exported documentation
 file, each shown as an agent's — marked **✦ AI**, or under a line saying an
@@ -228,8 +242,10 @@ description whose flow changed as out of date instead of passing it off as
 current, and the checker lists only what is left to do:
 
 ```bash
-node ~/.claude/skills/mendix-describe/check-descriptions.js todo <Project>.mxscout-ai-pack.md descriptions.json
+node ~/.claude/skills/mendix-describe/check-descriptions.js todo <Project>.mxscout-ai-pack.md <work>/descriptions.json
 ```
+
+(`<work>` is the work folder, `node agent.js workdir`.)
 
 In a folder, or shared with an agent, ask it to *update the documentation*: it
 reads the documentation (`documentation.md`, or `node agent.js docs`), gives that to the checker

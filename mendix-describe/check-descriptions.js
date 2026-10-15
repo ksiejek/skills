@@ -9,8 +9,8 @@
  *       written. Run it first; describe only that.
  *       Connected to MxScout there is no descriptions file to give it — MxScout
  *       keeps it — so give it the documentation instead (node agent.js docs
- *       --out docs.md): what is described there, and what is marked out of
- *       date, is read from it.
+ *       --out docs.md, which lands in the work folder): what is described
+ *       there, and what is marked out of date, is read from it.
  *
  *   node check-descriptions.js todo --folder <project folder> [--list]
  *       The same, for a project MxScout keeps in a folder: its ai-pack.md and
@@ -40,6 +40,11 @@
  *       a risk per id, or per level and title) — for describing module by module, or in parallel, one part per
  *       batch. By the rules MxScout imports a file with "add": true by; parts that all
  *       add make a file that adds.
+ *
+ * A file named without a path is in the work folder (node agent.js workdir prints it: $MXSCOUT_WORK, or
+ * <temp>/mxscout-work/<project>) — merge writes <out.json> there; a file to read is taken from there, or
+ * from the current directory when it is not there. merge never writes inside the Mendix project or an
+ * MxScout project folder: those hold only the documentation, which agent.js writes.
  *
  * The format it checks is the one public/describe.js in MxScout parses. If the
  * two ever disagree, MxScout is the one that is right: it is what the person
@@ -846,6 +851,114 @@ function repoDocs(file) {
   return ctx.MxRepoDocs;
 }
 
+// ---------- the work folder, and the Mendix project kept clean ----------
+// Karol, 2026-10-15: in the Mendix project an agent writes only the documentation MxScout defines, through
+// agent.js — never a working file. What it makes while it works (packs, notes, drafts, JSON before it is
+// sent) goes into a work folder outside the project: $MXSCOUT_WORK when set, else
+// <the system's temp folder>/mxscout-work/<project id, or a slug of its name>. agent.js loads this file
+// (for merge) and so does mendix-assist's checker, so the rule lives once — a file of its own would be one
+// more for every copy of the skill to carry.
+const path = require('path');
+const os = require('os');
+
+function expandHome(p) { return String(p).replace(/^~(?=$|[\\/])/, os.homedir()); }
+function mxProjectAt(file) {
+  try { const p = JSON.parse(fs.readFileSync(file, 'utf8')); return p && p.format === 'mxscout-project' ? p : null; } catch (e) { return null; }
+}
+function workSlug(s) {
+  return String(s || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).replace(/-+$/, '');
+}
+// What a directory belongs to, looking up from it: the MxScout project (a folder of its own, layout 1, or
+// mxscout/ inside a Mendix project, layout 2) and the Mendix project (the directory that holds the .mpr).
+function placesFrom(start) {
+  const out = { project: null, projectDir: null, layout: 0, mendix: null, mpr: null };
+  if (!start) return out;
+  let dir = path.resolve(expandHome(start));
+  for (let i = 0; i < 8; i++) {
+    if (!out.project) {
+      let p = null;
+      if ((p = mxProjectAt(path.join(dir, 'project.json')))) Object.assign(out, { project: p, projectDir: dir, layout: 1 });
+      else if ((p = mxProjectAt(path.join(dir, 'mxscout.json')))) Object.assign(out, { project: p, projectDir: dir, layout: 2 });
+      else if ((p = mxProjectAt(path.join(dir, 'mxscout', 'mxscout.json')))) Object.assign(out, { project: p, projectDir: path.join(dir, 'mxscout'), layout: 2 });
+    }
+    if (!out.mendix) {
+      let mpr = null;
+      try { mpr = fs.readdirSync(dir).find((f) => /\.mpr$/i.test(f)) || null; } catch (e) { mpr = null; }
+      if (mpr) Object.assign(out, { mendix: dir, mpr });
+    }
+    if (out.project && out.mendix) break;
+    const up = path.dirname(dir);
+    if (up === dir) break;
+    dir = up;
+  }
+  if (out.layout === 2 && !out.mendix) out.mendix = path.dirname(out.projectDir);
+  return out;
+}
+// A path as it really is on disk — links followed for the part that exists — and without case where the
+// file system ignores it (macOS, Windows): neither a link nor a capital letter is a way into the project.
+function realish(p) {
+  let full = path.resolve(p);
+  const rest = [];
+  for (;;) {
+    try { full = path.join(fs.realpathSync(full), ...rest); break; } catch (e) { /* not there yet */ }
+    const up = path.dirname(full);
+    if (up === full) { full = path.join(full, ...rest); break; }
+    rest.unshift(path.basename(full));
+    full = up;
+  }
+  return process.platform === 'win32' || process.platform === 'darwin' ? full.toLowerCase() : full;
+}
+function within(dir, p) { return p === dir || p.startsWith(dir.endsWith(path.sep) ? dir : dir + path.sep); }
+// The directories an agent's own files stay out of, each with the official outputs inside it: in the Mendix
+// project mxscout/descriptions/, docs/, knowledge/, mxscout.json and .local/inbox/; in a project folder of its
+// own (layout 1) inbox/ and knowledge/. The deepest directory a path is in decides.
+const OFFICIAL_IN_MENDIX = ['mxscout/descriptions/', 'mxscout/docs/', 'mxscout/knowledge/', 'mxscout/mxscout.json', 'mxscout/.local/inbox/'];
+const OFFICIAL_IN_FOLDER = ['inbox/', 'knowledge/'];
+function protectedRoots(starts) {
+  const roots = [];
+  const add = (dir, allow, what) => { const real = realish(dir); if (!roots.some((r) => r.dir === real)) roots.push({ dir: real, shown: dir, allow, what }); };
+  (starts || []).filter(Boolean).forEach((s) => {
+    const pl = placesFrom(s);
+    if (pl.mendix) add(pl.mendix, OFFICIAL_IN_MENDIX, 'the Mendix project');
+    if (pl.layout === 1) add(pl.projectDir, OFFICIAL_IN_FOLDER, 'the MxScout project folder');
+  });
+  return roots.sort((a, b) => b.dir.length - a.dir.length);
+}
+// Whether a file may be written there: null when it may, else why not. official: one of agent.js's own
+// writers (the descriptions, docs/, a solved case, the inbox) — those paths only; anything else, nowhere inside.
+function refusedWrite(file, roots, official) {
+  const p = realish(file);
+  const root = (roots || []).find((r) => within(r.dir, p));
+  if (!root) return null;
+  const rel = p.slice(root.dir.length + 1).split(path.sep).join('/');
+  if (official && root.allow.some((a) => (a.endsWith('/') ? rel.startsWith(a) : rel === a))) return null;
+  return 'Refusing to write ' + path.resolve(file) + ': it is inside ' + root.what + ' (' + root.shown + '), where only the documentation is written — ' +
+    root.allow.join(', ') + ', by agent.js itself. Keep working files in the work folder: node agent.js workdir prints it.';
+}
+// The work folder: $MXSCOUT_WORK, or <temp>/mxscout-work/<the project's id | a slug of its name | of the .mpr's
+// name | default>. name: the project's name when nothing on disk says which project it is (the channel).
+function workFolder(starts, name) {
+  if (process.env.MXSCOUT_WORK) return path.resolve(expandHome(process.env.MXSCOUT_WORK));
+  let key = null;
+  (starts || []).filter(Boolean).some((s) => {
+    const pl = placesFrom(s);
+    const id = pl.project && typeof pl.project.id === 'string' && /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/.test(pl.project.id) ? pl.project.id : null;
+    key = id || (pl.project && workSlug(pl.project.name)) || (pl.mpr && workSlug(pl.mpr.replace(/\.mpr$/i, ''))) || null;
+    return !!key;
+  });
+  return path.join(os.tmpdir(), 'mxscout-work', key || workSlug(name) || 'default');
+}
+// A path an agent gives: absolute, as it is; relative, in the work folder — to read, from the current
+// directory when it is there and not in the work folder.
+function inWork(file, work, reading) {
+  const f = expandHome(file);
+  if (path.isAbsolute(f)) return f;
+  const there = path.join(work, f);
+  if (!reading || fs.existsSync(there) || !fs.existsSync(path.resolve(f))) return there;
+  return path.resolve(f);
+}
+const workplace = { placesFrom, protectedRoots, refusedWrite, workFolder, inWork, OFFICIAL_IN_MENDIX, OFFICIAL_IN_FOLDER };
+
 // ---------- the command line ----------
 function main(argv) {
   const [cmd, ...given0] = argv;
@@ -854,8 +967,8 @@ function main(argv) {
   let rest = given0.slice();
   const fi = rest.indexOf('--folder');
   let joined; // layout 2: the descriptions joined from descriptions/, or null when there are none
+  const folderGiven = fi !== -1 ? rest[fi + 1] || null : null;
   if (fi !== -1) {
-    const path = require('path');
     let dir = rest[fi + 1];
     rest.splice(fi, 2);
     // Inside the Mendix project (layout 2): its mxscout/, with the pack in .local/.
@@ -887,7 +1000,9 @@ function main(argv) {
     else if (cmd === 'check') rest = [pack].concat(rest);
   }
   const list = rest.indexOf('--list') !== -1;
-  const args = rest.filter((a) => a !== '--list');
+  // A file named without a path is the agent's own, in the work folder (read from here when it is not there).
+  const work = workFolder([folderGiven, process.cwd()]);
+  const args = rest.filter((a) => a !== '--list').map((a, i) => (cmd === 'merge' && i === 0 ? inWork(a, work, false) : inWork(a, work, true)));
   if (cmd === 'todo' && args[0]) {
     const pack = readPack(fs.readFileSync(args[0], 'utf8'));
     const given = joined !== undefined ? null : args[1] && fs.existsSync(args[1]) ? fs.readFileSync(args[1], 'utf8') : null;
@@ -921,6 +1036,10 @@ function main(argv) {
   }
   if (cmd === 'merge' && args.length >= 2) {
     const merged = merge(args.slice(1).map(readJson));
+    // Into the work folder — never into the Mendix project or the project folder (agent.js writes the result there).
+    const refused = refusedWrite(args[0], protectedRoots([folderGiven, process.cwd(), path.dirname(args[0])]), false);
+    if (refused) throw new Error(refused);
+    fs.mkdirSync(path.dirname(args[0]), { recursive: true });
     fs.writeFileSync(args[0], JSON.stringify(merged, null, 2) + '\n');
     const n = ['microflows', 'nanoflows', 'pages', 'entities'].reduce((s, k) => s + Object.keys(merged[k] || {}).length, 0);
     console.log('Wrote ' + args[0] + ': ' + n + ' descriptions' + (merged.changes ? ', ' + merged.changes.length + ' change' + (merged.changes.length === 1 ? '' : 's') : '') + (merged.tickets ? ', ' + merged.tickets.length + ' ticket' + (merged.tickets.length === 1 ? '' : 's') : '') + ' from ' + (args.length - 1) + ' parts.');
@@ -934,4 +1053,4 @@ if (require.main === module) {
   try { process.exitCode = main(process.argv.slice(2)); }
   catch (e) { console.error(e.message); process.exitCode = 2; }
 }
-module.exports = { readPack, readDocs, todo, check, merge, DESC_FORMAT, CAPS };
+module.exports = { readPack, readDocs, todo, check, merge, DESC_FORMAT, CAPS, workplace };

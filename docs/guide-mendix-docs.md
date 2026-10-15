@@ -12,6 +12,10 @@ from the Skills repository with `install.sh` (`install.sh --codex` for Codex
 too: into `~/.agents/skills/` and `~/.codex/skills/`, for newer and older Codex
 versions; in Codex, say *"use the mendix-docs skill"* instead of
 `/mendix-docs`).
+Like the other skills it keeps the Mendix project clean: its working files go
+into a work folder outside the project (`node docs.js workdir` says where; set
+`MXSCOUT_WORK` to a folder you keep, since its `descriptions.json` is the only
+copy), and a report that would land in the project goes there instead.
 <!-- pl -->
 ### {N}. Bez MxScouta i bez repozytorium: mendix-docs
 
@@ -24,3 +28,7 @@ odpowiadać na pytania. Instalacja z repozytorium Skills przez `install.sh`
 (`install.sh --codex` także dla Codexa: do `~/.agents/skills/` i
 `~/.codex/skills/`, dla nowszych i starszych wersji Codexa; w Codexie zamiast
 `/mendix-docs` powiedz *„use the mendix-docs skill”*).
+Jak pozostałe skille nie śmieci w projekcie Mendix: pliki robocze trzyma w
+folderze roboczym poza projektem (`node docs.js workdir` mówi, gdzie; ustaw
+`MXSCOUT_WORK` na folder, który zachowasz, bo jego `descriptions.json` to
+jedyna kopia), a raport, który trafiłby do projektu, ląduje właśnie tam.

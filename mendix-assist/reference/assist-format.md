@@ -37,17 +37,21 @@ One or more items, in one file:
 { "format": "mxscout-assist", "version": 1, "items": [ … ] }
 ```
 
-- **In the project folder** — write the file and check it in your working
-  folder (`node check-assist.js check assist.PROJ-12.json`), then move it
-  into `inbox/` under a name ending in `.json` (`inbox/assist-PROJ-12.json`).
-  MxScout takes it at once while the project is open, validates it, stores
-  each item under `assist/<kind>/<id>.json`, shows it with **Undo**, and moves
-  the file to `inbox/done/`. Move it in whole: never write into `inbox/` line
-  by line.
+Write it in the work folder — `node ../mendix-describe/agent.js workdir`
+prints it, `<work>` below — never in the project, and check it there
+(`node check-assist.js check <work>/assist.PROJ-12.json`). Then:
+
+- **In the project folder** — `node ../mendix-describe/agent.js send
+  <work>/assist.PROJ-12.json --folder <folder>` writes it whole into
+  `inbox/` (`mxscout/.local/inbox/` inside the Mendix project) under a
+  timestamped name. MxScout takes it at once while the project is open,
+  validates it, stores each item under `assist/<kind>/<id>.json`, shows it
+  with **Undo**, and moves the file to `inbox/done/`. Never write into
+  `inbox/` yourself, line by line or otherwise.
 - **Through the agent channel** (an address and a token):
-  `node ../mendix-describe/agent.js send assist.PROJ-12.json` — the same
-  envelope.
-- **With neither** — write the file and tell the person where it is and to
+  `node ../mendix-describe/agent.js send <work>/assist.PROJ-12.json` — the
+  same envelope.
+- **With neither** — tell the person where the file is (its full path) and to
   import it in MxScout.
 
 An item whose `kind` and `id` MxScout already keeps **replaces** it: the

@@ -187,6 +187,42 @@ try {
     'cases --pack: a flow whose fingerprint moved since the case marks it "may be out of date"');
   ok(/checked against a1b2c3d/.test(r.out), 'cases says which commit each case was checked against');
   ok(cases(path.join(tmp, 'Sales')).cases.length === 0 && /No solved cases/.test(run(['cases', path.join(tmp, 'Sales')]).out), 'cases: a project with no knowledge/ says so');
+
+  // ---- the Mendix project kept clean: working files in the work folder, only the documentation in the project ----
+  const agent = path.join(__dirname, '..', 'mendix-describe', 'agent.js');
+  if (fs.existsSync(agent)) {
+    const work = path.join(tmp, 'work');
+    const envW = Object.assign({}, process.env, { MXSCOUT_WORK: work, MXSCOUT_TOKEN: '', MXSCOUT_FOLDER: '' });
+    const runIn = (file, args) => { try { return { code: 0, out: execFileSync(process.execPath, [file].concat(args), { cwd: app, env: envW, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) }; } catch (e) { return { code: e.status, out: String(e.stdout || '') + String(e.stderr || '') }; } };
+    const files = (dir) => { const out = []; (function walk(d) { fs.readdirSync(d, { withFileTypes: true }).forEach((n) => { if (n.isDirectory()) walk(path.join(d, n.name)); else out.push(path.relative(dir, path.join(d, n.name)).split(path.sep).join('/')); }); })(dir); return out.sort(); };
+    fs.writeFileSync(path.join(app, 'mxscout', '.local', 'documentation.md'), '# MxScout documentation\n\nproject: OrderPortal\n');
+    r = runIn(agent, ['workdir']);
+    ok(r.code === 0 && r.out.trim() === work && fs.existsSync(work), 'agent.js workdir prints the work folder ($MXSCOUT_WORK here) and makes it');
+    const had = files(app);
+    r = runIn(agent, ['docs', '--out', 'docs.md']);
+    ok(r.code === 0 && fs.existsSync(path.join(work, 'docs.md')) && r.out.indexOf(path.join(work, 'docs.md')) !== -1, 'agent.js docs --out docs.md, run in the Mendix project, lands in the work folder and says the full path');
+    r = runIn(agent, ['docs', '--out', path.join(app, 'docs.md')]);
+    ok(r.code === 1 && /Refusing to write/.test(r.out) && /agent\.js workdir/.test(r.out), 'an --out inside the Mendix project is refused, pointing at the work folder');
+    r = runIn(agent, ['docs', '--out', path.join(app, 'mxscout', 'docs', 'mine.md')]);
+    ok(r.code === 1 && /Refusing to write/.test(r.out), 'even into mxscout/docs/: only agent.js\'s own writers write there');
+    fs.writeFileSync(path.join(work, 'assist.SD-4711.json'), JSON.stringify(examples[0], null, 2));
+    r = runIn(path.join(__dirname, 'check-assist.js'), ['check', 'assist.SD-4711.json']);
+    ok(r.code === 0 && /OK: 1 item/.test(r.out), 'check-assist.js check finds a file named alone in the work folder');
+    r = runIn(agent, ['send', 'assist.SD-4711.json']);
+    ok(r.code === 0 && fs.readdirSync(path.join(app, 'mxscout', '.local', 'inbox')).some((f) => /assist\.SD-4711\.json$/.test(f)), 'agent.js send hands it from the work folder to mxscout/.local/inbox/');
+    const draft = 'SD-4800-cancelled-orders-still-in-the-queue.md';
+    fs.writeFileSync(path.join(work, draft), note.replace(/SD-4711/g, 'SD-4800'));
+    r = runIn(path.join(__dirname, 'check-assist.js'), ['knowledge', draft]);
+    ok(r.code === 0 && /^OK: ticket SD-4800/m.test(r.out) && !/warning/.test(r.out), 'a case note drafted in the work folder is checked there, with no warning');
+    fs.writeFileSync(path.join(work, 'SD-4801-x.md'), note.replace(/SD-4711/g, 'SD-4801').replace('A clerk\'s queue', 'Reported by anna.nowak@example.com: a clerk\'s queue'));
+    r = runIn(agent, ['case', 'SD-4801-x.md']);
+    ok(r.code === 1 && /not written/.test(r.out) && !fs.existsSync(path.join(kdir, 'SD-4801-x.md')), 'agent.js case refuses a note with personal data, and writes nothing');
+    r = runIn(agent, ['case', draft]);
+    ok(r.code === 0 && fs.readFileSync(path.join(kdir, draft), 'utf8') === note.replace(/SD-4711/g, 'SD-4800') && r.out.indexOf(path.join(kdir, draft)) !== -1, 'agent.js case writes the checked note into mxscout/knowledge/');
+    const added = files(app).filter((f) => had.indexOf(f) === -1);
+    ok(added.length === 2 && added.some((f) => /^mxscout\/\.local\/inbox\/[^/]+assist\.SD-4711\.json$/.test(f)) && added.indexOf('mxscout/knowledge/' + draft) !== -1,
+      'and the Mendix project gained only the documentation and the inbox file — no working file: ' + added.join(', '));
+  }
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
 }

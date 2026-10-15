@@ -383,7 +383,8 @@ mxscout/descriptions/context.json             the developers' context, as in "co
 mxscout/mxscout.json                          describedAt
 ```
 
-You still write one descriptions file as above; `node agent.js write
-descriptions.json --folder <MendixProject>` splits it exactly as MxScout does
+You still write one descriptions file as above, in the work folder (`node
+agent.js workdir`, never in the project); `node agent.js write
+<work>/descriptions.json --folder <MendixProject>` splits it exactly as MxScout does
 (`repodocs.js`, MxScout's own code) and writes only the files that changed.
 Never edit the split files or `mxscout/docs/` by hand.

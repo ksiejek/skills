@@ -23,6 +23,24 @@ it in MxScout, and every sentence you wrote appears in the documentation
 as yours — marked **✦ AI**, or under a line saying an agent wrote it — next
 to the facts MxScout read from the model.
 
+## Keep the Mendix project clean
+
+**Keep the Mendix project clean: the only files you write there are the
+documentation itself, through `agent.js` (descriptions, docs, solved cases) —
+never a working file. Put everything you make while working (packs, notes,
+drafts, `docs.md`, `m.md`, JSON before it is sent) in the work folder
+`node agent.js workdir` prints, and refer to files there by that path. Never
+create files in the project root, in `mxscout/` or next to the `.mpr`; never
+commit anything.**
+
+Below, `<work>` is that folder — `$MXSCOUT_WORK` when it is set, else
+`mxscout-work/<project>` in the system's temporary folder. `agent.js` puts a
+file named without a path there (`--out docs.md`, `pack pack.md`), prints the
+full path of every file it writes, and refuses to write anywhere in the Mendix
+project — or in a project folder MxScout keeps — except the documentation it
+writes itself. The same holds for a subagent you hand work to: give it the
+work folder's path.
+
 ## Where the project comes from
 
 Three ways, and the rest of this file works the same for all of them. The
@@ -52,21 +70,23 @@ finds it by itself); through the channel run them as they are. Where they say
   the same commands as through the channel:
 
   ```
-  node agent.js status --folder <folder>                      the project, its language, its modules with
-                                                              counts, whether there is documentation
-                                                              (how much is out of date), the inbox
-  node agent.js docs --folder <folder> --out docs.md          documentation.md — what an agent understood earlier
-  node agent.js module <Name> --folder <folder> --out m.md    one module's section of ai-pack.md, by its index
-  node agent.js pack pack.md --folder <folder>                the whole pack, to a file (ai-pack.md itself does too)
-  node agent.js send descriptions.json --folder <folder>      your result, written whole into inbox/
+  node agent.js status --folder <folder>                             the project, its language, its modules with
+                                                                     counts, whether there is documentation
+                                                                     (how much is out of date), the inbox,
+                                                                     the work folder
+  node agent.js docs --folder <folder> --out <work>/docs.md          documentation.md — what an agent understood earlier
+  node agent.js module <Name> --folder <folder> --out <work>/m.md    one module's section of ai-pack.md, by its index
+  node agent.js pack <work>/pack.md --folder <folder>                the whole pack, to a file (ai-pack.md itself does too)
+  node agent.js send <work>/descriptions.json --folder <folder>      your result, written whole into inbox/
   ```
 
   `send` writes a hidden temporary file and renames it into `inbox/` under a
   timestamped name, so MxScout never reads half of it. Write nothing else in
-  the folder: MxScout rewrites project.json, model.json, documentation.md and
-  ai-pack.md, and descriptions.json is what it took — results go through
-  `inbox/` only. A project not open in MxScout simply waits in the inbox
-  until it is; say so to the person.
+  the folder — your own files are in the work folder: MxScout rewrites
+  project.json, model.json, documentation.md and ai-pack.md, and
+  descriptions.json is what it took — results go through `inbox/` only. A
+  project not open in MxScout simply waits in the inbox until it is; say so
+  to the person.
 - **Inside the Mendix project — `mxscout/`, shared through the app's git.** A
   team can keep MxScout's files in the Mendix project's own repository. You
   recognise it by `mxscout/mxscout.json` (`"layout": 2`). `--folder` takes the
@@ -89,8 +109,8 @@ finds it by itself); through the channel run them as they are. Where they say
   `pack` make it from the `.mpr` beside `mxscout/` with MxScout's own engine
   (this skill's `engine/`, MxScout's files unchanged) — no MxScout needed.
   `status` compares the commit the descriptions describe with the one HEAD
-  names. Hand your result over with **`node agent.js write descriptions.json
-  --folder <MendixProject>`**: it puts the descriptions straight into
+  names. Hand your result over with **`node agent.js write
+  <work>/descriptions.json --folder <MendixProject>`**: it puts the descriptions straight into
   `descriptions/` (a file with `"add": true` is laid over what is there),
   writes only the files that changed, stamps `mxscout.json` with the commit
   HEAD names, and then **brings `docs/` up to date** from them — the same
@@ -100,9 +120,10 @@ finds it by itself); through the channel run them as they are. Where they say
   --folder <MendixProject>` does that last step alone — after a solved case
   was added to `knowledge/`, say; it writes nothing when `docs/manifest.json`
   says `docs/` is made from these already. (`send` still hands a file to
-  `.local/inbox/`.) Never edit `docs/` or `mxscout.json` by hand, never touch
-  anything outside `mxscout/`, and **never run git that writes** — no commit,
-  pull, push, checkout: committing is the person's.
+  `.local/inbox/`.) Never edit `docs/` or `mxscout.json` by hand, never write
+  anything else into the Mendix project — in `mxscout/` or out of it — and
+  **never run git that writes** — no commit, pull, push, checkout: committing
+  is the person's.
 - **From a running MxScout, with no files.** The person pressed **Share with an
   agent** in the project's Documentation (the Agent channel tab) and pasted you
   a line with an address and a token. The same commands without `--folder`
@@ -142,8 +163,8 @@ only has to be written where you can read it.
 
 Connecting is not a request to describe the application. Run `status` (in a
 folder, read `README.md` and `project.json` too), then — when it says there is
-documentation — `docs --out docs.md` (in a folder, `documentation.md` is that
-file), and **do what the person asked**. If they only gave you the folder or
+documentation — `docs --out <work>/docs.md` (in a folder, `documentation.md`
+is that file), and **do what the person asked**. If they only gave you the folder or
 pasted the line, say what you see (the project, its modules, how much is
 described and how much of that is out of date) and ask what they want:
 
@@ -197,7 +218,7 @@ its processes, the notes of the modules involved, **For developers** (where
 things are, the naming, what breaks easily), and the earlier Assist items (**Ideas** and
 **Tickets**). It tells you which flows, entities, statuses and roles matter, so
 you open only those. Then **verify in the pack**: read the modules or flows it
-pointed you to (`node agent.js module <Name> --out m.md`, or grep the pack
+pointed you to (`node agent.js module <Name> --out <work>/m.md`, or grep the pack
 file for one flow's block) and base what you conclude on them. When the two
 disagree, **the model wins** — say so, and name the description that is
 stale ("the documentation says X; the flow now does Y — its description is out
@@ -256,21 +277,21 @@ The pack is large (a real app is ~1.7 MB, ~470k tokens). Never read it whole.
    lists only new flows and flows whose fingerprint changed. In a project
    folder it reads the folder's ai-pack.md and descriptions.json itself.
    Connected through the channel, first put the pack in a file for it (`node
-   agent.js pack pack.md`) — the checker reads it, you do not — and give it the
+   agent.js pack <work>/pack.md`) — the checker reads it, you do not — and give it the
    documentation in place of the descriptions file, which MxScout keeps and
    you cannot read there:
 
    ```
    node check-descriptions.js todo --folder <folder> --list
-   node check-descriptions.js todo <pack.md> [descriptions.json | docs.md] --list
+   node check-descriptions.js todo <work>/pack.md [<work>/descriptions.json | <work>/docs.md] --list
    ```
 
 2. **Read the header and the index** — the first lines of the pack, up to the
    blank line after `## index` (connected: `node agent.js status`). The index
    gives each module's line range.
 3. **One module at a time.** Read only that module's line range (connected:
-   `node agent.js module <Name> --out module.md`, then read that file). Write a part
-   file `descriptions.<Module>.json` with a description of every listed
+   `node agent.js module <Name> --out <work>/module.md`, then read that file). Write a part
+   file `<work>/descriptions.<Module>.json` with a description of every listed
    microflow and nanoflow, and of the module itself — its `story` first, then
    its `summary` from the story. Then the module's `notes` for a developer
    (`reference/module-notes.md`). Pages and entities are
@@ -280,7 +301,7 @@ The pack is large (a real app is ~1.7 MB, ~470k tokens). Never read it whole.
    `reference/risk-levels.md`, and its `context` — where things are that
    their names hide, the naming it follows, and what breaks easily.
    **And keep what the processes are made of**, in your own working file
-   `work.<Module>.md` (never imported, never sent): every place a case
+   `<work>/work.<Module>.md` (never imported, never sent): every place a case
    starts in this module — a page's button, a scheduled event, a published
    REST or OData operation, a workflow, a before/after commit event — with
    the flow it starts; the statuses it sets (the enumeration and its
@@ -298,13 +319,13 @@ The pack is large (a real app is ~1.7 MB, ~470k tokens). Never read it whole.
    processes do not.** A process written from module summaries comes out
    short and general — the one thing the person did not want. So:
    - **List the main processes** from the starts you kept in the
-     `work.<Module>.md` files: what a person or another system sets going,
+     `<work>/work.<Module>.md` files: what a person or another system sets going,
      and what the application does on its own (a schedule, an incoming
      message). Ask the person when unsure which matter most; there is no
      number to reach and no limit.
    - **Trace each one as "One more process" below says, steps 1 and 2**: grep
      the pack for its flows and entities, read the flows on its way —
-     across modules, as far as the case goes (`node agent.js module <Name> --out m.md`
+     across modules, as far as the case goes (`node agent.js module <Name> --out <work>/m.md`
      for a module you have not opened; a flow's block is enough when only one
      flow is needed) — and follow one case from where it starts to how it
      ends, every way it can go. Processes are independent: hand them to
@@ -321,7 +342,7 @@ The pack is large (a real app is ~1.7 MB, ~470k tokens). Never read it whole.
    (`reference/c4.md`): who uses it, what it talks to, what it runs as, and
    in `open` what the model does not show. Add the risks that span modules
    — tracing a process is where most of them show — and the conventions the
-   whole application shares. Put it in `descriptions.app.json`. Merging adds
+   whole application shares. Put it in `<work>/descriptions.app.json`. Merging adds
    the parts' risks and context up.
 
    **Before you merge, read your processes as their reader would.** Each
@@ -333,8 +354,8 @@ The pack is large (a real app is ~1.7 MB, ~470k tokens). Never read it whole.
 5. **Merge and check:**
 
    ```
-   node check-descriptions.js merge descriptions.json descriptions.app.json descriptions.*.json
-   node check-descriptions.js check <pack.md> descriptions.json
+   node check-descriptions.js merge <work>/descriptions.json <work>/descriptions.app.json <work>/descriptions.*.json
+   node check-descriptions.js check <work>/pack.md <work>/descriptions.json
    ```
 
    Fix every error. Warnings about length or missing hashes are worth fixing too;
@@ -346,23 +367,25 @@ The pack is large (a real app is ~1.7 MB, ~470k tokens). Never read it whole.
 6. **Hand it over.** A file without `"add": true` **replaces everything**
    MxScout keeps for the project. So if you described only some of the
    modules, or the project already has descriptions you did not start from,
-   put `"add": true` at the top of `descriptions.json` — MxScout then keeps the
+   put `"add": true` at the top of `<work>/descriptions.json` — MxScout then keeps the
    rest and puts yours on top. Leave it out only for a complete description
    that should take the place of the old one.
-   In a project folder: `node agent.js send descriptions.json --folder <folder>`
+   In a project folder: `node agent.js send <work>/descriptions.json --folder <folder>`
    (it lands in `inbox/`); inside the Mendix project: `node agent.js write
-   descriptions.json --folder <MendixProject>` (straight into `descriptions/`,
+   <work>/descriptions.json --folder <MendixProject>` (straight into `descriptions/`,
    and `docs/` brought up to date from them), then remind the person to
    commit `mxscout/` on its own; through the channel: `node agent.js send
-   descriptions.json`. Tell the person what you sent. MxScout saves it at once
+   <work>/descriptions.json`. Tell the person what you sent. MxScout saves it at once
    and shows it with **Undo** — unless they turned that off, or the file would
    replace descriptions already kept (a file without `"add"`), when it waits
    for **Import them** in the project's Documentation. From a file: tell them
-   where `descriptions.json` is and to import it there: **Import descriptions…**.
+   where `<work>/descriptions.json` is (the full path) and to import it there:
+   **Import descriptions…**.
 
 An earlier `descriptions.json` given to you is where you start: keep what is
 still current, describe what `todo` lists, merge the old file first and your
-parts after it.
+parts after it — into `<work>/descriptions.json`; the old file stays where it
+was.
 
 ## Bringing it up to date, when the person asks
 
@@ -396,8 +419,8 @@ push, so the others pull it.
    so, and update only what `todo` lists. MxScout stamps what you send with the
    model's version itself — do not write `describedAt`.
 1. In a project folder — or inside the Mendix project, given its directory or
-   `mxscout/` — `node check-descriptions.js todo --folder <folder> --list`. Through the channel: `node agent.js pack pack.md` and `node agent.js
-   docs --out docs.md`, then `node check-descriptions.js todo pack.md docs.md
+   `mxscout/` — `node check-descriptions.js todo --folder <folder> --list`. Through the channel: `node agent.js pack <work>/pack.md` and `node agent.js
+   docs --out <work>/docs.md`, then `node check-descriptions.js todo <work>/pack.md <work>/docs.md
    --list` (from files: the earlier `descriptions.json` in place of `docs.md`).
    It lists the new flows and the ones whose description is out of date — that
    is the work.
@@ -420,13 +443,13 @@ becomes one more main process on the Processes page, analysed like the others �
 not a paragraph added to the application's story.
 
 1. **Find where it lives.** Start from the documentation when there is one
-   (`node agent.js docs --out docs.md`): a process that touches it, the module
+   (`node agent.js docs --out <work>/docs.md`): a process that touches it, the module
    notes, For developers — they name the flows and entities to look at. Then
-   put the pack in a file (connected: `node agent.js pack pack.md`) and search
+   put the pack in a file (connected: `node agent.js pack <work>/pack.md`) and search
    it for those names and the words of the request — entity, attribute, flow
-   and page names, captions (`grep -n -i team pack.md`).
+   and page names, captions (`grep -n -i team <work>/pack.md`).
    Do not read it whole: the hits give the modules and flows; read those
-   modules (`node agent.js module <Name> --out m.md`) and follow the calls
+   modules (`node agent.js module <Name> --out <work>/m.md`) and follow the calls
    into other modules as far as the case goes. What you write comes from the
    pack, not from the documentation.
 2. **Follow one case from start to end.** Where it starts (a page's button, a
@@ -435,7 +458,7 @@ not a paragraph added to the application's story.
    who is told, and how it ends — including the ways it can fail or be refused.
    Where the rule lives in data rather than in a flow (a configuration entity,
    a table of mappings), say so and name it.
-3. **Write a part that adds** — `descriptions.process.json` with
+3. **Write a part that adds** — `<work>/descriptions.process.json` with
    `"add": true`, the process under `app.processes` (`name`, `summary`, `story`,
    `steps`, `flows` and, when it branches, a `diagram`; the story stage by stage,
    as `reference/business-narrative.md` says under "A process"), the flows on its way you have not described before
@@ -445,13 +468,13 @@ not a paragraph added to the application's story.
 4. **Check and hand it over:**
 
    ```
-   node check-descriptions.js check <pack.md> descriptions.process.json
-   node agent.js send descriptions.process.json
+   node check-descriptions.js check <work>/pack.md <work>/descriptions.process.json
+   node agent.js send <work>/descriptions.process.json
    ```
 
    From a file, the person imports it with **Import descriptions…**; it adds
-   the same way. Keeping your own `descriptions.json`, merge the part into it
-   too (`merge descriptions.json descriptions.json descriptions.process.json`).
+   the same way. Keeping your own `<work>/descriptions.json`, merge the part into it
+   too (`merge <work>/descriptions.json <work>/descriptions.json <work>/descriptions.process.json`).
    Then tell the person what the process is called and where it is.
 
 Asked to write the **whole overview again** — the application's story and all
@@ -505,7 +528,7 @@ you write no code for it: you propose.**
    its risks, ranked by `reference/risk-levels.md`; the questions the model
    cannot answer (`open`); and, when you can tell, a rough effort ("small: two
    flows and one attribute").
-5. **Write a part that adds** — `descriptions.change.json`, with
+5. **Write a part that adds** — `<work>/descriptions.change.json`, with
    `"add": true` and **only** `"changes": [ … ]` (the fields are in
    `reference/descriptions-format.md`, "changes", with a full example): an `id`
    (a slug, `cancel-order`), the `title`, what was `asked` in the person's own
@@ -519,8 +542,8 @@ you write no code for it: you propose.**
 6. **Check and hand it over:**
 
    ```
-   node check-descriptions.js check <pack.md> descriptions.change.json
-   node agent.js send descriptions.change.json
+   node check-descriptions.js check <work>/pack.md <work>/descriptions.change.json
+   node agent.js send <work>/descriptions.change.json
    ```
 
    From a file, the person imports it with **Import descriptions…**; it adds
@@ -552,7 +575,7 @@ MxScout Dev lets the person work through your risks: mark one a **false
 positive** with the reason, mark one **fixed**, reopen it. A comment can be a
 risk too, **raised by a person**. When there is any of that, the pack has a
 `## risk triage` section before its index (connected: it is in the header —
-`node agent.js pack pack.md`, then read the lines from `## risk triage` to
+`node agent.js pack <work>/pack.md`, then read the lines from `## risk triage` to
 `## index`), one line per risk:
 
 ```
@@ -646,12 +669,14 @@ entity.
 - `reference/c4.md` — the architecture, levels 1 and 2, as nodes and links;
   level 3 MxScout reads from the model.
 - `check-descriptions.js` — `todo`, `check`, `merge`. Node only, no install.
-- `check-descriptions.js todo` also takes the documentation (`docs.md`) in
+  A file named without a path is in the work folder; `merge` writes there.
+- `check-descriptions.js todo` also takes the documentation (`<work>/docs.md`) in
   place of a descriptions file, and `--folder <folder>` for a project folder
   or a Mendix project with `mxscout/`.
-- `agent.js` — `status`, `docs`, `module`, `pack`, `send`, and `write` inside
-  the Mendix project: a project folder (`--folder`, or run inside it) or a
-  running MxScout that is sharing. Node only, no install.
+- `agent.js` — `workdir`, `status`, `docs`, `module`, `pack`, `send`, and
+  `write`, `update-docs` and `case` (a solved case's note, mendix-assist's)
+  inside the Mendix project: a project folder (`--folder`, or run inside it)
+  or a running MxScout that is sharing. Node only, no install.
 - `repodocs.js` — MxScout's own rules for the files in `mxscout/` (a copy of
   its `public/repodocs.js`, unchanged): `agent.js` and `check-descriptions.js`
   split and join the descriptions with it, exactly as MxScout does.

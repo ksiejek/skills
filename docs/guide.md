@@ -258,6 +258,11 @@ For people who do not have the repository:
 each file, so a company search tool or AI (RAG) can take them straight from
 the repository. MxScout itself uploads nothing.
 
+Agents keep their working files — packs, notes, drafts — outside the project,
+in a work folder of their own (`node .claude/skills/mendix-describe/agent.js
+workdir` prints where). Into the project they write only the documentation,
+and they never commit: you do.
+
 ### 11. When something does not work
 
 - **Claude does not see the skills.** Start Claude Code in the root of the
@@ -302,6 +307,10 @@ from the Skills repository with `install.sh` (`install.sh --codex` for Codex
 too: into `~/.agents/skills/` and `~/.codex/skills/`, for newer and older Codex
 versions; in Codex, say *"use the mendix-docs skill"* instead of
 `/mendix-docs`).
+Like the other skills it keeps the Mendix project clean: its working files go
+into a work folder outside the project (`node docs.js workdir` says where; set
+`MXSCOUT_WORK` to a folder you keep, since its `descriptions.json` is the only
+copy), and a report that would land in the project goes there instead.
 
 ---
 
@@ -556,6 +565,11 @@ Dla osób, które nie mają repozytorium:
 każdym pliku, więc firmowa wyszukiwarka albo AI (RAG) może je brać prosto z
 repozytorium. Sam MxScout niczego nie wysyła.
 
+Agenci trzymają swoje pliki robocze — pakiety, notatki, szkice — poza
+projektem, we własnym folderze roboczym (`node
+.claude/skills/mendix-describe/agent.js workdir` pokazuje, gdzie). Do projektu
+zapisują tylko dokumentację i nigdy nie commitują: robisz to ty.
+
 ### 11. Gdy coś nie działa
 
 - **Claude nie widzi skilli.** Uruchom Claude Code w głównym folderze projektu
@@ -601,3 +615,7 @@ odpowiadać na pytania. Instalacja z repozytorium Skills przez `install.sh`
 (`install.sh --codex` także dla Codexa: do `~/.agents/skills/` i
 `~/.codex/skills/`, dla nowszych i starszych wersji Codexa; w Codexie zamiast
 `/mendix-docs` powiedz *„use the mendix-docs skill”*).
+Jak pozostałe skille nie śmieci w projekcie Mendix: pliki robocze trzyma w
+folderze roboczym poza projektem (`node docs.js workdir` mówi, gdzie; ustaw
+`MXSCOUT_WORK` na folder, który zachowasz, bo jego `descriptions.json` to
+jedyna kopia), a raport, który trafiłby do projektu, ląduje właśnie tam.

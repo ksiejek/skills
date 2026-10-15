@@ -37,6 +37,22 @@ when a case is solved ("Solved cases" below; the format is
 open a ticket's or an issue's address, call Jira, the Service Desk or any other
 URL, or comment anywhere: you write a reply the person may paste themselves.
 
+## Keep the Mendix project clean
+
+**Keep the Mendix project clean: the only files you write there are the
+documentation itself, through `agent.js` (descriptions, docs, solved cases) —
+never a working file. Put everything you make while working (packs, notes,
+drafts, `docs.md`, `m.md`, JSON before it is sent) in the work folder
+`node ../mendix-describe/agent.js workdir` prints, and refer to files there by
+that path. Never create files in the project root, in `mxscout/` or next to
+the `.mpr`; never commit anything.**
+
+Below, `<work>` is that folder. `agent.js` puts a file named without a path
+there, prints the full path of every file it writes, and refuses to write
+anywhere in the Mendix project — or in a project folder MxScout keeps —
+except the documentation it writes itself: an Assist item reaches the inbox
+with `agent.js send`, a case note `knowledge/` with `agent.js case`.
+
 ## This skill stands on mendix-describe
 
 It uses the **mendix-describe** skill's tools, which must be installed
@@ -48,8 +64,9 @@ starts with `../mendix-describe/` is relative to **this file's folder**; run
 the scripts by that full path from wherever you work. If that folder is not
 there, stop and tell the person to install mendix-describe beside this skill.
 
-- `../mendix-describe/agent.js` — reads the model from a running MxScout that
-  is sharing, and sends your result back.
+- `../mendix-describe/agent.js` — prints the work folder (`workdir`), reads
+  the model from the project folder or a running MxScout that is sharing, and
+  hands your result back (`send`; a solved case's note, `case`).
 - `../mendix-describe/check-descriptions.js` — reads the pack: `todo <pack>
   <documentation.md> --list` says which descriptions are out of date, and this
   skill's checker uses it to check names against the model.
@@ -89,11 +106,11 @@ items kept).
    descriptions no longer carry `tickets` or `changes` (MxScout moves the ones
    an older file had into Assist). You write **Assist items only**.
 4. **MxScout owns `assist/`.** You read it; you never write, rename or delete
-   anything in it. Results go into `inbox/`, through the channel, or into a
-   file the person imports.
+   anything in it. Results go into `inbox/` (`agent.js send`), through the
+   channel, or into a file the person imports.
 5. **Solved cases are the team's, and you write them.** Unlike an Assist
    item, a case note in `knowledge/` is committed with the app: write it
-   there yourself when a case is solved, never with personal data in it — no
+   there yourself (`agent.js case`) when a case is solved, never with personal data in it — no
    names, e-mail addresses, phone numbers, customer data or record ids from
    production.
 
@@ -157,7 +174,7 @@ Three ways, the **project folder** first:
   `documentation.md` and `ai-pack.md` are in `mxscout/.local/`. `node
   check-assist.js list <MendixProject>` (or its `mxscout/`) reads
   `.local/assist/` and `.local/inbox/`; hand results back into
-  `mxscout/.local/inbox/`. The committed `mxscout/docs/` (Markdown by topic,
+  `mxscout/.local/inbox/` (`agent.js send` puts them there). The committed `mxscout/docs/` (Markdown by topic,
   `docs/index.md` the map) is there even when `.local/` is not; and
   `mxscout/knowledge/` holds the solved cases — search them first, and write
   one there when a case is solved ("Solved cases" below). Never write anywhere else in the Mendix project, and never run git
@@ -176,11 +193,11 @@ Three ways, the **project folder** first:
   the token is the person's — never write it into a file you leave behind):
 
   ```
-  node ../mendix-describe/agent.js status                   the project, its modules, the documentation
-  node ../mendix-describe/agent.js docs --out docs.md       the documentation: the map
-  node ../mendix-describe/agent.js pack pack.md             the whole pack, to a file you grep
-  node ../mendix-describe/agent.js module <Name> --out m.md one module
-  node ../mendix-describe/agent.js send assist.json         hand the result back
+  node ../mendix-describe/agent.js status                          the project, its modules, the documentation
+  node ../mendix-describe/agent.js docs --out <work>/docs.md       the documentation: the map
+  node ../mendix-describe/agent.js pack <work>/pack.md             the whole pack, to a file you grep
+  node ../mendix-describe/agent.js module <Name> --out <work>/m.md one module
+  node ../mendix-describe/agent.js send <work>/assist.<id>.json    hand the result back
   ```
 
   The channel does not give you the items under `assist/`. When the person
@@ -196,7 +213,7 @@ Three ways, the **project folder** first:
 1. **Get the state.** In the folder: `node check-assist.js list <folder>`, so
    you know what is open, planned, done and dropped, and the project's
    `contentLanguage` from `project.json`. Connected: `status` (it prints the
-   language), and `docs --out docs.md` when there is documentation. Do not
+   language), and `docs --out <work>/docs.md` when there is documentation. Do not
    start working yet.
 1a. **Search the solved cases first** — before any work on a new item (see
    "Solved cases" below): `node check-assist.js cases <MendixProject or
@@ -230,7 +247,7 @@ Three ways, the **project folder** first:
    clear enough to trace. Keep the person's paste: it goes into `reported`, as
    pasted, trimmed.
 5. **Read the map, then the evidence.** The documentation first
-   (`documentation.md`, or `docs.md`): the process that carries this case, the
+   (`documentation.md`, or `<work>/docs.md`): the process that carries this case, the
    notes of the modules involved, **For developers** (where things are, the
    naming, what breaks easily) — it names the flows, entities, statuses and
    roles to look at. Then the pack, as below: what you conclude comes from the
@@ -438,8 +455,9 @@ Where `knowledge/` is:
   `<MendixProject>/mxscout/knowledge/` — committed with the app;
 - a project folder of its own (`project.json`): `<folder>/knowledge/`;
 - a Mendix project with no MxScout at all (no `mxscout/` yet, or only
-  `mxscout/knowledge/`): `<MendixProject>/mxscout/knowledge/` — make it. The
-  notes need nothing else; they are plain Markdown in the app's git.
+  `mxscout/knowledge/`): `<MendixProject>/mxscout/knowledge/` — `agent.js
+  case` makes it. The notes need nothing else; they are plain Markdown in the
+  app's git.
 
 ### Before you work a new item: search
 
@@ -458,7 +476,7 @@ Do this before tracing anything, for every kind:
    case.
 3. **Is it still true?** A note names the commit it was checked against
    (`model`) and, usually, the fingerprints of its flows. With the pack, add
-   `--pack <ai-pack.md>` (or `node ../mendix-describe/agent.js pack pack.md`
+   `--pack <ai-pack.md>` (or `node ../mendix-describe/agent.js pack <work>/pack.md`
    first): a flow whose fingerprint moved, or that is gone, marks the case
    **may be out of date** — say so, and check the flow as it is now. Without
    fingerprints, compare `model` with HEAD (`cases` prints both; `git log
@@ -472,36 +490,36 @@ clearly reached a fix the person accepted, or the person asks ("add it to the
 documentation", "dołóż to do dokumentacji") — write the case note **without
 asking**:
 
-1. Write `knowledge/<id>-<slug>.md` as `reference/knowledge-format.md` says:
+1. Write `<work>/<id>-<slug>.md` as `reference/knowledge-format.md` says:
    the item's id and kind, the title, `status` (`solved`, `workaround`,
    `wont-fix`, `as-designed`), `solved` today, `model` (the pack's `model
    commit:` line, or `git rev-parse HEAD` in the Mendix project — read-only),
    the flows, entities and pages it is about, keywords someone would search
    for, related case ids, the language, and the fingerprints of its flows from
    the pack. The five sections in the project's language, headings in English.
-   An existing note for the same id: rewrite that file in place.
+   An existing note for the same id: start from it (copy it into the work
+   folder) — the next step replaces it.
 2. **Strip personal data** before you write: no reporter's or anyone's name,
    no "Reported by", no e-mail address, phone number, customer data, record or
    order number from production. Say "the reporter", "a customer", "an order
    in the Shipped status".
-3. Check it: `node check-assist.js knowledge <the file>` — fix every error
-   (personal data is an error) and read the warnings.
-4. When there is an Assist item, link it: send an update with `"knowledge":
+3. Check it: `node check-assist.js knowledge <work>/<id>-<slug>.md` — fix
+   every error (personal data is an error) and read the warnings.
+4. Put it in: `node ../mendix-describe/agent.js case <work>/<id>-<slug>.md`
+   — it checks the note again, writes it into `mxscout/knowledge/` (a
+   project folder's `knowledge/`; in a Mendix project with no MxScout yet, it
+   makes `mxscout/knowledge/`), and brings `mxscout/docs/` up to date, whose
+   index lists the cases. Through the agent channel it hands the note to
+   MxScout, which writes it into `knowledge/` with Undo.
+5. When there is an Assist item, link it: send an update with `"knowledge":
    "knowledge/<id>-<slug>.md"` (`reference/assist-format.md`), so MxScout
    shows **In the documentation** on it.
-5. Bring `mxscout/docs/` up to date — its index lists the cases:
-   `node ../mendix-describe/agent.js update-docs --folder <MendixProject>`
-   (inside the Mendix project; it writes nothing when docs/ is current).
-   MxScout, when it is open on the project, does it by itself.
 6. **Tell the person**, in one line: "I recorded case SD-4711 in
    mxscout/knowledge/SD-4711-cancelled-orders-still-in-the-queue.md — commit
    it with the fix." The commit is the approval; nothing else asks for one.
 
-You may not be able to write into the folder (the agent channel only): then
-hand the note to MxScout — `node ../mendix-describe/agent.js send
-<note>.md` into the folder's inbox, or an envelope `{ "format":
-"mxscout-knowledge", "version": 1, "cases": [{ "text": "…" }] }` through the
-channel — and MxScout writes it into `knowledge/`, with Undo.
+Only the note itself goes into the project: the draft, the pack you grepped
+and anything else you made stay in the work folder.
 
 ## Status and planned date
 
@@ -534,27 +552,27 @@ history entry, `closed` removed). An idea that becomes a Jira issue is a new
 ## Writing, checking, handing back
 
 Write the item(s) in an envelope — `{ "format": "mxscout-assist", "version":
-1, "items": [ … ] }`, every field in `reference/assist-format.md` — in your
-working folder, not in the project folder, as `assist.<id>.json`. Several
+1, "items": [ … ] }`, every field in `reference/assist-format.md` — in the
+work folder, as `<work>/assist.<id>.json`; never in the project. Several
 items may go in one file. Dates are ISO (`2026-10-15`). Text is plain: no
 markup; a blank line starts a paragraph. Keep Mendix names as they are; write
 in the item's language and set its `language` (see "Language").
 
 ```
-node check-assist.js check assist.SD-4711.json --pack <folder>/ai-pack.md
+node check-assist.js check <work>/assist.SD-4711.json --pack <folder>/ai-pack.md
 ```
 
 Fix every error; read the warnings. Then:
 
-- **Project folder:** move the checked file into `<folder>/inbox/` — inside
-  the Mendix project, `mxscout/.local/inbox/`
-  (`mv assist.SD-4711.json <folder>/inbox/assist-SD-4711.json`). MxScout takes
-  it at once while the project is open, stores the item under
+- **Project folder:** `node ../mendix-describe/agent.js send
+  <work>/assist.SD-4711.json --folder <folder>` writes it whole into
+  `<folder>/inbox/` — inside the Mendix project, `mxscout/.local/inbox/`.
+  MxScout takes it at once while the project is open, stores the item under
   `assist/<kind>/<id>.json` and shows it with **Undo**. Run `list` again: a
   file still waiting in `inbox/` means the project is not open in MxScout —
   tell the person.
-- **Agent channel:** `node ../mendix-describe/agent.js send assist.SD-4711.json`.
-- **Neither:** tell the person where the file is and to import it in MxScout.
+- **Agent channel:** `node ../mendix-describe/agent.js send <work>/assist.SD-4711.json`.
+- **Neither:** tell the person where the file is (its full path) and to import it in MxScout.
 
 An item sent again with the same kind and id **replaces** the one kept, its
 history and thread appended and its questions merged by id — that is how you
@@ -576,7 +594,8 @@ questions, or what would settle a `cannot-tell` — those are theirs.
 - `check-assist.js` — `check <file> [--pack ai-pack.md]`, `list <folder>
   [--kind …] [--status …]`, `knowledge <note.md>` (a case note, personal data
   included) and `cases <folder> [--find "…"] [--pack ai-pack.md]` (the solved
-  cases, best matches first, which may be out of date). Node only, no install.
+  cases, best matches first, which may be out of date). A file named without a
+  path is looked for in the work folder first. Node only, no install.
 - `selftest.js` — the checker's own test, with invented items:
   `node selftest.js`.
 - `README.md` — for the person: how to install it and start.

@@ -16,7 +16,15 @@ and git never has a conflict to resolve.
 |---|---|
 | inside the Mendix project (`<MendixProject>/mxscout/mxscout.json`) | `<MendixProject>/mxscout/knowledge/` |
 | in a project folder of its own (`project.json`, `model.json` …) | `<folder>/knowledge/` |
-| nowhere yet — a Mendix project with no MxScout at all | `<MendixProject>/mxscout/knowledge/` (make the folder) |
+| nowhere yet — a Mendix project with no MxScout at all | `<MendixProject>/mxscout/knowledge/` (made for it) |
+
+Write the note in the work folder first (`node ../mendix-describe/agent.js
+workdir` prints it), check it there, and put it in with **`node
+../mendix-describe/agent.js case <work>/<id>-<slug>.md`**: it checks the note
+by MxScout's rules, writes it into the `knowledge/` above, and — inside the
+Mendix project — brings `mxscout/docs/` up to date. Through the agent channel
+it hands the note to MxScout instead (below). The draft stays in the work
+folder; nothing else goes into the project.
 
 `knowledge/` is **committed**: it is not under `.local/`. The person commits
 the note together with the fix — **the commit is the approval**. Nothing else
@@ -27,7 +35,7 @@ slug (lower-case letters, digits and hyphens, at most 50 characters) —
 `SD-4711-cancelled-orders-still-in-the-queue.md`. When the id is already that
 slug (an idea's or other help's id usually is), the file is `<id>.md`:
 `reorder-from-history.md`. A case written again (revised, reopened and solved
-again) keeps its file: rewrite it in place.
+again) keeps its file: `agent.js case` with the same name replaces it.
 
 ## The file
 
@@ -132,19 +140,21 @@ holds:
   screenshots.
 
 Say it generally instead: "the reporter", "a customer", "an order in the
-Shipped status". The checker (`node check-assist.js knowledge <file>`) refuses
+Shipped status". The checker (`node check-assist.js knowledge <file>`), and
+`agent.js case` with it, refuses
 a note with an e-mail address, a phone number, an IBAN, a "Reported by" line
 or a long number, and MxScout refuses to take one handed to it.
 
 ## Handing it to MxScout instead
 
-When the project is open in MxScout, an agent that cannot write the folder
-itself may hand the note over, and MxScout writes it into `knowledge/` (saved
-at once, with Undo):
+When the project is open in MxScout, the note can be handed over instead, and
+MxScout writes it into `knowledge/` (saved at once, with Undo):
 
-- the folder's `inbox/` (`mxscout/.local/inbox/` inside the Mendix project):
-  the note itself, as a `.md` file, or
-- an envelope, through the agent channel (`agent.js send`) or into the inbox:
+- through the agent channel: `agent.js case <work>/<id>-<slug>.md` sends it
+  as the envelope below;
+- into the folder's `inbox/` (`mxscout/.local/inbox/` inside the Mendix
+  project): `agent.js send <work>/<id>-<slug>.md` — the note itself, or the
+  envelope:
 
 ```
 { "format": "mxscout-knowledge", "version": 1,
