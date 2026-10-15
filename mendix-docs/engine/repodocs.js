@@ -18,6 +18,7 @@
  *   knowledge/          one Markdown file per solved case (a ticket, a Jira issue, an idea) with front matter —
  *                       committed; written by an agent (or by MxScout, from a note an agent handed in)
  *   GUIDE.md            the team's user guide (public/guide-team.md, as this MxScout ships it)
+ *   GUIDE.html          the same guide as one page to open in a browser (public/guide-team.html)
  *   AGENTS.md           how any AI agent should read this folder
  *   README.md           what this folder is, and the team's workflow
  *   .gitignore          ignores .local/
@@ -27,7 +28,7 @@
  * And, only when the person chooses it, the Claude skills in the Mendix project where Claude Code loads
  * them: <MendixProject>/.claude/skills/mendix-describe/ and .claude/skills/mendix-assist/, each with a
  * VERSION file — the one place outside mxscout/ MxScout writes, and nothing else in .claude/.
- * README.md, AGENTS.md, GUIDE.md and the skills carry the MxScout version that wrote them, and are
+ * README.md, AGENTS.md, GUIDE.md, GUIDE.html and the skills carry the MxScout version that wrote them, and are
  * replaced only by a NEWER MxScout (stamp, newer): a teammate with an older one never downgrades them.
  *
  * This file is pure: what each file holds, splitting the descriptions into files and joining them
@@ -232,6 +233,13 @@
   var SKILLS = ['mendix-describe', 'mendix-assist'];
   // The team's guide: public/guide-team.md as this MxScout ships it, with the stamp.
   function guide(text, st) { return header(st) + String(text || '').replace(/\s+$/, '') + '\n'; }
+  // And as one HTML page, public/guide-team.html as this MxScout ships it: the same stamp, as the HTML comment
+  // it already is, on the line after <!doctype html> — the file stays a valid page, and parseStamp, which reads
+  // the first two lines, finds it there.
+  function guideHtml(text, st) {
+    var t = String(text || '').replace(/\s+$/, '') + '\n', nl = t.indexOf('\n');
+    return /^<!doctype html>$/i.test(t.slice(0, nl)) ? t.slice(0, nl + 1) + header(st) + t.slice(nl + 1) : header(st) + t;
+  }
 
   // ---------- the committed texts ----------
   function gitignore() {
@@ -253,10 +261,11 @@
       '|---|---|'
     ].concat(ROLES.map(function (r) { return '| `' + r[0] + '` | ' + r[1] + ' |'; })).concat([
       '| `GUIDE.md` | The team\'s guide to working with this folder. Committed. |',
+      '| `GUIDE.html` | The same guide as one page, English and Polish, to open in a browser. Committed. |',
       '',
       '## What is committed, and what is not',
       '',
-      'Committed: `mxscout.json`, `descriptions/`, `docs/`, `knowledge/`, `AGENTS.md`, `README.md`, `.gitignore`.',
+      'Committed: `mxscout.json`, `descriptions/`, `docs/`, `knowledge/`, `AGENTS.md`, `README.md`, `GUIDE.md`, `GUIDE.html`, `.gitignore`.',
       'Not committed (`.gitignore`): `.local/` — the model as MxScout read it (the `.mpr` beside is the truth),',
       'the whole documentation and AI pack an agent reads, the inbox, and your Assist items, which are personal:',
       'each person keeps their own. The package key never comes here.',
@@ -664,7 +673,7 @@
     LAYOUT: LAYOUT, DIR: DIR, LOCAL: LOCAL, FORMAT: FORMAT, ROLES: ROLES, KNOWLEDGE: 'knowledge/',
     split: split, join: join, canonical: canonical, slug: slug, moduleFile: moduleFile,
     projectJson: projectJson, conflicted: conflicted, sides: sides,
-    gitignore: gitignore, readme: readme, agents: agents, guide: guide,
+    gitignore: gitignore, readme: readme, agents: agents, guide: guide, guideHtml: guideHtml,
     stamp: stamp, parseStamp: parseStamp, newer: newer, skillVersion: skillVersion, skillFiles: skillFiles, SKILLS_DIR: SKILLS_DIR, SKILLS: SKILLS,
     docsFiles: docsFiles, descriptionsHash: descriptionsHash, sha256: sha256,
     CASE_KINDS: CASE_KINDS, CASE_STATUSES: CASE_STATUSES, CASE_SECTIONS: CASE_SECTIONS, CASE_KEYS: CASE_KEYS,
