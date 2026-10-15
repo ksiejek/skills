@@ -289,7 +289,7 @@
         app.render();
       }, function (err) { d.busy = false; d.error = 'Could not save: ' + ((err && err.message) || err); app.render(); });
     }
-    var backdrop = el('div', { class: 'modal-backdrop', onclick: function (e) { if (e.target === backdrop) close(); } }, [el('div', { class: 'modal triage-modal', role: 'dialog', 'aria-label': fp ? 'Mark as a false positive' : 'Mark as fixed' }, [
+    var backdrop = el('div', { class: 'modal-backdrop', onclick: function (e) { if (e.target === backdrop) close(); } }, [window.MxDialog.modal(el('div', { class: 'modal triage-modal' }, [
       el('h3', { text: fp ? 'Mark as a false positive' : 'Mark as fixed' }),
       el('p', { class: 'triage-risk' }, [el('b', { text: d.risk.level + ' · ' }), document.createTextNode(d.risk.title)]),
       el('p', { text: fp ? 'It stops counting as a risk and stays on the Risks page under False positive, with your reason. The agent is told, and does not raise it again unless the model changes so the reason no longer holds.'
@@ -300,7 +300,7 @@
         el('button', { class: 'btn', text: 'Cancel', onclick: close }),
         el('button', { class: 'btn btn-primary', text: d.busy ? 'Saving…' : fp ? 'Mark false positive' : 'Mark fixed', disabled: d.busy ? 'disabled' : null, onclick: submit })
       ])
-    ])]);
+    ]), close)]);
     return backdrop;
   }
 

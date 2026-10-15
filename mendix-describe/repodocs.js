@@ -186,13 +186,19 @@
     return json({ format: FORMAT, layout: LAYOUT, id: project.id, name: project.name, contentLanguage: project.contentLanguage || null, describedAt: d });
   }
 
+  // ---------- line endings ----------
+  // A file read back from mxscout/ lives in the team's repository, under their git settings: on Windows with
+  // core.autocrlf=true it comes back with CRLF. Everything below that reads such a file reads it through this,
+  // so "files:\r" is still "files:" and a "=======\r" line is still a conflict marker.
+  function lf(text) { var t = String(text === null || text === undefined ? '' : text); return t.indexOf('\r') === -1 ? t : t.replace(/\r\n?/g, '\n'); }
+
   // ---------- git's conflict markers ----------
   var MARK = /^(<{7}|={7}|>{7})(?: .*)?$/m;
-  function conflicted(text) { return MARK.test(String(text || '')) && /^<{7}/m.test(String(text)) && /^>{7}/m.test(String(text)); }
+  function conflicted(text) { var t = lf(text); return MARK.test(t) && /^<{7}/m.test(t) && /^>{7}/m.test(t); }
   // Both sides of every conflicted region: { ours, theirs, oursLabel, theirsLabel } — each the whole file as
   // that side has it. A diff3 region's base (|||||||) is left out.
   function sides(text) {
-    var lines = String(text).split('\n'), ours = [], theirs = [], at = 'both', ol = null, tl = null;
+    var lines = lf(text).split('\n'), ours = [], theirs = [], at = 'both', ol = null, tl = null;
     lines.forEach(function (l) {
       var m;
       if ((m = /^<{7}(?: (.*))?$/.exec(l))) { at = 'ours'; if (ol === null) ol = m[1] || null; return; }
@@ -208,7 +214,7 @@
   // ---------- which MxScout wrote a file: "MxScout 1.10.0", "MxScout Dev 1.6.0" ----------
   function stamp(edition, version) { return String(edition || 'MxScout') + ' ' + String(version || '0.0.0'); }
   function parseStamp(text) {
-    var m = /(MxScout(?: Dev)?) (\d+)\.(\d+)\.(\d+)/.exec(String(text || '').split('\n').slice(0, 2).join('\n'));
+    var m = /(MxScout(?: Dev)?) (\d+)\.(\d+)\.(\d+)/.exec(lf(text).split('\n').slice(0, 2).join('\n'));
     return m ? { edition: m[1], v: [Number(m[2]), Number(m[3]), Number(m[4])] } : null;
   }
   // Whether a copy stamped `mine` should replace one stamped `theirs` (the first lines of the file there, or
@@ -229,18 +235,18 @@
       'files:'].concat(files.slice().sort()).join('\n') + '\n';
   }
   function skillFiles(versionText) {
-    var at = String(versionText || '').split('\n'), i = at.indexOf('files:');
+    var at = lf(versionText).split('\n'), i = at.indexOf('files:');
     return i < 0 ? [] : at.slice(i + 1).filter(function (l) { return l && l.indexOf('..') === -1 && !/^\//.test(l); });
   }
   var SKILLS_DIR = '.claude/skills/';
   var SKILLS = ['mendix-describe', 'mendix-assist'];
   // The team's guide: public/guide-team.md as this MxScout ships it, with the stamp.
-  function guide(text, st) { return header(st) + String(text || '').replace(/\s+$/, '') + '\n'; }
+  function guide(text, st) { return header(st) + lf(text).replace(/\s+$/, '') + '\n'; }
   // And as one HTML page, public/guide-team.html as this MxScout ships it: the same stamp, as the HTML comment
   // it already is, on the line after <!doctype html> — the file stays a valid page, and parseStamp, which reads
   // the first two lines, finds it there.
   function guideHtml(text, st) {
-    var t = String(text || '').replace(/\s+$/, '') + '\n', nl = t.indexOf('\n');
+    var t = lf(text).replace(/\s+$/, '') + '\n', nl = t.indexOf('\n');
     return /^<!doctype html>$/i.test(t.slice(0, nl)) ? t.slice(0, nl + 1) + header(st) + t.slice(nl + 1) : header(st) + t;
   }
 
@@ -410,7 +416,7 @@
   // subsections ("### …"): { title, lead: [lines], subs: [{ title, lines }] }.
   function sectionsOf(md) {
     var out = [], cur = null, sub = null;
-    String(md).split('\n').forEach(function (l) {
+    lf(md).split('\n').forEach(function (l) {
       var m;
       if ((m = /^## (.*)$/.exec(l))) { cur = { title: m[1], lead: [], subs: [] }; sub = null; out.push(cur); return; }
       if (!cur) return;
@@ -563,7 +569,7 @@
   }
   // The file's text → { meta, sections: { Problem: text, … }, order: [headings], extra: [headings], error }.
   function caseRead(text) {
-    var t = String(text || '').replace(/\r\n?/g, '\n');
+    var t = lf(text);
     if (t.length > MAX_CASE) return { error: 'it is larger than ' + (MAX_CASE / 1024) + ' KB' };
     if (conflicted(t)) return { error: 'it has git\'s conflict markers — resolve it in git first' };
     var m = /^---\n([\s\S]*?)\n---[ \t]*(?:\n|$)/.exec(t);
@@ -610,7 +616,7 @@
     ['a long number — a record id from production, an account or a phone number', /(?:^|[^\w.])\d{9,}(?![\w.])/]
   ];
   function casePersonal(text) {
-    var body = String(text || '').replace(/^---\n[\s\S]*?\n---/, function (fm) { return fm.replace(/^(model|fingerprints):.*$/gm, ''); });
+    var body = lf(text).replace(/^---\n[\s\S]*?\n---/, function (fm) { return fm.replace(/^(model|fingerprints):.*$/gm, ''); });
     var out = [];
     PERSONAL.forEach(function (p) { var m = p[1].exec(body); if (m) out.push({ what: p[0], sample: m[0].trim().slice(0, 60) }); });
     return out;
@@ -716,7 +722,7 @@
   window.MxRepoDocs = {
     LAYOUT: LAYOUT, DIR: DIR, LOCAL: LOCAL, FORMAT: FORMAT, ROLES: ROLES, KNOWLEDGE: 'knowledge/',
     split: split, join: join, canonical: canonical, slug: slug, moduleFile: moduleFile,
-    projectJson: projectJson, conflicted: conflicted, sides: sides,
+    projectJson: projectJson, conflicted: conflicted, sides: sides, lf: lf,
     gitignore: gitignore, readme: readme, agents: agents, guide: guide, guideHtml: guideHtml,
     stamp: stamp, parseStamp: parseStamp, newer: newer, skillVersion: skillVersion, skillFiles: skillFiles, SKILLS_DIR: SKILLS_DIR, SKILLS: SKILLS,
     docsFiles: docsFiles, descriptionsHash: descriptionsHash, sha256: sha256,

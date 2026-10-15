@@ -779,7 +779,7 @@
         h('div', { class: 'pp-win-body', 'data-keep-scroll': place || null }, kids)
       ]);
       var scrim = h('div', { class: 'mf-step-scrim', onclick: function (e) { if (e.target === scrim) close(); } }, [win]);
-      scrim.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+      scrim.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); close(); } });
       setTimeout(function () { if (scrim.isConnected && !scrim.contains(document.activeElement)) x.focus(); }, 0);
       return scrim;
     }
