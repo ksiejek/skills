@@ -12,7 +12,12 @@
  *       --out docs.md): what is described there, and what is marked out of
  *       date, is read from it.
  *
+ *   node check-descriptions.js todo --folder <project folder> [--list]
+ *       The same, for a project MxScout keeps in a folder: its ai-pack.md and
+ *       its descriptions.json.
+ *
  *   node check-descriptions.js check <pack.md> <descriptions.json>
+ *   node check-descriptions.js check --folder <project folder> <descriptions.json>
  *       Whether MxScout will accept the file, and whether it says what it
  *       should: the format, every name exists in the pack, every fingerprint
  *       matches, no description is empty or overlong, and the application,
@@ -21,7 +26,7 @@
  *       reference/risk-levels.md, its places and a fix; every change (SKILL.md,
  *       "A change, when the person asks") has an id, how it works now traced
  *       through flows that exist, a proposal and model changes that name what
- *       is there, unless they add it; every ticket (skills/mendix-ticket-check)
+ *       is there, unless they add it; every ticket (an older file's; the mendix-assist skill writes Assist items now)
  *       a verdict, its reasoning, evidence that names what is in the pack, and
  *       for a bug the change that fixes it. It warns about anything over the
  *       bounds MxScout keeps (CAPS below; reference/descriptions-format.md,
@@ -632,7 +637,7 @@ function check(pack, desc) {
       });
     }
   }
-  // Tickets (skills/mendix-ticket-check): a ticket reported on the application, checked against the model.
+  // Tickets (an older file's; the mendix-assist skill writes Assist items now): a ticket reported on the application, checked against the model.
   // MxScout drops a ticket without an id, a title, a verdict it knows or a summary, and an evidence row
   // without a target; the rest it shows as it is, so the rest is a warning.
   if (desc.tickets !== undefined) {
@@ -829,7 +834,20 @@ function merge(parts) {
 
 // ---------- the command line ----------
 function main(argv) {
-  const [cmd, ...rest] = argv;
+  const [cmd, ...given0] = argv;
+  // --folder <MxScout project folder>: its ai-pack.md is the pack, and — for todo — its
+  // descriptions.json the descriptions (MxScout writes both there; see agent.js).
+  let rest = given0.slice();
+  const fi = rest.indexOf('--folder');
+  if (fi !== -1) {
+    const dir = rest[fi + 1];
+    rest.splice(fi, 2);
+    if (!dir || !fs.existsSync(require('path').join(dir, 'ai-pack.md'))) throw new Error('No ai-pack.md in ' + dir + ' — is it an MxScout project folder, with the project open in MxScout once?');
+    const path = require('path');
+    const pack = path.join(dir, 'ai-pack.md'), desc = path.join(dir, 'descriptions.json');
+    if (cmd === 'todo') rest = [pack].concat(fs.existsSync(desc) ? [desc] : [], rest);
+    else if (cmd === 'check') rest = [pack].concat(rest);
+  }
   const list = rest.indexOf('--list') !== -1;
   const args = rest.filter((a) => a !== '--list');
   if (cmd === 'todo' && args[0]) {
@@ -870,7 +888,7 @@ function main(argv) {
     console.log('Wrote ' + args[0] + ': ' + n + ' descriptions' + (merged.changes ? ', ' + merged.changes.length + ' change' + (merged.changes.length === 1 ? '' : 's') : '') + (merged.tickets ? ', ' + merged.tickets.length + ' ticket' + (merged.tickets.length === 1 ? '' : 's') : '') + ' from ' + (args.length - 1) + ' parts.');
     return 0;
   }
-  console.log('Usage:\n  node check-descriptions.js todo  <pack.md> [descriptions.json | docs.md] [--list]\n  node check-descriptions.js check <pack.md> <descriptions.json>\n  node check-descriptions.js merge <out.json> <part.json> [<part.json> …]');
+  console.log('Usage:\n  node check-descriptions.js todo  <pack.md> [descriptions.json | docs.md] [--list]\n  node check-descriptions.js todo  --folder <project folder> [--list]\n  node check-descriptions.js check <pack.md> <descriptions.json>\n  node check-descriptions.js check --folder <project folder> <descriptions.json>\n  node check-descriptions.js merge <out.json> <part.json> [<part.json> …]');
   return 2;
 }
 

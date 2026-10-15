@@ -1209,3 +1209,73 @@ button.dx-dm-can.link:hover { border-color:var(--acc); color:var(--acc-text); }
 .dx-tk-reply { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
 .dx-tk-reply-t { margin:0; padding:10px 12px; width:100%; box-sizing:border-box; white-space:pre-wrap; font-size:14px; line-height:1.55; color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:8px; }
 .dx-tk-change { border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+
+/* Assist (docs-assist.js): what an agent helped with, in MxScout only — the exported file has no Assist
+   item, so these rules travel in it unused. Tabs by kind, a status on every item, the buttons that move
+   it, its history. The rest of the page is the Tickets and Changes parts above. */
+.dx-as-tabs { display:flex; flex-wrap:wrap; gap:4px; border-bottom:1px solid var(--line); margin-bottom:6px; }
+.dx-as-tab { display:inline-flex; align-items:center; gap:4px; padding:9px 14px 10px; margin-bottom:-1px; border:0; border-bottom:2px solid transparent; background:none;
+  font:600 13.5px var(--font-ui); color:var(--ink2); text-decoration:none; cursor:pointer; }
+.dx-as-tab .mono { color:var(--muted); font-weight:500; }
+.dx-as-tab:hover { color:var(--ink); }
+.dx-as-tab.on { color:var(--acc-text); border-bottom-color:var(--acc); }
+.dx-as-open { margin-left:4px; font:600 10.5px/16px var(--font-mono); padding:0 6px; border-radius:5px; color:var(--acc-text); background:var(--acc-soft); }
+.dx-as-st { display:inline-block; font:600 10.5px/17px var(--font-mono); padding:0 7px; border-radius:5px; vertical-align:1px; white-space:nowrap; color:var(--acc-text); background:var(--acc-soft); }
+.dx-as-st.in-progress { color:var(--p2); background:var(--p2bg); }
+.dx-as-st.done { color:var(--ok); background:var(--okbg); }
+.dx-as-st.dropped { color:var(--muted); background:var(--raised); text-decoration:line-through; }
+.dx-pl-t small .dx-as-st { margin-left:2px; }
+.dx-as-tools { display:flex; flex-wrap:wrap; align-items:center; gap:10px; max-width:900px; }
+.dx-as-q { flex:1 1 220px; min-width:0; max-width:340px; padding:7px 10px; border:1px solid var(--line2); border-radius:8px; background:var(--panel); color:var(--ink); font:13.5px var(--font-ui); }
+.dx-as-q:focus { outline:2px solid var(--acc); outline-offset:-1px; }
+.dx-as-chip.in-progress.on { background:var(--p2bg); border-color:var(--p2); color:var(--p2); }
+.dx-as-chip.done.on { background:var(--okbg); border-color:var(--ok); color:var(--ok); }
+.dx-as-row .dx-ch-row-h { flex-wrap:wrap; }
+.dx-as-row[data-status="done"] b, .dx-as-row[data-status="dropped"] b { color:var(--ink2); }
+.dx-as-bar { display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; max-width:900px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--panel); }
+.dx-as-now { display:flex; align-items:center; gap:8px; }
+.dx-as-now .dx-as-st { font-size:12px; line-height:21px; padding:0 9px; }
+.dx-as-now small { font-size:12px; color:var(--muted); }
+.dx-as-btns { display:flex; flex-wrap:wrap; gap:6px; }
+.dx-as-act.primary { background:var(--acc); border-color:var(--acc); color:var(--acc-on); }
+.dx-as-plan { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); margin-left:auto; }
+.dx-as-date { padding:4px 6px; border:1px solid var(--line2); border-radius:6px; background:var(--bg, var(--panel)); color:var(--ink); font:12.5px var(--font-ui); }
+.dx-as-msg { flex-basis:100%; font-size:12.5px; color:var(--p1); }
+.dx-as-msg:empty { display:none; }
+.dx-as-hist { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; max-width:900px; }
+.dx-as-hist li { display:grid; grid-template-columns:128px 56px minmax(0,1fr); gap:10px; padding:7px 2px; border-bottom:1px solid var(--line); font-size:13px; line-height:1.5; color:var(--ink2); }
+.dx-as-hist .mono { font-size:12px; color:var(--muted); }
+.dx-as-by { font-size:11.5px; font-weight:600; color:var(--muted); }
+.dx-as-by.person { color:var(--acc-text); }
+.dx-as-empty, .dx-as-none { max-width:900px; }
+.dx-as-st.waiting { color:var(--p3); background:var(--raised); outline:1px dashed var(--line2); }
+.dx-as-chip.waiting.on { background:var(--raised); border-color:var(--ink2); color:var(--ink); }
+.dx-as-sec-h { display:flex; align-items:center; justify-content:space-between; gap:12px; max-width:900px; }
+.dx-as-q-list { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; max-width:900px; }
+.dx-as-qn { padding:9px 2px; border-bottom:1px solid var(--line); }
+.dx-as-q-h { display:flex; align-items:baseline; gap:10px; font-size:14px; line-height:1.5; color:var(--ink); }
+.dx-as-qn.answered .dx-as-q-t, .dx-as-qn.dropped .dx-as-q-t { color:var(--ink2); }
+.dx-as-qn.dropped .dx-as-q-t { text-decoration:line-through; }
+.dx-as-q-why { margin:3px 0 0; font-size:13px; line-height:1.5; color:var(--muted); }
+.dx-as-qst { margin-left:auto; flex:none; font:600 10.5px/17px var(--font-mono); padding:0 7px; border-radius:5px; color:var(--ink2); background:var(--raised); }
+.dx-as-qst.answered { color:var(--ok); background:var(--okbg); }
+.dx-as-th { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:10px; max-width:900px; }
+.dx-as-th-e { padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--panel); }
+.dx-as-th-e.reporter { border-left:3px solid var(--acc); }
+.dx-as-th-h { display:flex; align-items:baseline; gap:10px; font-size:12px; color:var(--muted); }
+.dx-as-th-t { margin:6px 0 0; white-space:pre-wrap; font-size:14px; line-height:1.55; color:var(--ink); }
+.dx-as-by.reporter { color:var(--acc-text); }
+.dx-as-add { align-self:flex-start; }
+.dx-as-feas { align-self:flex-start; font:600 11px/19px var(--font-ui); padding:0 8px; border-radius:5px; color:var(--ok); background:var(--okbg); }
+.dx-as-feas.partly { color:var(--p2); background:var(--p2bg); }
+.dx-as-feas.no { color:var(--p1); background:var(--p1bg); }
+.dx-as-touches { display:flex; flex-wrap:wrap; gap:6px 12px; font:12.5px var(--font-mono); }
+.dx-as-form-btns { display:flex; flex-wrap:wrap; gap:6px; }
+.dx-as-answer { display:flex; flex-direction:column; gap:8px; max-width:900px; }
+.dx-as-answer[hidden] { display:none; }
+.dx-as-answer-t { width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid var(--line2); border-radius:8px; background:var(--panel); color:var(--ink); font:13.5px/1.5 var(--font-ui); resize:vertical; }
+.dx-as-ticks { display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--ink2); }
+.dx-as-tick { display:flex; align-items:baseline; gap:6px; }
+.dx-ch-cols.one { grid-template-columns:minmax(0,1fr); }
+.dx-ch-cols.one .dx-ch-col.proposal { padding-left:0; border-left:0; }
+@media (max-width: 720px) { .dx-as-plan { margin-left:0; } .dx-as-hist li { grid-template-columns:1fr; gap:2px; } }

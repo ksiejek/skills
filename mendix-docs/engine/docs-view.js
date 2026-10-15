@@ -360,7 +360,7 @@
       function agent() { w('> Written by an agent from the model.'); w(); }
       var D = data.derived || (window.MxReportData ? window.MxReportData.derive(data) : null);
       var ai = data.ai || {}, app = ai.app || null, risks = ai.risks || [], c4 = ai.c4 || null, ctx = ai.context || null;
-      var procs = app ? app.processes || [] : [], k = data.kpi, changes = ai.changes || [], tickets = ai.tickets || [];
+      var procs = app ? app.processes || [] : [], k = data.kpi;
       function rid(i) { var n = String(i + 1); return 'R-' + (n.length < 3 ? ('00' + n).slice(-3) : n); }
       function lvCount(l) { return risks.filter(function (r) { return r.level === l; }).length; }
       var KIND_TAG = { microflow: 'MF', nanoflow: 'NF', page: 'PG' };
@@ -442,9 +442,6 @@
           w();
         });
       }
-
-      // ---- changes: written by docs-changes.js, beside the page it draws ----
-      if (changes.length && window.MxDocsChanges) window.MxDocsChanges.markdown(changes, { w: w, esc: esc, code: code, paras: paras, table: table, raw: raw, agent: agent, plural: plural });
 
       // ---- modules ----
       var mods = D && D.modules ? D.modules : [];
@@ -639,9 +636,6 @@
           });
         });
       }
-
-      // ---- tickets: written by docs-tickets.js, beside the page it draws ----
-      if (tickets.length && window.MxDocsTickets) window.MxDocsTickets.markdown(tickets, { w: w, esc: esc, code: code, paras: paras, table: table, raw: raw, agent: agent, plural: plural });
 
       // ---- model quality ----
       if (Q) {
@@ -893,7 +887,10 @@
       }
       // Risks, the developers' context, the architecture and the processes exist only when an agent wrote them (describe.js), so their pages too.
       var risks = data.ai && data.ai.risks || [], devCtx = data.ai && data.ai.context || null, c4 = data.ai && data.ai.c4 || null;
-      var procs = data.ai && data.ai.app && data.ai.app.processes || [], changes = data.ai && data.ai.changes || [], tickets = data.ai && data.ai.tickets || [];
+      var procs = data.ai && data.ai.app && data.ai.app.processes || [];
+      // The Assist page: only in MxScout, which hands it the items (opts.assist) — never in the exported file.
+      var assist = opts.assist || null;
+      function assistOpen() { return (assist.items() || []).filter(function (x) { return x.status === 'open' || x.status === 'in-progress' || x.status === 'waiting'; }).length; }
       // The application's full description lives on Processes (as its item 0), so the page is there when either is.
       var procPage = !!(data.ai && data.ai.app && (procs.length || data.ai.app.story || data.ai.app.summary));
       var devCount = devCtx ? devCtx.where.length + devCtx.conventions.length + devCtx.pitfalls.length : 0;
@@ -901,13 +898,13 @@
       // what needs the running app): what the application is, the model, the review. Microflows,
       // nanoflows and pages are three entries, each the flow screen on its kind.
       var GROUPS = [
-        ['Application', [['start', 'Overview', 'home'], procPage ? ['processes', 'Processes', 'proc'] : null, changes.length ? ['changes', 'Changes', 'change'] : null, ['modules', 'Modules', 'module'], ['arch', 'Architecture', 'arch']]],
+        ['Application', [['start', 'Overview', 'home'], procPage ? ['processes', 'Processes', 'proc'] : null, ['modules', 'Modules', 'module'], ['arch', 'Architecture', 'arch']]],
         ['Model', [['domain', 'Entities', 'entity'], ['refs:microflow', 'Microflows', 'flow'], ['refs:nanoflow', 'Nanoflows', 'nano'], ['refs:page', 'Pages', 'page']]],
-        ['Review', [risks.length ? ['risks', 'Risks', 'risk'] : null, tickets.length ? ['tickets', 'Tickets', 'ticket'] : null, ['quality', 'Model quality', 'quality'], devCtx ? ['dev', 'For developers', 'dev'] : null]]
+        ['Review', [risks.length ? ['risks', 'Risks', 'risk'] : null, assist ? ['assist', 'Assist', 'ticket'] : null, ['quality', 'Model quality', 'quality'], devCtx ? ['dev', 'For developers', 'dev'] : null]]
       ].map(function (g) { return [g[0], g[1].filter(Boolean)]; });
       var NAV = [];
       GROUPS.forEach(function (g) { g[1].forEach(function (r) { var v = r[0].split(':')[0]; if (!NAV.some(function (x) { return x[0] === v; })) NAV.push([v, r[1], r[2]]); }); });
-      var counts = { processes: procs.length, changes: changes.length, tickets: tickets.length, modules: data.kpi.modules, 'refs:microflow': data.kpi.microflows, 'refs:nanoflow': data.kpi.nanoflows, 'refs:page': data.kpi.pages, domain: data.kpi.entities,
+      var counts = { processes: procs.length, modules: data.kpi.modules, 'refs:microflow': data.kpi.microflows, 'refs:nanoflow': data.kpi.nanoflows, 'refs:page': data.kpi.pages, domain: data.kpi.entities,
         quality: data.quality.unreached.length, risks: risks.length, dev: devCount };
       var navBtns = {};
       var initial = String(data.project || '?').charAt(0).toUpperCase();
@@ -986,13 +983,12 @@
       // "Copy link" copies something that opens exactly that.
       //   #/                      Overview, ?s=users etc. for one of its sections
       //   #/processes/{n}         0 = the whole application, 1.. = a process
-      //   #/changes/{id}          a change an agent worked out; none: the list of them
-      //   #/tickets/{id}          a ticket an agent checked against the model; none: the list of them
+      //   #/assist/{kind}/{id}    an item on the Assist page (in MxScout only); #/tickets/{id} and #/changes/{id} open it there too
       //   #/modules/{Module}
       //   #/flows/{Module.Name}   ?seg=all|mf|nf|pg the list, ?step=N the step, ?var=Name the trace
       //   #/domain/{Module}/{Entity}
       //   #/architecture?s={section}  #/risks/{R-012}  #/quality/{check}  #/developers/{tab}
-      var ROUTE_OF = { start: '', processes: 'processes', changes: 'changes', tickets: 'tickets', modules: 'modules', refs: 'flows', domain: 'domain', arch: 'architecture', risks: 'risks', quality: 'quality', dev: 'developers' };
+      var ROUTE_OF = { start: '', processes: 'processes', assist: 'assist', modules: 'modules', refs: 'flows', domain: 'domain', arch: 'architecture', risks: 'risks', quality: 'quality', dev: 'developers' };
       var VIEW_OF = {};
       Object.keys(ROUTE_OF).forEach(function (k) { VIEW_OF[ROUTE_OF[k]] = k; });
       // Addresses written before these routes existed still open.
@@ -1009,7 +1005,8 @@
         if (!m) return;
         var q = {};
         (m[3] || '').split('&').forEach(function (kv) { var p = kv.split('='); if (p[0]) q[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || ''); });
-        var view = VIEW_OF[m[1]];
+        // The Tickets and Changes pages became the Assist page's tabs (2026-10-15).
+        var view = m[1] === 'tickets' || m[1] === 'changes' ? 'assist' : VIEW_OF[m[1]];
         if (view === undefined) return;
         st.view = view || 'start';
         var arg = m[2] ? decodeURIComponent(m[2]) : null;
@@ -1027,8 +1024,10 @@
         if (st.view === 'arch') { st.amod = q.mod || null; st.arole = q.role || null; }
         if (st.view === 'dev') { st.dmod = q.mod || null; st.dq = q.q || ''; }
         if (st.view === 'processes') st.proc = arg && /^\d+$/.test(arg) ? Number(arg) : 0;
-        if (st.view === 'changes') st.change = arg || null;
-        if (st.view === 'tickets') st.ticket = arg || null;
+        if (st.view === 'assist') {
+          var ak = m[1] === 'tickets' ? ['ticket'].concat(arg ? [arg] : []) : m[1] === 'changes' ? ['idea'].concat(arg ? [arg] : []) : String(arg || '').split('/');
+          st.akind = ak[0] || null; st.aid = ak[1] || null;
+        }
         if (st.view === 'risks' || st.view === 'quality' || st.view === 'dev') st.sub = arg;
         if (st.view === 'risks') rf = { lv: /^P[123]$/.test(q.lv) ? q.lv : null, th: PAT[q.th] ? q.th : null, mod: q.mod || null, q: q.q || '', group: q.group === 'mod' ? 'mod' : 'sev' };
         st.sec = (st.view === 'start' || st.view === 'arch') && q.s ? q.s : null;
@@ -1049,8 +1048,7 @@
         if (s.view === 'domain' && s.dview === 'list') q = 'view=list';
         if (s.view === 'modules' && s.module) arg = s.module;
         if (s.view === 'processes') arg = String(s.proc || 0);
-        if (s.view === 'changes' && s.change) arg = s.change;
-        if (s.view === 'tickets' && s.ticket) arg = s.ticket;
+        if (s.view === 'assist' && s.akind) arg = s.akind + (s.aid ? '/' + s.aid : '');
         if ((s.view === 'risks' || s.view === 'quality' || s.view === 'dev') && s.sub) arg = s.sub;
         if ((s.view === 'start' || s.view === 'arch') && s.sec) q = 's=' + encodeURIComponent(s.sec);
         if (s.view === 'modules' || s.view === 'arch' || s.view === 'dev') {
@@ -1122,7 +1120,6 @@
         function text(where, kindLabel, body, patch) { if (body) texts.push({ where: where, kind: kindLabel, body: String(body).replace(/\s+/g, ' '), f: fold(String(body).replace(/\s+/g, ' ')), patch: patch }); }
         data.modules.forEach(function (m) { name('Modules', m.name, m.marketplace ? 'Marketplace module' : 'own module', 'MOD', { view: 'modules', module: m.name }); });
         procs.forEach(function (p, i) { name('Processes', p.name, 'process ' + pad2(i + 1), pad2(i + 1), { view: 'processes', proc: i + 1 }); });
-        changes.forEach(function (c) { name('Changes', c.title, 'change · ' + c.status, 'CH', { view: 'changes', change: c.id }); });
         var KG = { microflow: ['Microflows', 'MF'], nanoflow: ['Nanoflows', 'NF'], page: ['Pages', 'PG'] };
         Object.keys(data.flows).forEach(function (k) { var f = data.flows[k], g = KG[f.kind]; if (g) name(g[0], f.name, f.module, g[1], { view: 'refs', module: f.module, seg: f.kind, key: k }, f.qn); });
         Object.keys(data.entities).forEach(function (q) { var e = data.entities[q]; name('Entities', e.name, e.module, 'EN', { view: 'domain', entity: q, dmodule: e.module }, q); });
@@ -1131,8 +1128,6 @@
         var app2 = data.ai && data.ai.app;
         if (app2) { text('The application', 'description', [app2.summary, app2.story].filter(Boolean).join(' '), { view: 'processes', proc: 0 }); }
         procs.forEach(function (p, i) { text(p.name, 'process', [p.summary, p.story].concat(p.steps).filter(Boolean).join(' '), { view: 'processes', proc: i + 1 }); });
-        if (window.MxDocsTickets) window.MxDocsTickets.search(tickets, name, text);
-        changes.forEach(function (c) { text(c.title, 'change', [c.asked, c.now.summary, c.now.story, c.proposal.summary, c.proposal.story].concat(c.proposal.changes.map(function (x) { return x.target + ' ' + (x.what || ''); }), c.open).filter(Boolean).join(' '), { view: 'changes', change: c.id }); });
         Object.keys((data.ai && data.ai.modules) || {}).forEach(function (m) {
           var md = data.ai.modules[m];
           text(m, 'module', [md.summary, md.story].concat((md.notes || []).map(function (n) { return [n.title, n.text].concat(n.items || [], n.table ? n.table.rows.map(function (r) { return r.join(' '); }) : []).filter(Boolean).join(' '); })).filter(Boolean).join(' '), { view: 'modules', module: m });
@@ -1242,16 +1237,17 @@
       }
 
       // ---------- drawing ----------
+      // A page this data has no drawing for — an address of the Tickets or Changes pages there were — is the Overview.
+      var DRAW = { start: drawStart, processes: drawProcesses, assist: drawAssist, modules: drawModules, refs: drawRefs, domain: drawDomain, quality: drawQuality, risks: drawRisks, dev: drawDev, arch: drawArch };
       function draw() {
         Object.keys(navBtns).forEach(function (k) { navBtns[k].classList.toggle('on', k === st.view || (st.view === 'refs' && k === 'refs:' + (st.seg === 'nanoflow' || st.seg === 'page' ? st.seg : 'microflow'))); });
         var kept = scrollsOf(root);
         clear(list); clear(main); clear(headTools);
-        if ((st.view === 'risks' && !risks.length) || (st.view === 'dev' && !devCtx) || (st.view === 'processes' && !procPage) || (st.view === 'changes' && !changes.length) || (st.view === 'tickets' && !tickets.length)) st.view = 'start';
+        if ((st.view === 'risks' && !risks.length) || (st.view === 'dev' && !devCtx) || (st.view === 'processes' && !procPage) || (st.view === 'assist' && !assist) || !DRAW[st.view]) st.view = 'start';
         onScroll = null;
         root.setAttribute('data-view', st.view);
         root.classList.toggle('no-list', st.view === 'refs' || st.view === 'domain' || st.view === 'start' || st.view === 'quality' || st.view === 'risks' || st.view === 'dev' || st.view === 'arch');
-        var V = { start: drawStart, processes: drawProcesses, changes: drawChanges, tickets: drawTickets, modules: drawModules, refs: drawRefs, domain: drawDomain, quality: drawQuality, risks: drawRisks, dev: drawDev, arch: drawArch }[st.view] || drawStart;
-        V();
+        DRAW[st.view]();
         putScrolls(root, kept);
       }
       // A page's own controls: in the file, in the header beside its title. Embedded in MxScout,
@@ -1301,8 +1297,7 @@
           ['Scheduled events', k.scheduled, k.scheduled ? k.scheduledOn + ' on' : null, { view: 'quality', sub: 'sched' }],
           ['Published services', k.services, kinds.join(' · ') || null, { view: 'arch', sec: 'runtime' }],
           risks.length ? ['Risks', risks.length, levelCount('P1') + ' P1', { view: 'risks' }, 'p1'] : null,
-          changes.length ? ['Changes', changes.length, changes.filter(function (c) { return c.status === 'proposed'; }).length + ' proposed', { view: 'changes', change: null }] : null,
-          tickets.length ? ['Tickets', tickets.length, plural(tickets.filter(function (x) { return x.verdict === 'bug'; }).length, 'bug', 'bugs'), { view: 'tickets', ticket: null }] : null
+          assist ? ['Assist', assistOpen() + ' open', null, { view: 'assist' }] : null
         ].filter(Boolean);
         var hero = h('header', { class: 'dx-ov-hero', 'data-sec': 'about' }, [
           h('div', { class: 'dx-ov-intro' }, [
@@ -1392,7 +1387,7 @@
             [[{ view: 'refs' }, 'Microflows & pages', flowsN], [{ view: 'domain' }, 'Domain model', k.entities]]],
           ['Change it safely', risks.length ? 'What to fix first, what is unused, and what breaks easily.' : 'What is unused or switched off, and what breaks easily.',
             [risks.length ? [{ view: 'risks' }, 'Risks', risks.length] : null, [{ view: 'quality' }, 'Model quality', q.unreached.length], devCtx ? [{ view: 'dev' }, 'For developers', devCount] : null,
-              changes.length ? [{ view: 'changes', change: null }, 'Changes', changes.length] : null, tickets.length ? [{ view: 'tickets', ticket: null }, 'Tickets', tickets.length] : null]]
+              assist ? [{ view: 'assist' }, 'Assist', assistOpen() + ' open'] : null]]
         ].map(function (g) {
           return h('div', { class: 'dx-next-g' }, [h('h3', { text: g[0] }), h('p', { text: g[1] }),
             h('ul', null, g[2].filter(Boolean).map(function (l) { return h('li', null, ln(l[0], null, [h('span', { text: l[1] }), h('span', { class: 'mono', text: String(l[2]) })])); }))]);
@@ -1574,22 +1569,14 @@
         wrap.appendChild(h('p', { class: 'dx-prov', text: 'Written by an agent from the model. Step lists and flow names come from the model; check the wording before you quote it.' }));
         main.appendChild(wrap);
       }
-      // ---------- changes ----------
-      // A change an agent worked out (describe.js changeOf): drawn by docs-changes.js, which the file
-      // carries beside the flow drawing, with what it needs from this reader handed to it.
-      function drawChanges() {
-        if (!window.MxDocsChanges) { main.appendChild(h('div', { class: 'dx-note', text: 'This copy of the documentation cannot draw its changes.' })); return; }
-        window.MxDocsChanges.draw({
-          h: h, ln: ln, list: list, main: main, setTitle: setTitle, project: data.project, changes: changes, at: st.change,
-          tools: function (node) { tools(node, null); }, copyLink: opts.hash ? copyLink : null,
-          paragraphs: paragraphs, plural: plural, flowRows: flowRows, diagram: processDiagram, data: data, flowKey: flowKey
-        });
-      }
-      // A ticket an agent checked against the model (describe.js ticketOf): drawn by docs-tickets.js, carried the same way.
-      function drawTickets() {
-        if (!window.MxDocsTickets) { main.appendChild(h('div', { class: 'dx-note', text: 'This copy of the documentation cannot draw its tickets.' })); return; }
-        window.MxDocsTickets.draw({ h: h, ln: ln, list: list, main: main, setTitle: setTitle, project: data.project, tickets: tickets, changes: changes, at: st.ticket,
-          tools: function (node) { tools(node, null); }, copyLink: opts.hash ? copyLink : null, paragraphs: paragraphs, plural: plural, flowRows: flowRows, diagram: processDiagram,
+      // ---------- assist ----------
+      // What an agent helped with (assist.js), drawn by docs-assist.js — in MxScout only, which hands the
+      // items over (opts.assist); the exported file has neither the items nor the file that draws them.
+      function drawAssist() {
+        if (!window.MxDocsAssist) { main.appendChild(h('div', { class: 'dx-note', text: 'This copy cannot draw the Assist page.' })); return; }
+        window.MxDocsAssist.draw({ h: h, ln: ln, list: list, main: main, setTitle: setTitle, project: data.project, st: st, assist: assist,
+          keep: function (p) { Object.keys(p).forEach(function (k) { st[k] = p[k]; }); if (opts.onState) opts.onState(st); },
+          paragraphs: paragraphs, plural: plural, flowRows: flowRows, diagram: processDiagram,
           place: function (qn, kind) { return window.MxDocsChanges ? window.MxDocsChanges.place(data, flowKey, qn, { microflow: 1, nanoflow: 1, page: 1, entity: 1, attribute: 1, association: 1 }[kind] ? kind : 'other') : null; } });
       }
       // The risks on a process: those whose places include one of its flows, P1 first, each once.
@@ -2911,7 +2898,8 @@
 
       draw();
       // pages: the pages this data has — the ones the sidebar lists.
-      return { go: go, state: function () { return st; }, pages: function () { return NAV.map(function (x) { return x[0]; }); } };
+      // redraw: the same place drawn again — MxScout's Assist page after an item moved.
+      return { go: go, redraw: function () { draw(); }, state: function () { return st; }, pages: function () { return NAV.map(function (x) { return x[0]; }); } };
     }
 
     // The Markdown copy's file name, the HTML file's with .md.

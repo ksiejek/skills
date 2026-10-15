@@ -18,8 +18,8 @@
   var SHEETS = ['tokens.css', 'explorer.css', 'flowgraph.css', 'studioview.css', 'pagepreview.css', 'microflows.css', 'docs.css'];
   // "Microflows & pages" in the file is MxScout's own Microflows screen (flowview.js, redesign spec
   // 14), so the file carries it and what it draws with — a page with pagepreview.js — as the files themselves, unchanged.
-  // The Changes page (docs-changes.js) and the Tickets page (docs-tickets.js) are drawn by files of their own as well, carried the same way.
-  var SCRIPTS = ['flowtrace.js', 'flowgraph.js', 'studioview.js', 'pagepreview.js', 'flowview.js', 'docs-changes.js', 'docs-tickets.js'];
+  // Not the Assist page's files (docs-assist.js, docs-tickets.js, docs-changes.js): the file carries no Assist item.
+  var SCRIPTS = ['flowtrace.js', 'flowgraph.js', 'studioview.js', 'pagepreview.js', 'flowview.js'];
 
   // The fonts tokens.css names, as they are written in it: url("fonts/X.woff2").
   function fontsIn(tokens) { return tokens.match(/url\("fonts\/[A-Za-z0-9_-]+\.woff2"\)/g) || []; }
@@ -112,10 +112,27 @@
   // says what it is: what an agent understood earlier, to be read as a map and checked against the
   // pack. A description whose flow changed since it was written is marked out of date in it.
   // data: the documentation's data with the descriptions attached (MxDescribe.attach); null when
-  // there are none — there is nothing an agent understood yet, and the pack says the rest.
+  // there are none and no Assist item — there is nothing an agent understood yet, and the pack says the rest.
+  // assist: the project's Assist items (assist.js), listed at the end in a short "## Assist" section —
+  // id, kind, title, status, planned date — so the agent knows what is open and what is closed. This
+  // text is given only to the local agent; the exported file and its Markdown copy never list them.
   var AGENT_DOCS_HEAD = '# MxScout documentation';
-  function forAgent(data) {
-    if (!data || !data.ai) return null;
+  function assistSection(items) {
+    function cell(t) { return String(t === null || t === undefined ? '' : t).replace(/\s+/g, ' ').replace(/\|/g, '\\|'); }
+    var open = items.filter(function (x) { return x.status === 'open' || x.status === 'in-progress' || x.status === 'waiting'; }).length;
+    var out = ['', '## Assist', '',
+      items.length + (items.length === 1 ? ' item' : ' items') + ' on the Assist page, ' + open + ' open. Send one again with its id and kind to replace it (its history and conversation are kept), or an update ("update": true) with only what changed.', '',
+      '| Id | Kind | Title | Status | Planned |', '|---|---|---|---|---|'];
+    items.forEach(function (x) { out.push('| ' + [x.id, x.kind, x.title, x.status, x.planned || ''].map(cell).join(' | ') + ' |'); });
+    return out.join('\n') + '\n';
+  }
+  // opts.language: the project's language of written content, as "Polish (pl)", for the header's
+  // "Write in:" line — what an agent writes in, so it neither asks again nor switches.
+  // opts.assist: the project's Assist items (assist.js), listed at the end in a short "## Assist" section.
+  function forAgent(data, opts) {
+    opts = opts || {};
+    var items = Array.isArray(opts.assist) ? opts.assist : [];
+    if (!data || (!data.ai && !items.length)) return null;
     var own = {};
     data.modules.forEach(function (m) { own[m.name] = !m.marketplace; });
     var mine = withDerived(subset(data, own));
@@ -127,7 +144,7 @@
       if (f.desc) { described++; if (f.descStale) stale++; }
     });
     var market = data.modules.length - mine.modules.length;
-    var ai = data.ai, now = new Date().toISOString();
+    var ai = data.ai || {}, now = new Date().toISOString();
     function one(t) { return String(t).replace(/\s*\n\s*/g, ' '); }
     var head = [
       AGENT_DOCS_HEAD + ' — ' + one(data.project),
@@ -139,6 +156,7 @@
       'flows described: ' + described + ' of ' + flows,
       'out of date: ' + stale + (stale ? ' — each marked "(out of date …)" after its description: the flow changed since it was written' : ''),
       ai.written || ai.by ? 'descriptions: ' + ['written ' + one(ai.written || 'at an unknown date'), ai.by ? 'by ' + one(ai.by) : null].filter(Boolean).join(' ') : null,
+      opts.language !== undefined ? 'Write in: ' + (opts.language ? one(opts.language) : 'not set yet — ask the person once (English by default); the answer is kept for the project') : null,
       '',
       '> This is what an agent understood earlier; verify against the AI pack before concluding.',
       '',
@@ -146,7 +164,7 @@
       '',
       ''
     ].filter(function (l) { return l !== null; });
-    return { text: head.join('\n') + window.MxDocsView.markdown(mine), generatedAt: now, flows: flows, described: described, stale: stale };
+    return { text: head.join('\n') + window.MxDocsView.markdown(mine) + (items.length ? assistSection(items) : ''), generatedAt: now, flows: flows, described: described, stale: stale, assist: items.length };
   }
 
   function fileName(data) {

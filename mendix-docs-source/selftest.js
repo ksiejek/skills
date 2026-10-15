@@ -125,6 +125,35 @@ try {
     fs.writeFileSync(f, Buffer.from(sidecar[rel], 'base64'));
   });
   ok(/\nSales \| /.test(run(['status', v2])), 'with mprcontents/ beside it, the same project reads');
+
+  // An MxScout project folder in place of the .mpr: the model from its model.json, its descriptions,
+  // its language — and results only into its inbox/, with send.
+  const mxf = path.join(tmp, 'mxscout-folder');
+  fs.mkdirSync(path.join(mxf, 'inbox'), { recursive: true });
+  const model = execFileSync(process.execPath, ['-e', `
+    const fs = require('fs'), path = require('path'), vm = require('vm');
+    const ctx = { console, TextDecoder, TextEncoder, document: {} }; ctx.window = ctx; vm.createContext(ctx);
+    ['sqlite.js', 'bson.js', 'mpr.js'].forEach((f) => vm.runInContext(fs.readFileSync(path.join(${JSON.stringify(path.join(skill, 'engine'))}, f), 'utf8'), ctx));
+    const b = fs.readFileSync(${JSON.stringify(path.join(proj, 'Sales.mpr'))});
+    ctx.MxMpr.buildModel({ mprBytes: b.buffer.slice(b.byteOffset, b.byteOffset + b.length), appName: 'Sales', readContentsFile: () => null }).then((m) => process.stdout.write(JSON.stringify(m)));`], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  fs.writeFileSync(path.join(mxf, 'model.json'), model);
+  fs.writeFileSync(path.join(mxf, 'project.json'), JSON.stringify({ format: 'mxscout-project', layout: 1, id: 'self', name: 'Sales', contentLanguage: 'pl' }));
+  fs.writeFileSync(path.join(mxf, 'descriptions.json'), JSON.stringify(desc));
+  const fstatus = run(['status', mxf]);
+  ok(/^project: Sales/.test(fstatus) && /model\.json \(an MxScout project folder\)/.test(fstatus) && /language: pl/.test(fstatus) && /\nSales \| 2 \| 0 \| 2 \| 3/.test(fstatus),
+    'an MxScout project folder reads in place of the .mpr: its model.json, its language');
+  const fdocs = run(['docs', '--model', mxf]);
+  ok(/flows described: 1 of/.test(fdocs) && /Write in: Polish \(pl\)/.test(fdocs), 'docs --model <folder> takes its descriptions.json, and says the language');
+  run(['report', mxf, '--out', path.join(tmp, 'folder.html')]);
+  ok(/Opens a fresh order\./.test(fs.readFileSync(path.join(tmp, 'folder.html'), 'utf8')), 'and the report is built from it, with its descriptions');
+  const intoFolder = refuse(['report', mxf, '--out', path.join(mxf, 'r.html')]);
+  ok(intoFolder.status === 1 && /MxScout project folder/.test(intoFolder.said) && !fs.existsSync(path.join(mxf, 'r.html')), 'nothing else is written into that folder');
+  run(['send', mxf, path.join(tmp, 'descriptions.json')]);
+  const sent = fs.readdirSync(path.join(mxf, 'inbox'));
+  ok(sent.length === 1 && /-descriptions\.json$/.test(sent[0]) && fs.readFileSync(path.join(mxf, 'inbox', sent[0]), 'utf8') === fs.readFileSync(path.join(tmp, 'descriptions.json'), 'utf8'),
+    'send writes the descriptions whole into its inbox/: ' + sent.join(','));
+  const notDesc = refuse(['send', mxf, pack]);
+  ok(notDesc.status === 1 && /as JSON|not a descriptions file/.test(notDesc.said), 'and refuses what is not a descriptions file');
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
 }

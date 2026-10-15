@@ -1,6 +1,6 @@
 ---
 name: mendix-docs
-description: Build business-readable documentation of a Mendix application straight from its .mpr file, with no other tool running — what the application is for, its main processes and its modules, each as a short summary and a long description, one or two sentences on each microflow and nanoflow, the risks in the model ranked P1–P3, and what a developer should know before changing it — as one offline HTML report, the same report MxScout exports. Use when asked to document a Mendix app ("build", "zbuduj dokumentację"), to bring the documentation up to date after the app changed ("update", "zrobiłem zmiany"), to describe one more process in it ("opisz jeszcze ten proces"), to describe a change and propose how to make it ("opisz zmianę", "jak to zmienić"), to check whether a ticket reported on the app holds ("sprawdź zgłoszenie", "czy ten ticket ma rację bytu"), or to answer a question about how the app works ("jak działa", "kto może").
+description: Build business-readable documentation of a Mendix application straight from its .mpr file (or from a project folder MxScout keeps, reading its model.json), with no other tool running — what the application is for, its main processes and its modules, each as a short summary and a long description, one or two sentences on each microflow and nanoflow, the risks in the model ranked P1–P3, and what a developer should know before changing it — as one offline HTML report, the same report MxScout exports. Use when asked to document a Mendix app ("build", "zbuduj dokumentację"), to bring the documentation up to date after the app changed ("update", "zrobiłem zmiany"), to describe one more process in it ("opisz jeszcze ten proces"), to describe a change and propose how to make it ("opisz zmianę", "jak to zmienić"), to check whether a ticket reported on the app holds ("sprawdź zgłoszenie", "czy ten ticket ma rację bytu"), or to answer a question about how the app works ("jak działa", "kto może").
 argument-hint: build | update | process <what to describe> | change <what to change> | ticket <ticket text> | question <what> | report
 ---
 
@@ -42,7 +42,27 @@ under a line saying an agent wrote it — next to the facts read from the model.
 `descriptions.json` in the working folder and how much of it is out of date),
 and ask what they want: describe the application (all or some modules), bring
 it up to date, one more process, a change, a ticket, or a question. Answer
-briefly, in the person's language.
+briefly.
+
+## The language you write in
+
+Everything you write — descriptions, processes, risks, notes, changes,
+answers written to files — is in **one language per project, English by
+default**. Headings, labels, field names, JSON keys and Mendix names stay
+English; only the written content follows the language.
+
+- **Read it first.** In an MxScout project folder, `project.json` has it as
+  `contentLanguage` (`status` prints it, and `docs` writes `Write in: …` in the
+  header). From a `.mpr`, an earlier `descriptions.json` you were given has it
+  as `"language"`. When it is set, write in it and **never ask again**.
+- **Only when it is not set**, and you are about to write descriptions, ask
+  once, at the start: "In which language should I write? (default: English)"
+  — and say the answer is kept for the project (in `"language"` of your
+  `descriptions.json`; MxScout keeps the first one it receives as the
+  project's). No answer means English.
+- **When the person asks for another language**, say you will write in it
+  from now on, and put `"language"` and `"setLanguage": true` in your result,
+  so MxScout changes the project's setting. Never switch on your own.
 
 ## Where the model comes from
 
@@ -61,6 +81,27 @@ node docs.js report <app.mpr> descriptions.json --out <App>-documentation.html
 
 Only what is **saved** in Studio Pro is in the file. Ask the person to save
 before you start, and say so if they may have unsaved work.
+
+**An MxScout project folder works in place of the `.mpr`.** When the person
+keeps the project in MxScout and points you at its folder (the one with
+`project.json`, `model.json`, `descriptions.json`, `documentation.md`,
+`ai-pack.md` and `inbox/`), give that folder where the commands say
+`<app.mpr>` — or `--model <folder>`. The model is read from its `model.json`
+(what MxScout read from the `.mpr`; no `.mpr` needed), its
+`descriptions.json` is the descriptions when you name none, and its
+`documentation.md` is the map. **Results go back through its `inbox/`**:
+
+```
+node docs.js send <folder> descriptions.json     written whole into <folder>/inbox/, under a timestamped name
+```
+
+MxScout takes the file while the project is open in it — or the next time it
+is opened — saved with Undo; a whole file that would replace what it keeps
+waits for the person to press Import them. Never write `descriptions.json` in
+that folder yourself: it is MxScout's, rewritten on every save, and `docs.js`
+refuses to write anything else there. The report and your working files go in
+a folder of your own, as below. (When MxScout itself is at hand, its
+mendix-describe skill does the same work through the same folder.)
 
 **Where to work:** a folder of its own **outside the project** — ask the
 person, or propose `<project's parent>/<App>-docs`. The pack, the part files,
@@ -387,10 +428,11 @@ entity.
   happens ("only a clerk of the order's region may…").
 - **Small helpers get small sentences.** A getter is "Returns the current
   user's account." Do not inflate.
-- **Language:** the one the person asked for; if they did not say, the one
-  they write to you in — ask when unsure, before you write anything.
-  Set `"language"` accordingly. Keep Mendix names (entities, flows) as they
-  are — do not translate identifiers. The report's own labels are English.
+- **Language:** the project's language of written content — English unless it
+  is set to another (see "The language you write in": read it first, ask once
+  only when it is not set, never switch on your own). Set `"language"` to it.
+  Keep Mendix names (entities, flows) as they are — do not translate
+  identifiers. The report's own labels are English.
 - **Copy the fingerprint.** Every flow header in the pack ends in `#xxxxxxxx`;
   put it in `"hash"`. That is how the report marks a description out of date
   when the flow changes, and how `todo` finds the work after an update.
@@ -415,8 +457,10 @@ entity.
 
 ## Files
 
-- `docs.js` — `status`, `module`, `pack`, `docs`, `report`: reading the `.mpr`,
-  the documentation as Markdown, and building the report. Node only, no install.
+- `docs.js` — `status`, `module`, `pack`, `docs`, `report`: reading the `.mpr`
+  (or an MxScout project folder's `model.json`), the documentation as
+  Markdown, and building the report; `send`: a descriptions file into an
+  MxScout project folder's `inbox/`. Node only, no install.
 - `engine/` — MxScout's own files that read the model and draw the report,
   unchanged. Never edit them here.
 - `check-descriptions.js` — `todo`, `check`, `merge`. Node only, no install.

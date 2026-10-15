@@ -5,6 +5,7 @@
 #
 # - mendix-describe/  is refreshed from MxScout Dev's skills/mendix-describe (its canonical home:
 #                     the public MxScout's copy without risk triage);
+# - mendix-assist/    likewise, from MxScout Dev's skills/mendix-assist;
 # - mendix-docs/      is re-packed from mendix-docs-source/ with MxScout's engine and
 #                     mendix-describe's checker and references;
 # - the mendix-docs selftest runs on MxScout's own test fixture.
@@ -32,11 +33,14 @@ cp -R "$DESCRIBE_SRC/." "$HERE/mendix-describe/"
   [ -e "$DESCRIBE_SRC/$f" ] || echo "  note: mendix-describe/$f is no longer in MxScout Dev"
 done
 
-TICKET_SRC="$MXSCOUT_DEV_DIR/skills/mendix-ticket-check"
-if [ -f "$TICKET_SRC/SKILL.md" ]; then
-  echo "mendix-ticket-check <- $TICKET_SRC"
-  mkdir -p "$HERE/mendix-ticket-check"
-  cp -R "$TICKET_SRC/." "$HERE/mendix-ticket-check/"
+ASSIST_SRC="$MXSCOUT_DEV_DIR/skills/mendix-assist"
+if [ -f "$ASSIST_SRC/SKILL.md" ]; then
+  echo "mendix-assist <- $ASSIST_SRC"
+  mkdir -p "$HERE/mendix-assist"
+  cp -R "$ASSIST_SRC/." "$HERE/mendix-assist/"
+  ( cd "$HERE/mendix-assist" && find . -type f ! -name .DS_Store ) | while read -r f; do
+    [ -e "$ASSIST_SRC/$f" ] || echo "  note: mendix-assist/$f is no longer in MxScout Dev"
+  done
 fi
 
 echo "mendix-docs <- mendix-docs-source + $MXSCOUT_DIR"

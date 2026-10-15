@@ -1,7 +1,10 @@
 # The AI pack (`mxscout-ai-pack 1`)
 
-A text file MxScout writes from a Mendix model (Documentation → **Export AI
-pack**). Markdown-like, but read it as lines, not as a document to render.
+A text file MxScout writes from a Mendix model: `ai-pack.md` in a project
+folder (rewritten whenever the model changes), or Documentation → **Export AI
+pack**, or what the agent channel serves. Markdown-like, but read it as lines,
+not as a document to render — and by the index's line ranges, never whole
+(`node agent.js module <Name> --folder <folder>` reads one range for you).
 
 ## Header
 

@@ -9,10 +9,13 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEST="${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}"
 BACKUP="$HOME/.claude/skills-backup"
-ALL=(mendix-describe mendix-ticket-check mendix-docs app-report-presentation)
+ALL=(mendix-describe mendix-assist mendix-docs app-report-presentation)
 NAMES=("${@:-${ALL[@]}}")
 
 mkdir -p "$DEST"
+# mendix-ticket-check was replaced by mendix-assist (2026-10-15): drop its link if it points here.
+old="$DEST/mendix-ticket-check"
+if [ -L "$old" ] && [ "$(readlink "$old")" = "$HERE/mendix-ticket-check" ]; then rm "$old"; echo "removed the old link $old (now mendix-assist)"; fi
 for name in "${NAMES[@]}"; do
   src="$HERE/$name"
   if [ ! -f "$src/SKILL.md" ]; then echo "skip $name: no $src/SKILL.md" >&2; continue; fi

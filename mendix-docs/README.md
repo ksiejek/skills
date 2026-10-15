@@ -35,9 +35,16 @@ With no argument it asks what you want. SKILL.md says what each does.
 `docs.js docs` writes the documentation as Markdown, the agent's map for
 everything after the first build.
 
+For a project MxScout keeps in a folder, give that folder in place of the
+`.mpr` (or `--model <folder>`): the model comes from its `model.json`, the
+descriptions from its `descriptions.json`, and `node docs.js send <folder>
+descriptions.json` hands the result back through its `inbox/`.
+
 ## What it does not do
 
 It writes nothing into the Mendix project — a file named inside its folder is
-refused — and reads only the `.mpr` and `mprcontents/`. It opens no connection. It sees what is saved in Studio Pro,
+refused — and reads only the `.mpr` and `mprcontents/` (or, from an MxScout
+project folder, its `project.json`, `model.json` and `descriptions.json`,
+writing only into its `inbox/`, with `send`). It opens no connection. It sees what is saved in Studio Pro,
 not unsaved work. Version 2 (the Orbit Desk portal, documents 01–03, `translate`,
 `write docs` and `export`) is gone: see CHANGELOG.md.

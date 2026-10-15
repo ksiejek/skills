@@ -476,3 +476,54 @@ więc opisy nie stają się nieaktualne.
   - `VERSION` podaje commit MxScout, z którego skill złożono;
   - selftest 24/0.
 - **mendix-change-proposal (Dev):** poprawione nazwy przycisków i formatów.
+
+### Zmiana 2026-10-15: folder projektu na dysku
+
+MxScout (obie edycje) może trzymać projekt w folderze na dysku. Folder wybierasz przy
+**New project** (pierwsza opcja), przez **Open a project folder…** albo dla istniejącego
+projektu przez **Keep in a folder…**. **Move all projects to folders…** przenosi
+wszystkie projekty z przeglądarki naraz. Pliki zapisuje przeglądarka po każdej zmianie;
+serwer dalej nic nie zapisuje.
+
+W folderze: `project.json` (z językiem treści `contentLanguage`), `model.json`,
+`descriptions.json`, `documentation.md`, `ai-pack.md`, `README.md`, `assist/` i
+`inbox/`. Dev dokłada `comments.json` i `triage.json`.
+
+Jak użyć: „Use the mendix-describe skill on the MxScout project in <ścieżka>” albo uruchom
+agenta w tym folderze. Agent czyta pliki, a wynik kładzie do `inbox/`. MxScout bierze go,
+gdy projekt jest otwarty, i pokazuje **Undo**. Kanał agenta (Share with an agent) dalej
+działa, jako druga droga. Strona Documentation ma teraz zakładki: Folder, Agent channel,
+Without an agent tool, Export.
+
+Język: wszystko, co piszą skille, jest domyślnie po angielsku. Skill pyta raz, w jakim
+języku pisać, i zapamiętuje odpowiedź w projekcie. Nagłówki i UI zawsze po angielsku.
+
+### Zmiana 2026-10-15: mendix-assist zamiast mendix-ticket-check, strona Assist
+
+**mendix-assist** to „twoja pomoc” przy aplikacji. Zastępuje mendix-ticket-check, a
+strona **Assist** (sekcja Review) zastępuje strony Tickets i Changes. Zmiany przechodzą
+do zakładki Ideas, zgłoszenia do Tickets — automatycznie, przy otwarciu projektu.
+
+Jak użyć:
+1. `/mendix-assist` albo „mam ticket”, „mam Jirę”, „mam pomysł” — wskaż folder projektu
+   (albo wklej linię z Share with an agent).
+2. Skill pyta, co to jest: **Service Desk ticket / Jira / Idea / Other**, i zawsze pyta
+   o numer zgłoszenia.
+3. Ticket: werdykt (bug / as designed / data-config / cannot tell), dowody, odpowiedź do
+   wklejenia, przy bugu propozycja poprawki. Jira: wykonalność, zakres, rozwiązanie,
+   ryzyka, pytania, nakład. Idea: jak działa teraz i propozycja.
+4. Czego brakuje (rola, kroki, oczekiwany i faktyczny wynik, komunikat, środowisko),
+   skill zamienia w **pytania do zgłaszającego**; na stronie jest **Copy questions**.
+   Status zmienia się na **waiting**.
+5. Gdy zgłaszający odpisze: „zgłaszający odpisał na PROJ-12: …” — albo wklej odpowiedź
+   na stronie (**Add the reporter's answer**). Skill sprawdza jeszcze raz i poprawia
+   werdykt.
+6. Status (open / in progress / waiting / done / dropped) i planowana data: kliknięciem
+   na stronie albo słowami („PROJ-12 zrobione”, „zaplanuj na 2026-11-20”). Agent je czyta.
+
+Każde zgłoszenie to osobny plik `assist/<rodzaj>/<numer>.json` w folderze projektu.
+Zgłoszenia **nigdy** nie trafiają do paczki `.mxscout` ani do eksportu dokumentacji. Kto
+ma je dostać, dostaje folder.
+
+Po aktualizacji: `git -C ~/Projects/Skills pull && ~/Projects/Skills/install.sh` — usuwa
+stary link mendix-ticket-check i podpina mendix-assist.

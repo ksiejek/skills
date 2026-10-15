@@ -1,5 +1,25 @@
 # mendix-docs — changes
 
+## 3.5.0 – 2026-10-15
+
+- **An MxScout project folder works in place of the `.mpr`.** Named where a
+  command takes `<app.mpr>`, or with `--model <folder>`: the model is read
+  from its `model.json` (no `.mpr` needed), its `descriptions.json` is the
+  descriptions when none is named, and `status` prints the project's language
+  of written content. Nothing is written into that folder — `docs.js` refuses,
+  as it refuses the Mendix project's — except by the new
+  **`send <folder> <descriptions.json>`**, which writes the file whole into
+  its `inbox/` (a hidden temporary file, renamed), for MxScout to take while
+  the project is open in it or the next time it is opened, with Undo. Never
+  into `descriptions.json`: MxScout rewrites it on every save.
+- **One language per project, English by default.** The skill reads the
+  project's language first (`contentLanguage` in an MxScout folder's
+  project.json, or `"language"` of an earlier descriptions file), asks once —
+  "In which language should I write? (default: English)" — only when it is
+  not set, never switches on its own, and marks a requested change with
+  `"setLanguage": true`. `docs` writes `Write in: …` in the header when it
+  reads an MxScout folder. Headings and labels stay English.
+
 ## 3.4.1 – 2026-10-14
 
 - **Nothing is written into the project's folder.** `docs.js` refuses any file

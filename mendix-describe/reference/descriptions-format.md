@@ -107,7 +107,8 @@ Paragraphs are separated by a blank line …",
 | `format`, `version` | yes | exactly as above, or MxScout refuses the file |
 | `add` | no | `true`: the file adds to the descriptions MxScout keeps instead of replacing them — one more process, or flows described since. The application's `summary`, `story` and `audience`, when the file has them, replace the ones kept; a process of the same name is replaced and a new one added at the end; a flow, page, entity or module in the file replaces its old description; a risk already kept — the same `id`, or the same level and title, case and spacing aside — is replaced in its place by the new copy (so a risk ranked at another level under the same `id` takes the old one's place), a new one is added at the end; a `context` entry already kept is not added twice; `project`, `language` and `by` stay as kept (the file's when none is), `written` is the file's; everything else stays. Without it, an import replaces what was kept. `check-descriptions.js merge` joins parts by the same rules, and when every part says `"add": true` the merged file says it too |
 | `replace` | no | with `"add": true` only: `["app"]` — the file's `app` (summary, story, who uses it, every process) replaces the overview kept, as when the overview was written again from the start; flows, modules, risks and the rest are still added to. Without `"add": true` it is ignored (the checker warns) |
-| `project`, `language`, `by`, `written` | no | `by` is shown as who wrote the descriptions |
+| `project`, `language`, `by`, `written` | no | `by` is shown as who wrote the descriptions. `language` is the code of the language the content is written in (`"en"`, `"pl"`) — the project's language of written content (SKILL.md, "The language you write in"). The first file MxScout takes that names a language sets the project's when it has none; a file in another language is kept, with a warning to the person |
+| `setLanguage` | no | `true`, with `language`: the person asked for another language, and MxScout changes the project's language of written content to this one. Not kept with the descriptions |
 | `app.summary` | no, but write it | the first thing a business reader sees: 2–4 sentences, always shown |
 | `app.story` | no, but write it | the long description, paragraphs separated by a blank line; shown under the summary, folded |
 | `app.audience` | no | the groups of people who use the app, as many as there are: `{ "who", "what" }`, a short name and one sentence. The documentation's overview shows each group on a line of its own. A single sentence, as files before this were written, is still read and shown as one paragraph |
@@ -118,8 +119,8 @@ Paragraphs are separated by a blank line …",
 | `risks[]` | no, but write it | `level` (`P1`, `P2` or `P3`, by `risk-levels.md`) and `title` are required, or MxScout drops the risk; `detail`, `where` (qualified names, they become links) and `fix` are what make it useful; `theme` is its pattern, one of the ten keys in `risk-levels.md` — the Risks page groups and filters by it, and guesses it from the title when it is missing |
 | `risks[].id` | no, but write it | a short slug — lower-case letters, digits and single hyphens, at most 80 characters (`p1-anon-delete-ticket`) — unique in the file. **Keep it the same for the same risk on every update** and invent a new one only for a new risk: it is how MxScout knows the risk again, merges it, and keeps what a person decided about it (fixed, false positive — see "Risk triage" in `SKILL.md`). Without it MxScout knows a risk by its level and title, so a reworded title becomes a new risk |
 | `verify[]` | no | for risks a **person** raised (listed as `raised by …` under `## risk triage` in the pack) and marked fixed: `{ "id": "c-…", "still": true \| false, "why": "…" }` — whether the model still shows it, with the id the pack gives. MxScout reopens or verifies the risk by it; risks a person raised are never yours to write in `risks` |
-| `changes[]` | no | changes the person asked to be worked out (`SKILL.md`, "A change, when the person asks"), shown on the Changes page; see "Changes" below. In a file with `"add": true`, a change whose `id` is already kept replaces it and a new one is added at the end |
-| `tickets[]` | no | tickets reported on the application and checked against the model by the mendix-ticket-check skill, shown on the Tickets page; see "Tickets" below. In a file with `"add": true`, a ticket whose `id` is already kept replaces it and a new one is added at the end |
+| `changes[]` | no | changes the person asked to be worked out (`SKILL.md`, "A change, when the person asks"), shown on the Assist page, under Ideas; see "Changes" below. In a file with `"add": true`, a change whose `id` is already kept replaces it and a new one is added at the end |
+| `tickets[]` | no | **older files only** — tickets checked against the model, which MxScout now moves to the Assist page; write Assist items instead (`../../mendix-assist/reference/assist-format.md`); see "Tickets" below. In a file with `"add": true`, a ticket whose `id` is already kept replaces it and a new one is added at the end |
 | `context.where[]` | no | `{ "topic", "place" }`: what a developer looks for, and where it is when the name does not say |
 | `context.conventions[]` | no | `{ "pattern", "meaning" }`: a prefix or naming rule the modules follow |
 | `context.pitfalls[]` | no | sentences: what breaks easily, and what to check before a change |
@@ -146,7 +147,7 @@ documentation, and flags the ones that changed since.
 
 A change is something the person wants made to the application, worked out
 before anyone builds it: how that part works **now**, the **proposal**, and the
-concrete changes to the model it needs. MxScout shows it on the Changes page —
+concrete changes to the model it needs. MxScout shows it on the Assist page, under Ideas —
 the request quoted, now and the proposal side by side, both diagrams drawn, the
 model changes as a table grouped by kind — and nothing of it is applied
 anywhere. It is sent as a part of its own, with `"add": true` and only
@@ -255,12 +256,13 @@ roles; text is cut at the lengths "What MxScout keeps" below gives. Both stories
 ## Tickets
 
 A ticket is something reported on the application — a Jira issue, an e-mail
-from a user — checked against the model by the mendix-ticket-check skill (a
-sibling of this one, `../../mendix-ticket-check/SKILL.md`): the ticket as it was
+from a user — checked against the model. **Older files only**: the mendix-assist
+skill (`../../mendix-assist/SKILL.md`) writes Assist items instead, and MxScout
+moves a ticket an older file carries onto its Assist page. As it was: the ticket as it was
 pasted, a **verdict** with how sure it is, the reasoning, what the model does,
 the places in the model that show it, what would settle it, a reply to paste
 back into the ticket and, for a bug, the change that would fix it. MxScout shows
-it on the Tickets page and acts on none of it: nothing is sent to the tracker,
+it on the Assist page, under Tickets, and acts on none of it: nothing is sent to the tracker,
 and `source` is shown as text — an address in it is never opened. It is sent as
 a part of its own, with `"add": true` and only `tickets` in it — and `changes`
 when a fix is proposed:
@@ -272,7 +274,7 @@ when a fix is proposed:
   "add": true,
   "project": "Sales",
   "language": "en",
-  "by": "Claude, mendix-ticket-check skill",
+  "by": "Claude, an earlier ticket-check skill",
   "tickets": [
     {
       "id": "PROJ-12",

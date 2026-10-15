@@ -7,8 +7,8 @@ paragraphs — a sentence or two on each microflow and nanoflow, the risks it
 sees ranked P1 to P3, and what a developer should know before changing the
 model. MxScout reads the
 model; it does not write prose about it. This skill does, on your machine,
-from the pack MxScout shares with it — no MCP server, no Studio Pro, and the
-only connection is to the MxScout on your own machine.
+from the project folder MxScout writes (or the pack it shares) — no MCP server,
+no Studio Pro, and no connection beyond your own machine.
 
 `SKILL.md` in this folder is what the agent reads. This file is for you.
 
@@ -28,14 +28,40 @@ cp -r skills/mendix-describe ~/.claude/skills/
 
 On Windows that is `C:\Users\<you>\.claude\skills\mendix-describe`.
 
-## 2. Give the agent the pack
+## 2. Give the agent the project
 
 (No agent that runs code — only Microsoft 365 Copilot in the browser? Skip this
-skill: MxScout's Documentation has *Without an agent*, which cuts the model into
-files a chat assistant takes and reads its answers back.)
+skill: MxScout's Documentation has *Without an agent tool*, which cuts the model
+into files a chat assistant takes and reads its answers back.)
 
-**Straight from MxScout (no files).** Open the project → **Documentation** →
-**Share with an agent**, then **Copy for the agent** and paste that line into
+**The project's folder — the first way.** Keep the project in a folder: New
+project offers it first; for a project already in MxScout, its ⋯ menu →
+**Keep in a folder…**, or **Move all projects to folders…** on the project
+list. A folder that came from git or another machine opens with **Open a
+project folder…**, and a `.mxscout` package opened as a new project goes into a
+folder too. MxScout writes the folder as you work — `project.json`,
+`model.json`, `descriptions.json`, `documentation.md`, `ai-pack.md`,
+`README.md` and `inbox/` — and **Documentation → Folder** shows it, with the
+line to paste:
+
+```
+Use the mendix-describe skill on the MxScout project in ~/Projects/OrderPortal/mxscout.
+```
+
+(MxScout knows only the folder's name; type its path once on the Folder tab
+and the line uses it — or start the agent inside the folder and say "Use the
+mendix-describe skill on this folder".) The agent reads `README.md`,
+`project.json`, `documentation.md` first and `ai-pack.md` one module at a
+time, and writes its result into `inbox/` (`node agent.js send … --folder`).
+While the project is open in MxScout, it is taken within a few seconds —
+saved at once with **Undo**, or, a whole file that would replace the
+descriptions you have, waiting for **Import them** — and moved to
+`inbox/done/`. Nothing has to be started, and the agent needs no token. Skip
+step 4.
+
+**Through MxScout's agent channel (no folder).** Open the project →
+**Documentation** → **Agent channel** → **Share with an agent**, then **Copy
+for the agent** and paste that line into
 the agent's chat, together with the request below. The agent reads the pack
 from MxScout one module at a time, and when it is done MxScout saves what it
 sent at once, with **Undo** beside it — a whole file that would replace the
@@ -54,13 +80,14 @@ has no answer within 30 seconds (`MXSCOUT_TIMEOUT_MS` changes that).
 
 The line alone does not set the agent describing: it connects, tells you what
 it sees, and asks what you want — describe the application (all or some
-modules), bring it up to date, one more process, a change, a ticket, or a
-question about how something works. Say it in the same message to skip the
+modules), bring it up to date, one more process, a change, or a question
+about how something works — a ticket, a Jira issue or an idea is
+mendix-assist's. Say it in the same message to skip the
 question.
 
 **Or as a file.**
 
-In MxScout: open the project → **Documentation** → **Export AI pack**.
+In MxScout: open the project → **Documentation** → **Without an agent tool** → **Export AI pack**.
 
 You get `<Project>.mxscout-ai-pack.md`: the model as the documentation reads
 it — every own module, its entities, and every flow step by step with the
@@ -72,11 +99,20 @@ it where you keep the project.
 
 ## 3. Run the skill
 
-Open Claude Code in that folder and ask, for example:
+**The language.** Everything the agent writes is in one language per project,
+**English by default**. MxScout keeps it with the project (Settings, or the
+Folder tab: *Language of written content*); the agent reads it first, and asks
+"In which language should I write? (default: English)" only when it is not set
+yet — the answer is kept for the project, and it never asks again. To change it
+later, change the setting, or tell the agent ("from now on, write in Polish"):
+it says so and marks its result so MxScout changes the setting. Headings,
+labels and field names stay English whatever the language.
+
+Open Claude Code in the project folder (or wherever the pack is) and ask, for example:
 
 ```
-Run the mendix-describe skill on <Project>.mxscout-ai-pack.md.
-Write the descriptions in English, for a business reader: they have to make
+Run the mendix-describe skill on this folder.
+Write the descriptions for a business reader: they have to make
 sense, you may be creative, but never invent what the model does not show.
 Work module by module, in parallel subagents: per module a
 descriptions.<Module>.json, with the module's notes for developers inside it
@@ -102,7 +138,7 @@ MxScout and never sent to it, and you may delete them when the work is done.
 The same in Polish:
 
 ```
-Uruchom skill mendix-describe na paczce <Projekt>.mxscout-ai-pack.md.
+Uruchom skill mendix-describe na tym folderze.
 Opisy po polsku, z perspektywy biznesu: ma to mieć sens, możesz być
 kreatywny, ale nie wymyślaj faktów, których nie ma w modelu.
 Rób to moduł po module, równolegle subagentami: na każdy moduł
@@ -120,6 +156,9 @@ niejasne i ile tokenów to zużyło.
 
 For a large project, add: *"Keep your progress in RESUME.md so the work can
 be resumed in a new session."*
+
+(The Polish prompt asks for Polish: when the project's language is not set
+yet, the agent takes that as the answer to its question and MxScout keeps it.)
 
 ## 4. Import the result (file route only)
 
@@ -147,20 +186,24 @@ which microflows, pages, entities, attributes, enumerations and security rules
 to add, change or remove — and lists what it touches, its risks and the
 questions the model cannot answer. It changes nothing in the model. What it
 sends (or the file it writes, `"add": true`, holding only `changes`) appears in
-MxScout on the project's **Changes** page: how it works now beside the proposal,
+MxScout on the project's **Assist** page (its Ideas tab): how it works now beside the proposal,
 both drawn when they branch, and the model changes in a table. Ask again with
 your answers and it sends the change again under the same id, replacing it.
 
-## A ticket to check
+## A ticket, a Jira issue, an idea
 
-To check a ticket reported on the application — is it a bug, does it work as
-designed, is it the data — use the **mendix-ticket-check** skill beside this
-one (`skills/mendix-ticket-check`, its README says how). It uses this skill's
-tools, so install both. The result appears on the project's **Tickets** page.
+To check a Service Desk ticket (is it a bug, does it work as designed, is it
+the data), work out a Jira issue or an idea, or keep any other help, use the
+**mendix-assist** skill beside this one (`skills/mendix-assist`, its README
+says how). It uses this skill's tools, so install both. What it writes is an
+Assist item with a status and a planned date, kept in MxScout on this machine
+and never in the exported documentation.
 
 ## When the model changes
 
-Export a new pack, or share again. Every flow in it carries a fingerprint, so MxScout marks a
+In a project folder there is nothing to do: MxScout rewrites `ai-pack.md` and
+`documentation.md` when the model is replaced, and `node check-descriptions.js
+todo --folder <folder>` lists what is left. Otherwise export a new pack, or share again. Every flow in it carries a fingerprint, so MxScout marks a
 description whose flow changed as out of date instead of passing it off as
 current, and the checker lists only what is left to do:
 
@@ -168,14 +211,14 @@ current, and the checker lists only what is left to do:
 node ~/.claude/skills/mendix-describe/check-descriptions.js todo <Project>.mxscout-ai-pack.md descriptions.json
 ```
 
-Shared with an agent, ask it to *update the documentation*: it reads the
-documentation MxScout shares (`node agent.js docs`), gives that to the checker
+In a folder, or shared with an agent, ask it to *update the documentation*: it
+reads the documentation (`documentation.md`, or `node agent.js docs`), gives that to the checker
 in place of `descriptions.json`, and describes only the new flows and the ones
 marked out of date — not the whole application again.
 
 ## A question about the application
 
-Shared with an agent, you can also just ask — "who can reopen a closed case?".
+In a folder, or shared with an agent, you can also just ask — "who can reopen a closed case?".
 It reads the documentation first, checks the flows it points to in the pack,
 and answers citing them; it writes nothing unless you ask.
 

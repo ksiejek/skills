@@ -477,37 +477,61 @@
   var CHANGE_KINDS = { microflow: true, nanoflow: true, page: true, entity: true, attribute: true, association: true, enumeration: true, security: true, 'scheduled event': true, integration: true, other: true };
   var CHANGE_ACTIONS = { add: true, change: true, remove: true };
   function texts(list, max, n) { return (Array.isArray(list) ? list : []).map(function (s) { return str(s, max); }).filter(Boolean).slice(0, n); }
+  // The parts a change is made of, each bounded and text only — read here and, for the items on the
+  // Assist page, by assist.js, so a proposal, a risk or a piece of evidence is read the same way in both.
+  function kindOf(k) { k = typeof k === 'string' ? k.trim().toLowerCase() : ''; return CHANGE_KINDS[k] === true ? k : 'other'; }
+  function modelChanges(list) {
+    return (Array.isArray(list) ? list : []).slice(0, 60).map(function (x) {
+      if (!x || typeof x !== 'object' || !str(x.target, 300) || CHANGE_ACTIONS[x.action] !== true) return null;
+      return { kind: kindOf(x.kind), target: str(x.target, 300), action: x.action, what: str(x.what, 1000) };
+    }).filter(Boolean);
+  }
+  function proposalOf(pr) {
+    pr = pr && typeof pr === 'object' ? pr : {};
+    return { summary: str(pr.summary, 2000), story: str(pr.story, STORY_MAX), steps: texts(pr.steps, 600, 100), diagram: diagramItems(pr.diagram, 0), changes: modelChanges(pr.changes) };
+  }
+  function nowOf(now) {
+    now = now && typeof now === 'object' ? now : {};
+    return { summary: str(now.summary, 2000), story: str(now.story, STORY_MAX), steps: texts(now.steps, 600, 100), flows: texts(now.flows, 300, 60), diagram: diagramItems(now.diagram, 0) };
+  }
+  // What a change touches: the flows, the roles and the data — or, written as one sentence, the data alone.
+  function impactOf(im) {
+    if (typeof im === 'string') return { flows: [], roles: [], data: str(im, 3000) };
+    im = im && typeof im === 'object' ? im : {};
+    return { flows: texts(im.flows, 300, 60), roles: texts(im.roles, 120, 30), data: str(im.data, 3000) };
+  }
+  function riskList(list) {
+    return (Array.isArray(list) ? list : []).slice(0, 30).map(function (x) {
+      return x && typeof x === 'object' && /^P[123]$/.test(x.level) && str(x.title, 300) ? { level: x.level, title: str(x.title, 300), detail: str(x.detail, 3000), fix: str(x.fix, 1000) } : null;
+    }).filter(Boolean);
+  }
+  function evidenceOf(list) {
+    return (Array.isArray(list) ? list : []).slice(0, 60).map(function (x) {
+      if (!x || typeof x !== 'object' || !str(x.target, 300)) return null;
+      return { kind: kindOf(x.kind), target: str(x.target, 300), what: str(x.what, 1000) };
+    }).filter(Boolean);
+  }
+  function tracedOf(tr) {
+    tr = tr && typeof tr === 'object' ? tr : {};
+    return { steps: texts(tr.steps, 600, 100), flows: texts(tr.flows, 300, 60), diagram: diagramItems(tr.diagram, 0) };
+  }
   function changeOf(c) {
     if (!c || typeof c !== 'object') return null;
     var id = str(c.id, 80), title = str(c.title, 200);
     if (!id || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id) || !title) return null;
-    var now = c.now && typeof c.now === 'object' ? c.now : {}, pr = c.proposal && typeof c.proposal === 'object' ? c.proposal : {};
-    var im = c.impact && typeof c.impact === 'object' ? c.impact : {};
     return {
       id: id, title: title, asked: str(c.asked, 2000), date: str(c.date, 40), status: CHANGE_STATUS[c.status] === true ? c.status : 'proposed',
-      now: { summary: str(now.summary, 2000), story: str(now.story, STORY_MAX), steps: texts(now.steps, 600, 100), flows: texts(now.flows, 300, 60), diagram: diagramItems(now.diagram, 0) },
-      proposal: {
-        summary: str(pr.summary, 2000), story: str(pr.story, STORY_MAX), steps: texts(pr.steps, 600, 100), diagram: diagramItems(pr.diagram, 0),
-        changes: (Array.isArray(pr.changes) ? pr.changes : []).slice(0, 60).map(function (x) {
-          if (!x || typeof x !== 'object' || !str(x.target, 300) || CHANGE_ACTIONS[x.action] !== true) return null;
-          var kind = typeof x.kind === 'string' ? x.kind.trim().toLowerCase() : '';
-          return { kind: CHANGE_KINDS[kind] === true ? kind : 'other', target: str(x.target, 300), action: x.action, what: str(x.what, 1000) };
-        }).filter(Boolean)
-      },
-      impact: { flows: texts(im.flows, 300, 60), roles: texts(im.roles, 120, 30), data: str(im.data, 3000) },
-      risks: (Array.isArray(c.risks) ? c.risks : []).slice(0, 30).map(function (x) {
-        return x && typeof x === 'object' && /^P[123]$/.test(x.level) && str(x.title, 300) ? { level: x.level, title: str(x.title, 300), detail: str(x.detail, 3000), fix: str(x.fix, 1000) } : null;
-      }).filter(Boolean),
+      now: nowOf(c.now), proposal: proposalOf(c.proposal), impact: impactOf(c.impact), risks: riskList(c.risks),
       open: texts(c.open, 1000, 30), effort: str(c.effort, 300)
     };
   }
 
-  // A ticket checked against the model (skills/mendix-ticket-check; Karol, 2026-10-14: "I paste a ticket
+  // A ticket checked against the model (Karol, 2026-10-14; since 2026-10-15 the mendix-assist skill writes Assist items instead, and a ticket an older file carries moves there — "I paste a ticket
   // reported on the application, it checks whether the ticket is right and keeps the result in the
   // documentation"): the ticket as it was pasted, a verdict — a bug in the model, works as designed, data
   // or configuration, or cannot tell from the model — with the reasoning, the behaviour as the model has
   // it, the places in the model that show it, what would settle it, a reply to paste back, and for a bug
-  // the change that would fix it (an id on the Changes page). An agent's judgement: MxScout shows it and
+  // the change that would fix it (an id among the Assist page's Ideas). An agent's judgement: MxScout shows it and
   // acts on none of it; a source address is kept as text and never opened. An entry without an id, a
   // title, a verdict or a summary is dropped. The fields and their bounds: descriptions-format.md, "Tickets".
   var TICKET_VERDICTS = { bug: true, 'as-designed': true, 'data-config': true, 'cannot-tell': true };
@@ -516,21 +540,14 @@
     if (!t || typeof t !== 'object') return null;
     var id = str(t.id, 80), title = str(t.title, 200), summary = str(t.summary, 2000);
     if (!id || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(id) || !title || TICKET_VERDICTS[t.verdict] !== true || !summary) return null;
-    var tr = t.traced && typeof t.traced === 'object' ? t.traced : {}, change = str(t.change, 80);
+    var change = str(t.change, 80);
     return {
       id: id, title: title, reported: str(t.reported, 8000), source: str(t.source, 300), date: str(t.date, 40),
       verdict: t.verdict, confidence: CONFIDENCE[t.confidence] === true ? t.confidence : 'low', summary: summary, story: str(t.story, STORY_MAX),
-      traced: { steps: texts(tr.steps, 600, 100), flows: texts(tr.flows, 300, 60), diagram: diagramItems(tr.diagram, 0) },
-      evidence: (Array.isArray(t.evidence) ? t.evidence : []).slice(0, 60).map(function (x) {
-        if (!x || typeof x !== 'object' || !str(x.target, 300)) return null;
-        var kind = typeof x.kind === 'string' ? x.kind.trim().toLowerCase() : '';
-        return { kind: CHANGE_KINDS[kind] === true ? kind : 'other', target: str(x.target, 300), what: str(x.what, 1000) };
-      }).filter(Boolean),
+      traced: tracedOf(t.traced), evidence: evidenceOf(t.evidence),
       needs: texts(t.needs, 1000, 30), reply: str(t.reply, 4000),
       change: change && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(change) ? change : null,
-      risks: (Array.isArray(t.risks) ? t.risks : []).slice(0, 30).map(function (x) {
-        return x && typeof x === 'object' && /^P[123]$/.test(x.level) && str(x.title, 300) ? { level: x.level, title: str(x.title, 300), detail: str(x.detail, 3000), fix: str(x.fix, 1000) } : null;
-      }).filter(Boolean)
+      risks: riskList(t.risks)
     };
   }
 
@@ -547,6 +564,9 @@
     };
     // "add": true — this file adds to what is kept rather than replacing it (see merge below).
     if (raw.add === true) out.add = true;
+    // "setLanguage": true — the person asked for another language: "language" becomes the project's
+    // language of written content (docs.js noteLanguage). Not kept with the descriptions.
+    if (raw.setLanguage === true) out.setLanguage = true;
     // ...and "replace": ["app"] — its application overview (summary, story, who uses it, the processes)
     // is the whole of it, in place of the one kept: an agent that wrote the overview again from the start.
     if (out.add && Array.isArray(raw.replace) && raw.replace.indexOf('app') !== -1) out.replace = ['app'];
@@ -697,18 +717,22 @@
     return out;
   }
 
+  // A diagram as kept, written back the way a file writes it (diagramItems reads it again).
+  function items(list) {
+    return (list || []).map(function (x) {
+      if (x.t === 'step') return { step: x.text, who: x.who, by: x.by };
+      if (x.t === 'decision') return { decision: x.text, ways: x.ways.map(function (w) { return { label: w.label, then: items(w.items), end: w.end, join: w.join }; }) };
+      return { end: x.text };
+    });
+  }
+
   // The descriptions as kept, written back as a descriptions file — for the .mxscout package
   // (transfer.js), whose receiving side reads them with parse() like any other file, so nothing
-  // reaches its database that an import would not have let through.
+  // reaches its database that an import would not have let through. The tickets and changes an older
+  // file carried are not written: they moved to the Assist page (assist.js), a local base that never
+  // travels in a package (Karol, 2026-10-15).
   function toFile(v) {
     if (!v) return null;
-    function items(list) {
-      return (list || []).map(function (x) {
-        if (x.t === 'step') return { step: x.text, who: x.who, by: x.by };
-        if (x.t === 'decision') return { decision: x.text, ways: x.ways.map(function (w) { return { label: w.label, then: items(w.items), end: w.end, join: w.join }; }) };
-        return { end: x.text };
-      });
-    }
     var f = { format: DESC_FORMAT, version: 1, project: v.project, language: v.language, by: v.by, written: v.written };
     if (v.app) f.app = {
       summary: v.app.summary, story: v.app.story, audience: v.app.users && v.app.users.length ? v.app.users : v.app.audience,
@@ -720,16 +744,6 @@
     });
     if (v.c4) f.c4 = v.c4;
     f.risks = v.risks || [];
-    if (v.changes && v.changes.length) f.changes = v.changes.map(function (c) {
-      var x = JSON.parse(JSON.stringify(c));
-      x.now.diagram = items(c.now.diagram); x.proposal.diagram = items(c.proposal.diagram);
-      return x;
-    });
-    if (v.tickets && v.tickets.length) f.tickets = v.tickets.map(function (t) {
-      var x = JSON.parse(JSON.stringify(t));
-      x.traced.diagram = items(t.traced.diagram);
-      return x;
-    });
     if (v.context) f.context = {
       where: v.context.where.map(function (x) { return { topic: x[0], place: x[1] }; }),
       conventions: v.context.conventions.map(function (x) { return { pattern: x[0], meaning: x[1] }; }),
@@ -761,10 +775,8 @@
       // A file imported before risks and context existed has neither.
       risks: d.risks || [], context: d.context || null,
       c4: d.c4 || null,
-      // And the changes an agent proposed — none in a file imported before they existed.
-      changes: d.changes || [],
-      // And the tickets an agent checked against the model, the same.
-      tickets: d.tickets || [],
+      // Not the tickets and changes an older file carries: they are items on the Assist page now
+      // (assist.js migrate), kept apart from the documentation and never in the file it exports.
       modules: Object.keys(d.modules).reduce(function (o, k) { o[k] = { summary: d.modules[k].text, story: d.modules[k].story || null, notes: d.modules[k].notes || null }; return o; }, {})
     };
     return { described: described, stale: stale, missing: missing };
@@ -807,5 +819,34 @@
     };
   }
 
-  window.MxDescribe = { pack: pack, parse: parse, attach: attach, merge: merge, toFile: toFile, hashOf: hashOf, flowText: flowText, riskIndex: riskIndex, FORMAT: DESC_FORMAT, PACK_FORMAT: PACK_FORMAT };
+  // ---------- the language of written content ----------
+  // A project's descriptions are written in ONE language, kept with the project (contentLanguage, an
+  // ISO code; English when it is not set) so an agent does not switch between runs (Karol, 2026-10-15).
+  // Headings, labels and field names stay English whatever it is: only the written content follows it.
+  var LANGUAGES = [['en', 'English', 'english'], ['pl', 'Polish', 'polski'], ['de', 'German', 'deutsch'], ['nl', 'Dutch', 'nederlands'],
+    ['fr', 'French', 'français'], ['es', 'Spanish', 'español'], ['it', 'Italian', 'italiano'], ['pt', 'Portuguese', 'português'],
+    ['cs', 'Czech', 'čeština'], ['sk', 'Slovak', 'slovenčina'], ['sv', 'Swedish', 'svenska'], ['da', 'Danish', 'dansk'],
+    ['nb', 'Norwegian', 'norsk'], ['fi', 'Finnish', 'suomi'], ['hu', 'Hungarian', 'magyar'], ['ro', 'Romanian', 'română'],
+    ['uk', 'Ukrainian', 'українська'], ['lt', 'Lithuanian', 'lietuvių']];
+  // "pl", "PL", "pl-PL", "Polish", "polski" → "pl"; another well-formed tag is kept as it is; anything else → null.
+  function languageCode(x) {
+    if (typeof x !== 'string' || !x.trim()) return null;
+    var s = x.trim(), low = s.toLowerCase();
+    for (var i = 0; i < LANGUAGES.length; i++) {
+      var l = LANGUAGES[i];
+      if (low === l[0] || low === l[1].toLowerCase() || low === l[2] || low.indexOf(l[0] + '-') === 0 || low.indexOf(l[0] + '_') === 0) return l[0];
+    }
+    return /^[a-z]{2,3}(-[a-z0-9]{2,8})?$/i.test(s) ? low : null;
+  }
+  // "Polish (pl)".
+  function languageName(code) {
+    var c = languageCode(code) || 'en';
+    for (var i = 0; i < LANGUAGES.length; i++) if (LANGUAGES[i][0] === c) return LANGUAGES[i][1] + ' (' + c + ')';
+    return c + ' (' + c + ')';
+  }
+
+  // parts: how a change, a ticket and their pieces are read, for the Assist page's items (assist.js).
+  var parts = { str: str, texts: texts, diagram: diagramItems, diagramFile: items, now: nowOf, proposal: proposalOf, impact: impactOf, risks: riskList, evidence: evidenceOf, traced: tracedOf,
+    ticket: ticketOf, change: changeOf, VERDICTS: TICKET_VERDICTS, CONFIDENCE: CONFIDENCE, STORY_MAX: STORY_MAX };
+  window.MxDescribe = { LANGUAGES: LANGUAGES, languageCode: languageCode, languageName: languageName, pack: pack, parse: parse, attach: attach, merge: merge, toFile: toFile, hashOf: hashOf, flowText: flowText, riskIndex: riskIndex, parts: parts, FORMAT: DESC_FORMAT, PACK_FORMAT: PACK_FORMAT };
 })();
