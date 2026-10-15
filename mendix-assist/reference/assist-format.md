@@ -171,7 +171,7 @@ change: how that part works now and the proposal side by side.
 
 | Field | Required | Notes |
 |---|---|---|
-| `now` | yes | how it works today: `{ "summary", "story", "steps", "flows", "diagram" }` — the case traced stage by stage, complete as mendix-describe's `reference/business-narrative.md` says under "A process": as long as the case needs |
+| `now` | yes | how it works today: `{ "summary", "story", "steps", "flows", "diagram" }` — the case traced stage by stage, 150–400 words |
 | `proposal` | yes | the solution, as a proposal, with at least one model change |
 | `impact`, `risks[]`, `open[]`, `effort` | no, but write them | as a Jira issue's |
 | `reply` | no | the questions to paste to whoever had the idea, when it has open questions |

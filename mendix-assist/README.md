@@ -82,9 +82,8 @@ Give the agent the model one of three ways:
   you import.
 
 It asks first **what kind** it is (unless that is obvious), **the number** of
-the ticket or Jira issue (unless your request already has it — "check
-SD-4711" is enough; for an idea or other help it proposes a short id you
-can change), and — only when the project has none yet — **in which language
+the ticket or Jira issue (for an idea or other help it proposes a short id you
+can change), and — only the first time for a project — **in which language
 to write**: English unless you say otherwise, and kept for the project from
 then on ("from now on in Polish" changes it). Then it restates what it understood, asks only what blocks the
 work, traces it through the model and hands the item back.

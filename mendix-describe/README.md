@@ -75,20 +75,8 @@ MxScout's own engine (in `engine/`, MxScout's files unchanged), from the `.mpr`
 beside `mxscout/` — so a team that works with an agent alone keeps `docs/`
 current without MxScout; `node agent.js update-docs --folder <MendixProject>`
 does that step alone (after a solved case was added to `knowledge/`, say).
-`write` checks the file first — its format and version, the schema, every
-name against the model as it is now (another project's name is a warning) —
-and writes nothing on an error; it lays the file over the descriptions there (`--replace` to make it the
-whole of them), makes `docs/` with it, and puts it all in place only when all
-of it could be made, keeping what it replaced in the work folder. `--dry-run`
-shows what would be added, changed and removed. `update-docs` also checks that
-every file `docs/manifest.json` lists is there with its SHA-256 (`--repair`
-writes a missing or changed one again; `verify-docs` only checks).
 MxScout, when open, takes them too. Then commit `mxscout/` on its own and
 push. Neither the skill nor MxScout runs git for you.
-The model the agent reads is always the one in the `.mpr` now: made from it
-and kept in the work folder until the `.mpr` (or `mprcontents/`, or HEAD)
-changes — after a pull, or on a fresh clone with no `.local/`, it is read
-again by itself, and every command says which snapshot it used.
 `node check-descriptions.js todo --folder <MendixProject>` works there too.
 
 **Through MxScout's agent channel (no folder).** Open the project →
@@ -218,20 +206,23 @@ from what the model says.
 
 ## A change you want made
 
-Ask the agent for a change — not a description, a proposal: "I want customers
-to be able to cancel an order until it ships. Show me how it works now and
-propose a solution." It asks what is unclear first, then traces how that part
-of the application works today, designs the solution the way the application
-already does things — which microflows, pages, entities, attributes,
-enumerations and security rules to add, change or remove — and lists what it
-touches, its risks and the questions the model cannot answer. It changes
-nothing in the model. The result is an **Assist item** of kind *idea*, written
-by the **mendix-assist** skill (below): it appears on the project's **Assist**
-page (its Ideas tab), how it works now beside the proposal, both drawn when
-they branch, and the model changes in a table. Ask again with your answers and
-it sends the idea again under the same id, replacing it. (An older
-descriptions file that carries `changes` still opens — MxScout moves them to
-Assist — but nothing writes that format any more: `reference/migration.md`.)
+With the project shared (or the pack exported), ask the agent for a change —
+not a description, a proposal:
+
+```
+Use the mendix-describe skill: I want customers to be able to cancel an order
+until it ships. Show me how it works now and propose a solution, as a change.
+```
+
+It asks what is unclear first, then traces how that part of the application
+works today, designs the solution the way the application already does things —
+which microflows, pages, entities, attributes, enumerations and security rules
+to add, change or remove — and lists what it touches, its risks and the
+questions the model cannot answer. It changes nothing in the model. What it
+sends (or the file it writes, `"add": true`, holding only `changes`) appears in
+MxScout on the project's **Assist** page (its Ideas tab): how it works now beside the proposal,
+both drawn when they branch, and the model changes in a table. Ask again with
+your answers and it sends the change again under the same id, replacing it.
 
 ## A ticket, a Jira issue, an idea
 

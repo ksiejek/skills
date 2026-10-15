@@ -6,8 +6,7 @@
  * It checks that every example in reference/assist-format.md passes the checker (so the format and the
  * checker cannot drift apart), that what MxScout would refuse is an error, that `list` reads a project
  * folder's assist/ and inbox/, that a solved case's note is checked — personal data among it — and found
- * by `cases`, and that the command line answers with the right exit codes — with the reference files' lines
- * ending in \n or in \r\n (a Windows checkout), alike. It writes
+ * by `cases`, and that the command line answers with the right exit codes. It writes
  * only into a temporary folder of its own, removed at the end.
  */
 'use strict';
@@ -24,9 +23,7 @@ function ok(cond, message) {
 const clone = (x) => JSON.parse(JSON.stringify(x));
 
 // ---- the examples in the format reference pass, with no warning ----
-// Read with Windows line ends too (a checkout with core.autocrlf): the examples are found by \n alone.
-const lf = (text) => String(text).replace(/\r\n/g, '\n');
-const format = lf(fs.readFileSync(path.join(__dirname, 'reference', 'assist-format.md'), 'utf8'));
+const format = fs.readFileSync(path.join(__dirname, 'reference', 'assist-format.md'), 'utf8');
 const examples = [];
 format.replace(/```json\n([\s\S]*?)\n```/g, (m, body) => { examples.push(JSON.parse(body)); return m; });
 ok(examples.length >= 3 && examples.every((e) => e.format === 'mxscout-assist'), 'assist-format.md carries ' + examples.length + ' examples, each JSON and an Assist envelope');
@@ -158,7 +155,7 @@ try {
   ok(r.code === 0 && /SALES-88/.test(r.out), 'list on the command line, given the Mendix project');
 
   // ---- a solved case: the note, checked, and found ----
-  const kf = lf(fs.readFileSync(path.join(__dirname, 'reference', 'knowledge-format.md'), 'utf8'));
+  const kf = fs.readFileSync(path.join(__dirname, 'reference', 'knowledge-format.md'), 'utf8');
   const note = (/```markdown\n([\s\S]*?)\n```/.exec(kf) || [])[1] + '\n';
   ok(/^---\nid: "SD-4711"/.test(note), 'knowledge-format.md carries a whole case note as its example');
   const kdir = path.join(app, 'mxscout', 'knowledge');
