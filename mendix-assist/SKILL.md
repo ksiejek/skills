@@ -1,6 +1,6 @@
 ---
 name: mendix-assist
-description: Your help on a Mendix application from MxScout, against its model — a Service Desk ticket checked (bug, works as designed, data or configuration, or cannot tell — with how sure, the evidence, a reply to paste back and, for a bug, a proposed fix), a Jira issue worked out (feasibility, scope, which parts of the app it touches, a proposed solution in Mendix terms, risks, open questions, effort), an idea worked out as a change (how it works now, traced, and the proposal), or other help (a question about how the app works, an analysis) — each kept as an Assist item with its number, a status (open, in progress, done, dropped), a planned date and a history, in the MxScout project folder or sent through the agent channel. Asks first what kind it is and the ticket's or issue's number. Notices what is missing and says what to ask the reporter, and when the answer comes back ("I got the reporter's answer for PROJ-12", "zgłaszający odpisał") records it and checks again. Also updates an item's status or planned date ("PROJ-12 is done", "plan the idea for 2026-11-20", "drop JIRA-77"). Before working a new item it searches the solved cases in mxscout/knowledge/ and cites a similar one; when a case is solved it writes the case note there itself — the problem, the cause, the solution, the dead ends, no personal data — and tells the person to commit it with the fix ("add it to the documentation", "dołóż to do dokumentacji"). Use when started with /mendix-assist (in Claude Code) or told "use the mendix-assist skill" (in Codex or another agent), or asked "help with a ticket", "check this ticket", "is this a bug?", "I have a Jira", "work out this Jira", "I have an idea", "pomóż z ticketem", "mam ticket", "sprawdź zgłoszenie", "czy ten ticket ma rację bytu", "zbadaj Jirę", "mam Jirę", "rozpisz Jirę", "mam pomysł", "pomóż mi z aplikacją", "zamknij ticket", "zaplanuj na". Needs the mendix-describe skill installed beside it.
+description: Work out and track help on a Mendix application against its model, kept as Assist items in MxScout. A Service Desk ticket checked (bug, as designed, data or configuration, or cannot tell, with evidence, a reply to paste back and a fix for a bug), a Jira issue worked out (feasibility, scope, a solution in Mendix terms, risks, effort), an idea or a wanted change worked out (how it works now, and a proposal), or other help to keep on record. Each has its number, a status, a planned date and a history. Asks the reporter what is missing and writes solved cases into mxscout/knowledge/. Never changes the model, never contacts a tracker. Needs mendix-describe beside it. Use when started with /mendix-assist or told "use the mendix-assist skill", or asked "check this ticket", "I have a Jira", "I have an idea", "sprawdź zgłoszenie", "czy ten ticket ma rację bytu", "mam ticket", "zbadaj Jirę", "mam Jirę", "rozpisz Jirę", "mam pomysł", "zgłaszający odpisał", "zaplanuj na", "dołóż to do dokumentacji".
 ---
 
 # mendix-assist: your help on a Mendix application
@@ -171,7 +171,11 @@ Three ways, the **project folder** first:
 
   **Inside the Mendix project** (`mxscout/mxscout.json`, shared through the
   app's git): Assist items are personal and never committed — they, the inbox,
-  `documentation.md` and `ai-pack.md` are in `mxscout/.local/`. `node
+  `documentation.md` are in `mxscout/.local/`. The pack there is the model
+  as it is **now**: `node ../mendix-describe/agent.js pack <work>/pack.md`
+  makes it from the `.mpr` (also on a fresh checkout with no `.local/`) and
+  prints `snapshot: <id>`; `.local/ai-pack.md` may be older than the model —
+  do not read it in its place. `node
   check-assist.js list <MendixProject>` (or its `mxscout/`) reads
   `.local/assist/` and `.local/inbox/`; hand results back into
   `mxscout/.local/inbox/` (`agent.js send` puts them there). The committed `mxscout/docs/` (Markdown by topic,
@@ -224,15 +228,20 @@ Three ways, the **project folder** first:
    Idea or Other. A pasted report with steps and "expected" is a ticket; "I
    have a Jira" is Jira; "I have an idea" / "mam pomysł" is an idea; a plain
    question is other. When unsure, ask in one line, offering the four.
-3. **Ask for the number** — always, before you work — **and mind the language**:
+3. **The number — ask only when you do not have it — and mind the language**:
    - **Ticket and Jira:** the ticket's number or the issue's key, as the
      tracker gives it (`SD-4711`, `INC0012345`, `SALES-88`), and a short title
      if the paste has none. It is the item's `id`: how it is found again, and
-     its file name. Do not make one up.
+     its file name. Do not make one up. **When the request or the paste
+     already carries it** ("check SD-4711", a key in the pasted issue), that
+     is the number: use it and do not ask for it again. Ask, before you
+     write the item, only when there is none; you may start reading the model
+     meanwhile.
    - **Idea and other:** propose a short id, a slug of the title
      (`reorder-from-history`), and say the person may change it.
    The language is the **project's**: read its `contentLanguage` first (see
-   "Language" below). Only when the project has none, ask in the same message
+   "Language" below) — when it is set, never ask about it. Only when the
+   project has none, ask in the same message
    **"In which language should I write? (default: English)"** and say the
    answer will be kept for the project; no answer, or no language named, is
    English. When it is set, never ask again.
@@ -370,8 +379,8 @@ put it in `needs` or `open`. Do not guess it.
    different solutions.
 2. **What is missing — ask the reporter** (below), when the idea came from
    someone else and the person cannot answer for them.
-3. **Trace how it works now** (`now`): the case stage by stage, 150–400 words,
-   as `business-narrative.md` says under "A process", its steps, its flows,
+3. **Trace how it works now** (`now`): the case stage by stage, complete as
+   `business-narrative.md` says under "A process" (as long as the case needs), its steps, its flows,
    and a diagram when it branches. Note where the change would go in.
 4. **Propose the solution** (`proposal`) as for a Jira issue, step 4.
 5. **Impact, risks, open questions, effort**, as for a Jira issue, step 5.
@@ -559,10 +568,16 @@ markup; a blank line starts a paragraph. Keep Mendix names as they are; write
 in the item's language and set its `language` (see "Language").
 
 ```
-node check-assist.js check <work>/assist.SD-4711.json --pack <folder>/ai-pack.md
+node ../mendix-describe/agent.js pack <work>/pack.md --folder <folder>
+node check-assist.js check <work>/assist.SD-4711.json --pack <work>/pack.md
 ```
 
-Fix every error; read the warnings. Then:
+(`agent.js pack` gives the pack of the model as it is now — inside the Mendix
+project made from the `.mpr`, also on a fresh checkout — and prints
+`snapshot: <id>`, the model you checked against.) Fix every error; read the
+warnings. `agent.js send` runs the same check against the current model
+before it hands anything over, and sends nothing while there is an error
+(exit code 1); `--dry-run` shows where it would go and sends nothing. Then:
 
 - **Project folder:** `node ../mendix-describe/agent.js send
   <work>/assist.SD-4711.json --folder <folder>` writes it whole into
