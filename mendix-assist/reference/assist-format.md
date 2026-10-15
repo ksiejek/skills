@@ -100,6 +100,7 @@ Each item still records the language it was written in, as `language`.
 | `history[]` | yes | what happened to the item, oldest first: `{ "date", "what", "by" }` — `date` ISO, `what` a sentence, `by` `"person"` (the person said it: "PROJ-12 is done") or `"agent"` (you did it: "Checked against the model: bug, high"). A new item has at least one entry |
 | `questions[]` | no | what to ask the reporter (see "Questions and the thread" below): `{ "id", "text", "why", "status", "asked", "answered" }` |
 | `thread[]` | no | the exchange with the reporter, oldest first and append-only: `{ "date", "from", "text", "answers" }` |
+| `modelVersion` | no | the model version the item was checked against, as the AI pack's or documentation's `model:` line names it — `"main @ a1b2c3d"`, or the commit's first seven characters. Text, at most 120 characters; MxScout shows it beside the item ("checked against the model at main @ a1b2c3d"). Leave it out when the pack says the version is unknown |
 | `language` | no | the language the agent wrote the item in, as an ISO 639 code (`"en"`, `"pl"`, `"de"`; a region may follow, `"pt-BR"`). Default `"en"`: everything written into an item is English unless the person chose another language when the agent asked. Field names, kinds, statuses and list values are always English; `reported` stays as pasted, in its own language |
 
 The diagrams (`traced.diagram`, `now.diagram`, `proposal.diagram`) have the

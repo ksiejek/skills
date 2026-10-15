@@ -374,6 +374,9 @@
       'format: ' + PACK_FORMAT + ' 1',
       'project: ' + data.project,
       (data.mendix ? 'mendix: ' + data.mendix : null),
+      // Which version of the app this is, from the Mendix project's git — what descriptions written from it describe.
+      'model: ' + ((window.MxDocsData && window.MxDocsData.versionText && window.MxDocsData.versionText(data.version)) || 'version unknown (no git commit was read with this model)'),
+      data.version && data.version.commit ? 'model commit: ' + data.version.commit : null,
       'generated: ' + data.generatedAt,
       'read with: the mendix-describe skill (skills/mendix-describe in the MxScout repository); it says what to write and in what format',
       // Each user role with the module roles it carries: an entity's access lines name module roles.
@@ -564,6 +567,10 @@
     };
     // "add": true — this file adds to what is kept rather than replacing it (see merge below).
     if (raw.add === true) out.add = true;
+    // "describedAt": the version of the model the descriptions were saved against — MxScout writes it
+    // (docs.js stamp), from the model's git commit; read back from a descriptions.json or a package.
+    var dv = describedOf(raw.describedAt);
+    if (dv) out.describedAt = dv;
     // "setLanguage": true — the person asked for another language: "language" becomes the project's
     // language of written content (docs.js noteLanguage). Not kept with the descriptions.
     if (raw.setLanguage === true) out.setLanguage = true;
@@ -645,6 +652,12 @@
       return { error: 'The file has the right format but no descriptions in it.' };
     }
     return { value: out };
+  }
+
+  // A model version as a descriptions file names it: the commit and what is shown beside it, as text.
+  function describedOf(v) {
+    if (!v || typeof v !== 'object' || typeof v.commit !== 'string' || !/^[0-9a-f]{40,64}$/.test(v.commit)) return null;
+    return { commit: v.commit, short: v.commit.slice(0, 7), branch: str(v.branch, 200), date: str(v.date, 40), message: str(v.message, 200) };
   }
 
   // A file that says "add": true is laid over the descriptions already kept, not put in their place
@@ -734,6 +747,7 @@
   function toFile(v) {
     if (!v) return null;
     var f = { format: DESC_FORMAT, version: 1, project: v.project, language: v.language, by: v.by, written: v.written };
+    if (v.describedAt) f.describedAt = v.describedAt;
     if (v.app) f.app = {
       summary: v.app.summary, story: v.app.story, audience: v.app.users && v.app.users.length ? v.app.users : v.app.audience,
       processes: (v.app.processes || []).map(function (p) { return { name: p.name, summary: p.summary, story: p.story, steps: p.steps, flows: p.flows, diagram: items(p.diagram) }; })
@@ -772,6 +786,8 @@
     Object.keys(data.entities).forEach(function (q) { if (d.entities[q]) data.entities[q].desc = d.entities[q].text; });
     data.ai = {
       app: d.app, by: d.by, written: d.written, language: d.language,
+      // The model version the descriptions were saved against (parse: describedAt), or null.
+      describedAt: d.describedAt || null,
       // A file imported before risks and context existed has neither.
       risks: d.risks || [], context: d.context || null,
       c4: d.c4 || null,

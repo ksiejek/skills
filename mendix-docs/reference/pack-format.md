@@ -13,6 +13,11 @@ not as a document to render — and by the index's line ranges, never whole
 format: mxscout-ai-pack 1
 project: Sales
 mendix: 10.18.0
+model: main @ a1b2c3d · 2026-10-14 · Fix order status
+                                                 which version of the app: the Mendix project's git branch,
+                                                 commit, its date and first line — or "version unknown (…)"
+model commit: a1b2c3d4e5f60718293a4b5c6d7e8f9012345678
+                                                 the commit in full, when it is known
 generated: 2026-10-08T09:00:00.000Z
 read with: the mendix-describe skill …
 roles: Administrator (Administration.Administrator, Sales.Admin); Clerk (Sales.Clerk); …
@@ -30,8 +35,12 @@ and the business documentation is about this application.
 has descriptions, it also shares the documentation as Markdown, separately
 (`node agent.js docs`; from files, the Markdown copy exported from
 Documentation). It starts with `# MxScout documentation — <project>` and a
-header of `key: value` lines (`project`, `mendix`, `generated`, `modules`,
-`flows described: N of M`, `out of date: N`), then the documentation's pages
+header of `key: value` lines (`project`, `mendix`, `model`, `model commit`,
+`generated`, `modules`, `flows described: N of M`, `out of date: N`, and —
+when the descriptions record it — `described at` and `described commit`, the
+version they were written for, and `since then`, the commits between that
+version and the model's when MxScout found them in the project's local git),
+then the documentation's pages
 in the order of its menu. A description whose flow changed since it was
 written ends in `(out of date — the microflow changed since this was
 written)`. It is what an agent wrote earlier: read it as a map to what matters,

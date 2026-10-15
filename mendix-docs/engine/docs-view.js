@@ -376,7 +376,9 @@
       var kinds = [];
       (data.services || []).forEach(function (sv) { if (sv.kind && kinds.indexOf(sv.kind) === -1) kinds.push(sv.kind); });
       table(['At a glance', ''], [
-        data.mendix ? ['Mendix', data.mendix] : null, ['Model read', fmtDate(data.generatedAt)],
+        data.mendix ? ['Mendix', data.mendix] : null,
+        data.version ? ['Version', (data.version.branch ? data.version.branch + ' @ ' : '') + data.version.short + (data.version.date ? ' · ' + fmtDate(data.version.date).slice(0, 10) : '') + (data.version.message ? ' · ' + data.version.message : '')] : null,
+        ['Model read', fmtDate(data.generatedAt)],
         ['Modules', k.modules + (k.marketplace ? ' · +' + k.marketplace + ' Marketplace' : ' · all own')], ['Microflows', k.microflows], ['Nanoflows', k.nanoflows], ['Pages', k.pages],
         ['Entities', k.entities], ['User roles', k.roles], ['Scheduled events', k.scheduled + (k.scheduled ? ' · ' + k.scheduledOn + ' on' : '')],
         ['Published services', k.services + (kinds.length ? ' · ' + kinds.join(' · ') : '')], risks.length ? ['Risks', risks.length + ' · ' + lvCount('P1') + ' P1'] : null
@@ -1285,8 +1287,11 @@
         var sum = app && app.summary ? firstSentence(app.summary) : null;
         var kinds = [];
         (data.services || []).forEach(function (sv) { if (sv.kind && kinds.indexOf(sv.kind) === -1) kinds.push(sv.kind); });
+        var ver = data.version;
         var facts = [
           data.mendix ? ['Mendix', data.mendix] : null,
+          // Which version of the app, from the Mendix project's git: "main @ a1b2c3d · 14.10.2026 · “Fix order status”".
+          ver ? ['Version', (ver.branch ? ver.branch + ' @ ' : '') + ver.short, [ver.date ? fmtDate(ver.date).slice(0, 10) : null, ver.message ? '“' + ver.message + '”' : null].filter(Boolean).join(' · ') || null] : null,
           ['Model read', fmtDate(data.generatedAt)],
           ['Modules', k.modules, k.marketplace ? '+' + k.marketplace + ' Marketplace' : 'all own', { view: 'modules' }],
           ['Microflows', k.microflows, null, { view: 'refs', seg: 'microflow', key: null }],

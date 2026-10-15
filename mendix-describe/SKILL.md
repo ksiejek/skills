@@ -38,7 +38,9 @@ finds it by itself); through the channel run them as they are. Where they say
 
   ```
   README.md           what each file is — read it first, it is short
-  project.json        the project: name, Mendix version, contentLanguage (the language you write in)
+  project.json        the project: name, Mendix version, model.version (which version of the app: git branch,
+                      commit, date, message), descriptions.describedAt (the version they were written for),
+                      contentLanguage (the language you write in)
   documentation.md    the documentation as Markdown — the map, read before anything else
   ai-pack.md          the AI pack — the evidence; read it by its index's line ranges, NEVER whole
   descriptions.json   the descriptions kept now (for todo and updates; do not edit it by hand)
@@ -305,6 +307,23 @@ parts after it.
 "I made changes — update the documentation." Describe **only what changed**,
 never the whole application again.
 
+0. **Which versions.** `status` prints `model:` — the version of the app the
+   model is, read by MxScout from the Mendix project's own git (branch, commit,
+   date, message) — and `described at:`, the version the descriptions were
+   written for; `documentation.md` (or `docs`) has both commits in full
+   (`model commit:`, `described commit:`) and, when MxScout could tell, a
+   `since then:` line with the commits between them. When the two commits
+   differ and you run on the developer's machine with the Mendix project at
+   hand (ask the person where it is when you do not know; `project.json`
+   names its folder), run in **the Mendix project's directory**
+   `git log --oneline <described commit>..<model commit>` — local and
+   read-only: never `fetch`, `pull`, `checkout` or anything that writes. The
+   commit messages say what the developers meant to change; the fingerprints
+   below say what did change in the model. Use both: the messages to know
+   where to look and what to call it, the `todo` list for what to describe.
+   When the versions are the same, the descriptions describe this model: say
+   so, and update only what `todo` lists. MxScout stamps what you send with the
+   model's version itself — do not write `describedAt`.
 1. In a project folder: `node check-descriptions.js todo --folder <folder>
    --list`. Through the channel: `node agent.js pack pack.md` and `node agent.js
    docs --out docs.md`, then `node check-descriptions.js todo pack.md docs.md
@@ -318,7 +337,9 @@ never the whole application again.
    that against the pack too and rewrite what no longer holds (a process with
    the same name replaces the one kept). Leave the rest as it is.
 4. Send it as a part with `"add": true`, so everything you did not touch stays.
-   Tell the person what you updated and what you found had changed.
+   Tell the person what you updated and what you found had changed — from
+   which version to which (`a1b2c3d → f00ba12`), and the commits that moved it
+   when you read them.
 
 ## One more process, when the person asks
 

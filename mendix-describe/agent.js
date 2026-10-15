@@ -15,8 +15,10 @@
  *     environment, or --token and --url.
  *
  *   node agent.js status                    what the project is: its modules with their counts, the language
- *                                           its content is written in, whether there is documentation (how much
- *                                           of it is out of date), and what waits for the person
+ *                                           its content is written in, which version of the app the model is and
+ *                                           which one the descriptions describe (from the Mendix project's git),
+ *                                           whether there is documentation (how much of it is out of date), and
+ *                                           what waits for the person
  *   node agent.js docs [--out docs.md]      the documentation as Markdown: what an agent understood earlier.
  *                                           Read it first, as the map; check what matters in the pack.
  *   node agent.js module <Name> [--out f]   one module's section of the pack (to stdout, or to a file)
@@ -83,8 +85,23 @@ function parseIndex(lines) {
   return modules;
 }
 function header(text, key) {
-  const l = String(text).split('\n').slice(0, 20).find((x) => x.startsWith(key + ': '));
+  const l = String(text).split('\n').slice(0, 24).find((x) => x.startsWith(key + ': '));
   return l ? l.slice(key.length + 2) : null;
+}
+// Which version of the app the model is, and which one the descriptions describe — from the pack's and the
+// documentation's headers (MxScout reads both from the Mendix project's git). With both commits known and
+// different, the way to see what changed: git log in the Mendix project, locally, read-only.
+function versionLines(model, modelCommit, describedAt, describedCommit, since) {
+  const out = ['model: ' + (model || 'version unknown')];
+  if (describedAt) {
+    out.push('described at: ' + describedAt);
+    if (since) out.push('since then: ' + since);
+    if (modelCommit && describedCommit && modelCommit !== describedCommit) {
+      out.push('what changed: in the Mendix project directory, git log --oneline ' + describedCommit.slice(0, 12) + '..' + modelCommit.slice(0, 12) +
+        ' — local and read-only (never fetch or pull); combine it with check-descriptions.js todo, and describe only what changed');
+    }
+  }
+  return out;
 }
 // The project's language of written content, as MxScout names it: "pl" → "Polish (pl)".
 const NAMES = { en: 'English', pl: 'Polish', de: 'German', nl: 'Dutch', fr: 'French', es: 'Spanish', it: 'Italian', pt: 'Portuguese', cs: 'Czech', sk: 'Slovak', sv: 'Swedish', da: 'Danish', nb: 'Norwegian', fi: 'Finnish', hu: 'Hungarian', ro: 'Romanian', uk: 'Ukrainian', lt: 'Lithuanian' };
@@ -110,6 +127,9 @@ function inFolder() {
     console.log('project: ' + project.name + (project.model && project.model.mendix ? ' (Mendix ' + project.model.mendix + ')' : '') + ' — folder ' + folder);
     console.log(languageLine(project.contentLanguage || null));
     const modules = pack ? parseIndex(pack.split('\n')) : null;
+    const v = project.model && project.model.version;
+    versionLines(header(pack || '', 'model') || (v && v.commit ? (v.branch ? v.branch + ' @ ' : '') + v.short : null), header(pack || '', 'model commit') || (v && v.commit) || null,
+      header(docs || '', 'described at'), header(docs || '', 'described commit'), header(docs || '', 'since then')).forEach((l) => console.log(l));
     if (modules) {
       console.log('pack: ai-pack.md' + (header(pack, 'generated') ? ' · model read ' + header(pack, 'generated') : ''));
       console.log('module | lines | microflows | nanoflows | pages | entities');
@@ -195,6 +215,9 @@ function viaChannel() {
       const s = await (await call('/api/agent/status')).json();
       console.log('project: ' + s.project + (s.mendix ? ' (Mendix ' + s.mendix + ')' : ''));
       console.log(languageLine(s.language || null));
+      // The commits themselves are in the documentation's header (node agent.js docs): model commit, described commit.
+      versionLines(s.model || null, null, s.documentation && s.documentation.describedAt, null, null).forEach((l) => console.log(l));
+      if (s.documentation && s.documentation.describedAt) console.log('the commits, and what moved since: the header of node agent.js docs (model commit, described commit, since then)');
       console.log('shared: ' + s.sharedAt + (s.generated ? ' · model read ' + s.generated : ''));
       console.log('module | microflows | nanoflows | pages | entities');
       s.modules.forEach((m) => console.log(m.name + ' | ' + m.microflows + ' | ' + m.nanoflows + ' | ' + m.pages + ' | ' + m.entities));

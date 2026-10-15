@@ -36,7 +36,7 @@ const BY = ['person', 'agent'];
 const CHANGE_KINDS = ['microflow', 'nanoflow', 'page', 'entity', 'attribute', 'association', 'enumeration', 'security', 'scheduled event', 'integration', 'other'];
 const ACTIONS = ['add', 'change', 'remove'];
 const LEVELS = ['P1', 'P2', 'P3'];
-const COMMON = ['id', 'kind', 'title', 'reported', 'source', 'created', 'updated', 'status', 'planned', 'closed', 'history', 'questions', 'thread', 'language'];
+const COMMON = ['id', 'kind', 'title', 'reported', 'source', 'created', 'updated', 'status', 'planned', 'closed', 'history', 'questions', 'thread', 'language', 'modelVersion'];
 const OWN = {
   ticket: ['verdict', 'confidence', 'summary', 'story', 'traced', 'evidence', 'needs', 'reply', 'fix', 'risk'],
   jira: ['summary', 'story', 'scope', 'proposal', 'impact', 'risks', 'open', 'effort', 'reply'],

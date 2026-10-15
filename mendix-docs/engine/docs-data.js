@@ -524,6 +524,8 @@
       project: project ? project.name : (model.meta && model.meta.appName) || 'Mendix application',
       app: (model.meta && model.meta.appName) || null,
       mendix: (model.meta && model.meta.mendixVersion) || null,
+      // Which version of the app the model is, from the Mendix project's git (modelversion.js) — without its reflog.
+      version: versionOf(model.version),
       generatedAt: new Date().toISOString(),
       drawings: Object.keys(flows).some(function (k) { return flows[k].drawn; }),
       kpi: {
@@ -544,5 +546,18 @@
     };
   }
 
-  window.MxDocsData = { build: build, workflow: workflow, flowEntry: flowEntry, pageEntry: pageEntry };
+  // The model's version stamp, as text fields only: { commit, short, branch, date, message } — or null.
+  function versionOf(v) {
+    if (!v || typeof v !== 'object' || typeof v.commit !== 'string' || !/^[0-9a-f]{40,64}$/.test(v.commit)) return null;
+    function s(x, n) { return typeof x === 'string' && x.trim() ? x.replace(/\s+/g, ' ').trim().slice(0, n) : null; }
+    return { commit: v.commit, short: v.commit.slice(0, 7), branch: s(v.branch, 200), date: s(v.date, 40), message: s(v.message, 200) };
+  }
+  // One line for a text header (the AI pack, documentation.md): "main @ a1b2c3d · 2026-10-14 · Fix order status".
+  function versionText(v) {
+    v = versionOf(v);
+    if (!v) return null;
+    return [(v.branch ? v.branch + ' @ ' : '') + v.short, v.date ? v.date.slice(0, 10) : null, v.message].filter(Boolean).join(' · ');
+  }
+
+  window.MxDocsData = { versionOf: versionOf, versionText: versionText, build: build, workflow: workflow, flowEntry: flowEntry, pageEntry: pageEntry };
 })();

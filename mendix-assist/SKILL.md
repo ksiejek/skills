@@ -199,6 +199,11 @@ Three ways, the **project folder** first:
    roles to look at. Then the pack, as below: what you conclude comes from the
    pack. When the two disagree, **the model wins** — say which description is
    stale. A description marked `(out of date — …)` is a lead, never evidence.
+   Note the pack's `model:` line (`main @ a1b2c3d · 2026-10-14 · …`): the
+   version of the app you checked against. Put it in the item as
+   `"modelVersion": "main @ a1b2c3d"` (leave it out when the pack says the
+   version is unknown), so whoever reads the verdict later knows which version
+   it holds for.
 
 ## Tracing in the pack
 

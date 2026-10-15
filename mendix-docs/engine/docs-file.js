@@ -146,16 +146,24 @@
     var market = data.modules.length - mine.modules.length;
     var ai = data.ai || {}, now = new Date().toISOString();
     function one(t) { return String(t).replace(/\s*\n\s*/g, ' '); }
+    var V = window.MxDocsData, ver = data.version || null, at = ai.describedAt || null;
     var head = [
       AGENT_DOCS_HEAD + ' — ' + one(data.project),
       '',
       'project: ' + one(data.project),
       'mendix: ' + one(data.mendix || 'unknown'),
+      // Which version of the app the model is, and which one the descriptions were written for (docs.js stamps it).
+      'model: ' + one((V && V.versionText(ver)) || 'version unknown (no git commit was read with this model)'),
+      ver ? 'model commit: ' + ver.commit : null,
       'generated: ' + now,
       'modules: the own modules (' + mine.modules.length + ')' + (market ? '; ' + market + ' Marketplace ' + (market === 1 ? 'module' : 'modules') + ' left out' : ''),
       'flows described: ' + described + ' of ' + flows,
       'out of date: ' + stale + (stale ? ' — each marked "(out of date …)" after its description: the flow changed since it was written' : ''),
       ai.written || ai.by ? 'descriptions: ' + ['written ' + one(ai.written || 'at an unknown date'), ai.by ? 'by ' + one(ai.by) : null].filter(Boolean).join(' ') : null,
+      at ? 'described at: ' + one((V && V.versionText(at)) || at.short) + (ver && ver.commit === at.commit ? ' — the same version as the model' : '') : null,
+      at ? 'described commit: ' + at.commit : null,
+      at && ver && ver.commit !== at.commit ? 'since then: ' + (opts.since ? opts.since.length + (opts.since.length === 1 ? ' commit' : ' commits') + ' in the Mendix project’s local git' +
+        (opts.since.length ? ' — ' + opts.since.slice(0, 20).map(function (c) { return c.short + ' ' + one(c.msg || ''); }).join('; ') : '') : 'not known from here — in the Mendix project, git log --oneline ' + at.short + '..' + ver.short + ' lists the commits') : null,
       opts.language !== undefined ? 'Write in: ' + (opts.language ? one(opts.language) : 'not set yet — ask the person once (English by default); the answer is kept for the project') : null,
       '',
       '> This is what an agent understood earlier; verify against the AI pack before concluding.',
