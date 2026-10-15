@@ -185,12 +185,16 @@
 
 /* The other sections (app.js screenHeader): the same header, then the
    section from the left edge, the whole width, scrolling under the header. */
-.xe-pagescreen .xe-page-controls { flex: none; padding: 12px 24px 0; }
-.xe-pagescreen .xe-page { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 18px 24px 28px; }
+.xe-pagescreen .xe-page-controls { flex: none; padding: 16px 40px 0; }
+.xe-pagescreen .xe-page { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 30px 40px 64px; }
 .xe-pagescreen .xe-page > * { max-width: 1280px; }
 /* A documentation page with nothing to show yet (app.js renderDocPage): the same margins as every other page,
    the card at reading width (Karol, 2026-10-14: it sat on the screen's edge). */
-.doc-screen > .xe-page { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 18px 24px 28px; }
+.doc-screen > .xe-page { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 30px 40px 64px; }
+/* An empty page sits where the documentation's own pages start (docs.css .dx-pd), not against the header. */
+/* Sections drawn as pages (Security, Settings, and in Dev Comments, Live app, Logs) and the empty documentation
+   pages keep the documentation's own margins (docs.css .dx-pd), not a strip against the header. */
+@media (max-width: 720px) { .doc-screen > .xe-page, .xe-pagescreen .xe-page { padding: 20px 16px 40px; } .xe-pagescreen .xe-page-controls { padding: 12px 16px 0; } }
 .doc-screen > .xe-page > .doc-empty { max-width: 640px; }
 
 /* ---------- the flow as Studio Pro keeps it, the whole middle (flowview.js flowDetail) ----------

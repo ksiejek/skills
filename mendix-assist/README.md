@@ -56,9 +56,13 @@ or link them, so a `git pull` of MxScout updates them:
 ln -s "$PWD/skills/mendix-describe" "$PWD/skills/mendix-assist" ~/.claude/skills/
 ```
 
+or let MxScout's `skills/install.sh` (Windows: `skills\install.ps1`) do it.
+For Codex, `skills/install.sh --codex` (`-Codex`) puts them into
+`~/.codex/skills/` as well, for newer Codex versions that load skills.
+
 ## Start it
 
-Type `/mendix-assist`, or just say what you have: "help with a ticket", "I
+Type `/mendix-assist` (in Codex: "use the mendix-assist skill"), or just say what you have: "help with a ticket", "I
 have a Jira", "I have an idea" — or in Polish "pomóż z ticketem", "mam Jirę",
 "mam pomysł", "sprawdź zgłoszenie", "czy ten ticket ma rację bytu".
 

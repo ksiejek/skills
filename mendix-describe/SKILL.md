@@ -535,7 +535,8 @@ model on a canvas — with the mendix-change-proposal skill.
 When the person brings a Service Desk ticket, a Jira issue, an idea or other
 help they want kept — "check this ticket", "I have a Jira", "mam pomysł" — that
 is the **mendix-assist** skill's job (`../mendix-assist/SKILL.md`, installed
-beside this one). It uses this skill's `agent.js` and `check-descriptions.js`,
+beside this one — when your agent does not load skills by itself, read that
+file and follow it). It uses this skill's `agent.js` and `check-descriptions.js`,
 traces the case as "One more process" says and designs a solution as "A change"
 says, and writes an **Assist item** — a ticket's verdict with its evidence, a
 proposal, a status and a planned date — which MxScout keeps locally, never in

@@ -231,11 +231,13 @@
 .dx-ov-prov { font-size:12.5px; line-height:1.5; color:var(--muted); max-width:460px; }
 .dx-glance { min-width:0; border:1px solid var(--line); border-radius:16px; overflow:hidden; background:var(--raised); }
 .dx-glance-h { padding:14px 18px; border-bottom:1px solid var(--line); font-size:13px; font-weight:600; }
-.dx-glance dl { margin:0; display:grid; grid-template-columns:minmax(0,1fr) auto; font-size:13.5px; }
+.dx-glance dl { margin:0; display:grid; grid-template-columns:auto minmax(0,1fr); font-size:13.5px; }
 .dx-glance dt, .dx-glance dd { margin:0; padding:9px 18px; border-top:1px solid var(--line); }
 .dx-glance dt:first-of-type, .dx-glance dd:first-of-type { border-top:0; }
 .dx-glance dt { color:var(--muted); }
-.dx-glance dd { text-align:right; font:500 13px var(--font-mono); color:var(--ink); white-space:nowrap; }
+.dx-glance dt { white-space:nowrap; }
+/* A long value (a commit's message, say) wraps under itself instead of widening the box. */
+.dx-glance dd { text-align:right; font:500 13px var(--font-mono); color:var(--ink); min-width:0; overflow-wrap:anywhere; }
 .dx-glance dd.p1 { color:var(--p1); }
 .dx-glance-v { border:0; padding:0; background:none; font:inherit; color:inherit; cursor:pointer; }
 .dx-glance-v:hover { color:var(--acc-text); }
