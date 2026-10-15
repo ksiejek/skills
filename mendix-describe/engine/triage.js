@@ -41,7 +41,11 @@
   var HISTORY_MAX = 40;
   var KIND_TAG = { entity: 'en', microflow: 'mf', nanoflow: 'nf', page: 'pg' };
 
-  function init(api) { app = api; }
+  function init(api) {
+    app = api;
+    // Another tab decided about a risk: read the record again rather than draw — and later save over — the old copy.
+    if (app.store.onOtherTab) app.store.onOtherTab(function (name, projectId) { if (name === 'triage' && Object.prototype.hasOwnProperty.call(recs, projectId)) { forget(projectId); app.render(); } });
+  }
 
   function now() { return new Date().toISOString(); }
   function clone(x) { return x ? JSON.parse(JSON.stringify(x)) : x; }
@@ -57,9 +61,15 @@
   function recordFor(projectId) { load(projectId); return recs[projectId]; }
   // Read again from storage on the next draw (a package brought decisions in).
   function forget(projectId) { delete recs[projectId]; }
-  function save(rec) {
-    rec.updatedAt = now();
-    return app.store.put('triage', rec).then(function () { recs[rec.projectId] = rec; return rec; });
+  // Every change is made on the record as the database holds it NOW — read, changed and written in one
+  // transaction, with a revision number (store.update) — never on this tab's copy, which a second tab's save
+  // makes stale (an external audit, 2026-10-15, B05). fn(current or null) → the record to keep, or undefined.
+  function change(projectId, fn) {
+    return app.store.update('triage', projectId, function (cur) {
+      var rec = fn(cur || null);
+      if (rec) rec.updatedAt = now();
+      return rec || undefined;
+    }).then(function (r) { recs[projectId] = r.value || null; return r.value; });
   }
 
   // ---------- identity ----------
@@ -207,13 +217,15 @@
 
   // After new descriptions were kept (docs.js): reconcile, save, and say what happened in a sentence.
   function afterImport(projectId, incoming, previous) {
-    var have = recs[projectId];
-    var start = have !== undefined ? Promise.resolve(have) : app.store.get('triage', projectId).catch(function () { return null; });
-    return start.then(function (rec) {
+    var s = null;
+    return change(projectId, function (rec) {
       var r = reconcile(rec || null, incoming, previous, now(), projectId);
-      var s = r.sum;
-      if (!s.reopened && !s.verified && !s.kept && !s.gone && !s.back && !s.people && !rec) return '';
-      return save(r.rec).then(function () {
+      s = r.sum;
+      if (!s.reopened && !s.verified && !s.kept && !s.gone && !s.back && !s.people && !rec) return undefined;
+      return r.rec;
+    }).then(function (kept) {
+      if (!kept) return '';
+      return Promise.resolve().then(function () {
         var parts = [];
         if (s.verified) parts.push(s.verified + ' fixed ' + (s.verified === 1 ? 'risk' : 'risks') + ' verified');
         if (s.reopened) parts.push(s.reopened + ' reopened — still found after the fix');
@@ -228,14 +240,17 @@
 
   // ---------- a person's decision ----------
   function set(projectId, risk, to, note) {
-    var rec = clone(recs[projectId]) || empty(projectId);
-    var e = find(rec.risks, risk);
-    if (!e) { e = entryFor(risk, risk.status || 'open'); rec.risks[e.key] = e; }
-    var when = now(), by = app.author() || null;
-    log(e, { at: when, by: by, from: e.status, to: to, note: note || null });
-    e.status = to; e.note = note || null; e.by = by; e.at = when;
-    if (risk.origin !== 'person') e.risk = snapshot(risk);
-    return save(rec).then(function () {
+    var e = null;
+    return change(projectId, function (cur) {
+      var rec = clone(cur) || empty(projectId);
+      e = find(rec.risks, risk);
+      if (!e) { e = entryFor(risk, risk.status || 'open'); rec.risks[e.key] = e; }
+      var when = now(), by = app.author() || null;
+      log(e, { at: when, by: by, from: e.status, to: to, note: note || null });
+      e.status = to; e.note = note || null; e.by = by; e.at = when;
+      if (risk.origin !== 'person') e.risk = snapshot(risk);
+      return rec;
+    }).then(function () {
       // A comment that is a risk says the same on the Comments page.
       if (risk.origin === 'person' && app.setCommentStatus) app.setCommentStatus(String(risk.key).slice(2), to === 'false-positive' ? 'wontfix' : to === 'fixed' || to === 'verified' ? 'fixed' : 'open');
       return e;
@@ -323,16 +338,15 @@
   function takeFromPackage(projectId, raw) {
     var incoming = clean(raw);
     if (!Object.keys(incoming).length) return Promise.resolve(0);
-    return app.store.get('triage', projectId).catch(function () { return null; }).then(function (rec) {
-      rec = rec || empty(projectId);
-      var n = 0;
+    var n = 0;
+    return change(projectId, function (cur) {
+      var rec = clone(cur) || empty(projectId);
       Object.keys(incoming).forEach(function (k) {
         var mine = rec.risks[k];
         if (!mine || String(incoming[k].at || '') > String(mine.at || '')) { rec.risks[k] = incoming[k]; n++; }
       });
-      if (!n) return 0;
-      return save(rec).then(function () { forget(projectId); return n; });
-    });
+      return n ? rec : undefined;
+    }).then(function () { if (n) forget(projectId); return n; });
   }
 
   function remove(projectId) { recs[projectId] = null; }
