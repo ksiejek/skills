@@ -1,6 +1,6 @@
 ---
 name: mendix-describe
-description: Write business-readable documentation of a Mendix application from an MxScout project — a project folder MxScout keeps on disk (the first way in), a running MxScout sharing a project, or an AI pack file — what the application is for, its main processes and its modules, each as a short summary and a long description, and one or two sentences on each microflow and nanoflow, the risks in the model ranked P1–P3, and what a developer should know before changing it — as a descriptions file MxScout imports into its Documentation. Also works out a change the person wants made — how that part works now and a proposed solution in Mendix terms — for MxScout's Assist page (its Ideas tab), brings the descriptions up to date after the model changed, and answers questions about how the application works — reading the documentation MxScout shares first, as the map, and the pack to verify. Given only a folder, or an address and token, it asks what the person wants instead of starting to describe. Use when told "use mendix-describe on <folder>" or "on this folder" (a folder with project.json, documentation.md, ai-pack.md and inbox/ that MxScout writes), or when started inside such a folder, or given a `.mxscout-ai-pack.md` file, or an address and token of a running MxScout that is sharing a project, or asked to describe or document a Mendix app for the business from MxScout, or to work out a change to it ("I want customers to be able to cancel an order").
+description: Write business-readable documentation of a Mendix application from an MxScout project — a project folder MxScout keeps on disk (the first way in), a running MxScout sharing a project, or an AI pack file — what the application is for, its main processes and its modules, each as a short summary and a long description, and one or two sentences on each microflow and nanoflow, the risks in the model ranked P1–P3, and what a developer should know before changing it — as a descriptions file MxScout imports into its Documentation. Also works out a change the person wants made — how that part works now and a proposed solution in Mendix terms — for MxScout's Assist page (its Ideas tab), brings the descriptions up to date after the model changed, and answers questions about how the application works — reading the documentation MxScout shares first, as the map, and the pack to verify. Given only a folder, or an address and token, it asks what the person wants instead of starting to describe. Use when told "use mendix-describe on <folder>" or "on this folder" (a folder with project.json, documentation.md, ai-pack.md and inbox/ that MxScout writes — or a Mendix project with MxScout's files in mxscout/: mxscout.json, descriptions/, docs/, AGENTS.md), or when started inside such a folder, or given a `.mxscout-ai-pack.md` file, or an address and token of a running MxScout that is sharing a project, or asked to describe or document a Mendix app for the business from MxScout, or to work out a change to it ("I want customers to be able to cancel an order").
 ---
 
 # Describing a Mendix application for the business
@@ -67,6 +67,37 @@ finds it by itself); through the channel run them as they are. Where they say
   ai-pack.md, and descriptions.json is what it took — results go through
   `inbox/` only. A project not open in MxScout simply waits in the inbox
   until it is; say so to the person.
+- **Inside the Mendix project — `mxscout/`, shared through the app's git.** A
+  team can keep MxScout's files in the Mendix project's own repository. You
+  recognise it by `mxscout/mxscout.json` (`"layout": 2`). `--folder` takes the
+  Mendix project's directory or its `mxscout/`, and run inside either
+  `agent.js` finds it. What is there:
+
+  ```
+  mxscout/
+    AGENTS.md          read it first, it is short
+    mxscout.json       id, name, contentLanguage, describedAt (the commit the descriptions describe)
+    descriptions/      the descriptions in small files (app.json, processes/, modules/, risks.json, c4.json, context.json)
+    docs/              the documentation as Markdown by topic — docs/index.md is the map; manifest.json
+    knowledge/         (to come) solved cases, one Markdown file each — search it first when it is there
+    .local/            this machine only, never committed: documentation.md, ai-pack.md, inbox/, assist/
+  ```
+
+  The pack and the whole documentation are in `.local/` — there only when
+  MxScout opened the project on this machine; when they are missing, read
+  `docs/` (committed) as the map, and ask the person to open the project in
+  MxScout once before you describe. `status` compares the commit the
+  descriptions describe with the one HEAD names. Hand your result over with
+  **`node agent.js write descriptions.json --folder <MendixProject>`**: it puts
+  the descriptions straight into `descriptions/` (a file with `"add": true` is
+  laid over what is there), writes only the files that changed, and stamps
+  `mxscout.json` with the commit HEAD names — MxScout need not be open; when it
+  is, it takes them within seconds, with Undo, and writes `docs/` from them.
+  When it is not, ask the person to open the project in MxScout once before
+  committing, so the commit carries a `docs/` that matches. (`send` still
+  hands a file to `.local/inbox/`.) Never edit `docs/` or `mxscout.json` by
+  hand, never touch anything outside `mxscout/`, and **never run git that
+  writes** — no commit, pull, push, checkout: committing is the person's.
 - **From a running MxScout, with no files.** The person pressed **Share with an
   agent** in the project's Documentation (the Agent channel tab) and pasted you
   a line with an address and a token. The same commands without `--folder`
@@ -291,7 +322,9 @@ The pack is large (a real app is ~1.7 MB, ~470k tokens). Never read it whole.
    rest and puts yours on top. Leave it out only for a complete description
    that should take the place of the old one.
    In a project folder: `node agent.js send descriptions.json --folder <folder>`
-   (it lands in `inbox/`); through the channel: `node agent.js send
+   (it lands in `inbox/`); inside the Mendix project: `node agent.js write
+   descriptions.json --folder <MendixProject>` (straight into `descriptions/`),
+   then remind the person to commit `mxscout/` on its own; through the channel: `node agent.js send
    descriptions.json`. Tell the person what you sent. MxScout saves it at once
    and shows it with **Undo** — unless they turned that off, or the file would
    replace descriptions already kept (a file without `"add"`), when it waits
@@ -306,6 +339,15 @@ parts after it.
 
 "I made changes — update the documentation." Describe **only what changed**,
 never the whole application again.
+
+Inside the Mendix project (`mxscout/`), the person pulls first (Studio Pro or
+git — they do it, not you). Then `node agent.js status --folder <MendixProject>`:
+when it says the descriptions **describe HEAD — up to date**, say so and stop;
+there is nothing to update unless they ask for more. Otherwise go on below,
+hand the result over with `agent.js write`, and remind them to **commit
+`mxscout/` as its own commit** ("Update documentation") — after MxScout wrote
+`docs/` from it (open the project in MxScout once if it was not open) — and to
+push, so the others pull it.
 
 0. **Which versions.** `status` prints `model:` — the version of the app the
    model is, read by MxScout from the Mendix project's own git (branch, commit,
@@ -324,8 +366,8 @@ never the whole application again.
    When the versions are the same, the descriptions describe this model: say
    so, and update only what `todo` lists. MxScout stamps what you send with the
    model's version itself — do not write `describedAt`.
-1. In a project folder: `node check-descriptions.js todo --folder <folder>
-   --list`. Through the channel: `node agent.js pack pack.md` and `node agent.js
+1. In a project folder — or inside the Mendix project, given its directory or
+   `mxscout/` — `node check-descriptions.js todo --folder <folder> --list`. Through the channel: `node agent.js pack pack.md` and `node agent.js
    docs --out docs.md`, then `node check-descriptions.js todo pack.md docs.md
    --list` (from files: the earlier `descriptions.json` in place of `docs.md`).
    It lists the new flows and the ones whose description is out of date — that
@@ -575,7 +617,11 @@ entity.
   level 3 MxScout reads from the model.
 - `check-descriptions.js` — `todo`, `check`, `merge`. Node only, no install.
 - `check-descriptions.js todo` also takes the documentation (`docs.md`) in
-  place of a descriptions file, and `--folder <folder>` for a project folder.
-- `agent.js` — `status`, `docs`, `module`, `pack`, `send`: a project folder
-  (`--folder`, or run inside it) or a running MxScout that is sharing. Node
-  only, no install.
+  place of a descriptions file, and `--folder <folder>` for a project folder
+  or a Mendix project with `mxscout/`.
+- `agent.js` — `status`, `docs`, `module`, `pack`, `send`, and `write` inside
+  the Mendix project: a project folder (`--folder`, or run inside it) or a
+  running MxScout that is sharing. Node only, no install.
+- `repodocs.js` — MxScout's own rules for the files in `mxscout/` (a copy of
+  its `public/repodocs.js`, unchanged): `agent.js` and `check-descriptions.js`
+  split and join the descriptions with it, exactly as MxScout does.

@@ -105,7 +105,7 @@ Paragraphs are separated by a blank line …",
 |---|---|---|
 | `format`, `version` | yes | exactly as above, or MxScout refuses the file |
 | `add` | no | `true`: the file adds to the descriptions MxScout keeps instead of replacing them — one more process, or flows described since. The application's `summary`, `story` and `audience`, when the file has them, replace the ones kept; a process of the same name is replaced and a new one added at the end; a flow, page, entity or module in the file replaces its old description; a risk with a title already kept — case and spacing aside, at whatever level — replaces it, a new one is added at the end; a `context` entry already kept is not added twice; `project`, `language` and `by` stay as kept (the file's when none is), `written` is the file's; everything else stays. Without it, an import replaces what was kept. `check-descriptions.js merge` joins parts by the same rules, and when every part says `"add": true` the merged file says it too |
-| `describedAt` | no — **MxScout writes it** | the model version the descriptions were saved against: `{ "commit", "short", "branch", "date", "message" }`, from the Mendix project's git. MxScout sets it on every save of what an agent sends, to the model's version at that moment, and keeps it in `descriptions.json` and in a package; do not write it yourself |
+| `describedAt` | no — **MxScout writes it** | the model version the descriptions were saved against: `{ "commit", "short", "branch", "date", "message" }`, from the Mendix project's git. MxScout sets it on every save of what an agent sends, to the model's version at that moment, and keeps it in `descriptions.json` and in a package — inside the Mendix project, in `mxscout/mxscout.json`, where `agent.js write` sets it to the commit HEAD names; do not write it yourself |
 | `replace` | no | with `"add": true` only: `["app"]` — the file's `app` (summary, story, who uses it, every process) replaces the overview kept, as when the overview was written again from the start; flows, modules, risks and the rest are still added to. Without `"add": true` it is ignored (the checker warns) |
 | `project`, `language`, `by`, `written` | no | `by` is shown as who wrote the descriptions. `language` is the code of the language the content is written in (`"en"`, `"pl"`) — the project's language of written content (SKILL.md, "The language you write in"). The first file MxScout takes that names a language sets the project's when it has none; a file in another language is kept, with a warning to the person |
 | `setLanguage` | no | `true`, with `language`: the person asked for another language, and MxScout changes the project's language of written content to this one. Not kept with the descriptions |
@@ -365,3 +365,25 @@ them. A text is counted once trimmed.
 | `changes[]` | 100; per change 100 steps on each side, 60 flows in `now`, 60 model changes, 60 `impact.flows`, 30 `impact.roles`, 30 risks, 30 `open` | `id` 80, `title` 200, `asked` 2,000, `date` 40, each side's `summary` 2,000 and `story` 16,000, a step 600, a flow 300, a model change's `target` 300 and `what` 1,000, a role 120, `impact.data` 3,000, a question 1,000, `effort` 300 |
 | `tickets[]` | 200; per ticket 100 traced steps, 60 traced flows, 60 evidence rows, 30 `needs`, 30 risks | `id` 80, `title` 200, `reported` 8,000, `source` 300, `date` 40, `summary` 2,000, `story` 16,000, a step 600, a flow 300, an evidence row's `target` 300 and `what` 1,000, a need 1,000, `reply` 4,000 |
 | a change's or a ticket's `risks[]` | 30 | `title` 300, `detail` 3,000, `fix` 1,000 |
+
+## Inside the Mendix project: the same file, split
+
+A project kept inside the Mendix project (`mxscout/`, shared through the app's
+git) keeps this file split into small files, so a git conflict stays small:
+
+```
+mxscout/descriptions/app.json                 format, version, project, language, by, written,
+                                              app { summary, story, audience }, processes: [file names, in order]
+mxscout/descriptions/processes/<name>.json    one process, as in app.processes
+mxscout/descriptions/modules/<Module>.json    { module, summary (the module's entry), microflows, nanoflows, pages, entities }
+                                              — every flow, page and entity of that module, by its qualified name
+mxscout/descriptions/risks.json               the risks, as in "risks"
+mxscout/descriptions/c4.json                  the architecture, as in "c4"
+mxscout/descriptions/context.json             the developers' context, as in "context"
+mxscout/mxscout.json                          describedAt
+```
+
+You still write one descriptions file as above; `node agent.js write
+descriptions.json --folder <MendixProject>` splits it exactly as MxScout does
+(`repodocs.js`, MxScout's own code) and writes only the files that changed.
+Never edit the split files or `mxscout/docs/` by hand.

@@ -59,6 +59,18 @@ descriptions you have, waiting for **Import them** — and moved to
 `inbox/done/`. Nothing has to be started, and the agent needs no token. Skip
 step 4.
 
+**Inside the Mendix project — shared through the app's git.** Choose **In the
+Mendix project (mxscout/)** on New project, and MxScout keeps the project in
+`mxscout/` inside the Mendix project, committed with the app: `mxscout.json`,
+`descriptions/` (small files), `docs/` (Markdown by topic, `docs/index.md` the
+map), `AGENTS.md`; `.local/` (the pack, the whole documentation, the inbox,
+your Assist items) stays on your machine. Say "Use the mendix-describe skill on
+mxscout/" in the Mendix project. The agent writes the descriptions straight
+into `descriptions/` (`node agent.js write … --folder <MendixProject>`); MxScout
+takes them while the project is open and writes `docs/`. Then commit `mxscout/`
+on its own and push. Neither the skill nor MxScout runs git for you.
+`node check-descriptions.js todo --folder <MendixProject>` works there too.
+
 **Through MxScout's agent channel (no folder).** Open the project →
 **Documentation** → **Agent channel** → **Share with an agent**, then **Copy
 for the agent** and paste that line into

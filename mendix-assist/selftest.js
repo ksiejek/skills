@@ -142,6 +142,16 @@ try {
   ok(all.items.find((x) => x.id === 'SD-4720').asked === 2, 'list counts the questions still open');
   r = run(['list', folder]);
   ok(r.code === 0 && /SALES-88 \| open \| - \| 2026-11-20/.test(r.out) && /SD-4711 \| open \(bug\) \| -/.test(r.out) && /SD-4720 \| waiting \(cannot-tell\) \| 2/.test(r.out) && /waiting in inbox/.test(r.out), 'list on the command line prints status, verdict and planned date');
+
+  // ---- list: a project kept inside the Mendix project (mxscout/), its Assist items personal, in .local/ ----
+  const app = path.join(tmp, 'OrderPortal');
+  fs.mkdirSync(path.join(app, 'mxscout', '.local', 'assist', 'jira'), { recursive: true });
+  fs.writeFileSync(path.join(app, 'OrderPortal.mpr'), '');
+  fs.writeFileSync(path.join(app, 'mxscout', 'mxscout.json'), JSON.stringify({ format: 'mxscout-project', layout: 2, id: 'x', name: 'OrderPortal' }));
+  fs.writeFileSync(path.join(app, 'mxscout', '.local', 'assist', 'jira', 'SALES-88.json'), JSON.stringify(jira));
+  ok(list(app).items.length === 1 && list(path.join(app, 'mxscout')).items.length === 1, 'list: the Mendix project, or its mxscout/, reads the items in mxscout/.local/assist/');
+  r = run(['list', app]);
+  ok(r.code === 0 && /SALES-88/.test(r.out), 'list on the command line, given the Mendix project');
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
 }

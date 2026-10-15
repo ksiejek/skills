@@ -14,7 +14,10 @@
  *
  *   node check-descriptions.js todo --folder <project folder> [--list]
  *       The same, for a project MxScout keeps in a folder: its ai-pack.md and
- *       its descriptions.json.
+ *       its descriptions.json. For a project kept inside the Mendix project
+ *       (mxscout/), give the Mendix project's directory or its mxscout/: the
+ *       pack is .local/ai-pack.md, the descriptions the files in descriptions/,
+ *       joined by MxScout's own rules (repodocs.js beside this file).
  *
  *   node check-descriptions.js check <pack.md> <descriptions.json>
  *   node check-descriptions.js check --folder <project folder> <descriptions.json>
@@ -772,6 +775,17 @@ function merge(parts) {
   return out;
 }
 
+// MxScout's own rules for the files in mxscout/ (repodocs.js, a copy of MxScout's public/repodocs.js), run as MxScout runs them.
+function repoDocs(file) {
+  if (!fs.existsSync(file)) throw new Error('repodocs.js is missing beside check-descriptions.js — reinstall the mendix-describe skill.');
+  const vm = require('vm');
+  const ctx = { console, TextEncoder, crypto: require('crypto').webcrypto };
+  ctx.window = ctx;
+  vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(file, 'utf8'), ctx, { filename: 'repodocs.js' });
+  return ctx.MxRepoDocs;
+}
+
 // ---------- the command line ----------
 function main(argv) {
   const [cmd, ...given0] = argv;
@@ -779,22 +793,46 @@ function main(argv) {
   // descriptions.json the descriptions (MxScout writes both there; see agent.js).
   let rest = given0.slice();
   const fi = rest.indexOf('--folder');
+  let joined; // layout 2: the descriptions joined from descriptions/, or null when there are none
   if (fi !== -1) {
-    const dir = rest[fi + 1];
-    rest.splice(fi, 2);
-    if (!dir || !fs.existsSync(require('path').join(dir, 'ai-pack.md'))) throw new Error('No ai-pack.md in ' + dir + ' — is it an MxScout project folder, with the project open in MxScout once?');
     const path = require('path');
-    const pack = path.join(dir, 'ai-pack.md'), desc = path.join(dir, 'descriptions.json');
-    if (cmd === 'todo') rest = [pack].concat(fs.existsSync(desc) ? [desc] : [], rest);
+    let dir = rest[fi + 1];
+    rest.splice(fi, 2);
+    // Inside the Mendix project (layout 2): its mxscout/, with the pack in .local/.
+    if (dir && fs.existsSync(path.join(dir, 'mxscout', 'mxscout.json'))) dir = path.join(dir, 'mxscout');
+    const repo = !!dir && fs.existsSync(path.join(dir, 'mxscout.json'));
+    const local = repo ? path.join(dir, '.local') : dir;
+    if (!dir || !fs.existsSync(path.join(local, 'ai-pack.md'))) throw new Error('No ' + (repo ? '.local/' : '') + 'ai-pack.md in ' + dir + ' — is it an MxScout project folder, with the project open in MxScout once' + (repo ? ' on this machine' : '') + '?');
+    const pack = path.join(local, 'ai-pack.md'), desc = path.join(dir, 'descriptions.json');
+    if (repo) {
+      const R = repoDocs(path.join(__dirname, 'repodocs.js'));
+      const files = [];
+      (function walk(d, rel) {
+        if (!fs.existsSync(d)) return;
+        fs.readdirSync(d, { withFileTypes: true }).forEach((n) => {
+          if (n.name[0] === '.') return;
+          if (n.isDirectory()) walk(path.join(d, n.name), rel + n.name + '/');
+          else if (/\.json$/i.test(n.name)) files.push({ path: 'descriptions/' + rel + n.name, text: fs.readFileSync(path.join(d, n.name), 'utf8') });
+        });
+      })(path.join(dir, 'descriptions'), '');
+      const bad = files.find((f) => R.conflicted(f.text));
+      if (bad) throw new Error('mxscout/' + bad.path + ' has a git conflict — resolve it first.');
+      const pj = JSON.parse(fs.readFileSync(path.join(dir, 'mxscout.json'), 'utf8'));
+      const j = R.join(files, pj.describedAt || null);
+      if (j.error) throw new Error(j.error);
+      joined = j.value;
+      if (cmd === 'todo') rest = [pack].concat(rest);
+      else if (cmd === 'check') rest = [pack].concat(rest);
+    } else if (cmd === 'todo') rest = [pack].concat(fs.existsSync(desc) ? [desc] : [], rest);
     else if (cmd === 'check') rest = [pack].concat(rest);
   }
   const list = rest.indexOf('--list') !== -1;
   const args = rest.filter((a) => a !== '--list');
   if (cmd === 'todo' && args[0]) {
     const pack = readPack(fs.readFileSync(args[0], 'utf8'));
-    const given = args[1] && fs.existsSync(args[1]) ? fs.readFileSync(args[1], 'utf8') : null;
+    const given = joined !== undefined ? null : args[1] && fs.existsSync(args[1]) ? fs.readFileSync(args[1], 'utf8') : null;
     const docs = given !== null && isDocs(given);
-    const desc = given === null ? null : docs ? readDocs(given, pack) : readJson(args[1]);
+    const desc = joined !== undefined ? joined : given === null ? null : docs ? readDocs(given, pack) : readJson(args[1]);
     const t = todo(pack, desc);
     // From the documentation, a module's long description and its notes cannot be told apart from the rest of its page: not reported.
     console.log(t.flows + ' flows to describe in ' + t.modules.length + ' modules' + (t.overview ? '; the application overview is missing' : !docs && t.overviewStory ? '; the application has no long description' : '') +

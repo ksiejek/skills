@@ -137,6 +137,17 @@ Three ways, the **project folder** first:
   Read `ai-pack.md` by the line ranges its `## index` gives
   (`sed -n '1204,3310p' ai-pack.md`), or grep it (`grep -n -i queue
   ai-pack.md`).
+
+  **Inside the Mendix project** (`mxscout/mxscout.json`, shared through the
+  app's git): Assist items are personal and never committed — they, the inbox,
+  `documentation.md` and `ai-pack.md` are in `mxscout/.local/`. `node
+  check-assist.js list <MendixProject>` (or its `mxscout/`) reads
+  `.local/assist/` and `.local/inbox/`; hand results back into
+  `mxscout/.local/inbox/`. The committed `mxscout/docs/` (Markdown by topic,
+  `docs/index.md` the map) is there even when `.local/` is not; and when
+  `mxscout/knowledge/` exists, search its solved cases first for a similar
+  problem. Never write anywhere else in the Mendix project, and never run git
+  that writes.
 - **The agent channel** — the person pressed **Share with an agent** in
   MxScout's Documentation and gave you a line with an address and a token
   (`MXSCOUT_TOKEN`/`MXSCOUT_URL` in the environment rather than
@@ -429,7 +440,8 @@ node check-assist.js check assist.SD-4711.json --pack <folder>/ai-pack.md
 
 Fix every error; read the warnings. Then:
 
-- **Project folder:** move the checked file into `<folder>/inbox/`
+- **Project folder:** move the checked file into `<folder>/inbox/` — inside
+  the Mendix project, `mxscout/.local/inbox/`
   (`mv assist.SD-4711.json <folder>/inbox/assist-SD-4711.json`). MxScout takes
   it at once while the project is open, stores the item under
   `assist/<kind>/<id>.json` and shows it with **Undo**. Run `list` again: a

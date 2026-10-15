@@ -68,7 +68,9 @@ Give the agent the model one of three ways:
   `documentation.md` first, as its map, checks what matters in `ai-pack.md`,
   reads the items under `assist/` so it knows what is open and closed, and
   hands its result back into `inbox/`, which MxScout takes at once, with
-  **Undo**.
+  **Undo**. For a project kept inside the Mendix project (`mxscout/`), give
+  the Mendix project's path: your Assist items, the inbox and the pack are in
+  `mxscout/.local/`, which is never committed — each person has their own.
 - **The agent channel** — in MxScout, **Documentation** → **Share with an
   agent** → **Copy for the agent**, and paste that line.
 - **A file** — **Documentation** → **Export AI pack**; the agent writes a file

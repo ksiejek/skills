@@ -380,10 +380,18 @@ function check(envelope, opts) {
 }
 
 // ---------- list ----------
+// Where the Assist items and the inbox are: the project folder itself — or, for a project kept inside the
+// Mendix project (mxscout/), its .local/, which is this machine's only: Assist items are personal, never committed.
+function localOf(folder) {
+  if (fs.existsSync(path.join(folder, 'mxscout', 'mxscout.json'))) return path.join(folder, 'mxscout', '.local');
+  if (fs.existsSync(path.join(folder, 'mxscout.json'))) return path.join(folder, '.local');
+  return folder;
+}
 // The items under <folder>/assist/<kind>/*.json, as MxScout keeps them (a bare item; an envelope of one is
 // read too), and the *.json files still waiting in <folder>/inbox/.
 function list(folder, opts) {
   opts = opts || {};
+  folder = localOf(folder);
   const items = [], problems = [], waiting = [];
   const kinds = opts.kind ? [opts.kind] : KINDS;
   kinds.forEach((kind) => {
@@ -442,7 +450,7 @@ function main(argv) {
   if (cmd === 'list' && arg) {
     if (kind && KINDS.indexOf(kind) === -1) { console.error('--kind must be one of ' + KINDS.join(', ')); return 2; }
     if (!fs.existsSync(arg)) { console.error('No such folder: ' + arg); return 1; }
-    printList(arg, list(arg, { kind, status }));
+    printList(localOf(arg), list(arg, { kind, status }));
     return 0;
   }
   console.error('Usage: node check-assist.js check <file.json> [--pack ai-pack.md] | list <project-folder> [--kind ticket|jira|idea|other] [--status open,in-progress]');
@@ -450,4 +458,4 @@ function main(argv) {
 }
 
 if (require.main === module) process.exit(main(process.argv.slice(2)));
-module.exports = { check, list, main, FORMAT, KINDS, FOLDERS, STATUSES, QSTATUSES, VERDICTS };
+module.exports = { check, list, localOf, main, FORMAT, KINDS, FOLDERS, STATUSES, QSTATUSES, VERDICTS };
