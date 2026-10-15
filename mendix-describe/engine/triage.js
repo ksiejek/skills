@@ -108,9 +108,11 @@
   // ---------- every risk, with what was decided ----------
   // The agent's risks in the order of its file, then the risks people raised, then what is kept of
   // risks the agent no longer writes. Each a copy, with its status; `no` is its place, for its address.
-  function view(projectId, descValue) {
+  // from: { rec, findings } read from storage (docs.js repoDocs) — the record and the comments as they are kept,
+  // not this tab's copies, which may still be loading or belong only to the open project.
+  function view(projectId, descValue, from) {
     load(projectId);
-    var rec = recs[projectId] || null, E = rec ? rec.risks : {};
+    var rec = (from ? from.rec : recs[projectId]) || null, E = rec ? rec.risks : {};
     var seen = {}, out = [];
     function put(r, e) {
       var k = e ? e.key : riskKey(r);
@@ -121,7 +123,7 @@
       out.push(x);
     }
     ((descValue && descValue.risks) || []).forEach(function (r) { put(Object.assign({}, r, { origin: 'ai' }), find(E, Object.assign({}, r, { origin: 'ai' }))); });
-    (app.findings(projectId) || []).forEach(function (f) { var r = commentRisk(f); if (r) put(r, E[r.key] || null); });
+    ((from ? from.findings : app.findings(projectId)) || []).forEach(function (f) { var r = commentRisk(f); if (r) put(r, E[r.key] || null); });
     Object.keys(E).map(function (k) { return E[k]; }).filter(function (e) { return e.origin !== 'person' && !seen[e.key]; })
       .sort(function (a, b) { return String(a.at || '').localeCompare(String(b.at || '')); })
       .forEach(function (e) { put(Object.assign({}, e.risk, { origin: 'ai', key: e.key }), e); });
@@ -133,8 +135,8 @@
   // Onto the documentation's data (docs.js, after describe.js attach): the risks that count in
   // data.ai.risks, the rest in data.ai.triaged. With no descriptions but risks people raised, the
   // data gets an ai part of its own, which says no agent wrote anything (agent: false).
-  function apply(data, projectId, descValue) {
-    var rows = view(projectId, descValue);
+  function apply(data, projectId, descValue, from) {
+    var rows = view(projectId, descValue, from);
     if (!data.ai) {
       if (!rows.length) return data;
       data.ai = { app: null, by: null, written: null, language: null, risks: [], context: null, c4: null, modules: {}, agent: false };
