@@ -108,7 +108,7 @@ wins and it tells you.
 Your Assist items are **yours**. They stay on your machine (`mxscout/.local/`),
 are never committed, and never go into a package or an export.
 
-**Solved cases: the team's memory** *(arriving with MxScout 1.11)*
+**Solved cases: the team's memory**
 
 When a case is solved, Claude **writes a short case note itself** into
 `mxscout/knowledge/`: the problem, the cause, the solution, what did not work,
@@ -116,7 +116,8 @@ and how to recognise it next time. It leaves out names, e-mails and customer
 data, and tells you: *"I recorded case SD-4711 in mxscout/knowledge/ — commit
 it with the fix."* **Your commit is the approval.** Before working on any new
 item, Claude first looks there for a similar case: *"This happened before, in
-SD-4711; the cause was …"*.
+SD-4711; the cause was …"*. You can also say *"add it to the documentation"*
+yourself at any time.
 
 **The language**
 
@@ -132,7 +133,9 @@ Everything in section 4 works the same. MxScout adds:
   Microflows, Pages, Security (**View as** a role), Risks, Model quality, For
   developers, **Assist** (your items in tabs Tickets · Jira · Ideas · Other,
   with search, status and planned date, **Copy questions**, **Add the
-  reporter's answer**), and **Documentation**.
+  reporter's answer**), **Solved cases** (the team's case notes, with search;
+  a case whose flows changed since is marked *May be out of date*), and
+  **Documentation**.
 - **Seeing what Claude did:** what Claude writes into the folder appears in
   MxScout within seconds, with **Undo**.
 - **The version line** at the top of Documentation: *"Model main @ f00ba12 ·
@@ -179,7 +182,8 @@ For people who do not have the repository:
 - The others: **New project** → drop the `.mxscout` file in. **The first time
   it needs the code; after that, packages of the same project open without
   it.** MxScout says whether the package is **newer, older or the same** as
-  what you have, and asks before replacing yours with an older one.
+  what you have, and asks before replacing yours with an older one. A package
+  also carries the solved cases.
 - **Forget this project's key** (Settings) makes it ask for the code again.
 
 ### 9. What is committed, and what is not
@@ -226,8 +230,9 @@ the repository. MxScout itself uploads nothing.
 | an idea worked out | */mendix-assist* → Idea → *I want customers to be able to cancel an order.* |
 | the reporter's answer recorded | *The reporter answered on SD-4711: …* |
 | a status changed | *SD-4711 is done* · *plan PROJ-12 for 2026-11-20* |
+| a solved case recorded | *Add it to the documentation.* |
+| a similar case found | *Has this happened before?* |
 | a different language | *From now on write in Polish.* |
-
 
 ### 12. Without MxScout and without the repository: mendix-docs
 
@@ -339,7 +344,7 @@ mówi.
 Twoje zgłoszenia w Assist są **twoje**. Zostają na twoim komputerze
 (`mxscout/.local/`), nie idą do gita, do paczki ani do eksportu.
 
-**Rozwiązane przypadki: pamięć zespołu** *(od MxScout 1.11)*
+**Rozwiązane przypadki: pamięć zespołu**
 
 Gdy sprawa jest rozwiązana, Claude **sam zapisuje krótką notatkę** do
 `mxscout/knowledge/`: problem, przyczynę, rozwiązanie, co nie zadziałało i jak
@@ -347,7 +352,8 @@ to rozpoznać następnym razem. Pomija nazwiska, maile i dane klientów, i mówi
 ci: *„Zapisałem przypadek SD-4711 w mxscout/knowledge/ — zacommituj go razem z
 poprawką.”* **Twój commit jest zatwierdzeniem.** Przy każdym nowym zgłoszeniu
 Claude najpierw szuka tam podobnego przypadku: *„To już było, w SD-4711;
-przyczyną było …”*.
+przyczyną było …”*. Możesz też w każdej chwili sam powiedzieć *„dołóż to do
+dokumentacji”*.
 
 **Język**
 
@@ -363,7 +369,10 @@ Wszystko z punktu 4 działa tak samo. MxScout dokłada:
   Microflows, Pages, Security (**View as**, czyli widok oczami roli), Risks,
   Model quality, For developers, **Assist** (twoje zgłoszenia w zakładkach
   Tickets · Jira · Ideas · Other, z wyszukiwaniem, statusem i terminem,
-  **Copy questions**, **Add the reporter's answer**) i **Documentation**.
+  **Copy questions**, **Add the reporter's answer**), **Solved cases**
+  (notatki zespołu o przypadkach, z wyszukiwaniem; przypadek, którego
+  mikroflowy się od tamtej pory zmieniły, ma znacznik *May be out of date*) i
+  **Documentation**.
 - **Podgląd tego, co zrobił Claude:** to, co Claude zapisze w folderze, pojawia
   się w MxScout w ciągu kilku sekund, z **Undo**.
 - **Linia wersji** na górze Documentation: *„Model main @ f00ba12 ·
@@ -409,7 +418,8 @@ Dla osób, które nie mają repozytorium:
 - Reszta: **New project** → upuść plik `.mxscout`. **Za pierwszym razem trzeba
   podać kod, później paczki tego samego projektu otwierają się bez niego.**
   MxScout mówi, czy paczka jest **nowsza, starsza czy taka sama** jak to, co
-  masz, i pyta, zanim zastąpi twoją wersję starszą.
+  masz, i pyta, zanim zastąpi twoją wersję starszą. Paczka zawiera też
+  rozwiązane przypadki.
 - **Forget this project's key** (Settings) sprawia, że kod znów będzie
   potrzebny.
 
@@ -458,6 +468,8 @@ repozytorium. Sam MxScout niczego nie wysyła.
 | rozpisanie pomysłu | */mendix-assist* → Idea → *Chcę, żeby klient mógł anulować zamówienie.* |
 | zapisanie odpowiedzi zgłaszającego | *Zgłaszający odpisał na SD-4711: …* |
 | zmianę statusu | *SD-4711 zrobione* · *zaplanuj PROJ-12 na 2026-11-20* |
+| zapisanie rozwiązanego przypadku | *Dołóż to do dokumentacji.* |
+| znalezienie podobnego przypadku | *Czy to już się zdarzyło?* |
 | inny język | *Od teraz pisz po polsku.* |
 
 ### 12. Bez MxScouta i bez repozytorium: mendix-docs
