@@ -1,5 +1,17 @@
 # mendix-docs — changes
 
+## 3.8.0 – 2026-10-18
+
+- **Security from MxScout's own engine** (MxScout MXS-8): `check-security.js`,
+  mendix-describe's, is packed beside `docs.js`, with the security checks in
+  `engine/` (anonrole, accessuse, accounts, guards, editscope, selfreg,
+  constants, advisories, accessrule, secrisks — MxScout's files, unchanged).
+  `node check-security.js <app.mpr> --json --out security.json` gives the
+  risks with fixed ids (`mx-…`) as a part to merge; build and update merge it,
+  and the agent writes no security risk of its own about what it covers.
+- `docs.js` loads `engine/docs-triage.js`, which MxScout's report has needed
+  since 1.18.0; without it the packed skill could not read a project.
+
 ## 3.7.0 – 2026-10-15
 
 - **The Mendix project stays clean** (mendix-describe's rule, MxScout 1.14.3):

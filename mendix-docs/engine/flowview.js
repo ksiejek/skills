@@ -28,7 +28,8 @@
  *     u             its state, kept by the shell: module, key, sort, show,
  *                   filter, step, trace, tab, mview, studio
  *     opts.rerender(), opts.openFlow(kind, qn), opts.openRef(kind, qn),
- *     opts.actions(entry) -> nodes, opts.copied(qn), opts.kindTags
+ *     opts.actions(entry) -> nodes, opts.copied(qn), opts.kindTags,
+ *     opts.rowMenu(entry, event) — a right-click on a row of the list (MxScout's context, basket.js)
  */
 (function () {
   'use strict';
@@ -175,11 +176,13 @@
         var lv = levels(src.risks(f));
         return h('button', {
           type: 'button', class: 'mf-row' + (on ? ' on' : ''), 'aria-current': on ? 'true' : 'false', title: f.name,
-          onclick: function () { u.key = f.key; u.step = null; u.trace = null; u.tab = 'step'; u.studio = false; rerender(); }
+          onclick: function () { u.key = f.key; u.step = null; u.trace = null; u.tab = 'step'; u.studio = false; rerender(); },
+          oncontextmenu: opts.rowMenu ? function (ev) { opts.rowMenu(f, ev); } : null
         }, [
           opts.kindTags ? h('span', { class: 'mf-kind ' + f.kind, text: KIND_TAG[f.kind] || '··' }) : null,
           h('span', { class: 'mf-row-name', text: f.name }),
           !(f.calledBy || []).length ? h('span', { class: 'xe-tag', text: f.kind === 'page' ? 'not opened' : 'no callers' }) : null,
+          opts.commentCount && opts.commentCount(f) ? h('span', { class: 'mf-cm', title: opts.commentCount(f) + ' comment' + (opts.commentCount(f) === 1 ? '' : 's'), text: '💬 ' + opts.commentCount(f) }) : null,
           lv.length ? h('span', { class: 'xb xb-' + lv[0].toLowerCase(), text: lv[0] }) : null
         ]);
       });
@@ -421,6 +424,8 @@
       return risks.length ? section('Risks', risks.length, risks.map(function (r) {
         return h('article', { class: 'xi-risk' }, [
           h('div', { class: 'xi-risk-head' }, [h('span', { class: 'xb xb-' + r.level.toLowerCase() + ' xi-risk-badge', text: r.level }), h('span', { class: 'xi-risk-title', text: r.title })]),
+          // Who raised it, when a person did (a comment marked as a risk, Developer tools); reopened after a fix.
+          r.origin === 'person' || r.status === 'reopened' ? h('p', { class: 'xi-risk-by', text: [r.origin === 'person' ? 'Raised by ' + (r.by || 'a person') : null, r.status === 'reopened' ? 'Reopened — still found after the fix' : null].filter(Boolean).join(' · ') }) : null,
           r.detail ? h('p', { class: 'xi-risk-text', text: r.detail }) : null,
           r.fix ? h('p', { class: 'xi-risk-fix' }, [h('b', { text: 'Fix · ' }), r.fix]) : null
         ]);
@@ -479,6 +484,8 @@
         descBlock(entry),
         stats([[entry.steps, entry.steps === 1 ? 'step' : 'steps'], [entry.params.length, entry.params.length === 1 ? 'parameter' : 'parameters'],
           [by.length, by.length === 1 ? 'caller' : 'callers'], [risks.length, risks.length === 1 ? 'risk' : 'risks', top ? 'lv-' + top.toLowerCase() : null]]),
+        // the app's own: its comments, when it has any (opts.comments; the report has none)
+        opts.comments ? opts.comments(entry) : null,
         takesBlock(entry),
         section('Who can start it', null, [h('p', { class: 'xi-note' }, [icon('shield', 15), entry.roles.length
           // A flow's allowed roles are its own module's, so the module's name

@@ -18,9 +18,10 @@
   var SHEETS = ['tokens.css', 'explorer.css', 'flowgraph.css', 'studioview.css', 'pagepreview.css', 'microflows.css', 'docs.css'];
   // "Microflows & pages" in the file is MxScout's own Microflows screen (flowview.js, redesign spec
   // 14), so the file carries it and what it draws with — a page with pagepreview.js — as the files themselves, unchanged.
+  // The risk triage's labels on the Risks page (docs-triage.js) are drawn by a file of its own as well, carried the same way.
   // Not the Assist page's files (docs-assist.js, docs-tickets.js, docs-changes.js): the file carries no Assist item.
   // The Solved cases page (docs-knowledge.js) is drawn by a file of its own; the file carries the cases themselves only when the export was asked for them.
-  var SCRIPTS = ['flowtrace.js', 'flowgraph.js', 'studioview.js', 'pagepreview.js', 'flowview.js', 'docs-knowledge.js'];
+  var SCRIPTS = ['flowtrace.js', 'flowgraph.js', 'studioview.js', 'pagepreview.js', 'flowview.js', 'docs-triage.js', 'docs-knowledge.js'];
 
   // The fonts tokens.css names, as they are written in it: url("fonts/X.woff2").
   function fontsIn(tokens) { return tokens.match(/url\("fonts\/[A-Za-z0-9_-]+\.woff2"\)/g) || []; }

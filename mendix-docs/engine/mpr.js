@@ -22,9 +22,14 @@
  *     Explorer, modules and the folders a team made inside them, and every
  *     document in them by name and kind, including the two dozen kinds
  *     MxScout models nothing else about
+ *   - `constants` — name, type, whether the browser receives it
+ *     (ExposedToClient), and a VERDICT on its default value, never the value
+ *     (readConstant). This file runs in the Web Worker that reads the .mpr;
+ *     the value is looked at here and nowhere else, and only the verdict
+ *     travels on — to the database, a package, the AI pack, a report.
  * Still empty, and still on the shape only so an MxSonar export loads
  * unmodified: `constantRefs`, `enumerationRefs`, `xpathReferencedEntities`,
- * and the `javaActions` / `constants` lists. Nothing renders them.
+ * and the `javaActions` list. Nothing renders them.
  *
  * Two on-disk .mpr formats (see mprDirectSource.js's own comment for the
  * full story): v1 has a `Contents` BSON blob inline in the `Unit` table;
@@ -33,6 +38,13 @@
  * formatted as a Microsoft/.NET GUID string (first three groups byte-swapped
  * little-endian, last two left as-is). Both are handled by the ONE walk
  * below; only how `readContents` fetches a unit's bytes differs.
+ *
+ * WHAT IS KNOWN about the format — the lessons in the comments below, and
+ * what MxCraft (the private sibling that WRITES .mpr files) learned the other
+ * way round — is kept in one place: MxCraft's docs/MPR-NOTES.md. A new lesson
+ * learned here gets an entry there, with one sentence on whether MxCraft
+ * needs it; a lesson from the writing side arrives here the same way. This
+ * file stays read-only, as bson.js says in its own header.
  *
  * Runs in a Worker (see mprWorker.js) — no DOM, no globals beyond what
  * MxSqlite/MxBson already require.
@@ -419,10 +431,12 @@
   }
 
   // ---------------- what a flow DOES ----------------
-  // Who may trigger a flow and what it takes say nothing about what happens
-  // when it runs. "This one deletes objects" is the first thing anyone reading
-  // a flow wants to know, and the flow's window says it across its top
-  // (objects.js activityBand), read from here.
+  // MxScout is the one tool here that actually SETS A FLOW OFF — in the
+  // tester's own session, against a real test environment, with their real
+  // rights. Until this existed the Run tab could say who may trigger a flow
+  // and what it takes, and nothing at all about what happens when you press
+  // the button. "This one deletes objects" belongs in front of somebody
+  // BEFORE they press it, not in the log afterwards.
   //
   // Every fact below comes out of the flow document MxScout already decodes,
   // in one more walk over an object it already holds: Objects[] is the flow's
@@ -1274,6 +1288,75 @@
     if (k === 'Enumeration') return str(t, 'Enumeration') ? 'Enumeration ' + str(t, 'Enumeration') : 'Enumeration';
     return k;
   }
+  // ---------------- a constant: never its value ----------------
+  // A constant's default value is the one thing in a model that can be a
+  // live password, and a constant marked ExposedToClient is sent to every
+  // browser that opens the app (mx.session.sessionData.constants) — with
+  // anonymous access on, to anyone. So the value is judged HERE, in the
+  // Worker reading the .mpr, and dropped: what the model keeps is whether
+  // there is one (`hasDefault`) and what it looks like (`defaultVerdict`:
+  // 'empty' | 'looks-secret' | 'plain', with `defaultWhy` in words that do
+  // not quote it — no length, no characters, no prefix). Measured on a Mendix
+  // 11.12.5 project: Constants$Constant { Name, Type: DataTypes$*Type,
+  // DefaultValue (a string, '' when unset), ExposedToClient, Excluded,
+  // ExportLevel, Documentation }; 92 constants, 5 exposed.
+  function readConstant(raw, moduleName) {
+    var type = dataTypeText(raw.Type) || 'String';
+    var value = typeof raw.DefaultValue === 'string' ? raw.DefaultValue : '';
+    var verdict = constantVerdict(type, value);
+    var c = {
+      module: moduleName, name: raw.Name, qualifiedName: moduleName + '.' + raw.Name, type: type,
+      exposedToClient: raw.ExposedToClient === true, hasDefault: value.trim() !== '',
+      defaultVerdict: verdict.verdict
+    };
+    if (verdict.why) c.defaultWhy = verdict.why;
+    if (raw.Excluded === true) c.excluded = true;
+    // A name can be a credential too: someone pasted a key where the name goes.
+    var nameShape = secretShape(String(raw.Name || ''));
+    if (nameShape) c.nameWhy = 'the name itself looks like ' + nameShape;
+    return c;
+  }
+  // Shapes that are a credential whatever the constant is called. Each says
+  // WHAT it looks like; none is ever shown with the text that matched.
+  var SECRET_SHAPES = [
+    [/-----BEGIN [A-Z ]*PRIVATE KEY-----/, 'a private key'],
+    [/^(AKIA|ASIA)[0-9A-Z]{16}$/, 'an AWS access key id'],
+    [/^eyJ[\w-]+\.[\w-]+\.[\w-]*$/, 'a signed token (JWT)'],
+    [/^(sk|rk)_(live|test)_[0-9A-Za-z]{10,}$/, 'a Stripe secret key'],
+    [/^gh[pousr]_[0-9A-Za-z]{20,}$/, 'a GitHub token'],
+    [/^xox[abposr]-[0-9A-Za-z-]{10,}$/, 'a Slack token'],
+    [/^AIza[0-9A-Za-z_-]{35}$/, 'a Google API key'],
+    [/^[a-z][a-z0-9+.-]*:\/\/[^\/\s:@]+:[^\/\s@]+@/i, 'an address with a user name and password in it'],
+    [/(^|;)\s*(password|pwd|accountkey|sharedaccesskey|clientsecret|secret)\s*=\s*[^;\s]+/i, 'a connection string with a password in it'],
+    [/"(client_?secret|password|passwd|api_?key|secret|private_?key|access_?token)"\s*:\s*"[^"]+"/i, 'a JSON setting with a secret in it']
+  ];
+  function secretShape(v) {
+    for (var i = 0; i < SECRET_SHAPES.length; i++) if (SECRET_SHAPES[i][0].test(v)) return SECRET_SHAPES[i][1];
+    return null;
+  }
+  function constantVerdict(type, value) {
+    var v = String(value || '').trim();
+    if (!v) return { verdict: 'empty' };
+    if (type !== 'String') return { verdict: 'plain' };
+    var shape = secretShape(v);
+    if (shape) return { verdict: 'looks-secret', why: 'looks like ' + shape };
+    // An identifier, not a secret: a GUID (a client id, a tenant id), or a
+    // JSON document, which only counts through the shape above.
+    if (/^\{?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}?$/i.test(v) || /^[\[{]/.test(v)) return { verdict: 'plain' };
+    // A long run with no spaces that is not an address, a path or a name in
+    // dots, drawn from a wide alphabet: random-looking, as a key is and a
+    // setting is not. Shannon entropy per character over the text itself.
+    if (v.length < 16 || /\s/.test(v) || /^[a-z][a-z0-9+.-]*:\/\//i.test(v) || /^[\/\\.~]/.test(v) || /@/.test(v)) return { verdict: 'plain' };
+    if (/^[A-Za-z_][\w]*(\.[A-Za-z_][\w]*)+$/.test(v)) return { verdict: 'plain' };
+    var counts = {}, n = v.length, h = 0;
+    for (var j = 0; j < n; j++) counts[v[j]] = (counts[v[j]] || 0) + 1;
+    Object.keys(counts).forEach(function (ch) { var p = counts[ch] / n; h -= p * Math.log(p) / Math.LN2; });
+    var classes = (/[a-z]/.test(v) ? 1 : 0) + (/[A-Z]/.test(v) ? 1 : 0) + (/[0-9]/.test(v) ? 1 : 0) + (/[^A-Za-z0-9]/.test(v) ? 1 : 0);
+    if (/^[0-9a-f]{32,}$/i.test(v) && h >= 3) return { verdict: 'looks-secret', why: 'is long, random-looking hexadecimal text, as a key is' };
+    if (h >= 3.5 && classes >= 2 && /[0-9]/.test(v)) return { verdict: 'looks-secret', why: 'is long, random-looking text, as a key or a password is' };
+    return { verdict: 'plain' };
+  }
+
   function sizeFrom(s) {
     var p = point(s);
     return p ? { width: p.x, height: p.y } : null;
@@ -1847,6 +1930,14 @@
           // `expression` would make the diamond claim it holds an expression.
           expression: condition ? str(condition, 'Expression') : null,
           rule: ruleCall ? str(ruleCall, 'Microflow') : null,
+          // What the rule is handed, one row per parameter — the same shape a
+          // call's arguments have ([{ name, value }]). Measured: a
+          // Microflows$RuleSplitCondition keeps them in
+          // RuleCall.ParameterMappings, each a RuleCallParameterMapping with
+          // Parameter ("Module.Rule.Param") and Argument ("$Column"). Without
+          // them "the decision checks the object it was given" cannot be told
+          // from "the decision checks something else" (guards.js).
+          ruleArgs: ruleCall ? argumentRows(ruleCall.ParameterMappings) : null,
           variable: str(obj, 'SplitVariableName'),
           returnValue: str(obj, 'ReturnValue'),
           loop: loop,
@@ -2140,9 +2231,15 @@
   // re-check first — everything downstream (app.js's marketplace filter)
   // only reads this one boolean, so a wrong name fails safe (nothing gets
   // hidden) rather than hiding the wrong things.
-  function addModule(model, name, fromAppStore) {
+  // version is the Module document's AppStoreVersion ("4.2.3"), kept only for
+  // a Marketplace module: which release of SAML20 or Administration a project
+  // carries decides what its roles mean (accounts.js). Measured on a real
+  // Mx 11.12.5 project; a project's own module has it empty.
+  function addModule(model, name, fromAppStore, version) {
     if (!model.modules.some(function (m) { return m.name === name; })) {
-      model.modules.push({ name: name, fromAppStore: !!fromAppStore });
+      var m = { name: name, fromAppStore: !!fromAppStore };
+      if (fromAppStore && typeof version === 'string' && version) m.version = version;
+      model.modules.push(m);
     }
   }
   function sortModel(model) {
@@ -2156,6 +2253,7 @@
     model.enumerations.sort(function (a, b) { return a.qualifiedName.localeCompare(b.qualifiedName); });
     model.publishedServices.sort(function (a, b) { return a.qualifiedName.localeCompare(b.qualifiedName); });
     model.automation.sort(function (a, b) { return a.qualifiedName.localeCompare(b.qualifiedName); });
+    model.constants.sort(function (a, b) { return a.qualifiedName.localeCompare(b.qualifiedName); });
     model.folders.sort(treeOrder);
     model.documents.sort(treeOrder);
     return model;
@@ -2286,7 +2384,7 @@
           // A domain model names microflows too: entity event handlers and
           // calculated attributes both run one.
           noteReferences(doc['$Type'], moduleName, doc);
-          addModule(result, moduleName, moduleDoc.FromAppStore);
+          addModule(result, moduleName, moduleDoc.FromAppStore, moduleDoc.AppStoreVersion);
           moduleUnitIndex.set(idHex(dmRow[col.ContainerID]), moduleName);
           payload(doc.Entities).forEach(function (raw) {
             if (!raw || raw['$Type'] !== 'DomainModels$EntityImpl') return;
@@ -2387,6 +2485,20 @@
 
         var validations = readValidationRules(raw.ValidationRules);
         if (validations.length) entity.validations = validations;
+
+        // Its event handlers: a microflow run before or after a commit,
+        // create, delete or rollback. Kept on `Events`, each a
+        // DomainModels$EntityEvent { Moment, Type, Microflow,
+        // RaiseErrorOnFalse, SendInputParameter } (measured, Mx 11.12.5).
+        // editscope.js reads one microflow run before commit on many
+        // entities as a shared check on what the client commits.
+        var events = payload(raw.Events).filter(function (ev) {
+          return ev && ev['$Type'] === 'DomainModels$EntityEvent' && typeof ev.Microflow === 'string' && ev.Microflow;
+        }).map(function (ev) {
+          return { moment: String(ev.Moment || '').toLowerCase(), type: String(ev.Type || '').toLowerCase(),
+            microflow: ev.Microflow, raiseErrorOnFalse: ev.RaiseErrorOnFalse === true };
+        });
+        if (events.length) entity.events = events;
       });
 
       payload(pm.doc.Associations).forEach(function (a) {
@@ -2519,6 +2631,7 @@
             type: type, kind: sourceKindOf(type), path: at.path
           });
         }
+        if (type === 'Constants$Constant' && ownerModule) result.constants.push(readConstant(raw, ownerModule));
         if (type === 'Microflows$Microflow' || type === 'Microflows$Nanoflow' || type === 'Forms$Page') {
           var moduleName = ownerModule;
           if (moduleName) {
@@ -2752,10 +2865,13 @@
     // empty calledBy on an older model would read as "nothing reaches this",
     // which is a very different claim from "nobody checked".
     result.meta.knowsCallSites = true;
+    // And that it read the constants: an empty list on an older model means
+    // "not read", not "this app has none".
+    result.meta.readsConstants = true;
 
     return sortModel(result);
   }
 
   root.MxMpr = { blobToGuid: blobToGuid, payload: payload, idHex: idHex, buildModel: buildModel, collectReferences: collectReferences,
-    applyAssociationDefaults: applyAssociationDefaults, activityKicker: activityKicker };
+    applyAssociationDefaults: applyAssociationDefaults, activityKicker: activityKicker, constantVerdict: constantVerdict, readConstant: readConstant };
 })(typeof self !== 'undefined' ? self : this);

@@ -1,9 +1,8 @@
 # Risk levels P1–P3
 
 One definition, used by both skills: mendix-describe and mendix-docs. The
-canonical copy is in MxScout Dev, `skills/mendix-describe/reference/`; edit it
-there. The public MxScout repository and the skills repository carry copies of
-it, and mendix-docs gets the public MxScout's copy when its installable copy is
+canonical copy is in MxScout, `skills/mendix-describe/reference/`; edit it
+there. The skills repository carries a copy of it, and mendix-docs gets the public MxScout's copy when its installable copy is
 put together.
 
 A risk is something in the model that can hurt the people using the
@@ -25,7 +24,26 @@ left half-written, or a secret is exposed.
   who calls it, or what the record belongs to.
 - A password, token or API key is the default value of a constant, or sits in
   an expression.
+  (A constant the browser receives — “Expose to client” — whose name or
+  default value looks like a secret MxScout finds itself, from the model, with
+  a fixed id; the pack's risk triage lists it as "found by MxScout". Do not
+  report that one again.)
 - A delete or a bulk change runs with no check of who may do it.
+
+## Risks worked out, and risks from an agent
+
+Two kinds of risk land on the same Risks page. **Worked out**: MxScout's
+security engine (`engine/secrisks.js`, run by `check-security.js` in the
+skill and by MxScout's Security screen) finds them in the model by rule — the
+same model gives the same risks under the same ids (`mx-…`), every time. A
+finding about data or accounts is P1 (or the P1 or P2 its check gives), a
+finding about a setting — Prototype security, a weak demo password, a user
+role with no module role — is P2, and what is worth knowing is P3, its title
+beginning "Worth knowing:". **From an agent**: everything a rule cannot see —
+logic, error handling, commits in loops, dead code, values written into flows
+— judged by the levels below. An agent hands the worked-out risks over as
+they are and never writes its own about what they cover; a second risk on the
+same thing under another id would only split what a person decides about it.
 
 ## P2: functional errors
 
@@ -87,6 +105,11 @@ wrong, not by where:
    one risk with ten places, not ten risks.
 5. **Every risk says where and what to do.** It names the qualified name of each
    flow, page or entity it is in, and gives the fix in one sentence.
+6. **A risk keeps its id.** The same risk carries the same `id` on every
+   update, so whoever works through the list — marking one fixed, or a false
+   positive with the reason — finds their decision still on it next time. A
+   risk marked a false positive is not raised again unless the model changed
+   so the reason no longer holds (mendix-describe, "Risk triage").
 
 ## Where each tool writes it
 

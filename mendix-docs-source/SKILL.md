@@ -265,10 +265,12 @@ The pack is large (a real app is ~1.7 MB, ~470k tokens). Never read it whole.
    diagram on every process that branches; the flows listed. A process that
    reads like a paragraph about the business in general is not done: trace
    it again.
-5. **Merge and check:**
+5. **Run the security check, then merge and check.** The security risks come
+   from MxScout's own checks, not from you (see "Security" below):
 
    ```
-   node check-descriptions.js merge <work>/descriptions.json <work>/descriptions.app.json <work>/descriptions.*.json
+   node check-security.js <app.mpr> --json --out security.json
+   node check-descriptions.js merge <work>/descriptions.json <work>/descriptions.app.json <work>/descriptions.*.json <work>/security.json
    node check-descriptions.js check <work>/pack.md <work>/descriptions.json
    ```
 
@@ -295,7 +297,8 @@ application's overview, processes, risks or architecture change — then merge
 the old file first and the update's parts after it:
 
 ```
-node check-descriptions.js merge <work>/descriptions.json <work>/descriptions.json <work>/update.*.json
+node check-security.js <app.mpr> --json --out security.json
+node check-descriptions.js merge <work>/descriptions.json <work>/descriptions.json <work>/update.*.json <work>/security.json
 node check-descriptions.js check <work>/pack.md <work>/descriptions.json
 ```
 
@@ -499,6 +502,23 @@ entity.
 - **No questions for the owner.** If something cannot be read from the model,
   say so in the risk or the pitfall it belongs to.
 
+## Security
+
+`node check-security.js <app.mpr | project folder>` runs the checks MxScout's
+Security screen runs (`engine/secrisks.js` and the files it reads, MxScout's
+own) on the `.mpr` — Mendix 10 and 11 — or a project folder's `model.json`:
+the anonymous role (Mendix's MXS003–MXS010), self-registration, the accounts,
+what a page hides and its microflow does not check, writes wider than the
+pages, entity access against what uses it, constants the browser receives,
+known advisories, the security settings. Without `--json` it prints a summary;
+`--json` is a part of the descriptions — risks with fixed ids (`mx-…`), a level
+(finding P1 or P2, worth knowing P3, "Worth knowing: …"), `theme`, `where`,
+`fix`. The same model gives the same ids every time. Merge it as it is; never
+edit it, and never write a risk of your own about what it covers — write the
+ones it cannot see (logic, error handling, loops, dead code). In an MxScout
+project folder it also reads `triage.json` and adds `verify` for its risks the
+model no longer shows ("not seen in the model").
+
 ## Files
 
 - `docs.js` — `status`, `module`, `pack`, `docs`, `report`: reading the `.mpr`
@@ -508,6 +528,9 @@ entity.
   project, as MxScout writes it. Node only, no install.
 - `engine/` — MxScout's own files that read the model and draw the report,
   unchanged. Never edit them here.
+- `check-security.js` — MxScout's security checks on a `.mpr` or a project
+  folder, as risks with fixed ids (`--json`, `--out` into the work folder).
+  Node only, no install.
 - `check-descriptions.js` — `todo`, `check`, `merge`. Node only, no install.
   `todo` also takes `docs.md` in place of `descriptions.json`.
 - `reference/pack-format.md` — how to read the pack, line by line.

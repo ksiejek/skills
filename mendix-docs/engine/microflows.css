@@ -179,6 +179,19 @@
 .dm-screen .dm-embed { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; }
 .dm-screen .dm-embed > .dx { flex: 1 1 auto; height: auto; }
 
+/* Browse data (objects.js renderEntityData): the rows only, in the screen's style. */
+.dm-data-overlay { position: fixed; inset: 0; z-index: 60; background: var(--scrim); display: flex; align-items: flex-start; justify-content: center; padding: 8vh 24px 24px; }
+.dm-data {
+  width: min(1100px, 100%); max-height: calc(100vh - 8vh - 24px); display: flex; flex-direction: column;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--dlg-shadow); overflow: hidden; color: var(--ink);
+}
+.dm-data-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 16px 20px 12px; border-bottom: 1px solid var(--line); }
+.dm-data-titles { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.dm-data-titles h2 { margin: 0; font: 600 20px var(--font-mono); letter-spacing: -0.01em; }
+.dm-data-close { flex: none; width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink2); font-size: 18px; line-height: 1; cursor: pointer; }
+.dm-data-close:hover { border-color: var(--acc); color: var(--ink); }
+.dm-data-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 16px 20px 20px; }
+
 /* MF blue, NF green, as Mendix colours them */
 .mf-kind.microflow { color: var(--f-db); border-color: color-mix(in srgb, var(--f-db) 45%, var(--line)); }
 .mf-kind.nanoflow { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
@@ -196,6 +209,20 @@
    pages keep the documentation's own margins (docs.css .dx-pd), not a strip against the header. */
 @media (max-width: 720px) { .doc-screen > .xe-page, .xe-pagescreen .xe-page { padding: 20px 16px 40px; } .xe-pagescreen .xe-page-controls { padding: 12px 16px 0; } }
 .doc-screen > .xe-page > .doc-empty { max-width: 640px; }
+
+/* An object's comments, where the object is shown (comments.js panelFor) */
+.obj-comments { display: flex; flex-direction: column; gap: 4px; }
+.obj-comment {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 8px; width: 100%; text-align: left;
+  padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); font: inherit; font-size: 12.5px; cursor: pointer;
+}
+.obj-comment:hover { border-color: var(--acc); }
+.obj-comment-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.obj-comment-st { font-size: 11px; color: var(--acc-text); white-space: nowrap; }
+.obj-comment-st.done { color: var(--muted); }
+.obj-comments .comments-link { align-self: flex-start; margin-top: 2px; }
+.mf-cm { flex: none; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.dm-data-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--line); }
 
 /* ---------- the flow as Studio Pro keeps it, the whole middle (flowview.js flowDetail) ----------
    Karol, 2026-10-14: "only this drawing" — the step's details open in a window over it, what the

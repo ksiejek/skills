@@ -34,7 +34,7 @@
   function badge(h, v) { return v ? h('span', { class: 'dx-tk-v ' + v, text: VERDICT[v] || v }) : null; }
 
   // kit: h, ln, paragraphs, plural, flowRows, diagram, place (qualified name, kind → the patch that opens
-  // it, or null), idea (an idea's id → { title, summary, patch } or null), and in MxScout Dev risk (a
+  // it, or null), idea (an idea's id → { title, summary, patch } or null), and with Developer tools on risk (a
   // risk's id → { r, no, at } on the Risks page, or null) — the known risk a ticket says it is about.
   // → the nodes of one ticket, under its heading: the verdict and why, what the model does, where it
   // shows it, and beside them what would settle it, the fix, the reply and the risks.
@@ -80,7 +80,7 @@
         : h('p', { class: 'dx-ch-data' }, ['The idea ', h('code', { class: 'dx-code', text: t.change }), ' is not on this page.'])]);
     }
     // The known risk the ticket is about (an agent's, or one a person raised in a comment): a link to it on
-    // the Risks page. Only where the risks are triaged (MxScout Dev), which hands kit.risk over.
+    // the Risks page. Only where the risks are triaged (Developer tools), which hands kit.risk over.
     var rk = t.risk && kit.risk ? kit.risk(t.risk) : null;
     var side = [
       t.needs && t.needs.length ? sec([cap('What would settle it · ' + t.needs.length), h('ol', { class: 'dx-ch-open dx-tk-needs' }, t.needs.map(function (x) { return h('li', { text: x }); }))]) : null,
@@ -96,7 +96,7 @@
     return out;
   }
 
-  // On a risk (docs-view.js, the Risks page, in MxScout Dev): the tickets on the Assist page that say they
+  // On a risk (docs-view.js, the Risks page, with Developer tools on): the tickets on the Assist page that say they
   // are about it, each with its verdict, a link back to the ticket. ids: the risk's own id and, for one a
   // person raised, its "c-" id.
   function forRisk(kit, tickets, ids) {

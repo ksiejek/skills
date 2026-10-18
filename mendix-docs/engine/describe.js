@@ -344,6 +344,28 @@
     });
   }
 
+  // What a person has already decided about the risks (triage.js puts it on data.ai): the risks marked
+  // fixed, false positive, reopened or verified, and every risk a person raised in a comment. Before the
+  // index, so the agent reads it with the header; the skill says what to do with each status.
+  var TRIAGE_SAYS = { fixed: 'fixed', 'false-positive': 'false-positive', reopened: 'reopened', verified: 'verified', open: 'open', gone: 'gone' };
+  function triageLines(data) {
+    var ai = data.ai || {};
+    var rows = (ai.risks || []).concat(ai.triaged || []).filter(function (r) {
+      return r.origin === 'person' || r.origin === 'model' || (r.status && r.status !== 'open' && r.status !== 'gone');
+    });
+    if (!rows.length) return [];
+    var out = ['## risk triage',
+      'What a person decided about risks; read it before you write risks. Keep every id. "fixed": check it against the model and report it again, with the same id, only if it is still there. "false-positive": do not report it again unless the model changed so that the reason no longer holds — then report it with the same id and say why in its detail. "raised by" a person: not yours to report; when it is "fixed", say in "verify" whether the model still shows it. "found by MxScout": worked out from the model on every load — not yours to report, so do not write it again under another id.'];
+    rows.forEach(function (r) {
+      var id = r.origin === 'person' ? r.pid : (r.id || '(no id: give it one)');
+      out.push('- ' + id + ' | ' + r.level + ' | ' + (TRIAGE_SAYS[r.status] || 'open') + ' | ' + (r.origin === 'person' ? 'raised by ' + cut(r.by || 'a person') : r.origin === 'model' ? 'found by MxScout' : 'ai') + ' | ' + cut(r.title) +
+        ((r.where || []).length ? ' | where: ' + r.where.slice(0, 6).map(function (w) { return String(w).split('|')[0]; }).join(', ') : '') +
+        (r.note ? ' | note: ' + cut(r.note) : ''));
+    });
+    out.push('');
+    return out;
+  }
+
   // data is what MxDocsData.build returns.
   function pack(data) {
     var own = data.modules.filter(function (m) { return !m.marketplace && (m.microflows.length + m.nanoflows.length + m.pages.length + m.entities.length); });
@@ -386,7 +408,7 @@
       market.length ? 'not included: ' + market.length + ' Marketplace modules — ' + market.join(', ') : null,
       'legend: MF microflow, NF nanoflow, PG page, SN snippet, E entity; #xxxxxxxx is a fingerprint — copy it into the description; {member=value} is the data a step sets or passes; → owns an association to, ← is owned by; under an entity, "access <module role>:" is what that role may read, write, create and delete, and on which rows, and "valid <attribute>:" a validation rule that refuses a save; under a page or a snippet, "shows <widget>" is a widget visible only on a condition, "editable <widget>" one editable never or only on a condition, "read-only <widget>" an input inside a data view or list view that is not editable, and "places <snippet>" a snippet whose widgets have such lines under its SN block',
       ''
-    ].filter(function (l) { return l !== null; });
+    ].filter(function (l) { return l !== null; }).concat(triageLines(data));
     var indexHead = ['## index', 'module | lines | microflows | nanoflows | pages | entities'];
     var line = head.length + indexHead.length + own.length + 2; // +1 blank, then the first module heading
     var index = blocks.map(function (b) {
@@ -518,6 +540,8 @@
     tr = tr && typeof tr === 'object' ? tr : {};
     return { steps: texts(tr.steps, 600, 100), flows: texts(tr.flows, 300, 60), diagram: diagramItems(tr.diagram, 0) };
   }
+  // The known risk a ticket is about: an agent's risk by its id, or one a person raised by "c-" and its comment's id.
+  function riskRef(v) { return typeof v === 'string' && (RISK_ID.test(v) && v.length <= 80 || /^c-[A-Za-z0-9_-]{1,80}$/.test(v)) ? v : null; }
   function changeOf(c) {
     if (!c || typeof c !== 'object') return null;
     var id = str(c.id, 80), title = str(c.title, 200);
@@ -550,6 +574,7 @@
       traced: tracedOf(t.traced), evidence: evidenceOf(t.evidence),
       needs: texts(t.needs, 1000, 30), reply: str(t.reply, 4000),
       change: change && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(change) ? change : null,
+      risk: riskRef(t.risk),
       risks: riskList(t.risks)
     };
   }
@@ -614,14 +639,33 @@
     if (out.c4 && !out.c4.context && !out.c4.containers) out.c4 = null;
     // Risks, ranked by the shared definition (skills/mendix-describe/reference/risk-levels.md), and what a
     // developer should know before changing the model. Text again; a level outside P1–P3 drops the risk.
+    // A risk may carry an id (a short slug the agent keeps the same from one update to the next), which
+    // is how MxScout knows it again: to merge it, and to keep what a person decided about it (triage.js).
+    // A malformed id, one over 80 characters, or one used twice in the file, is dropped, and the risk is known by its level and title.
+    var ids = Object.create(null);
     out.risks = (Array.isArray(raw.risks) ? raw.risks : []).slice(0, 2000).map(function (x) {
-      return x && typeof x === 'object' && /^P[123]$/.test(x.level) && str(x.title, 300) ? {
-        level: x.level, title: str(x.title, 300), detail: str(x.detail, 3000), fix: str(x.fix, 1000),
+      if (!x || typeof x !== 'object' || !/^P[123]$/.test(x.level) || !str(x.title, 300)) return null;
+      var id = typeof x.id === 'string' && x.id.length <= 80 && RISK_ID.test(x.id) && !ids[x.id] ? x.id : null;
+      if (id) ids[id] = true;
+      return {
+        id: id, level: x.level, title: str(x.title, 300), detail: str(x.detail, 3000), fix: str(x.fix, 1000),
         // One of the report's ten themes (reportdata.js THEMES), when the agent names one; anything else is dropped.
         theme: /^(access|secrets|schedule|delete|loops|silent|hardcoded|dead|naming|logic)$/.test(x.theme) ? x.theme : null,
         where: (Array.isArray(x.where) ? x.where : []).map(function (s) { return str(s, 300); }).filter(Boolean).slice(0, 40)
-      } : null;
+      };
     }).filter(Boolean);
+    // Whether the file carries a risks list at all — an empty one says "no risks any more", a missing
+    // one says nothing about them; only the first may settle a risk marked fixed (triage.js).
+    if (Array.isArray(raw.risks)) out.risksListed = true;
+    // What the agent says about risks a PERSON raised and marked fixed (triage.js): still there or not,
+    // and why. The id is the one the pack gave it, "c-" and the comment's id. Or what MxScout's security
+    // check (secrisks.js, the skill's check-security.js) says about one of its own risks, "mx-…", that the
+    // model no longer shows.
+    out.verify = (Array.isArray(raw.verify) ? raw.verify : []).slice(0, 500).map(function (x) {
+      return x && typeof x === 'object' && typeof x.id === 'string' && (/^c-[A-Za-z0-9_-]{1,80}$/.test(x.id) || (/^mx-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(x.id) && x.id.length <= 80)) && typeof x.still === 'boolean'
+        ? { id: x.id, still: x.still, why: str(x.why, 1000) } : null;
+    }).filter(Boolean);
+    if (!out.verify.length) delete out.verify;
     var c = raw.context && typeof raw.context === 'object' ? raw.context : {};
     function pairs(list, a, b) {
       return (Array.isArray(list) ? list : []).slice(0, 80).map(function (x) {
@@ -648,10 +692,28 @@
       tids[x.id] = true;
       return true;
     });
-    if (!out.app && !out.c4 && !out.risks.length && !out.context && !out.changes.length && !out.tickets.length && !['modules', 'microflows', 'nanoflows', 'pages', 'entities'].some(function (k) { return Object.keys(out[k]).length; })) {
+    if (!out.app && !out.c4 && !out.risks.length && !out.verify && !out.context && !out.changes.length && !out.tickets.length && !['modules', 'microflows', 'nanoflows', 'pages', 'entities'].some(function (k) { return Object.keys(out[k]).length; })) {
       return { error: 'The file has the right format but no descriptions in it.' };
     }
     return { value: out };
+  }
+
+  // ---------- a risk's identity ----------
+  // A risk is known by its id when the agent gave it one, and otherwise by its level and its title,
+  // case and spacing aside — so files written before ids existed still match up.
+  var RISK_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+  function titleKey(r) { return 't:' + r.level + ':' + String(r.title || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+  function riskKey(r) { return r.id ? 'id:' + r.id : titleKey(r); }
+  // The risks of `more` laid over `base`: one that is already there — the same id, or the same level
+  // and title — is replaced in its place by the newer copy; a new one is added at the end.
+  function mergeRisks(base, more) {
+    var out = (base || []).slice();
+    (more || []).forEach(function (r) {
+      var k = riskKey(r), t = titleKey(r), at = -1;
+      out.forEach(function (x, i) { if (at < 0 && (riskKey(x) === k || titleKey(x) === t)) at = i; });
+      if (at < 0) out.push(r); else out[at] = r;
+    });
+    return out;
   }
 
   // A model version as a descriptions file names it: the commit and what is shown beside it, as text.
@@ -664,16 +726,16 @@
   // (Karol, 2026-10-14: after reading the documentation, "describe this process too" — the agent sends
   // the one process, and the flows it described for it, and nothing else is lost). A process of the same
   // name is replaced, a new one is added at the end; a flow, page, entity or module described again is
-  // replaced; a risk with a title already kept replaces it; a change with an id already kept is
-  // replaced, a new one added at the end, and so is a ticket; the rest is kept as it was. The skill's
+  // replaced; a risk already kept (the same id, or the same level and title) is replaced by the newer
+  // copy rather than added twice; a change with an id already kept is replaced, a new one added at the
+  // end, and so is a ticket; the rest is kept as it was. The skill's
   // checker merges parts by the same rules (check-descriptions.js merge; test 48 runs both on the same files).
-  function riskTitle(r) { return String(r.title || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
   function merge(base, more) {
     var out = JSON.parse(JSON.stringify(base || {
       project: null, language: null, by: null, written: null, app: null,
       modules: {}, microflows: {}, nanoflows: {}, pages: {}, entities: {}, risks: [], context: null, c4: null
     }));
-    delete out.add; delete out.replace;
+    delete out.add; delete out.replace; delete out.risksListed; delete out.verify;
     ['modules', 'microflows', 'nanoflows', 'pages', 'entities'].forEach(function (k) {
       out[k] = out[k] || {};
       Object.keys(more[k] || {}).forEach(function (q) { out[k][q] = more[k][q]; });
@@ -693,14 +755,7 @@
         if (at < 0) a.processes.push(p); else a.processes[at] = p;
       });
     }
-    // A risk is known by its title, case and spacing aside: written again — reworded, or ranked at
-    // another level — the newer copy takes the place of the one kept; a new one goes at the end.
-    out.risks = out.risks || [];
-    (more.risks || []).forEach(function (r) {
-      var k = riskTitle(r), at = -1;
-      out.risks.forEach(function (x, i) { if (at < 0 && riskTitle(x) === k) at = i; });
-      if (at < 0) out.risks.push(r); else out.risks[at] = r;
-    });
+    out.risks = mergeRisks(out.risks, more.risks);
     // The developers' context adds up, an entry already kept not repeated.
     if (more.context) {
       var c = out.context || (out.context = { where: [], conventions: [], pitfalls: [] });
@@ -799,6 +854,21 @@
   }
 
   // One flow as the pack writes it — for a route that sends the model in pieces (copilot.js).
+  // One element as the pack writes it, on its own: a flow or a page as flowText has it, an entity as its
+  // line, its access and its validation rules, under a heading that names it in full. For the context put
+  // aside for a chat assistant (basket.js) and the model's part of a workbook item's HTML (docs-assist.js).
+  function elementText(data, kind, qn) {
+    if (kind === 'entity') {
+      var e = data.entities[qn];
+      if (!e) return null;
+      var out = ['### E ' + qn, entityLine(e, data)];
+      accessLines(e, data, out);
+      validationLines(e, out);
+      return out.join('\n');
+    }
+    var f = data.flows[kind + ':' + qn];
+    return f ? flowText(f) : null;
+  }
   function flowText(f) { return remembered('text', f, function () { return flowLines(f).join('\n'); }); }
   // Its lines as the pack writes them, one entry a line — the pack's index counts them.
   function flowLines(f) { return remembered('lines', f, function () { var out = []; flowBlock(f, out); return out; }); }
@@ -863,6 +933,6 @@
 
   // parts: how a change, a ticket and their pieces are read, for the Assist page's items (assist.js).
   var parts = { str: str, texts: texts, diagram: diagramItems, diagramFile: items, now: nowOf, proposal: proposalOf, impact: impactOf, risks: riskList, evidence: evidenceOf, traced: tracedOf,
-    ticket: ticketOf, change: changeOf, VERDICTS: TICKET_VERDICTS, CONFIDENCE: CONFIDENCE, STORY_MAX: STORY_MAX };
-  window.MxDescribe = { LANGUAGES: LANGUAGES, languageCode: languageCode, languageName: languageName, pack: pack, parse: parse, attach: attach, merge: merge, toFile: toFile, hashOf: hashOf, flowText: flowText, riskIndex: riskIndex, parts: parts, FORMAT: DESC_FORMAT, PACK_FORMAT: PACK_FORMAT };
+    riskRef: riskRef, ticket: ticketOf, change: changeOf, VERDICTS: TICKET_VERDICTS, CONFIDENCE: CONFIDENCE, STORY_MAX: STORY_MAX };
+  window.MxDescribe = { LANGUAGES: LANGUAGES, languageCode: languageCode, languageName: languageName, pack: pack, parse: parse, attach: attach, merge: merge, mergeRisks: mergeRisks, riskKey: riskKey, titleKey: titleKey, toFile: toFile, hashOf: hashOf, flowText: flowText, elementText: elementText, riskIndex: riskIndex, parts: parts, FORMAT: DESC_FORMAT, PACK_FORMAT: PACK_FORMAT };
 })();

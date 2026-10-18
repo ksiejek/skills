@@ -3,9 +3,8 @@
 One definition of the business layer of a Mendix application's
 documentation, used by both skills that write it: mendix-describe (with
 MxScout) and mendix-docs (from the .mpr alone). The canonical copy is in
-MxScout Dev, `skills/mendix-describe/reference/`; edit it there. The public
-MxScout repository and the skills repository carry copies of it, brought up to
-date from there, and mendix-docs gets the public MxScout's copy when its
+MxScout, `skills/mendix-describe/reference/`; edit it there. The skills
+repository carries a copy of it, brought up to date from there, and mendix-docs gets the public MxScout's copy when its
 installable copy is put together (`pack-skill.js`).
 
 ## Why it exists

@@ -1124,6 +1124,28 @@ button.dx-dm-can.link:hover { border-color:var(--acc); color:var(--acc-text); }
 /* A process's diagram (drawProcesses), drawn by the flow drawing; it scrolls sideways rather than squeeze. */
 .dx-pd-graph { overflow-x:auto; padding:6px 2px 10px; }
 
+/* Risk triage (Developer tools, triage.js): where a risk stands, who raised it, what was decided. */
+.dx-rk-status { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:10px 16px; border-bottom:1px solid var(--line); background:var(--panel); }
+.dx-rk-st { display:inline-flex; align-items:center; gap:6px; height:26px; padding:0 10px; border:1px solid var(--line); border-radius:13px; background:var(--raised); color:var(--ink2); font-size:12px; font-weight:500; cursor:pointer; }
+.dx-rk-st.on { border-color:var(--ink2); background:var(--surface); color:var(--ink); font-weight:600; }
+.dx-rk-st .dx-fc-n { margin-left:2px; }
+.dx-rk-st-gap { flex:1 1 8px; }
+.dx-rs { display:inline-block; align-self:flex-start; margin-top:2px; font-size:11px; font-weight:600; line-height:18px; padding:0 7px; border-radius:9px; border:1px solid var(--line2); color:var(--ink2); background:var(--raised); white-space:nowrap; }
+.dx-rs-fixed { color:var(--p2); border-color:color-mix(in srgb,var(--p2) 45%,var(--line)); background:var(--p2bg); }
+.dx-rs-verified { color:var(--ok-ink); border-color:color-mix(in srgb,var(--ok) 45%,var(--line)); background:color-mix(in srgb,var(--ok) 10%,var(--surface)); }
+.dx-rs-reopened { color:var(--p1); border-color:color-mix(in srgb,var(--p1) 45%,var(--line)); background:var(--p1bg); }
+.dx-rs-false-positive, .dx-rs-gone { color:var(--muted); }
+.dx-rk-pills .dx-rs { margin-top:0; line-height:24px; height:26px; border-radius:7px; padding:0 10px; }
+.dx-rk-origin { cursor:default; gap:6px; }
+.dx-rk-by { font-size:12px; font-weight:500; color:var(--ink2); }
+.dx-rk-acts { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
+.dx-rk-tri .dx-rk-tri-who { margin:6px 0 0; font-size:12px; color:var(--muted); }
+.dx-rk-hist { margin-top:8px; font-size:12.5px; color:var(--ink2); }
+.dx-rk-hist summary { cursor:pointer; color:var(--muted); font-size:12px; }
+.dx-rk-hist ol { margin:6px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:4px; }
+.dx-rk-hist li { display:flex; gap:10px; }
+.dx-rk-hist li .mono { flex:none; color:var(--muted); font-size:11.5px; }
+
 /* Changes (docs-changes.js): a change an agent worked out — now and proposed side by side on a wide
    screen, one under the other on a narrow one; the model changes as a table grouped by kind. */
 .dx-ch-st { display:inline-block; font:600 10.5px/17px var(--font-mono); padding:0 7px; border-radius:5px; vertical-align:1px; color:var(--acc-text); background:var(--acc-soft); }
@@ -1211,29 +1233,25 @@ button.dx-dm-can.link:hover { border-color:var(--acc); color:var(--acc-text); }
 .dx-tk-reply { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
 .dx-tk-reply-t { margin:0; padding:10px 12px; width:100%; box-sizing:border-box; white-space:pre-wrap; font-size:14px; line-height:1.55; color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:8px; }
 .dx-tk-change { border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+/* A ticket and the known risk it is about, both ways: the risk on the ticket, the tickets on the risk. */
+.dx-tk-risk { border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+.dx-tk-risk .dx-ch-row-h { display:flex; align-items:center; gap:8px; }
+.dx-tk-onrisk { display:flex; flex-direction:column; align-items:flex-start; gap:2px; width:100%; padding:9px 2px; border:0; border-bottom:1px solid var(--line); background:transparent; color:var(--ink); font:inherit; font-size:13.5px; text-align:left; cursor:pointer; }
+.dx-tk-onrisk small { font-size:12px; color:var(--muted); }
+.dx-tk-onrisk:hover > span:first-child { color:var(--acc-text); }
 
 /* Assist (docs-assist.js): what an agent helped with, in MxScout only — the exported file has no Assist
-   item, so these rules travel in it unused. Tabs by kind, a status on every item, the buttons that move
-   it, its history. The rest of the page is the Tickets and Changes parts above. */
-.dx-as-tabs { display:flex; flex-wrap:wrap; gap:4px; border-bottom:1px solid var(--line); margin-bottom:6px; }
-.dx-as-tab { display:inline-flex; align-items:center; gap:4px; padding:9px 14px 10px; margin-bottom:-1px; border:0; border-bottom:2px solid transparent; background:none;
-  font:600 13.5px var(--font-ui); color:var(--ink2); text-decoration:none; cursor:pointer; }
-.dx-as-tab .mono { color:var(--muted); font-weight:500; }
-.dx-as-tab:hover { color:var(--ink); }
-.dx-as-tab.on { color:var(--acc-text); border-bottom-color:var(--acc); }
-.dx-as-open { margin-left:4px; font:600 10.5px/16px var(--font-mono); padding:0 6px; border-radius:5px; color:var(--acc-text); background:var(--acc-soft); }
+   item, so these rules travel in it unused. One list of every item beside the page, a status on every
+   item, the buttons that move it, its notes, its history. The rest is the Tickets and Changes parts above. */
 .dx-as-st { display:inline-block; font:600 10.5px/17px var(--font-mono); padding:0 7px; border-radius:5px; vertical-align:1px; white-space:nowrap; color:var(--acc-text); background:var(--acc-soft); }
 .dx-as-st.in-progress { color:var(--p2); background:var(--p2bg); }
 .dx-as-st.done { color:var(--ok); background:var(--okbg); }
 .dx-as-st.dropped { color:var(--muted); background:var(--raised); text-decoration:line-through; }
 .dx-pl-t small .dx-as-st { margin-left:2px; }
-.dx-as-tools { display:flex; flex-wrap:wrap; align-items:center; gap:10px; max-width:900px; }
 .dx-as-q { flex:1 1 220px; min-width:0; max-width:340px; padding:7px 10px; border:1px solid var(--line2); border-radius:8px; background:var(--panel); color:var(--ink); font:13.5px var(--font-ui); }
 .dx-as-q:focus { outline:2px solid var(--acc); outline-offset:-1px; }
 .dx-as-chip.in-progress.on { background:var(--p2bg); border-color:var(--p2); color:var(--p2); }
 .dx-as-chip.done.on { background:var(--okbg); border-color:var(--ok); color:var(--ok); }
-.dx-as-row .dx-ch-row-h { flex-wrap:wrap; }
-.dx-as-row[data-status="done"] b, .dx-as-row[data-status="dropped"] b { color:var(--ink2); }
 .dx-as-bar { display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; max-width:900px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--panel); }
 .dx-as-now { display:flex; align-items:center; gap:8px; }
 .dx-as-now .dx-as-st { font-size:12px; line-height:21px; padding:0 9px; }
@@ -1250,6 +1268,7 @@ button.dx-dm-can.link:hover { border-color:var(--acc); color:var(--acc-text); }
 .dx-as-by { font-size:11.5px; font-weight:600; color:var(--muted); }
 .dx-as-by.person { color:var(--acc-text); }
 .dx-as-empty, .dx-as-none { max-width:900px; }
+.dx-as > .dx-as-empty, .dx-kn > .dx-kn-empty { margin-top:16px; }
 .dx-as-st.waiting { color:var(--p3); background:var(--raised); outline:1px dashed var(--line2); }
 .dx-as-chip.waiting.on { background:var(--raised); border-color:var(--ink2); color:var(--ink); }
 .dx-as-sec-h { display:flex; align-items:center; justify-content:space-between; gap:12px; max-width:900px; }
@@ -1278,6 +1297,66 @@ button.dx-dm-can.link:hover { border-color:var(--acc); color:var(--acc-text); }
 .dx-as-answer-t { width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid var(--line2); border-radius:8px; background:var(--panel); color:var(--ink); font:13.5px/1.5 var(--font-ui); resize:vertical; }
 .dx-as-ticks { display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--ink2); }
 .dx-as-tick { display:flex; align-items:baseline; gap:6px; }
+/* an Assist item's two tabs: Work (notes, the solving, the conversation) and Description */
+.dx-as-itabs { display:flex; gap:4px; max-width:900px; border-bottom:1px solid var(--line); margin:4px 0 -6px; }
+.dx-as-itab { display:inline-flex; align-items:center; gap:7px; padding:9px 14px 10px; margin-bottom:-1px; border:0; border-bottom:2px solid transparent; background:none; font:600 13.5px var(--font-ui); color:var(--ink2); cursor:pointer; }
+.dx-as-itab:hover { color:var(--ink); }
+.dx-as-itab.on { color:var(--acc-text); border-bottom-color:var(--acc); }
+.dx-as-itab-n { font:500 11px var(--font-mono); color:var(--muted); }
+.dx-as-pane { display:flex; flex-direction:column; gap:inherit; }
+.dx-as-pane[hidden] { display:none; }
+/* an Assist item's descriptions of the change: for the business, and technical */
+.dx-as-wu-seg { margin:0; width:240px; }
+.dx-as-wu-seg button:disabled { opacity:.45; cursor:default; }
+.dx-as-wu-card { max-width:900px; border:1px solid var(--line); border-radius:12px; background:var(--panel); overflow:hidden; }
+.dx-as-wu-tools { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:10px 14px; border-bottom:1px solid var(--line); background:var(--raised); }
+.dx-as-wu-when { margin-right:auto; font-size:12.5px; color:var(--muted); }
+.dx-as-wu-msg { flex-basis:100%; font-size:12.5px; color:var(--ok); text-align:right; }
+.dx-as-wu-msg:empty { display:none; }
+.dx-as-wu-body { padding:18px 22px 10px; font-size:14.5px; line-height:1.6; color:var(--ink); }
+.dx-as-wu-body p, .dx-as-wu-ul { margin:0 0 10px; }
+.dx-as-wu-ul { padding-left:20px; }
+.dx-as-wu-ul li { margin:3px 0; }
+.dx-as-wu-t { margin:0 0 10px; font-size:18px; line-height:1.3; }
+.dx-as-wu-lead { margin:0 0 6px; padding:10px 14px; border-left:3px solid var(--acc); border-radius:6px; background:var(--acc-soft); }
+.dx-as-wu-lead p:last-child { margin-bottom:0; }
+.dx-as-wu-h { margin:18px 0 6px; font:600 14.5px var(--font-ui); color:var(--ink); }
+.dx-as-wu-body .dx-code { margin:0; padding:0 3px; font-size:.88em; }
+/* the one list beside an Assist item: kind, search, open or closed, then the items */
+.dx-as-head .dx-as-q { flex:none; max-width:none; padding:6px 10px; font:13px var(--font-ui); }
+.dx-as-head .dx-as-kind { padding:6px 8px; font:13px var(--font-ui); color:var(--ink); }
+.dx-as-seg { margin:0 12px 10px; }
+.dx-as-seg button i { color:var(--muted); font-weight:500; }
+.dx-as-lrow[hidden], .dx-as-lnone[hidden] { display:none; }
+.dx-as-lnone { margin:16px 12px 0; padding:14px 12px; border:1px dashed var(--line2); border-radius:9px; font-size:13px; color:var(--muted); text-align:center; }
+.dx-as-li small { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; }
+.dx-as-li[data-status="done"] b, .dx-as-li[data-status="dropped"] b { color:var(--ink2); font-weight:500; }
+.dx-as-kd { font:600 10.5px/17px var(--font-ui); padding:0 6px; border-radius:5px; color:var(--ink2); background:var(--raised); }
+.dx-as-kd.other { color:var(--acc-text); background:var(--acc-soft); }
+.dx-as-li.on .dx-as-kd { background:var(--panel); }
+.dx-as-nc { margin-left:auto; font:11px var(--font-mono); color:var(--muted); }
+.dx-as-doc { font:600 10.5px/17px var(--font-ui); padding:0 6px; border-radius:5px; color:var(--ok); background:var(--okbg); }
+.dx-as-ls { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; color:var(--ink2); }
+.dx-as-li.on .dx-as-ls { color:inherit; opacity:.85; }
+.dx-as-n-groups { display:flex; flex-direction:column; gap:18px; max-width:900px; }
+.dx-as-n-group[hidden], .dx-as-n[hidden], .dx-as-n-none[hidden] { display:none; }
+.dx-as-n-topic { display:flex; align-items:baseline; gap:8px; margin:0; padding:0 2px 6px; border-bottom:1px solid var(--line2); font:600 13px/1.4 var(--font-ui); color:var(--ink); }
+.dx-as-n-count { font:600 10.5px/17px var(--font-mono); padding:0 7px; border-radius:5px; color:var(--acc-text); background:var(--acc-soft); }
+.dx-as-n-count.clear { color:var(--ok); background:var(--okbg); }
+.dx-as-n-count:empty { display:none; }
+.dx-as-n-bar { max-width:900px; height:4px; border-radius:2px; background:var(--line); overflow:hidden; }
+.dx-as-n-bar span { display:block; height:100%; border-radius:2px; background:var(--ok); transition:width .2s ease; }
+@media (prefers-reduced-motion: reduce) { .dx-as-n-bar span { transition:none; } }
+.dx-as-n:last-child { border-bottom:0; }
+.dx-as-n-list { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; }
+.dx-as-n { display:flex; align-items:flex-start; gap:10px; padding:9px 2px; border-bottom:1px solid var(--line); }
+.dx-as-n-box { flex:none; width:16px; height:16px; margin:3px 0 0; accent-color:var(--acc); cursor:pointer; }
+.dx-as-n-box:disabled { cursor:default; }
+.dx-as-n-b { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.dx-as-n-t { margin:0; white-space:pre-wrap; font-size:14px; line-height:1.5; color:var(--ink); }
+.dx-as-n.done .dx-as-n-t { color:var(--ink2); }
+.dx-as-n.dropped .dx-as-n-t { color:var(--muted); text-decoration:line-through; }
+.dx-as-n-meta { font:11.5px var(--font-mono); color:var(--muted); }
 .dx-ch-cols.one { grid-template-columns:minmax(0,1fr); }
 .dx-ch-cols.one .dx-ch-col.proposal { padding-left:0; border-left:0; }
 @media (max-width: 720px) { .dx-as-plan { margin-left:0; } .dx-as-hist li { grid-template-columns:1fr; gap:2px; } }

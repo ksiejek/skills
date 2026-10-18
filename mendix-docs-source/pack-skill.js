@@ -6,8 +6,8 @@
  * repository (mendix-docs-source/), and only what
  * is its own — SKILL.md, docs.js, README.md, CHANGELOG.md. Everything else it uses is a file of the
  * public MxScout repository, taken from there so it cannot drift:
- *  - check-descriptions.js and reference/ from mendix-describe: one checker and one set of rules for
- *    both skills (Karol, 2026-10-14: "exactly the same skill");
+ *  - check-descriptions.js, check-security.js and reference/ from mendix-describe: one checker, one
+ *    security check and one set of rules for both skills (Karol, 2026-10-14: "exactly the same skill");
  *  - engine/ from public/: the files MxScout runs to read a .mpr and draw the documentation, unchanged.
  * The folder is emptied first — only when it is empty already or holds an earlier copy of the skill
  * (SKILL.md and VERSION in it); any other folder is refused, so a mistyped path empties nothing.
@@ -37,8 +37,10 @@ vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(PUBLIC, 'docs-file.js'), 'utf8'), ctx);
 const F = ctx.window.MxDocsFile;
 // modelversion.js and repodocs.js: `docs.js repo` writes mxscout/docs/ inside a Mendix project as MxScout does.
+// The security checks (MxScout 2.x, MXS-8): what check-security.js — mendix-describe's, copied beside docs.js — runs.
+const SECURITY = ['anonrole.js', 'accessuse.js', 'accounts.js', 'guards.js', 'editscope.js', 'selfreg.js', 'constants.js', 'advisories.js', 'accessrule.js', 'secrisks.js'];
 const ENGINE = ['sqlite.js', 'bson.js', 'mpr.js', 'modelversion.js', 'docs-data.js', 'describe.js', 'reportdata.js', 'docs-changes.js', 'docs-tickets.js', 'docs-view.js', 'docs-file.js', 'repodocs.js']
-  .concat(Array.from(F.SHEETS), Array.from(F.SCRIPTS));
+  .concat(SECURITY, Array.from(F.SHEETS), Array.from(F.SCRIPTS));
 const fonts = F.fontsIn(fs.readFileSync(path.join(PUBLIC, 'tokens.css'), 'utf8')).map((u) => F.fontPath(u));
 const licences = fs.readdirSync(path.join(PUBLIC, 'fonts')).filter((f) => /^OFL-.*\.txt$/.test(f)).map((f) => 'fonts/' + f);
 
@@ -53,6 +55,7 @@ fs.rmSync(dest, { recursive: true, force: true });
 fs.mkdirSync(dest, { recursive: true });
 ['SKILL.md', 'docs.js', 'README.md', 'CHANGELOG.md'].forEach((f) => copy(path.join(__dirname, f), path.join(dest, f)));
 copy(path.join(DESCRIBE, 'check-descriptions.js'), path.join(dest, 'check-descriptions.js'));
+if (fs.existsSync(path.join(DESCRIBE, 'check-security.js'))) copy(path.join(DESCRIBE, 'check-security.js'), path.join(dest, 'check-security.js'));
 fs.readdirSync(path.join(DESCRIBE, 'reference')).forEach((f) => copy(path.join(DESCRIBE, 'reference', f), path.join(dest, 'reference', f)));
 ENGINE.concat(fonts, licences).forEach((f) => copy(path.join(PUBLIC, f), path.join(dest, 'engine', f)));
 const version = (fs.readFileSync(path.join(__dirname, 'CHANGELOG.md'), 'utf8').match(/^## (\d+\.\d+\.\d+)/m) || [])[1] || '?';

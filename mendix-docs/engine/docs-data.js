@@ -459,7 +459,10 @@
   // ---------- the whole documentation ----------
   function build(model, project) {
     model = model || {};
-    var own = (model.modules || []).filter(function (m) { return !m.fromAppStore; }).map(function (m) { return m.name; });
+    // The System module and its entities are added by app.js (withBuiltinSystemModule), not read from the
+    // project: they are not the app's own, and the counts leave them out, as the projects page does.
+    var builtinOnly = function (m) { return (model.entities || []).some(function (en) { return en.module === m.name; }) && (model.entities || []).every(function (en) { return en.module !== m.name || en.builtin; }); };
+    var own = (model.modules || []).filter(function (m) { return !m.fromAppStore && !builtinOnly(m); }).map(function (m) { return m.name; });
     var marketplace = (model.modules || []).filter(function (m) { return m.fromAppStore; }).map(function (m) { return m.name; });
     var modules = {};
     (model.modules || []).forEach(function (m) {
@@ -476,7 +479,7 @@
     (model.entities || []).forEach(function (en) {
       var rules = en.accessRules || [];
       entities[en.qualifiedName] = {
-        qn: en.qualifiedName, module: en.module, name: en.name, persistable: en.persistable !== false,
+        qn: en.qualifiedName, module: en.module, name: en.name, persistable: en.persistable !== false, builtin: !!en.builtin,
         generalization: en.generalization || null, view: !!en.viewEntity, doc: en.documentation || null,
         attributes: (en.attributes || []).map(function (a) { return { name: a.name, type: a.enumerationQualifiedName ? 'Enumeration ' + a.enumerationQualifiedName : a.type + (a.length ? '(' + a.length + ')' : '') }; }),
         roles: rules.map(function (r) { return r.moduleRole; }).filter(function (v, i, all) { return v && all.indexOf(v) === i; }),
@@ -526,12 +529,16 @@
       mendix: (model.meta && model.meta.mendixVersion) || null,
       // Which version of the app the model is, from the Mendix project's git (modelversion.js) — without its reflog.
       version: versionOf(model.version),
+      // When this documentation was made: the date of a file made from it (its name, the pack's "generated:").
       generatedAt: new Date().toISOString(),
+      // When the model was read from the Mendix project, which is what "Model read" and "model of …" say: a model read
+      // in January and exported today is a model of January. null when the model does not say (the reader shows "unknown").
+      modelReadAt: (model.meta && typeof model.meta.generatedAt === 'string' && model.meta.generatedAt) || null,
       drawings: Object.keys(flows).some(function (k) { return flows[k].drawn; }),
       kpi: {
         modules: own.length, marketplace: marketplace.length,
         microflows: (model.microflows || []).length, nanoflows: (model.nanoflows || []).length, pages: (model.pages || []).length,
-        entities: (model.entities || []).length, roles: (model.userRoles || []).length,
+        entities: (model.entities || []).filter(function (en) { return !en.builtin; }).length, roles: (model.userRoles || []).length,
         scheduled: automation.length, scheduledOn: automation.filter(function (a) { return a.enabled; }).length,
         services: (model.publishedServices || []).length
       },
@@ -542,7 +549,10 @@
       roles: (model.userRoles || []).map(function (r) { return { name: r.name, moduleRoles: r.moduleRoles || [] }; }),
       scheduled: automation.map(function (a) { return { name: a.qualifiedName, microflow: a.microflow, schedule: a.schedule || null, enabled: !!a.enabled }; }),
       services: (model.publishedServices || []).map(function (s) { return { name: s.qualifiedName || s.name, kind: s.kind || null }; }),
-      quality: { unreached: unreached, disabled: disabled }
+      quality: { unreached: unreached, disabled: disabled },
+      // Risks MxScout works out from the model itself, each with a fixed id, so the triage holds across
+      // loads: today the constants the browser receives that look like a secret (constants.js).
+      modelRisks: window.MxConstants ? window.MxConstants.risks(model).map(function (r) { return Object.assign({}, r, { where: r.where.slice() }); }) : []
     };
   }
 

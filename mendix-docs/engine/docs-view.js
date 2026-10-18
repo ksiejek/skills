@@ -142,6 +142,9 @@
         });
       }
       put(); requestFrame(put);
+      // Cut short at its bottom by content that comes a moment later: put back for a few frames while it grows — only a box held at its bottom, never one the reader moved.
+      var tries = 8;
+      (function again() { if (tries--) requestFrame(function () { var short = false; Array.prototype.forEach.call(box.querySelectorAll('[data-keep-scroll]'), function (n) { var at = o[n.getAttribute('data-keep-scroll')]; if (at && at[0] > n.scrollTop + 1 && n.scrollTop >= n.scrollHeight - n.clientHeight - 1) { n.scrollTop = at[0]; short = short || n.scrollTop < at[0] - 1; } }); if (short) again(); }); })();
     }
     function kindClass(kind) { return kind === 'nanoflow' ? ' nf' : kind === 'page' ? ' pg' : kind === 'entity' ? ' en' : ''; }
 
@@ -206,6 +209,9 @@
     };
     var WHERE_KIND = { mf: ['MF', 'Open flow', 'microflow'], nf: ['NF', 'Open flow', 'nanoflow'], pg: ['PG', 'Open page', 'page'], en: ['EN', 'Open entity', null], dm: ['EN', 'Open entity', null] };
     var LVO = { P1: 0, P2: 1, P3: 2 };
+    // Where a risk stands (the risk triage (Developer tools), triage.js), drawn by docs-triage.js: only open and
+    // reopened ones count as risks; the rest are kept on the Risks page under their own filter.
+    var TRI = window.MxDocsTriage, RS = TRI.RS, RS_GROUP = TRI.RS_GROUP, RS_FILTERS = TRI.RS_FILTERS;
 
     // A kind's tag — MF, NF, PG, SCH … — microflows blue and nanoflows green, as Mendix colours them.
     function kindTag(t) { return h('span', { class: 'dx-kind' + (t === 'MF' ? ' mf' : t === 'NF' ? ' nf' : ''), text: t }); }
@@ -362,13 +368,14 @@
       var D = data.derived || (window.MxReportData ? window.MxReportData.derive(data) : null);
       var ai = data.ai || {}, app = ai.app || null, risks = ai.risks || [], c4 = ai.c4 || null, ctx = ai.context || null;
       var procs = app ? app.processes || [] : [], k = data.kpi;
-      function rid(i) { var n = String(i + 1); return 'R-' + (n.length < 3 ? ('00' + n).slice(-3) : n); }
+      var triagedMd = ai.triaged || [];
+      function rid(i) { var n = String((risks[i] && risks[i].no) || i + 1); return 'R-' + (n.length < 3 ? ('00' + n).slice(-3) : n); }
       function lvCount(l) { return risks.filter(function (r) { return r.level === l; }).length; }
       var KIND_TAG = { microflow: 'MF', nanoflow: 'NF', page: 'PG' };
       function flowByQn(qn) { return data.flows['microflow:' + qn] || data.flows['nanoflow:' + qn] || data.flows['page:' + qn] || null; }
 
       w('# ' + esc(data.project) + ' — documentation');
-      w([data.mendix ? 'Mendix ' + esc(data.mendix) : null, 'model of ' + esc(fmtDate(data.generatedAt))].filter(Boolean).join(' · '));
+      w([data.mendix ? 'Mendix ' + esc(data.mendix) : null, esc(modelRead(data, true))].filter(Boolean).join(' · '));
       w();
 
       // ---- overview ----
@@ -379,7 +386,7 @@
       table(['At a glance', ''], [
         data.mendix ? ['Mendix', data.mendix] : null,
         data.version ? ['Version', (data.version.branch ? data.version.branch + ' @ ' : '') + data.version.short + (data.version.date ? ' · ' + fmtDate(data.version.date).slice(0, 10) : '') + (data.version.message ? ' · ' + data.version.message : '')] : null,
-        ['Model read', fmtDate(data.generatedAt)],
+        ['Model read', modelRead(data)],
         ['Modules', k.modules + (k.marketplace ? ' · +' + k.marketplace + ' Marketplace' : ' · all own')], ['Microflows', k.microflows], ['Nanoflows', k.nanoflows], ['Pages', k.pages],
         ['Entities', k.entities], ['User roles', k.roles], ['Scheduled events', k.scheduled + (k.scheduled ? ' · ' + k.scheduledOn + ' on' : '')],
         ['Published services', k.services + (kinds.length ? ' · ' + kinds.join(' · ') : '')], risks.length ? ['Risks', risks.length + ' · ' + lvCount('P1') + ' P1'] : null
@@ -631,7 +638,8 @@
           list.forEach(function (x) {
             var r = x[0], th = r.theme || (themes[x[1]] && themes[x[1]][1]) || 'logic';
             w('#### ' + rid(x[1]) + ' · ' + esc(r.title)); w();
-            w('- Pattern: ' + (PAT[th] || th) + ' · module ' + code(String((r.where || [])[0] || 'Other').split('|')[0].split('.')[0]));
+            w('- Pattern: ' + (PAT[th] || th) + ' · module ' + code(String((r.where || [])[0] || 'Other').split('|')[0].split('.')[0]) + (r.origin === 'person' ? ' · raised by ' + esc(r.by || 'a person') + (r.raisedAt ? ' on ' + String(r.raisedAt).slice(0, 10) : '') : r.origin === 'model' ? ' · found by MxScout in the model' : '') + (r.id || r.pid ? ' · id ' + code(r.id || r.pid) : ''));
+            if (r.status === 'reopened') w('- Status: reopened' + (r.note ? ' — ' + esc(r.note) : ''));
             if (r.detail) w('- What happens: ' + esc(r.detail));
             if (r.fix) w('- What to do: ' + esc(r.fix));
             if ((r.where || []).length) w('- Where: ' + r.where.map(function (q) { return code(String(q).split('|')[0]); }).join(', '));
@@ -639,6 +647,9 @@
           });
         });
       }
+
+      // Risks no longer counted (risk triage): what was decided about each, as history — docs-triage.js.
+      TRI.markdown(triagedMd, { w: w, esc: esc, counted: risks.length });
 
       // ---- model quality ----
       if (Q) {
@@ -890,7 +901,9 @@
         } }, [navIcon('download', 14), 'Download as Markdown']);
       }
       // Risks, the developers' context, the architecture and the processes exist only when an agent wrote them (describe.js), so their pages too.
-      var risks = data.ai && data.ai.risks || [], devCtx = data.ai && data.ai.context || null, c4 = data.ai && data.ai.c4 || null;
+      // data.ai.risks: the risks that count; data.ai.triaged: the ones marked fixed, false positive or no
+      // longer reported (triage.js), shown only on the Risks page. A risk's address is its place in both.
+      var risks = data.ai && data.ai.risks || [], triaged = data.ai && data.ai.triaged || [], allRisks = risks.concat(triaged), devCtx = data.ai && data.ai.context || null, c4 = data.ai && data.ai.c4 || null;
       var procs = data.ai && data.ai.app && data.ai.app.processes || [];
       // The Assist page: only in MxScout, which hands it the items (opts.assist) — never in the exported file.
       var assist = opts.assist || null;
@@ -906,7 +919,7 @@
       var GROUPS = [
         ['Application', [['start', 'Overview', 'home'], procPage ? ['processes', 'Processes', 'proc'] : null, ['modules', 'Modules', 'module'], ['arch', 'Architecture', 'arch']]],
         ['Model', [['domain', 'Entities', 'entity'], ['refs:microflow', 'Microflows', 'flow'], ['refs:nanoflow', 'Nanoflows', 'nano'], ['refs:page', 'Pages', 'page']]],
-        ['Review', [risks.length ? ['risks', 'Risks', 'risk'] : null, assist ? ['assist', 'Assist', 'ticket'] : null, cases ? ['cases', 'Solved cases', 'case'] : null, ['quality', 'Model quality', 'quality'], devCtx ? ['dev', 'For developers', 'dev'] : null]]
+        ['Review', [allRisks.length ? ['risks', 'Risks', 'risk'] : null, assist ? ['assist', 'Assist', 'ticket'] : null, cases ? ['cases', 'Solved cases', 'case'] : null, ['quality', 'Model quality', 'quality'], devCtx ? ['dev', 'For developers', 'dev'] : null]]
       ].map(function (g) { return [g[0], g[1].filter(Boolean)]; });
       var NAV = [];
       GROUPS.forEach(function (g) { g[1].forEach(function (r) { var v = r[0].split(':')[0]; if (!NAV.some(function (x) { return x[0] === v; })) NAV.push([v, r[1], r[2]]); }); });
@@ -917,7 +930,7 @@
       var side = h('nav', { class: 'dx-side', 'aria-label': 'Documentation' }, [
         // the project, as MxScout's switcher shows it: its letter, its name, the model it was read from
         h('div', { class: 'dx-brand' }, [h('span', { class: 'dx-brand-tile', 'aria-hidden': 'true', text: initial }), h('div', { class: 'dx-brand-text' }, [h('b', { text: data.project }),
-          h('small', { text: (data.mendix ? 'Mendix ' + data.mendix + ' · ' : '') + 'model of ' + fmtDate(data.generatedAt) })])]),
+          h('small', { text: (data.mendix ? 'Mendix ' + data.mendix + ' · ' : '') + modelRead(data, true) })])]),
         h('div', { class: 'dx-nav' }, GROUPS.map(function (g) {
           return h('div', { class: 'dx-nav-group' }, [h('span', { class: 'dx-nav-cap', text: g[0] })].concat(g[1].map(function (r) {
             var parts = r[0].split(':');
@@ -960,7 +973,9 @@
         // A page's place on another page (a section, a risk, a check) does not follow the reader to a new page.
         if (patch.view !== undefined) { if (patch.view !== st.view) st.sub = null; st.sec = null; }
         // Risks reached from another page start unfiltered, so the finding it names is on the list.
-        if (patch.view === 'risks' && st.view !== 'risks') { rf = { lv: null, th: null, mod: null, q: '', group: rf.group }; rkY = 0; }
+        if (patch.view === 'risks' && st.view !== 'risks') { rf = { lv: null, th: null, mod: null, q: '', group: rf.group, st: null, or: null }; rkY = 0; }
+        // A link to a risk that no longer counts opens it under All, where it is listed.
+        if (patch.view === 'risks' && patch.sub && !rf.st && riskIndexOf(patch.sub) >= risks.length) rf.st = 'all';
         if (patch.view !== undefined && patch.view !== st.view) { st.dmod = null; st.dq = ''; }
         // Another flow: its own first step, nothing traced.
         if (patch.key !== undefined && patch.key !== st.key) { st.step = patch.step || null; st.trace = null; }
@@ -978,7 +993,9 @@
       }
 
       // The Risks page's filters (see drawRisks), here because the address restores them.
-      var rf = { lv: null, th: null, mod: null, q: '', group: 'sev' };
+      // st: the status filter (null is Open), or: whose risks (null both, 'ai', 'person').
+      var rf = { lv: null, th: null, mod: null, q: '', group: 'sev', st: null, or: null };
+      if (opts.riskFilter) Object.keys(opts.riskFilter).forEach(function (k) { rf[k] = opts.riskFilter[k]; });
       // Where the findings list was scrolled: a click on a finding draws the page again, and the
       // list stays where the reader left it (Karol, 2026-10-13: it kept jumping to the bottom).
       var rkY = 0;
@@ -1036,7 +1053,9 @@
         }
         if (st.view === 'risks' || st.view === 'quality' || st.view === 'dev') st.sub = arg;
         if (st.view === 'cases') st.cid = arg ? 'knowledge/' + arg + '.md' : null;
-        if (st.view === 'risks') rf = { lv: /^P[123]$/.test(q.lv) ? q.lv : null, th: PAT[q.th] ? q.th : null, mod: q.mod || null, q: q.q || '', group: q.group === 'mod' ? 'mod' : 'sev' };
+        if (st.view === 'risks') rf = { lv: /^P[123]$/.test(q.lv) ? q.lv : null, th: PAT[q.th] ? q.th : null, mod: q.mod || null, q: q.q || '', group: q.group === 'mod' ? 'mod' : 'sev',
+          st: /^(fixed|verified|fp|gone|all)$/.test(q.st || '') ? q.st : null, or: q.by === 'ai' || q.by === 'person' ? q.by : null };
+        if (st.view === 'risks' && arg && !rf.st && riskIndexOf(arg) >= risks.length) rf.st = 'all';
         st.sec = (st.view === 'start' || st.view === 'arch') && q.s ? q.s : null;
       }
       function hashOf(s) {
@@ -1076,6 +1095,8 @@
           if (rf.mod) rq.push('mod=' + encodeURIComponent(rf.mod));
           if (rf.q) rq.push('q=' + encodeURIComponent(rf.q));
           if (rf.group === 'mod') rq.push('group=mod');
+          if (rf.st) rq.push('st=' + rf.st);
+          if (rf.or) rq.push('by=' + rf.or);
           q = rq.join('&') || null;
         }
         return '#/' + r + (arg ? '/' + arg.split('/').map(encodeURIComponent).join('/') : '') + (q ? '?' + q : '');
@@ -1105,7 +1126,7 @@
         return a;
       }
       // A risk's address: its place in the file's list, counted from 1 (redesign spec 17).
-      function riskId(i) { var n = String(i + 1); return 'R-' + (n.length < 3 ? ('00' + n).slice(-3) : n); }
+      function riskId(i) { var n = String((allRisks[i] && allRisks[i].no) || i + 1); return 'R-' + (n.length < 3 ? ('00' + n).slice(-3) : n); }
       function riskModule(r) { var w = (r.where || [])[0]; return w ? String(w).split('|')[0].split('.')[0] : ''; }
       if (opts.hash) { readHash(); window.addEventListener('popstate', function () { readHash(); draw(); }); }
 
@@ -1251,7 +1272,7 @@
         Object.keys(navBtns).forEach(function (k) { navBtns[k].classList.toggle('on', k === st.view || (st.view === 'refs' && k === 'refs:' + (st.seg === 'nanoflow' || st.seg === 'page' ? st.seg : 'microflow'))); });
         var kept = scrollsOf(root);
         clear(list); clear(main); clear(headTools);
-        if ((st.view === 'risks' && !risks.length) || (st.view === 'dev' && !devCtx) || (st.view === 'processes' && !procPage) || (st.view === 'assist' && !assist) || (st.view === 'cases' && !cases) || !DRAW[st.view]) st.view = 'start';
+        if ((st.view === 'risks' && !allRisks.length) || (st.view === 'dev' && !devCtx) || (st.view === 'processes' && !procPage) || (st.view === 'assist' && !assist) || (st.view === 'cases' && !cases) || !DRAW[st.view]) st.view = 'start';
         onScroll = null;
         root.setAttribute('data-view', st.view);
         // The page's own scrolling boxes keep their place while it is the same page and the same item on it —
@@ -1305,7 +1326,7 @@
           data.mendix ? ['Mendix', data.mendix] : null,
           // Which version of the app, from the Mendix project's git: "main @ a1b2c3d · 14.10.2026 · “Fix order status”".
           ver ? ['Version', (ver.branch ? ver.branch + ' @ ' : '') + ver.short, [ver.date ? fmtDate(ver.date).slice(0, 10) : null, ver.message ? '“' + ver.message + '”' : null].filter(Boolean).join(' · ') || null] : null,
-          ['Model read', fmtDate(data.generatedAt)],
+          ['Model read', modelRead(data)],
           ['Modules', k.modules, k.marketplace ? '+' + k.marketplace + ' Marketplace' : 'all own', { view: 'modules' }],
           ['Microflows', k.microflows, null, { view: 'refs', seg: 'microflow', key: null }],
           ['Nanoflows', k.nanoflows, null, { view: 'refs', seg: 'nanoflow', key: null }],
@@ -1326,7 +1347,7 @@
               : h('p', { class: 'dx-ov-rest', text: 'Every module, microflow, nanoflow, page and entity: what each flow takes and returns, every step it runs and the data it sets, who may start it, what calls what, and where the model looks unfinished.' }),
             h('div', { class: 'dx-ov-cta' }, [
               procPage ? ln({ view: 'processes', proc: 0 }, { class: 'dx-cta' }, ['Read the full description', navIcon('arrow', 14)]) : null,
-              h('span', { class: 'dx-ov-prov', text: data.ai
+              h('span', { class: 'dx-ov-prov', text: data.ai && data.ai.agent !== false
                 ? 'Numbers and structure are read from the model. The texts were written from it by an agent' + (data.ai.by ? ' (' + data.ai.by + ')' : '') + ' and can be wrong where the model is ambiguous.'
                 : 'Everything here is read from the model. Nothing in it was written by hand.' })
             ])
@@ -1374,7 +1395,7 @@
         var p1 = [];
         risks.forEach(function (r, i) { if (r.level === 'P1') p1.push([r, i]); });
         var health = section('health', 'What needs attention', 'What needs attention',
-          risks.length ? 'Risks an agent found in the model, and what the model shows directly.' : 'What the model shows directly.',
+          risks.length ? (risks.some(function (r) { return r.origin === 'person'; }) ? 'Risks an agent found in the model or a person raised, and what the model shows directly.' : 'Risks an agent found in the model, and what the model shows directly.') : 'What the model shows directly.',
           risks.length ? more({ view: 'risks' }, 'All ' + risks.length + ' risks') : null,
           h('div', { class: 'dx-health' + (risks.length ? '' : ' one') }, [
             h('div', { class: 'dx-health-l' }, [
@@ -1590,9 +1611,11 @@
       // ---------- assist ----------
       // What an agent helped with (assist.js), drawn by docs-assist.js — in MxScout only, which hands the
       // items over (opts.assist); the exported file has neither the items nor the file that draws them.
+      // A ticket names the known risk it is about by its id: an agent's, or one a person raised ("c-…").
+      function riskAt(id) { for (var i = 0; i < allRisks.length; i++) if (allRisks[i].id === id || allRisks[i].pid === id) return { r: allRisks[i], no: riskId(i), at: { view: 'risks', sub: riskId(i) } }; return null; }
       function drawAssist() {
         if (!window.MxDocsAssist) { main.appendChild(h('div', { class: 'dx-note', text: 'This copy cannot draw the Assist page.' })); return; }
-        window.MxDocsAssist.draw({ h: h, ln: ln, list: list, main: main, setTitle: setTitle, project: data.project, st: st, assist: assist, cases: cases,
+        window.MxDocsAssist.draw({ h: h, ln: ln, list: list, main: main, setTitle: setTitle, project: data.project, st: st, assist: assist, cases: cases, risk: riskAt,
           keep: function (p) { Object.keys(p).forEach(function (k) { st[k] = p[k]; }); if (opts.onState) opts.onState(st); },
           paragraphs: paragraphs, plural: plural, flowRows: flowRows, diagram: processDiagram,
           place: function (qn, kind) { return window.MxDocsChanges ? window.MxDocsChanges.place(data, flowKey, qn, { microflow: 1, nanoflow: 1, page: 1, entity: 1, attribute: 1, association: 1 }[kind] ? kind : 'other') : null; } });
@@ -2077,6 +2100,7 @@
             foot ? h('span', { class: 'dx-dm-foot mono', title: foot, text: foot }) : null
           ]);
           box.style.left = b.x + 'px'; box.style.top = b.y + 'px'; box.style.width = b.w + 'px'; box.style.height = b.h + 'px';
+          if (opts.entityMenu) box.addEventListener('contextmenu', function (ev) { opts.entityMenu(mod + '.' + n, ev); }); // MxScout's context (basket.js)
           stage.appendChild(box);
         });
         // a visual zoom only (spec 15 [LUKA]; Karol, 2026-10-13): the layout stays, the view scales
@@ -2224,7 +2248,7 @@
             e.desc ? h('span', { class: 'dx-prov', text: 'Description written by an agent from the model.' }) : null,
             h('div', { class: 'dx-dm-stats' }, [[e.attrs.length, 'attributes'], [nOwned + nRef, 'associations'], [e.access.length, 'access rules']].map(function (x) { return h('div', null, [h('span', { class: 'mono', text: String(x[0]) }), h('small', { text: x[1] })]); })),
             note ? h('p', { class: 'dx-ar-note' }, [navIcon('info', 14), h('span', null, [h('b', { text: 'Read from the model. ' }), note])]) : null,
-            // A shell's own actions on the entity, when it hands any (the app and the file hand none today).
+            // MxScout's own: what the app can do with the entity (its data, a comment).
             opts.entityActions ? h('div', { class: 'dx-dm-acts' }, opts.entityActions(mod + '.' + sel)) : null
           ]),
           opts.entitySection ? opts.entitySection(mod + '.' + sel) : null,
@@ -2638,7 +2662,7 @@
       function riskData() {
         if (riskRows) return riskRows;
         var D = derived();
-        riskRows = risks.map(function (r, i) {
+        riskRows = allRisks.map(function (r, i) {
           var where = (r.where || []).map(function (w) {
             var m = /^([^|]+?)(?:\|(mf|nf|pg|en|dm))?$/.exec(String(w).trim()) || [null, String(w), null];
             var qn = m[1], kind = m[2];
@@ -2647,22 +2671,38 @@
             return { qn: qn, kind: kind };
           });
           var th = r.theme || (D && D.risks && D.risks[i] && D.risks[i][1]) || 'logic';
+          // A risk past the counted ones takes its pattern from the file's own list of them (reportdata.js).
+          if (!r.theme && i >= risks.length && D && D.triaged && D.triaged[i - risks.length]) th = D.triaged[i - risks.length];
           return { i: i, r: r, lv: r.level, th: PAT[th] ? th : 'logic', mod: where.length ? where[0].qn.split('.')[0] : 'Other', where: where,
-            text: [r.title, r.detail, r.fix].concat(r.where || []).join(' ').toLowerCase() };
+            s: RS[r.status] ? r.status : 'open', or: r.origin === 'person' ? 'person' : r.origin === 'model' ? 'model' : 'ai',
+            text: [r.title, r.detail, r.fix, r.note, r.by].concat(r.where || []).join(' ').toLowerCase() };
         });
         return riskRows;
       }
+      // What was decided about a risk, who raised it, where it stands: docs-triage.js.
+      var triKit = { h: h, fmtDate: fmtDate, aiMark: aiMark };
+      function triageBlock(x) { return TRI.block(triKit, x); }
       function derived() {
         if (data.derived) return data.derived;
         return window.MxReportData ? (data.derived = window.MxReportData.derive(data)) : null;
       }
-      function riskIndexOf(id) { var m = /^R-(\d+)$/.exec(String(id || '')); return m ? Number(m[1]) - 1 : -1; }
+      function riskIndexOf(id) { for (var i = 0; i < allRisks.length; i++) if (riskId(i) === id) return i; return -1; }
+
+      function originMark(r) { return TRI.originMark(triKit, r); }
+      function statusMark(st0) { return TRI.statusMark(h, st0); }
 
       function drawRisks() {
-        var all = riskData();
+        var everything = riskData();
+        function inStatus(x) { var g = rf.st || 'open'; return g === 'all' || RS_GROUP[x.s] === g; }
+        function inOrigin(x) { return !rf.or || x.or === rf.or; }
+        var all = everything.filter(function (x) { return inStatus(x) && inOrigin(x); });
         var mods = {};
         all.forEach(function (x) { mods[x.mod] = true; });
-        setTitle('Risks', plural(all.length, 'finding', 'findings') + ' in ' + plural(Object.keys(mods).length, 'module', 'modules') + '. An agent read them from the model, so check each one before you act on it.');
+        var people = everything.some(function (x) { return x.or === 'person'; }), agents = everything.some(function (x) { return x.or === 'ai'; }), fromModel = everything.some(function (x) { return x.or === 'model'; });
+        var nOpen = everything.filter(function (x) { return RS_GROUP[x.s] === 'open'; }).length;
+        setTitle('Risks', (rf.st && rf.st !== 'open' ? plural(all.length, 'finding', 'findings') + ' under ' + RS_FILTERS.filter(function (f) { return f[0] === rf.st; })[0][1] + ', ' + plural(nOpen, 'open risk', 'open risks') + ' in all'
+          : plural(all.length, 'finding', 'findings') + ' in ' + plural(Object.keys(mods).length, 'module', 'modules')) +
+          (people && agents ? '. An agent read most of them from the model, people raised the rest; check each one before you act on it.' : people ? '. People raised them while reading the model.' : agents ? '. An agent read them from the model, so check each one before you act on it.' : '.') + (fromModel ? ' The ones marked “found by MxScout” it works out from the model itself, the same on every load.' : ''));
         var q = String(rf.q || '').trim().toLowerCase();
         function match(x, skip) {
           if (skip !== 'lv' && rf.lv && x.lv !== rf.lv) return false;
@@ -2768,10 +2808,14 @@
           var on = cur && x.i === cur.i;
           rows.push(ln({ view: 'risks', sub: riskId(x.i) }, { class: 'dx-rk-row' + (on ? ' on' : ''), 'aria-current': on ? 'true' : 'false' }, [
             h('span', { class: 'dx-lv ' + x.lv.toLowerCase(), text: x.lv }),
-            h('span', { class: 'dx-rk-t' }, [h('b', { text: x.r.title }), h('small', { text: x.mod + ' · ' + PAT[x.th] + ' · ' + plural(x.where.length, 'place', 'places') })])
+            h('span', { class: 'dx-rk-t' }, [h('b', { text: x.r.title }), h('small', { text: x.mod + ' · ' + PAT[x.th] + ' · ' + plural(x.where.length, 'place', 'places') + (x.or === 'person' ? ' · raised by ' + (x.r.by || 'a person') : '') }),
+              statusMark(x.s)])
           ], function () { go({ view: 'risks', sub: riskId(x.i)}); }));
         });
+        // The status filter (risk triage) and whose a risk is: docs-triage.js.
+        var statusBar = TRI.statusBar({ h: h, everything: everything, inOrigin: inOrigin, rf: rf, setF: setF, shown: triaged.length || people, people: people, agents: agents });
         var listCol = h('section', { class: 'dx-rk-list', 'aria-label': 'Findings', 'data-keep-scroll': 'rk-list' }, [
+          statusBar,
           h('div', { class: 'dx-rk-lh' }, [
             h('div', { class: 'dx-rk-lh-row' }, [h('b', { text: anyF ? shown.length + ' of ' + plural(all.length, 'finding', 'findings') : plural(all.length, 'finding', 'findings') }),
               h('div', { class: 'dx-seg2', role: 'group', 'aria-label': 'Group by' }, [h('span', { text: 'Group' })].concat([['sev', 'Severity'], ['mod', 'Module']].map(function (g) {
@@ -2782,7 +2826,7 @@
               return h('button', { type: 'button', class: 'dx-rk-chip', 'aria-label': 'Remove filter ' + c[0], onclick: function () { setF(c[1]); } }, [c[0], h('span', { 'aria-hidden': 'true', text: '×' })]);
             })) : null
           ]),
-          shown.length ? null : h('div', { class: 'dx-empty pad', text: 'No finding matches these filters.' })
+          shown.length ? null : h('div', { class: 'dx-empty pad', text: (rf.st || 'open') === 'open' && !anyF && !rf.or ? 'No open risks — every one is marked fixed, a false positive or no longer reported. See the other filters above.' : 'No finding matches these filters.' })
         ].concat(rows));
 
         // ---- the finding ----
@@ -2809,11 +2853,17 @@
               h('div', { class: 'dx-rk-pills' }, [
                 h('span', { class: 'dx-rk-sev ' + cur.lv.toLowerCase() }, [h('b', { class: 'mono', text: cur.lv }), LV[cur.lv][0]]),
                 h('button', { type: 'button', class: 'dx-rk-pill', text: PAT[cur.th], title: 'Show only ' + PAT[cur.th].toLowerCase(), onclick: function () { setF({ th: cur.th }); } }),
-                h('button', { type: 'button', class: 'dx-rk-pill mono', text: cur.mod, title: 'Show only ' + cur.mod, onclick: function () { setF({ mod: cur.mod }); } })
+                h('button', { type: 'button', class: 'dx-rk-pill mono', text: cur.mod, title: 'Show only ' + cur.mod, onclick: function () { setF({ mod: cur.mod }); } }),
+                // Whose it is, when some are a person's or MxScout's own: every risk is an agent's otherwise, as the foot says.
+                people || fromModel ? h('span', { class: 'dx-rk-pill dx-rk-origin' }, [originMark(cur.r)]) : null,
+                statusMark(cur.s)
               ]),
               h('h2', { text: cur.r.title }),
-              h('span', { class: 'dx-rk-when', text: 'Fix ' + LV[cur.lv][1].charAt(0).toLowerCase() + LV[cur.lv][1].slice(1) + '.' })
+              h('span', { class: 'dx-rk-when', text: RS_GROUP[cur.s] === 'open' ? 'Fix ' + LV[cur.lv][1].charAt(0).toLowerCase() + LV[cur.lv][1].slice(1) + '.' : 'Not counted as a risk: ' + RS[cur.s].toLowerCase() + '.' }),
+              opts.riskActions ? h('div', { class: 'dx-rk-acts' }, opts.riskActions(cur.r)) : null
             ]),
+            triageBlock(cur),
+            assist && window.MxDocsTickets ? window.MxDocsTickets.forRisk({ h: h, ln: ln }, assist.items(), [cur.r.id, cur.r.pid]) : null,
             cur.r.detail ? h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: 'What happens' }), h('p', { class: 'dx-rk-p', text: cur.r.detail })]) : null,
             cur.r.fix ? h('section', { class: 'dx-rk-fix' }, [h('h3', { class: 'dx-cap acc' }, [navIcon('quality', 14), 'What to do']), h('p', { class: 'dx-rk-p', text: cur.r.fix })]) : null,
             h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: 'Where · ' + plural(cur.where.length, 'place', 'places') }),
@@ -2827,7 +2877,9 @@
                 if (ent) return ln({ view: 'domain', entity: w.qn }, { class: 'dx-rk-where' }, kids);
                 return h('div', { class: 'dx-rk-where' }, kids);
               }))]),
-            h('p', { class: 'dx-rk-foot' }, [navIcon('info', 14), 'An agent read the model and wrote this finding. It sees only the model, not the data or the configuration in production.'])
+            h('p', { class: 'dx-rk-foot' }, [navIcon('info', 14), cur.or === 'person'
+              ? 'Raised by ' + (cur.r.by || 'a person') + (cur.r.raisedAt ? ' on ' + fmtDate(cur.r.raisedAt) : '') + ', in a comment written while reading the model. A person’s finding, not an agent’s.'
+              : cur.or === 'model' ? 'MxScout worked this out from the model itself, the same on every load — not an agent’s finding. It never shows a constant’s value; it does not have one.' : 'An agent read the model and wrote this finding. It sees only the model, not the data or the configuration in production.'])
           ]);
           var lvC = { P1: 0, P2: 0, P3: 0 };
           all.forEach(function (x) { if (x.mod === cur.mod) lvC[x.lv]++; });
@@ -2923,13 +2975,14 @@
       draw();
       // pages: the pages this data has — the ones the sidebar lists.
       // redraw: the same place drawn again — MxScout's Assist page after an item moved.
-      return { go: go, redraw: function () { draw(); }, state: function () { return st; }, pages: function () { return NAV.map(function (x) { return x[0]; }); } };
+      return { go: go, redraw: function () { draw(); }, state: function () { return st; }, riskFilter: function () { return rf; }, pages: function () { return NAV.map(function (x) { return x[0]; }); } };
     }
 
     // The Markdown copy's file name, the HTML file's with .md.
     function markdownName(data) {
       return String(data.project || 'documentation').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') + '-documentation-' + String(data.generatedAt || '').slice(0, 10) + '.md';
     }
+    function modelRead(data, of) { return data.modelReadAt ? (of ? 'model of ' : '') + fmtDate(data.modelReadAt) : of ? 'model date unknown' : 'unknown'; } // when it was read, never when this was drawn
     function fmtDate(iso) {
       var d = new Date(iso);
       if (isNaN(d)) return String(iso || '');

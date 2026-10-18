@@ -295,13 +295,19 @@
     var known = { Boolean: ['Bool', 'Boolean'], Integer: ['Int', 'Integer'], Long: ['Long', 'Long'], AutoNumber: ['Auto', 'AutoNumber'], DateTime: ['Date', 'Date and time'], Decimal: ['Dec', 'Decimal'] };
     return known[t] || [t, t];
   }
+  // Only what stands outside a quoted value is tidied: 'raben-group.com' or 'PL.WAW' is a value the rule
+  // compares with, kept exactly as written — its dot is not a module prefix, its spaces not layout (review
+  // 2026-10-16, DOC-1). A quote inside a value is written twice in XPath, which the pattern takes as one value.
+  var XPATH_VALUE = /('(?:[^']|'')*'|"(?:[^"]|"")*")/;
   function prettyXpath(x) {
     if (!x) return null;
-    var s = x.replace(/\s+/g, ' ').trim();
-    s = s.replace(re('\\b[A-Za-z_]\\w*\\.(?=[A-Za-z_]\\w*)', 'g'), '');
-    // A space either side of an operator, without splitting != <= >= in two.
-    s = s.split(' or ').join(' or\n').replace(/\s*(!=|<=|>=|=)\s*/g, ' $1 ');
-    return s.replace(/ +/g, ' ');
+    var s = String(x).split(XPATH_VALUE).map(function (part, i) {
+      if (i % 2) return part;
+      part = part.replace(/\s+/g, ' ').replace(re('\\b[A-Za-z_]\\w*\\.(?=[A-Za-z_]\\w*)', 'g'), '');
+      // A space either side of an operator, without splitting != <= >= in two.
+      return part.split(' or ').join(' or\n').replace(/\s*(!=|<=|>=|=)\s*/g, ' $1 ').replace(/ +/g, ' ');
+    }).join('');
+    return s.trim();
   }
   function deriveDomain(d, module) {
     var E = d.entities, ents = {};
@@ -326,7 +332,9 @@
     var risks = deriveRisks(d);
     return {
       risks: risks, arch: deriveArch(d), quality: deriveQuality(d), dev: deriveDev(d),
-      proc: deriveProcesses(d, risks), modules: deriveModules(d, risks)
+      proc: deriveProcesses(d, risks), modules: deriveModules(d, risks),
+      // The pattern of each risk that no longer counts (the risk triage (Developer tools)), for the Risks page's filters.
+      triaged: ((d.ai && d.ai.triaged) || []).map(function (r) { return r.theme || riskTheme(r.title); })
     };
   }
 

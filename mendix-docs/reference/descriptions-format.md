@@ -72,6 +72,7 @@ Paragraphs are separated by a blank line …",
 
   "risks": [
     {
+      "id": "p1-operator-reads-all-tickets",
       "level": "P1",
       "theme": "access",
       "title": "Every clerk can read every order",
@@ -104,7 +105,7 @@ Paragraphs are separated by a blank line …",
 | Field | Required | Notes |
 |---|---|---|
 | `format`, `version` | yes | exactly as above, or MxScout refuses the file |
-| `add` | no | `true`: the file adds to the descriptions MxScout keeps instead of replacing them — one more process, or flows described since. The application's `summary`, `story` and `audience`, when the file has them, replace the ones kept; a process of the same name is replaced and a new one added at the end; a flow, page, entity or module in the file replaces its old description; a risk with a title already kept — case and spacing aside, at whatever level — replaces it, a new one is added at the end; a `context` entry already kept is not added twice; `project`, `language` and `by` stay as kept (the file's when none is), `written` is the file's; everything else stays. Without it, an import replaces what was kept. `check-descriptions.js merge` joins parts by the same rules, and when every part says `"add": true` the merged file says it too |
+| `add` | no | `true`: the file adds to the descriptions MxScout keeps instead of replacing them — one more process, or flows described since. The application's `summary`, `story` and `audience`, when the file has them, replace the ones kept; a process of the same name is replaced and a new one added at the end; a flow, page, entity or module in the file replaces its old description; a risk already kept — the same `id`, or the same level and title, case and spacing aside — is replaced in its place by the new copy (so a risk ranked at another level under the same `id` takes the old one's place), a new one is added at the end; a `context` entry already kept is not added twice; `project`, `language` and `by` stay as kept (the file's when none is), `written` is the file's; everything else stays. Without it, an import replaces what was kept. `check-descriptions.js merge` joins parts by the same rules, and when every part says `"add": true` the merged file says it too |
 | `describedAt` | no — **MxScout writes it** | the model version the descriptions were saved against: `{ "commit", "short", "branch", "date", "message" }`, from the Mendix project's git. MxScout sets it on every save of what an agent sends, to the model's version at that moment, and keeps it in `descriptions.json` and in a package — inside the Mendix project, in `mxscout/mxscout.json`, where `agent.js write` sets it to the commit HEAD names; do not write it yourself |
 | `replace` | no | with `"add": true` only: `["app"]` — the file's `app` (summary, story, who uses it, every process) replaces the overview kept, as when the overview was written again from the start; flows, modules, risks and the rest are still added to. Without `"add": true` it is ignored (the checker warns) |
 | `project`, `language`, `by`, `written` | no | `by` is shown as who wrote the descriptions. `language` is the code of the language the content is written in (`"en"`, `"pl"`) — the project's language of written content (SKILL.md, "The language you write in"). The first file MxScout takes that names a language sets the project's when it has none; a file in another language is kept, with a warning to the person |
@@ -117,6 +118,8 @@ Paragraphs are separated by a blank line …",
 | `c4` | no | the architecture, levels 1 and 2: `context` and `containers` (nodes and links) and `open` (what the model does not show), see `c4.md` |
 | `microflows`, `nanoflows`, `pages`, `entities` | no | qualified name → `{ "hash", "text" }`, or just the text |
 | `risks[]` | no, but write it | `level` (`P1`, `P2` or `P3`, by `risk-levels.md`) and `title` are required, or MxScout drops the risk; `detail`, `where` (qualified names, they become links) and `fix` are what make it useful; `theme` is its pattern, one of the ten keys in `risk-levels.md` — the Risks page groups and filters by it, and guesses it from the title when it is missing |
+| `risks[].id` | no, but write it | a short slug — lower-case letters, digits and single hyphens, at most 80 characters (`p1-anon-delete-ticket`) — unique in the file. **Keep it the same for the same risk on every update** and invent a new one only for a new risk: it is how MxScout knows the risk again, merges it, and keeps what a person decided about it (fixed, false positive — see "Risk triage" in `SKILL.md`). Without it MxScout knows a risk by its level and title, so a reworded title becomes a new risk |
+| `verify[]` | no | for risks a **person** raised (listed as `raised by …` under `## risk triage` in the pack) and marked fixed: `{ "id": "c-…", "still": true \| false, "why": "…" }` — whether the model still shows it, with the id the pack gives. MxScout reopens or verifies the risk by it; risks a person raised are never yours to write in `risks`. `check-security.js` writes the other kind: `{ "id": "mx-…", "still": false, "why": "not seen in the model" }` for one of its own risks the model no longer shows — marked fixed, MxScout verifies it; still counted, it is no longer reported. Never write an `mx-` entry yourself |
 | `snapshot` | no, but write it | the id `agent.js status` (or `snapshot`) printed for the model you described: `"snapshot": "1a2b3c4d5e6f"`. `agent.js write` and `send` refuse the file when the model is another one by then — it changed while you worked. MxScout itself ignores it |
 | `changes[]`, `tickets[]` | **never write them** | the older format, kept only so an older file still opens: MxScout moves what it finds there to its Assist page, and `agent.js write` refuses a file that has them. A change is an Assist item of kind `idea`, a ticket one of kind `ticket` — the mendix-assist skill writes them (`../../mendix-assist/reference/assist-format.md`). The old shape is in `migration.md` |
 | `context.where[]` | no | `{ "topic", "place" }`: what a developer looks for, and where it is when the name does not say |
@@ -132,7 +135,10 @@ in separate tables because a microflow and a page can share a name.
 
 Risks and context are not tied to a fingerprint: they describe the model as a
 whole, and are written again with the application's part when the model
-changes. A qualified name in `where`, or inside a `place` or a pitfall, links to
+changes — the whole list each time, each risk under the id it had before. A
+risk a full file no longer lists is taken as gone — imported, or written with
+`agent.js write --replace` (`write` merges otherwise, and keeps it); a file
+with `"add": true` says nothing about the risks it does not list. A qualified name in `where`, or inside a `place` or a pitfall, links to
 that flow, page or entity in the documentation when the model has it.
 
 A description without `hash` is shown but never marked out of date; with one,
@@ -159,7 +165,8 @@ them. A text is counted once trimmed.
 | a module's `notes[]` | 16 sections; 60 `items`, 6 `columns` and 80 `rows` in each | `title` 160, `text` 6,000, an item 800, a column 60, a cell 500 |
 | `c4.context`, `c4.containers` | 100 nodes, 250 links | a node's `id` 40, `name` 80, `note` 140, `group` 60; a link's `label` 60; the diagram's `note` 600 |
 | `c4.open[]` | 30 | 500 each |
-| `risks[]` | 2,000; 40 places in each `where` | `title` 300, `detail` 3,000, `fix` 1,000, a place 300 |
+| `risks[]` | 2,000; 40 places in each `where` | `id` up to 80 (a longer one is dropped, and the risk known by its level and title), `title` 300, `detail` 3,000, `fix` 1,000, a place 300 |
+| `verify[]` | 500 | `why` 1,000 |
 | `context.where[]`, `context.conventions[]`, `context.pitfalls[]` | 80 each | `topic` and `pattern` 300, `place`, `meaning` and a pitfall 1,000 |
 
 ## Inside the Mendix project: the same file, split

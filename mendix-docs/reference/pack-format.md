@@ -46,6 +46,20 @@ written ends in `(out of date — the microflow changed since this was
 written)`. It is what an agent wrote earlier: read it as a map to what matters,
 and take the facts from this pack.
 
+## Risk triage (Developer tools, when there is any)
+
+```
+## risk triage
+What a person decided about risks; …
+- p2-saved-twice | P2 | fixed | ai | The order is saved twice | where: Sales.CreateOrder | note: Committed once now
+- c-5f0e… | P2 | fixed | raised by Karol | The discount is applied twice | where: Sales.CreateOrder
+```
+
+Before the index, after the header: one line per risk a person has decided
+about — `id | level | status | ai or raised by <who> | title | where | note`.
+Statuses: `fixed`, `false-positive`, `reopened`, `verified`, and `open` for a
+risk a person raised. `SKILL.md`, "Risk triage", says what to do with each.
+
 ## Index
 
 ```
