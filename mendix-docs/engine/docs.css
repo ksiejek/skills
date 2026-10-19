@@ -1375,3 +1375,49 @@ button.dx-dm-can.link:hover { border-color:var(--acc); color:var(--acc-text); }
 .dx-kn-pre { margin:0 0 8px; padding:10px 12px; border-radius:8px; background:var(--raised); font:12px/1.5 var(--font-mono); white-space:pre-wrap; overflow-wrap:anywhere; }
 .dx-as-case { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; max-width:900px; margin:0; }
 .dx-as-case code { font:12px var(--font-mono); }
+
+/* the Security review page (docs-security.js): the OWASP LCNC map, then each category's conclusions.
+   The level and the register are words, so the page reads the same printed in black and white. */
+.dx-sr { display:flex; flex-direction:column; gap:32px; max-width:1000px; padding:24px 28px 64px; }
+.dx-sr-intro { display:flex; flex-direction:column; gap:10px; max-width:760px; }
+.dx-sr-lead { margin:0; font-size:15.5px; line-height:1.65; color:var(--ink2); }
+.dx-sr-regs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.dx-sr-regbox { display:flex; flex-direction:column; gap:6px; padding:14px 16px; border-radius:14px; border:1px solid var(--line); background:var(--panel); }
+.dx-sr-regbox b { font-size:26px; font-weight:600; letter-spacing:-.02em; }
+.dx-sr-regbox small { font-size:12px; color:var(--muted); }
+.dx-sr-reg { font-size:10.5px; font-weight:700; letter-spacing:.08em; color:var(--ink2); }
+.dx-sr-reg-finding { color:var(--p1); }
+.dx-sr-reg-unchecked { color:var(--muted); }
+.dx-sr-map { display:flex; flex-direction:column; gap:10px; }
+.dx-sr-table { width:100%; border-collapse:collapse; font-size:13px; }
+.dx-sr-table th { text-align:left; font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); padding:6px 10px; border-bottom:1px solid var(--line); }
+.dx-sr-table td { padding:7px 10px; border-bottom:1px solid var(--line); color:var(--ink); }
+.dx-sr-table td.mono { white-space:nowrap; }
+.dx-sr-table tr[data-findings]:not([data-findings="0"]) td:nth-child(3) { font-weight:700; }
+.dx-sr-catlink { color:var(--acc-text) !important; font-weight:600; cursor:pointer; border:0; background:none; padding:0; font:inherit; }
+.dx-sr-cat { display:flex; flex-direction:column; gap:10px; padding-top:20px; border-top:1px solid var(--line); scroll-margin-top:12px; }
+.dx-sr-cat-h { margin:0; font-size:19px; font-weight:600; letter-spacing:-.01em; }
+.dx-sr-cat-h .mono { color:var(--muted); font-size:14px; }
+.dx-sr-cat-p { margin:0; font-size:13.5px; color:var(--ink2); max-width:760px; }
+.dx-sr-items { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px; }
+.dx-sr-item { display:flex; flex-direction:column; gap:6px; padding:12px 14px; border-radius:12px; border:1px solid var(--line); background:var(--panel); break-inside:avoid; }
+.dx-sr-item[data-register="unchecked"] { border-style:dashed; background:none; }
+.dx-sr-head { display:flex; align-items:baseline; flex-wrap:wrap; gap:8px; }
+.dx-sr-title { flex:1 1 280px; min-width:0; font-size:14px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
+.dx-sr-code { width:auto; padding:0 6px; }
+.dx-sr-status { margin-top:0; }
+.dx-sr-where, .dx-sr-fix, .dx-sr-dec { display:grid; grid-template-columns:96px minmax(0,1fr); gap:10px; font-size:13px; line-height:1.55; color:var(--ink2); }
+.dx-sr-k { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); padding-top:2px; }
+.dx-sr-qns { display:flex; flex-wrap:wrap; gap:4px 12px; min-width:0; }
+.dx-sr-qn { font-size:12.5px; overflow-wrap:anywhere; }
+a.dx-sr-qn, button.dx-sr-qn { color:var(--acc-text) !important; border:0; background:none; padding:0; cursor:pointer; text-align:left; }
+.dx-sr-more summary, .dx-sr-detail summary { cursor:pointer; font-size:12.5px; color:var(--muted); }
+.dx-sr-detail p { margin:6px 0 0; font-size:13px; line-height:1.6; color:var(--ink2); white-space:pre-line; }
+.dx-sr-out { display:grid; grid-template-columns:200px minmax(0,1fr); gap:10px 18px; margin:0; font-size:13.5px; line-height:1.6; }
+.dx-sr-out dt { font-weight:600; color:var(--ink); }
+.dx-sr-out dd { margin:0; color:var(--ink2); }
+@media (max-width: 760px) { .dx-sr-regs { grid-template-columns:1fr; } .dx-sr-out, .dx-sr-where, .dx-sr-fix, .dx-sr-dec { grid-template-columns:1fr; gap:2px; } }
+@media print {
+  .dx-sr { padding:0; gap:20px; }
+  .dx-sr-item, .dx-sr-regbox { background:none; }
+}

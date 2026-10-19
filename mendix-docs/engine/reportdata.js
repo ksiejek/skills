@@ -261,6 +261,24 @@
   }
 
   // ---------- modules ----------
+  // A Marketplace module's facts (docs-data.js marketOf), as the first note on its page: what it is, its version, whether the
+  // app uses it, its known advisories and its module roles with the user roles that carry them. mx: not written by an agent.
+  function marketNote(k) {
+    function access(r) {
+      if (r.may) return r.may;
+      var bits = [];
+      if (r.entities) bits.push(r.entities + (r.entities === 1 ? ' entity' : ' entities') + (r.creates || r.deletes ? ' (creates ' + r.creates + ', deletes ' + r.deletes + ')' : ''));
+      if (r.flows) bits.push(r.flows + (r.flows === 1 ? ' flow' : ' flows'));
+      if (r.pages) bits.push(r.pages + (r.pages === 1 ? ' page' : ' pages'));
+      return bits.length ? bits.join(', ') : 'nothing in the module';
+    }
+    return { mx: true, title: 'Marketplace module', text: k.about + (k.link ? ' Documentation: ' + k.link : ''),
+      items: ['Version: ' + (k.version || 'not recorded in the model'), 'Use: ' + k.usedText,
+        'Known security advisories for this version: ' + (k.advisories.length ? k.advisories.join(', ') : 'none in the built-in table')],
+      table: k.roles.length ? { columns: ['Module role', 'User roles', 'May'], rows: k.roles.map(function (r) {
+        return [r.moduleRole + (r.admin ? ' (admin)' : ''), r.userRoles.length ? r.userRoles.join(', ') : 'none', access(r)];
+      }) } : null };
+  }
   function deriveModules(d, risks) {
     var F = d.flows;
     var uses = moduleLinks(d);
@@ -277,7 +295,7 @@
       var rl = counter(risks.filter(function (r) { return r[5].length && moduleOf(r[5][0].split('|')[0]) === n; }).map(function (r) { return r[0]; }));
       return {
         n: n, mp: m.marketplace, sum: ai.summary === undefined ? null : ai.summary, story: ai.story === undefined ? null : ai.story,
-        notes: (ai.notes || []).map(function (x) { return { title: x.title === undefined ? null : x.title, text: x.text === undefined ? null : x.text, items: x.items || [], table: x.table === undefined ? null : x.table }; }),
+        notes: (m.market ? [marketNote(m.market)] : []).concat((ai.notes || []).map(function (x) { return { title: x.title === undefined ? null : x.title, text: x.text === undefined ? null : x.text, items: x.items || [], table: x.table === undefined ? null : x.table }; })),
         items: items, ent: (m.entities || []).map(function (q) { return q.slice(q.indexOf('.') + 1); }),
         uses: uses[n] || {}, risk: [rl.get('P1'), rl.get('P2'), rl.get('P3')],
         sched: sched[n] || [], serv: serv[n] || []

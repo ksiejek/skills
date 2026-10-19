@@ -175,7 +175,7 @@
       download: ['M8 2.5v8M4.8 7.5L8 10.7l3.2-3.2M3 13.5h10'],
       down: ['M4 6l4 4 4-4'],
       info: ['M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2z', 'M8 7.2v3.6M8 5h.01'],
-      link: ['M6.8 9.2a2.6 2.6 0 0 0 3.7 0l2.2-2.2a2.6 2.6 0 0 0-3.7-3.7l-.9.9', 'M9.2 6.8a2.6 2.6 0 0 0-3.7 0L3.3 9a2.6 2.6 0 0 0 3.7 3.7l.9-.9']
+      link: ['M6.8 9.2a2.6 2.6 0 0 0 3.7 0l2.2-2.2a2.6 2.6 0 0 0-3.7-3.7l-.9.9', 'M9.2 6.8a2.6 2.6 0 0 0-3.7 0L3.3 9a2.6 2.6 0 0 0 3.7 3.7l.9-.9'], shield: ['M8 1.8l5 2v4c0 3.1-2.1 5.4-5 6.4-2.9-1-5-3.3-5-6.4v-4z', 'M5.8 8l1.6 1.6 3-3']
     };
     function navIcon(name, size) {
       var svg = s('svg', { viewBox: '0 0 16 16', width: size, height: size, class: 'dx-icon', 'aria-hidden': 'true' });
@@ -466,7 +466,7 @@
           w(plural(cnt('mf'), 'microflow', 'microflows') + ' · ' + plural(cnt('nf'), 'nanoflow', 'nanoflows') + ' · ' + plural(cnt('pg'), 'page', 'pages') + ' · ' + plural(m.ent.length, 'entity', 'entities') +
             ' · uses ' + Object.keys(m.uses || {}).length + ' · used by ' + Object.keys(usedBy[m.n] || {}).length + (risks.length ? ' · risks ' + (m.risk[0] + m.risk[1] + m.risk[2]) + ' (' + m.risk[0] + ' P1, ' + m.risk[1] + ' P2, ' + m.risk[2] + ' P3)' : ''));
           w();
-          if (m.sum || m.story || (m.notes && m.notes.length)) { agent(); paras(m.sum); paras(m.story); }
+          if (m.sum || m.story || (m.notes || []).some(function (n) { return !n.mx; })) { agent(); paras(m.sum); paras(m.story); }
           (m.notes || []).forEach(function (n) {
             if (n.title) { w('#### ' + esc(n.title)); w(); }
             paras(n.text);
@@ -908,7 +908,7 @@
       // The Assist page: only in MxScout, which hands it the items (opts.assist) — never in the exported file.
       var assist = opts.assist || null;
       // The solved cases (docs-knowledge.js): handed over by MxScout (opts.cases), or in the file's data when the export was asked for them.
-      var cases = opts.cases || (data.cases && data.cases.length ? { items: function () { return data.cases; } } : null);
+      var cases = opts.cases || (data.cases && data.cases.length ? { items: function () { return data.cases; } } : null), sec = data.security && data.security.items && window.MxDocsSecurity ? data.security : null; // sec: the Security review (docs-security.js)
       function assistOpen() { return (assist.items() || []).filter(function (x) { return x.status === 'open' || x.status === 'in-progress' || x.status === 'waiting'; }).length; }
       // The application's full description lives on Processes (as its item 0), so the page is there when either is.
       var procPage = !!(data.ai && data.ai.app && (procs.length || data.ai.app.story || data.ai.app.summary));
@@ -919,12 +919,12 @@
       var GROUPS = [
         ['Application', [['start', 'Overview', 'home'], procPage ? ['processes', 'Processes', 'proc'] : null, ['modules', 'Modules', 'module'], ['arch', 'Architecture', 'arch']]],
         ['Model', [['domain', 'Entities', 'entity'], ['refs:microflow', 'Microflows', 'flow'], ['refs:nanoflow', 'Nanoflows', 'nano'], ['refs:page', 'Pages', 'page']]],
-        ['Review', [allRisks.length ? ['risks', 'Risks', 'risk'] : null, assist ? ['assist', 'Assist', 'ticket'] : null, cases ? ['cases', 'Solved cases', 'case'] : null, ['quality', 'Model quality', 'quality'], devCtx ? ['dev', 'For developers', 'dev'] : null]]
+        ['Review', [allRisks.length ? ['risks', 'Risks', 'risk'] : null, sec ? ['security', 'Security review', 'shield'] : null, assist ? ['assist', 'Assist', 'ticket'] : null, cases ? ['cases', 'Solved cases', 'case'] : null, ['quality', 'Model quality', 'quality'], devCtx ? ['dev', 'For developers', 'dev'] : null]]
       ].map(function (g) { return [g[0], g[1].filter(Boolean)]; });
       var NAV = [];
       GROUPS.forEach(function (g) { g[1].forEach(function (r) { var v = r[0].split(':')[0]; if (!NAV.some(function (x) { return x[0] === v; })) NAV.push([v, r[1], r[2]]); }); });
       var counts = { processes: procs.length, modules: data.kpi.modules, 'refs:microflow': data.kpi.microflows, 'refs:nanoflow': data.kpi.nanoflows, 'refs:page': data.kpi.pages, domain: data.kpi.entities,
-        quality: data.quality.unreached.length, risks: risks.length, dev: devCount, cases: cases ? (cases.items() || []).length : 0 };
+        quality: data.quality.unreached.length, risks: risks.length, security: sec ? sec.counts.finding : 0, dev: devCount, cases: cases ? (cases.items() || []).length : 0 };
       var navBtns = {};
       var initial = String(data.project || '?').charAt(0).toUpperCase();
       var side = h('nav', { class: 'dx-side', 'aria-label': 'Documentation' }, [
@@ -1011,7 +1011,7 @@
       //   #/flows/{Module.Name}   ?seg=all|mf|nf|pg the list, ?step=N the step, ?var=Name the trace
       //   #/domain/{Module}/{Entity}
       //   #/architecture?s={section}  #/risks/{R-012}  #/quality/{check}  #/developers/{tab}
-      var ROUTE_OF = { start: '', processes: 'processes', assist: 'assist', cases: 'cases', modules: 'modules', refs: 'flows', domain: 'domain', arch: 'architecture', risks: 'risks', quality: 'quality', dev: 'developers' };
+      var ROUTE_OF = { start: '', processes: 'processes', assist: 'assist', cases: 'cases', modules: 'modules', refs: 'flows', domain: 'domain', arch: 'architecture', risks: 'risks', security: 'security', quality: 'quality', dev: 'developers' };
       var VIEW_OF = {};
       Object.keys(ROUTE_OF).forEach(function (k) { VIEW_OF[ROUTE_OF[k]] = k; });
       // Addresses written before these routes existed still open.
@@ -1051,7 +1051,7 @@
           var ak = m[1] === 'tickets' ? ['ticket'].concat(arg ? [arg] : []) : m[1] === 'changes' ? ['idea'].concat(arg ? [arg] : []) : String(arg || '').split('/');
           st.akind = ak[0] || null; st.aid = ak[1] || null;
         }
-        if (st.view === 'risks' || st.view === 'quality' || st.view === 'dev') st.sub = arg;
+        if (st.view === 'risks' || st.view === 'quality' || st.view === 'dev' || st.view === 'security') st.sub = arg;
         if (st.view === 'cases') st.cid = arg ? 'knowledge/' + arg + '.md' : null;
         if (st.view === 'risks') rf = { lv: /^P[123]$/.test(q.lv) ? q.lv : null, th: PAT[q.th] ? q.th : null, mod: q.mod || null, q: q.q || '', group: q.group === 'mod' ? 'mod' : 'sev',
           st: /^(fixed|verified|fp|gone|all)$/.test(q.st || '') ? q.st : null, or: q.by === 'ai' || q.by === 'person' ? q.by : null };
@@ -1076,7 +1076,7 @@
         if (s.view === 'processes') arg = String(s.proc || 0);
         if (s.view === 'assist' && s.akind) arg = s.akind + (s.aid ? '/' + s.aid : '');
         if (s.view === 'cases' && s.cid) arg = String(s.cid).replace(/^knowledge\//, '').replace(/\.md$/, '');
-        if ((s.view === 'risks' || s.view === 'quality' || s.view === 'dev') && s.sub) arg = s.sub;
+        if ((s.view === 'risks' || s.view === 'quality' || s.view === 'dev' || s.view === 'security') && s.sub) arg = s.sub;
         if ((s.view === 'start' || s.view === 'arch') && s.sec) q = 's=' + encodeURIComponent(s.sec);
         if (s.view === 'modules' || s.view === 'arch' || s.view === 'dev') {
           var mq = q ? [q] : [];
@@ -1267,12 +1267,12 @@
 
       // ---------- drawing ----------
       // A page this data has no drawing for — an address of the Tickets or Changes pages there were — is the Overview.
-      var DRAW = { start: drawStart, processes: drawProcesses, assist: drawAssist, cases: drawCases, modules: drawModules, refs: drawRefs, domain: drawDomain, quality: drawQuality, risks: drawRisks, dev: drawDev, arch: drawArch };
+      var DRAW = { start: drawStart, processes: drawProcesses, assist: drawAssist, cases: drawCases, modules: drawModules, refs: drawRefs, domain: drawDomain, quality: drawQuality, risks: drawRisks, dev: drawDev, arch: drawArch, security: function () { window.MxDocsSecurity.draw({ h: h, ln: ln, main: main, setTitle: setTitle, plural: plural, data: data, sec: sec, st: st, flowKey: flowKey, modelRead: modelRead, fmtDate: fmtDate }); } };
       function draw() {
         Object.keys(navBtns).forEach(function (k) { navBtns[k].classList.toggle('on', k === st.view || (st.view === 'refs' && k === 'refs:' + (st.seg === 'nanoflow' || st.seg === 'page' ? st.seg : 'microflow'))); });
         var kept = scrollsOf(root);
         clear(list); clear(main); clear(headTools);
-        if ((st.view === 'risks' && !allRisks.length) || (st.view === 'dev' && !devCtx) || (st.view === 'processes' && !procPage) || (st.view === 'assist' && !assist) || (st.view === 'cases' && !cases) || !DRAW[st.view]) st.view = 'start';
+        if ((st.view === 'risks' && !allRisks.length) || (st.view === 'dev' && !devCtx) || (st.view === 'processes' && !procPage) || (st.view === 'assist' && !assist) || (st.view === 'cases' && !cases) || (st.view === 'security' && !sec) || !DRAW[st.view]) st.view = 'start';
         onScroll = null;
         root.setAttribute('data-view', st.view);
         // The page's own scrolling boxes keep their place while it is the same page and the same item on it —
@@ -1282,7 +1282,7 @@
         var place = (opts.only || (opts.preview ? 'preview' : 'file')) + '|' + hashOf(st).split('?')[0];
         main.setAttribute('data-keep-scroll', 'dx-main|' + place);
         list.setAttribute('data-keep-scroll', 'dx-list|' + (opts.only || (opts.preview ? 'preview' : 'file')) + '|' + st.view + '|' + (st.view === 'assist' ? st.akind || '' : ''));
-        root.classList.toggle('no-list', st.view === 'refs' || st.view === 'domain' || st.view === 'start' || st.view === 'quality' || st.view === 'risks' || st.view === 'dev' || st.view === 'arch');
+        root.classList.toggle('no-list', st.view === 'refs' || st.view === 'domain' || st.view === 'start' || st.view === 'quality' || st.view === 'risks' || st.view === 'dev' || st.view === 'arch' || st.view === 'security');
         DRAW[st.view]();
         putScrolls(root, kept);
       }

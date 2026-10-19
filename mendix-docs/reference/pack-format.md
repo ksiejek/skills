@@ -24,12 +24,37 @@ roles: Administrator (Administration.Administrator, Sales.Admin); Clerk (Sales.C
                                                  user roles, each with its module roles
 scheduled events: Name → Module.Microflow (off)  what runs on a timer
 published services: Module.Service (REST); …     what the app offers outside
-not included: 12 Marketplace modules — …         left out on purpose
+marketplace: 12 Marketplace modules, each a short "## module <Name> (Marketplace)" block …
+                                                 the Marketplace modules are at the end, as facts
 legend: …
 ```
 
-Marketplace modules are not in the pack: they are other people's components,
-and the business documentation is about this application.
+## A Marketplace module
+
+After the own modules, one short block per Marketplace module — never its
+flows, pages or entities, which are other people's components:
+
+```
+## module ExcelImporter (Marketplace)
+about: Imports Excel sheets into the app’s data by a mapping of columns to attributes, …
+version: 11.1.0
+use: used — DataImport.DataImport_Save uses the entity ExcelImporter.Template (and 14 more)
+contents: 78 flows, 13 pages, 7 entities — not listed: …
+role ExcelImporter.Configurator (admin): user roles Administrator, User | may: Creates, changes and deletes import templates …
+role ExcelImporter.Readonly: user roles Operator | may: Reads the import templates.
+advisories: CVE-2022-34467 — known for this version; check-security.js says which
+security: 1 finding, 0 worth knowing — MxScout’s own (check-security.js, ids mx-market-…); not yours to report again
+```
+
+`about` comes from the catalogue MxScout carries (`reference/marketplace-modules.md`
+is the same table), or says "Not in the catalogue". `use` says whether something
+of the app's own calls, shows or uses anything in the module — "not used", or
+"not known" for a module of widgets or actions the model cannot follow. Each
+`role` line: the module role, `(admin)` when it is the module's administrative
+one, the user roles that carry it, and what it may do (the catalogue's words, or
+what it reaches in the module); `grants nothing` when nothing in the module names
+it. Describe the module from this block in one or two sentences (SKILL.md,
+"Every module"). The index lists these modules too, with their real counts.
 
 **The documentation is not in the pack.** When MxScout shares a project that
 has descriptions, it also shares the documentation as Markdown, separately

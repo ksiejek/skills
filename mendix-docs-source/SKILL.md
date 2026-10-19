@@ -152,8 +152,20 @@ project's folder: it is somebody's working copy under version control.
 land there (its default name when run from inside it, say) into the work
 folder instead — and says so.
 
-For `build`, show the person the modules from `status` and ask which to
-describe — all of them, or a few — and fetch those one at a time.
+For `build`, describe **every module** — no choosing (Karol, 2026-10-18): all of
+the app's own modules, fetched one at a time (or handed to parallel subagents),
+and every **Marketplace module** in a sentence or two. A Marketplace module is a
+short `## module <Name> (Marketplace)` block at the end of the pack — what it is
+(from the catalogue), its version, whether the app uses it, the user roles on
+its module roles (`(admin)` on the administrative one) — and its flows are not
+in the pack: never look for them. Write its module description from that block
+and `reference/marketplace-modules.md` (the catalogue: what each common module
+is, its roles, its known advisories): a `summary` only — what it is for in this
+app, whether the app uses it, and, when its administrative role is on a user
+role that is not the administrator, that it is. A module not in the catalogue
+says so. On a real app with 24 Marketplace modules the blocks are about 4,300
+tokens of a 540,000-token pack. Who holds a module's administrative role is
+`check-security.js`'s finding (`mx-market-admin-…`), not a risk you write.
 
 ## The documentation is the map, the model is the proof
 
@@ -281,8 +293,9 @@ The pack is large (a real app is ~1.7 MB, ~470k tokens). Never read it whole.
    node docs.js report <app.mpr> <work>/descriptions.json --out <App>-documentation.html
    ```
 
-   Own modules only; `--modules A,B` for a few, `--all` to add the Marketplace
-   ones. Tell the person where the file is: it opens in any browser and needs
+   Every module, the Marketplace ones in a group of their own, each with what
+   it is, its version, its use and its roles; `--modules A,B` for a few,
+   `--own` to leave the Marketplace ones out. Tell the person where the file is: it opens in any browser and needs
    nothing else — send it as it is. The same `descriptions.json` imports into
    MxScout (**Import descriptions…**) if they use it.
 
@@ -535,6 +548,9 @@ model no longer shows ("not seen in the model").
   `todo` also takes `docs.md` in place of `descriptions.json`.
 - `reference/pack-format.md` — how to read the pack, line by line.
 - `reference/descriptions-format.md` — the JSON you write, with an example.
+- `reference/marketplace-modules.md` — the catalogue of Marketplace modules
+  (MxScout's, made by its `tools/build-marketplace.js`): what each is, its module
+  roles and which is administrative, the advisories that name it.
 - `reference/migration.md` — the `changes` and `tickets` this skill's report
   shows (its Changes and Tickets pages); MxScout moves them to its Assist page.
 - `reference/business-narrative.md` — the two layers: what a summary and a

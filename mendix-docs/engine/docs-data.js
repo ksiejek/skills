@@ -510,6 +510,9 @@
     var associations = (model.associations || []).map(function (a) {
       return { name: a.name, module: a.module, from: a.owner, to: a.other, many: a.type === 'ReferenceSet' };
     });
+    // What each Marketplace module is, its version, whether the app uses it and who holds its roles (marketplace.js):
+    // its page in the documentation and its block in the AI pack say it, so a module nobody reads still has an entry.
+    if (window.MxMarketplace) marketOf(model).forEach(function (x) { if (modules[x.name]) modules[x.name].market = x.market; });
 
     // ---------- where the model looks unfinished ----------
     var unreached = Object.keys(flows).filter(function (k) {
@@ -554,6 +557,27 @@
       // loads: today the constants the browser receives that look like a secret (constants.js).
       modelRisks: window.MxConstants ? window.MxConstants.risks(model).map(function (r) { return Object.assign({}, r, { where: r.where.slice() }); }) : []
     };
+  }
+
+  // → [{ name, market: { version, catalogued, about, link, used, usedText, roles: [{ name, moduleRole, admin, may, userRoles, entities,
+  //   creates, deletes, flows, pages, unused }], advisories: [cve], findings, notes } }] — small, as it rides in the exported file.
+  function marketOf(model) {
+    var M = window.MxMarketplace, res = M.of(model), adv = {};
+    if (window.MxAdvisories) window.MxAdvisories.of(model).modules.forEach(function (m) { adv[m.name] = m.matches.map(function (x) { return x.cve; }); });
+    return res.modules.map(function (r) {
+      return { name: r.name, market: {
+        version: r.version, catalogued: r.catalogued, about: M.aboutText(r), link: r.link, used: r.used, usedText: M.usedText(r),
+        roles: r.roles.map(function (x) {
+          var e = x.access.entities;
+          return { name: x.name, moduleRole: x.moduleRole, admin: x.admin, may: x.admin || x.may ? M.mayText(x).replace(/^./, function (c) { return c.toUpperCase(); }) : null, userRoles: x.userRoles.slice(),
+            entities: e.length, creates: e.filter(function (y) { return y.create; }).length, deletes: e.filter(function (y) { return y.delete; }).length,
+            flows: x.access.flows.length, pages: x.access.pages.length, unused: x.unused };
+        }),
+        advisories: adv[r.name] || [],
+        findings: res.findings.filter(function (f) { return f.module === r.name; }).length,
+        notes: res.notes.filter(function (n) { return n.module === r.name; }).length
+      } };
+    });
   }
 
   // The model's version stamp, as text fields only: { commit, short, branch, date, message } — or null.

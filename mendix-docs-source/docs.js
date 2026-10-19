@@ -15,7 +15,8 @@
  *   node docs.js module <app.mpr> <Name> [--out f]        one module's section of the pack
  *   node docs.js pack <app.mpr> <file>                    the whole pack, to a FILE — for check-descriptions.js
  *   node docs.js report <app.mpr> [descriptions.json]     the documentation, one HTML file
- *        [--out file.html] [--modules A,B] [--all]        (own modules unless --modules or --all)
+ *        [--out file.html] [--modules A,B] [--own]        (every module, the Marketplace ones in a group of their own;
+ *                                                         --modules A,B for a few, --own without the Marketplace ones)
  *   node docs.js docs <app.mpr> [descriptions.json]       the documentation as Markdown, own modules, for an
  *        [--out docs.md]                                  agent to read first: what was understood earlier, with
  *                                                         a header and the out-of-date marks — what MxScout gives
@@ -55,7 +56,8 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const ENGINE_FILES = ['sqlite.js', 'bson.js', 'mpr.js', 'modelversion.js', 'docs-data.js', 'describe.js', 'reportdata.js', 'docs-changes.js', 'docs-tickets.js', 'docs-triage.js', 'docs-view.js', 'docs-file.js', 'repodocs.js'];
+// advisories.js + marketplace.js first: docs-data.js gives each Marketplace module its catalogue entry, version, use and roles from them.
+const ENGINE_FILES = ['sqlite.js', 'bson.js', 'mpr.js', 'modelversion.js', 'advisories.js', 'marketplace.js', 'docs-data.js', 'describe.js', 'reportdata.js', 'docs-changes.js', 'docs-tickets.js', 'docs-triage.js', 'docs-view.js', 'docs-file.js', 'repodocs.js'];
 
 function fail(message) { console.error(message); process.exit(1); }
 
@@ -279,7 +281,7 @@ function take(name, what) {
 function flag(name) { const i = args.indexOf(name); if (i < 0) return false; args.splice(i, 1); return true; }
 
 (async function () {
-  const out = take('--out', 'a file name'), only = take('--modules', 'module names, comma-separated'), all = flag('--all');
+  const out = take('--out', 'a file name'), only = take('--modules', 'module names, comma-separated'), all = flag('--all'), ownOnly = flag('--own');
   const modelDir = take('--model', 'an MxScout project folder');
   if (modelDir) args.splice(1, 0, modelDir);
   const [cmd, where] = args;
@@ -294,7 +296,7 @@ function flag(name) { const i = args.indexOf(name); if (i < 0) return false; arg
     return;
   }
   if (!/^(status|module|pack|report|docs|send)$/.test(cmd || '')) {
-    console.error('Usage: node docs.js workdir [<app.mpr>] | status <app.mpr> | module <app.mpr> <Name> [--out f] | pack <app.mpr> <file> | report <app.mpr> [descriptions.json] [--out f.html] [--modules A,B] [--all] | docs <app.mpr> [descriptions.json] [--out docs.md] | send <MxScout folder> <descriptions.json> | repo <MendixProject>   (<app.mpr> may be an MxScout project folder, or --model <folder>)');
+    console.error('Usage: node docs.js workdir [<app.mpr>] | status <app.mpr> | module <app.mpr> <Name> [--out f] | pack <app.mpr> <file> | report <app.mpr> [descriptions.json] [--out f.html] [--modules A,B] [--own] | docs <app.mpr> [descriptions.json] [--out docs.md] | send <MxScout folder> <descriptions.json> | repo <MendixProject>   (<app.mpr> may be an MxScout project folder, or --model <folder>)');
     process.exit(2);
   }
   const folder = mxscoutFolder(where);
@@ -355,7 +357,7 @@ function flag(name) { const i = args.indexOf(name); if (i < 0) return false; arg
       console.log('module | microflows | nanoflows | pages | entities');
       mods.forEach((m) => console.log(m.name + ' | ' + m.microflows + ' | ' + m.nanoflows + ' | ' + m.pages + ' | ' + m.entities));
       const market = data.modules.filter((m) => m.marketplace).length;
-      if (market) console.log('(' + market + ' Marketplace modules left out of the pack; the report leaves them out unless --all)');
+      if (market) console.log('(' + market + ' of them Marketplace modules: a short "## module <Name> (Marketplace)" block each at the end of the pack — describe each in a sentence or two from it and reference/marketplace-modules.md, never from its flows; the report has them, in a group of their own, unless --own)');
       console.log('work folder: ' + workDir() + ' — the pack, the parts, descriptions.json and your notes go here, never into the project');
       return;
     }
@@ -390,7 +392,8 @@ function flag(name) { const i = args.indexOf(name); if (i < 0) return false; arg
 
   // ---- report: the file MxScout's "Export documentation" writes ----
   const keep = {};
-  data.modules.forEach((m) => { keep[m.name] = named ? named.indexOf(m.name) !== -1 : all || !m.marketplace; });
+  // Every module by default, the Marketplace ones too (MxScout MXS-13); --own leaves them out. --all is what it always meant.
+  data.modules.forEach((m) => { keep[m.name] = named ? named.indexOf(m.name) !== -1 : all || !ownOnly || !m.marketplace; });
   if (named) named.forEach((n) => { if (!keep[n]) fail('No module ' + n + ' in this project.'); });
   const F = E.MxDocsFile;
   const doc = F.withDerived(F.subset(data, keep));

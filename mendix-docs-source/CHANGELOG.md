@@ -1,5 +1,23 @@
 # mendix-docs — changes
 
+## 3.9.0 – 2026-10-19
+
+- **Every module, Marketplace ones too** (MxScout MXS-13): `build` describes
+  all of the app's own modules — no choosing — and every Marketplace module in
+  a sentence or two, from its short block at the end of the pack (what it is,
+  its version, whether the app uses it, the user roles on its module roles)
+  and `reference/marketplace-modules.md`, the catalogue MxScout carries;
+  never from its flows, which the pack does not list.
+- The report has every module by default, the Marketplace ones in a group of
+  their own, each with a note on what it is, its version, its use, its known
+  advisories and its roles; `--own` leaves them out (`--all` still works).
+- `engine/` gains `marketplace.js` (and `docs.js` loads it with
+  `advisories.js`), and `check-security.js` reports who holds a Marketplace
+  module's administrative role (`mx-market-admin-…`, P2), and a module or a
+  module role nothing uses (P3). The engine and `check-security.js` are packed
+  from MxScout's current branch, so they also carry MXS-9 to MXS-12 (verify
+  `still: true`, the recipes, the Security review page).
+
 ## 3.8.0 – 2026-10-18
 
 - **Security from MxScout's own engine** (MxScout MXS-8): `check-security.js`,

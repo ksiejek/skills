@@ -82,7 +82,8 @@ function readPack(text) {
       return;
     }
     let m = /^## module (\S+)/.exec(line);
-    if (m) { module = m[1]; pack.modules[module] = { line: i + 1, flows: 0 }; return; }
+    // "## module Name (Marketplace)": a Marketplace module's short block — described in a sentence or two, no story, no notes.
+    if (m) { module = m[1]; pack.modules[module] = { line: i + 1, flows: 0, marketplace: / \(Marketplace\)$/.test(line) }; return; }
     m = /^### (MF|NF|PG) (\S+) #([0-9a-f]{8})/.exec(line);
     if (m) { pack[KINDS[m[1]]][m[2]] = { hash: m[3], module, line: i + 1 }; if (m[1] !== 'PG' && module) pack.modules[module].flows++; return; }
     m = /^E (\S+) #([0-9a-f]{8})/.exec(line);
@@ -184,10 +185,11 @@ function todo(pack, desc) {
   });
   const modules = Object.keys(per).map((k) => per[k]).filter((r) => r.fresh.length + r.changed.length);
   const missingModules = Object.keys(pack.modules).filter((m) => !textOf((desc.modules || {})[m]));
-  const shortModules = Object.keys(pack.modules).filter((m) => textOf((desc.modules || {})[m]) && !storyOf((desc.modules || {})[m]));
+  const shortModules = Object.keys(pack.modules).filter((m) => !pack.modules[m].marketplace && textOf((desc.modules || {})[m]) && !storyOf((desc.modules || {})[m]));
   const app = desc.app && typeof desc.app === 'object' ? desc.app : null;
   // Notes on a module (reference/module-notes.md): wanted for a module that has flows.
   const noNotes = Object.keys(pack.modules).filter((m) => {
+    if (pack.modules[m].marketplace) return false;
     const v = (desc.modules || {})[m];
     return !(v && typeof v === 'object' && Array.isArray(v.notes) && v.notes.length);
   });
@@ -233,7 +235,7 @@ const CAPS = {
   // A change's or a ticket's own risks.
   smallRisk: { title: 300, detail: 3000, fix: 1000 },
   // What the agent says about the risks a person raised (risk triage).
-  verify: { list: 500, why: 1000 }
+  verify: { list: 500, why: 1000, fixed: 1000 }
 };
 function caps(desc, warn) {
   const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -340,7 +342,7 @@ function caps(desc, warn) {
     text(w + '.title', r.title, R.title); text(w + '.detail', r.detail, R.detail); text(w + '.fix', r.fix, R.fix);
     texts(w + '.where', r.where, R.where, R.place);
   });
-  list('"verify"', desc.verify, CAPS.verify.list).forEach((v, i) => { if (obj(v)) text('verify[' + i + '].why', v.why, CAPS.verify.why); });
+  list('"verify"', desc.verify, CAPS.verify.list).forEach((v, i) => { if (obj(v)) { text('verify[' + i + '].why', v.why, CAPS.verify.why); if (typeof v.fixed === 'string') text('verify[' + i + '].fixed', v.fixed, CAPS.verify.fixed); } });
   const cx = obj(desc.context);
   if (cx) {
     const X = CAPS.context;
@@ -486,7 +488,11 @@ function check(pack, desc) {
       if (text.length > limit) warn(k + ' ' + name + ': ' + text.length + ' characters; aim for under ' + limit + ' — it is shown in lists.');
       if (k === 'modules') {
         if (!pack.modules[name]) warn('modules ' + name + ': no such module in the pack.');
-        layers('modules ' + name, v);
+        // A Marketplace module: a sentence or two from its block and reference/marketplace-modules.md — no story wanted.
+        if (pack.modules[name] && pack.modules[name].marketplace) {
+          const sum = typeof v === 'string' ? v : v && v.summary;
+          if (sum && sum.length > LIMITS.module) warn('modules ' + name + ': a Marketplace module is described in one or two sentences (' + sum.length + ' characters now).');
+        } else layers('modules ' + name, v);
         if (v && typeof v === 'object' && v.notes !== undefined) notes('modules ' + name, v.notes);
         return;
       }
@@ -538,6 +544,8 @@ function check(pack, desc) {
       const mx = v && typeof v.id === 'string' && /^mx-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(v.id) && v.id.length <= 80;
       if (!v || typeof v.id !== 'string' || !(mx || /^c-[A-Za-z0-9_-]{1,80}$/.test(v.id)) || typeof v.still !== 'boolean') err('verify[' + i + '] needs "id" (the c-… id from the pack\'s risk triage, or an mx-… id from check-security.js) and "still": true or false — MxScout drops it otherwise.');
       else if (!mx && pack.triage && pack.triage.length && !pack.triage.some((r) => r.person && r.id === v.id)) warn('verify[' + i + '] "' + v.id + '" is not a risk a person raised in this pack.');
+      // "fixed": what check-security.js --fixed was told was changed (MXS-10) — only on an mx- risk the model no longer shows.
+      if (v && v.fixed !== undefined && (typeof v.fixed !== 'string' || !mx || v.still !== false)) err('verify[' + i + '] "fixed" is text, only on an mx-… id with "still": false — check-security.js --fixed writes it; never write it yourself.');
     });
   }
   if (desc.context !== undefined) {
@@ -938,10 +946,10 @@ function realish(p) {
 }
 function within(dir, p) { return p === dir || p.startsWith(dir.endsWith(path.sep) ? dir : dir + path.sep); }
 // The directories an agent's own files stay out of, each with the official outputs inside it: in the Mendix
-// project mxscout/descriptions/, docs/, knowledge/, mxscout.json and .local/inbox/; in a project folder of its
-// own (layout 1) inbox/ and knowledge/. The deepest directory a path is in decides.
-const OFFICIAL_IN_MENDIX = ['mxscout/descriptions/', 'mxscout/docs/', 'mxscout/knowledge/', 'mxscout/mxscout.json', 'mxscout/.local/inbox/'];
-const OFFICIAL_IN_FOLDER = ['inbox/', 'knowledge/'];
+// project mxscout/descriptions/, docs/, knowledge/, mxscout.json, review.json and .local/inbox/; in a project
+// folder of its own (layout 1) inbox/, knowledge/ and review.json. The deepest directory a path is in decides.
+const OFFICIAL_IN_MENDIX = ['mxscout/descriptions/', 'mxscout/docs/', 'mxscout/knowledge/', 'mxscout/mxscout.json', 'mxscout/review.json', 'mxscout/.local/inbox/'];
+const OFFICIAL_IN_FOLDER = ['inbox/', 'knowledge/', 'review.json'];
 function protectedRoots(starts) {
   const roots = [];
   const add = (dir, allow, what) => { const real = realish(dir); if (!roots.some((r) => r.dir === real)) roots.push({ dir: real, shown: dir, allow, what }); };
@@ -1054,7 +1062,7 @@ function main(argv) {
     const t = todo(pack, desc);
     // From the documentation, a module's long description and its notes cannot be told apart from the rest of its page: not reported.
     console.log(t.flows + ' flows to describe in ' + t.modules.length + ' modules' + (t.overview ? '; the application overview is missing' : !docs && t.overviewStory ? '; the application has no long description' : '') +
-      (t.missingModules.length ? '; ' + t.missingModules.length + ' modules have no description' : '') +
+      (t.missingModules.length ? '; ' + t.missingModules.length + ' modules have no description' + (function () { const n = t.missingModules.filter((m) => pack.modules[m].marketplace).length; return n ? ' (' + n + ' of them Marketplace — a sentence or two each)' : ''; })() : '') +
       (!docs && t.shortModules.length ? '; ' + t.shortModules.length + ' modules have a summary but no long description (' + t.shortModules.join(', ') + ')' : '') +
       (t.risks ? '; no risks yet' : '') + (t.context ? '; no context for developers yet' : '') +
       (!docs && t.noNotes.length ? '; ' + t.noNotes.length + ' modules have no notes' : '') + (t.c4 ? '; no architecture yet' : '') + '.' +

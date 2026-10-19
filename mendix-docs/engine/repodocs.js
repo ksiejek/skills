@@ -60,6 +60,7 @@
     // Developer tools: the comments and what was decided about the risks are the team's knowledge too.
     ['comments/', 'The comments on the model, one file per comment — its author, severity, status and history. Merged by id when read back, the newest change winning; a file deleted there (a pull) deletes the comment here, unless it was changed here since. Committed.'],
     ['triage.json', 'What was decided about the risks — false positive, fixed, reopened — with the reason. Read back per risk, the latest decision winning. Committed.'],
+    ['review.json', 'What the mendix-describe skill reviewed and at which version of the model — the descriptions, the security findings, the risks marked fixed — with each item open, done or skipped. Written by the skill (node agent.js review), only read by MxScout. Committed.'],
     ['AGENTS.md', 'How any AI agent should read this folder. Committed.'],
     ['README.md', 'What this folder is, and how a team works with it. Committed.'],
     ['.gitignore', 'Keeps .local/ out of git. Committed.'],
@@ -334,7 +335,7 @@
       'An agent writes nothing here but the documentation itself — through the skills\' `agent.js`, and a solved',
       'case\'s note — and keeps its working files (packs, notes, drafts) in a work folder outside the project; it',
       'never commits, you do. So `mxscout/` holds only the documentation —',
-      '`descriptions/`, `docs/`, `knowledge/`, `comments/`, `triage.json`, `mxscout.json`, `AGENTS.md`, `README.md`,',
+      '`descriptions/`, `docs/`, `knowledge/`, `comments/`, `triage.json`, `review.json`, `mxscout.json`, `AGENTS.md`, `README.md`,',
       '`GUIDE.md`, `GUIDE.html`, `.gitignore` — and `.local/`, this machine\'s.',
       '',
       'Read `AGENTS.md`. To point an agent at it from anywhere in the repository, add one line to the',

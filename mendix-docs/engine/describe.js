@@ -391,6 +391,26 @@
       out.push('');
       return { m: m, lines: out };
     });
+    // Every Marketplace module, as a short block of facts (marketplace.js, through docs-data.js): what it is from the
+    // built-in catalogue, its version, whether the app uses it and who holds its roles — never its flows. The skill
+    // writes each one a sentence or two from this block and reference/marketplace-modules.md (Karol, 2026-10-18).
+    blocks = blocks.concat(data.modules.filter(function (m) { return m.marketplace; }).map(function (m) {
+      var k = m.market, n = m.microflows.length + m.nanoflows.length;
+      var out = ['## module ' + m.name + ' (Marketplace)',
+        'about: ' + (k ? k.about : 'Not in the catalogue — described from its name and its contents.'),
+        'version: ' + (k && k.version ? k.version : 'not recorded in the model'),
+        k ? 'use: ' + k.usedText : null,
+        'contents: ' + n + (n === 1 ? ' flow, ' : ' flows, ') + m.pages.length + (m.pages.length === 1 ? ' page, ' : ' pages, ') + m.entities.length + (m.entities.length === 1 ? ' entity' : ' entities') +
+          ' — not listed: a Marketplace module is described from this block and reference/marketplace-modules.md, never from its flows'];
+      ((k && k.roles) || []).forEach(function (r) {
+        out.push('role ' + r.moduleRole + (r.admin ? ' (admin)' : '') + ': user roles ' + (r.userRoles.length ? r.userRoles.join(', ') : 'none') +
+          (r.may ? ' | may: ' + r.may : ' | reaches ' + r.entities + ' entities, ' + r.flows + ' flows, ' + r.pages + ' pages') + (r.unused ? ' | grants nothing' : ''));
+      });
+      if (k && k.advisories.length) out.push('advisories: ' + k.advisories.join(', ') + ' — known for this version; check-security.js says which');
+      if (k && (k.findings || k.notes)) out.push('security: ' + k.findings + (k.findings === 1 ? ' finding, ' : ' findings, ') + k.notes + ' worth knowing — MxScout’s own (check-security.js, ids mx-market-…); not yours to report again');
+      out.push('');
+      return { m: m, lines: out.filter(function (l) { return l !== null; }) };
+    }));
     var head = [
       '# MxScout AI pack',
       'format: ' + PACK_FORMAT + ' 1',
@@ -405,12 +425,12 @@
       'roles: ' + data.roles.map(function (r) { return r.name + (r.moduleRoles && r.moduleRoles.length ? ' (' + r.moduleRoles.join(', ') + ')' : ''); }).join('; '),
       data.scheduled.length ? 'scheduled events: ' + data.scheduled.map(function (s) { return short(s.name) + ' → ' + (s.microflow || '?') + (s.enabled ? '' : ' (off)'); }).join('; ') : null,
       data.services.length ? 'published services: ' + data.services.map(function (s) { return s.name + (s.kind ? ' (' + s.kind + ')' : ''); }).join('; ') : null,
-      market.length ? 'not included: ' + market.length + ' Marketplace modules — ' + market.join(', ') : null,
+      market.length ? 'marketplace: ' + market.length + ' Marketplace modules, each a short "## module <Name> (Marketplace)" block after the own modules — describe each in a sentence or two from it and reference/marketplace-modules.md; their flows are not listed' : null,
       'legend: MF microflow, NF nanoflow, PG page, SN snippet, E entity; #xxxxxxxx is a fingerprint — copy it into the description; {member=value} is the data a step sets or passes; → owns an association to, ← is owned by; under an entity, "access <module role>:" is what that role may read, write, create and delete, and on which rows, and "valid <attribute>:" a validation rule that refuses a save; under a page or a snippet, "shows <widget>" is a widget visible only on a condition, "editable <widget>" one editable never or only on a condition, "read-only <widget>" an input inside a data view or list view that is not editable, and "places <snippet>" a snippet whose widgets have such lines under its SN block',
       ''
     ].filter(function (l) { return l !== null; }).concat(triageLines(data));
     var indexHead = ['## index', 'module | lines | microflows | nanoflows | pages | entities'];
-    var line = head.length + indexHead.length + own.length + 2; // +1 blank, then the first module heading
+    var line = head.length + indexHead.length + blocks.length + 2; // +1 blank, then the first module heading
     var index = blocks.map(function (b) {
       var from = line, to = line + b.lines.length - 1;
       line = to + 1;
@@ -660,10 +680,10 @@
     // What the agent says about risks a PERSON raised and marked fixed (triage.js): still there or not,
     // and why. The id is the one the pack gave it, "c-" and the comment's id. Or what MxScout's security
     // check (secrisks.js, the skill's check-security.js) says about one of its own risks, "mx-…", that the
-    // model no longer shows.
+    // model no longer shows — with "fixed", what the skill changed to remove it (MXS-10).
     out.verify = (Array.isArray(raw.verify) ? raw.verify : []).slice(0, 500).map(function (x) {
       return x && typeof x === 'object' && typeof x.id === 'string' && (/^c-[A-Za-z0-9_-]{1,80}$/.test(x.id) || (/^mx-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(x.id) && x.id.length <= 80)) && typeof x.still === 'boolean'
-        ? { id: x.id, still: x.still, why: str(x.why, 1000) } : null;
+        ? (/^mx-/.test(x.id) && !x.still && typeof x.fixed === 'string' && x.fixed.trim() ? { id: x.id, still: x.still, why: str(x.why, 1000), fixed: str(x.fixed, 1000) } : { id: x.id, still: x.still, why: str(x.why, 1000) }) : null;
     }).filter(Boolean);
     if (!out.verify.length) delete out.verify;
     var c = raw.context && typeof raw.context === 'object' ? raw.context : {};

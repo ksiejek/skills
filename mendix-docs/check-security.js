@@ -19,9 +19,23 @@
  *                       With the project's triage.json (what was decided about the risks) and its descriptions,
  *                       each of these risks marked fixed — or still counted — that the model no longer shows gets
  *                       a "verify" entry: { "id", "still": false, "why": "not seen in the model" }; MxScout marks
- *                       the first verified and stops counting the second.
+ *                       the first verified and stops counting the second. One marked fixed that the model
+ *                       still shows gets { "still": true, "why": "still in the model" }: MxScout reopens it.
  *   --out <file>        write it to a file instead — a name without a path goes in the work folder (node agent.js
  *                       workdir); nothing is written inside the Mendix project or the project folder.
+ *
+ * Fixing one (MXS-10, SKILL.md "Fixing a finding", reference/fixing.md):
+ *   --fix <id>          the recipe for one risk, in Mendix's words — the module, the entity, the access rule (by its
+ *                       module role), the user role, what to take off or add, the decision to put in a flow — and
+ *                       which ways may make it: (c) a person, always; (a) Studio Pro's MCP server, when its tools are
+ *                       in the agent's session; (b) MxCraft's engine, when it has an op for it and Studio Pro is
+ *                       closed. Never for a Marketplace module, never with --read-only. --json gives it as JSON.
+ *   --fixed <id>[,<id>] --note "what was changed"
+ *                       after the change: reads the model again. Each id still found → said, exit code 1. Each id
+ *                       gone (and known to MxScout: in triage.json or the descriptions) → the part with a verify
+ *                       entry { "id", "still": false, "why", "fixed": "<note>" }; sent (agent.js send), MxScout
+ *                       marks the risk verified, with the note.
+ *   --read-only         Tandem's "Read only" is on: the recipe only, ways (a) and (b) closed.
  *
  * Without a path it looks where it runs, and above: a project folder (project.json), mxscout/ in a Mendix
  * project, or a Mendix project's .mpr. Exit code 0 whatever it finds; 1 when the model cannot be read.
@@ -30,7 +44,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const ENGINE = ['sqlite.js', 'bson.js', 'mpr.js', 'anonrole.js', 'accessuse.js', 'accounts.js', 'guards.js', 'editscope.js', 'selfreg.js', 'constants.js', 'advisories.js', 'accessrule.js', 'secrisks.js'];
+const ENGINE = ['sqlite.js', 'bson.js', 'mpr.js', 'anonrole.js', 'accessuse.js', 'accounts.js', 'guards.js', 'editscope.js', 'selfreg.js', 'constants.js', 'advisories.js', 'marketplace.js', 'accessrule.js', 'secrisks.js'];
 
 function fail(message) { console.error(String(message).split('\n')[0]); process.exit(1); }
 
@@ -130,10 +144,11 @@ function markdown(res, part, at, decided) {
   const p3 = res.risks.filter((r) => r.level === 'P3');
   if (p3.length) { L.push(''); L.push('## P3 — worth knowing'); p3.forEach((r) => L.push('- ' + r.id + (status[r.id] ? ' [' + status[r.id] + ']' : '') + ' — ' + r.title.replace(/^Worth knowing: /, ''))); }
   const still = res.risks.filter((r) => status[r.id] === 'fixed');
-  if (still.length || (part.verify || []).length) {
+  const gone = (part.verify || []).filter((v) => !v.still);
+  if (still.length || gone.length) {
     L.push(''); L.push('## Marked fixed');
     still.forEach((r) => L.push('- ' + r.id + ' — still in the model: MxScout reopens it when this is handed in.'));
-    (part.verify || []).forEach((v) => L.push('- ' + v.id + ' — ' + v.why + (status[v.id] === 'fixed' ? ': MxScout marks it verified.' : ': MxScout stops counting it.')));
+    gone.forEach((v) => L.push('- ' + v.id + ' — ' + v.why + (status[v.id] === 'fixed' ? ': MxScout marks it verified.' : ': MxScout stops counting it.')));
   }
   if (res.notChecked.length) { L.push(''); L.push('## Not checked'); res.notChecked.forEach((n) => L.push('- ' + n.text)); }
   L.push('');
@@ -141,13 +156,52 @@ function markdown(res, part, at, decided) {
 }
 let E_idOf = () => null;
 
+// Which ways may make a recipe's change (reference/fixing.md). (c) is always open; (a) and (b) change the model, so
+// never for a Marketplace module, never what only a person may do, never with Tandem's "Read only".
+function waysFor(rx, at, readOnly) {
+  const shut = readOnly ? 'Read only is on (Tandem): the recipe only.' : rx.marketplace ? 'The change is in a Marketplace module, which is never changed here.' : rx.manual ? rx.manual : null;
+  const ways = { c: { open: true, how: 'A person makes it in Studio Pro, step by step, from the recipe.' } };
+  ways.a = shut ? { open: false, why: shut } : { open: true, needs: 'Studio Pro 11.10 or later with its MCP server on (Preferences › AI › MCP Server › Enable MCP Server) and its tools in this agent’s session; a backup copy and a git tag first; the person’s yes before each change.' };
+  if (shut) ways.b = { open: false, why: shut };
+  else if (!at.mpr) ways.b = { open: false, why: 'This is a project folder’s model.json, not the Mendix project: MxCraft writes the .mpr.' };
+  else if (fs.existsSync(at.mpr + '.lock')) ways.b = { open: false, why: path.basename(at.mpr) + '.lock is there: Studio Pro has the project open. Close it first.' };
+  else if (!fs.existsSync(path.join(path.dirname(at.mpr), 'mprcontents'))) ways.b = { open: false, why: 'The .mpr keeps its documents inside (Mendix 9 and older layout); MxCraft writes only mprcontents/.' };
+  else {
+    const dir = process.env.MXCRAFT_DIR || path.join(process.env.HOME || '', 'Projects', 'MxCraft');
+    const op = path.join(dir, 'engine', 'ops', 'fix.js');
+    ways.b = fs.existsSync(op) ? { open: true, engine: dir, needs: 'A backup copy under ~/Mendix/_backups and a git tag first; mx check after the write, and a stop with the copy put back on any error.' }
+      : { open: false, why: 'MxCraft’s engine has no op that applies a recipe (looked for ' + op + '): it moves, renames and creates documents, it does not change an access rule or a flow.' };
+  }
+  return ways;
+}
+
+function recipeMarkdown(E, r, ways) {
+  const L = ['# ' + r.id + ' — ' + r.level, '', r.title, ''];
+  if (r.detail) { L.push(r.detail); L.push(''); }
+  L.push('## Recipe');
+  L.push('');
+  E.MxSecRisks.recipeText(r.recipe).forEach((x) => L.push(x));
+  L.push('');
+  L.push('## Ways to make it');
+  L.push('');
+  L.push('- (c) by hand — open. ' + ways.c.how);
+  L.push('- (a) Studio Pro MCP — ' + (ways.a.open ? 'open when ' + ways.a.needs : 'closed: ' + ways.a.why));
+  L.push('- (b) MxCraft — ' + (ways.b.open ? 'open (' + ways.b.engine + '). ' + ways.b.needs : 'closed: ' + ways.b.why));
+  L.push('');
+  L.push('After the change: node check-security.js --fixed ' + r.id + ' --note "what was changed" — then send what it prints (agent.js send).');
+  L.push('');
+  return L.join('\n');
+}
+
 (async function main() {
   const args = process.argv.slice(2);
   const take = (name) => { const i = args.indexOf(name); if (i < 0) return null; const v = args[i + 1]; args.splice(i, 2); return v === undefined ? null : v; };
   const flag = (name) => { const i = args.indexOf(name); if (i < 0) return false; args.splice(i, 1); return true; };
   const asJson = flag('--json'); flag('--md');
   const out = take('--out');
-  if (args.some((a) => /^--/.test(a))) fail('Usage: node check-security.js [<app.mpr | Mendix project | MxScout project folder>] [--json | --md] [--out <file>]');
+  const fixId = take('--fix'), fixedIds = take('--fixed'), note = take('--note'), readOnly = flag('--read-only');
+  if (args.some((a) => /^--/.test(a))) fail('Usage: node check-security.js [<app.mpr | Mendix project | MxScout project folder>] [--json | --md] [--out <file>] [--fix <id> [--read-only]] [--fixed <id>[,<id>] --note "what was changed"]');
+  if (fixedIds !== null && !(note || '').trim()) fail('--fixed needs --note "what was changed" — MxScout shows it with the risk.');
   const at = locate(args[0]);
   const E = engine();
   E_idOf = E.MxSecRisks.idOf;
@@ -159,8 +213,27 @@ let E_idOf = () => null;
   const k = at.kept ? readJson(at.kept) : null;
   const kept = Array.isArray(k) ? k : k && Array.isArray(k.risks) ? k.risks : null;
   const res = E.MxSecRisks.of(model);
-  const part = E.MxSecRisks.part(model, { decided, kept, project: at.project && at.project.name ? at.project.name : undefined, written: new Date().toISOString().slice(0, 10) });
-  const text = asJson ? JSON.stringify(part, null, 2) + '\n' : markdown(res, part, at, decided);
+  let fixed;
+  if (fixedIds !== null) {
+    const ids = fixedIds.split(',').map((x) => x.trim()).filter(Boolean);
+    const now = new Set(res.risks.map((r) => r.id));
+    const known = new Set((kept || []).map((r) => r && r.id).filter(Boolean));
+    Object.keys((decided && decided.risks) || {}).forEach((k) => { const id = E.MxSecRisks.idOf(decided.risks[k]); if (id) known.add(id); });
+    const still = ids.filter((id) => now.has(id));
+    const unknown = ids.filter((id) => !now.has(id) && !known.has(id));
+    if (still.length) fail('Still in the model: ' + still.join(', ') + ' — the change did not remove it. See node check-security.js --fix ' + still[0] + '.');
+    if (unknown.length) fail('MxScout does not know ' + unknown.join(', ') + ' (not in triage.json or the descriptions): hand the security part in first (agent.js send), then fix.');
+    fixed = {};
+    ids.forEach((id) => { fixed[id] = note.trim(); });
+  }
+  const part = E.MxSecRisks.part(model, { decided, kept, fixed, project: at.project && at.project.name ? at.project.name : undefined, written: new Date().toISOString().slice(0, 10) });
+  let text;
+  if (fixId !== null) {
+    const r = res.risks.find((x) => x.id === fixId);
+    if (!r) fail('No risk ' + fixId + ' in this model' + (decided || kept ? ' — if it was there before, it is gone: node check-security.js --fixed ' + fixId + ' --note "what was changed".' : '.'));
+    const ways = waysFor(r.recipe, at, readOnly);
+    text = asJson ? JSON.stringify({ id: r.id, level: r.level, title: r.title, detail: r.detail, fix: r.fix, where: r.where, recipe: r.recipe, ways }, null, 2) + '\n' : recipeMarkdown(E, r, ways);
+  } else text = asJson || fixed ? JSON.stringify(part, null, 2) + '\n' : markdown(res, part, at, decided);
   if (!out) { process.stdout.write(text); return; }
   // The work folder and the clean Mendix project: check-descriptions.js's rule, shared with agent.js.
   const W = require('./check-descriptions.js').workplace;
@@ -169,5 +242,5 @@ let E_idOf = () => null;
   const refused = W.refusedWrite(file, W.protectedRoots(starts.concat([path.dirname(file)])), false);
   if (refused) fail(refused);
   try { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, text); } catch (e) { fail('Cannot write ' + file + ': ' + ((e && e.message) || e)); }
-  console.log('Wrote ' + file + ' — ' + res.counts.risks + ' risks (' + res.counts.P1 + ' P1, ' + res.counts.P2 + ' P2, ' + res.counts.P3 + ' P3)' + (part.verify ? ', ' + part.verify.length + ' no longer seen in the model' : '') + '.');
+  console.log('Wrote ' + file + ' — ' + res.counts.risks + ' risks (' + res.counts.P1 + ' P1, ' + res.counts.P2 + ' P2, ' + res.counts.P3 + ' P3)' + (part.verify ? ', ' + part.verify.filter((v) => !v.still).length + ' no longer seen in the model, ' + part.verify.filter((v) => v.still).length + ' marked fixed and still in it' : '') + '.');
 })().catch((e) => fail((e && e.message) || e));

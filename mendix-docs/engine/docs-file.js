@@ -21,7 +21,8 @@
   // The risk triage's labels on the Risks page (docs-triage.js) are drawn by a file of its own as well, carried the same way.
   // Not the Assist page's files (docs-assist.js, docs-tickets.js, docs-changes.js): the file carries no Assist item.
   // The Solved cases page (docs-knowledge.js) is drawn by a file of its own; the file carries the cases themselves only when the export was asked for them.
-  var SCRIPTS = ['flowtrace.js', 'flowgraph.js', 'studioview.js', 'pagepreview.js', 'flowview.js', 'docs-triage.js', 'docs-knowledge.js'];
+  // So is the Security review page (docs-security.js), from data.security, which MxScout works out before the export (docs.js).
+  var SCRIPTS = ['flowtrace.js', 'flowgraph.js', 'studioview.js', 'pagepreview.js', 'flowview.js', 'docs-triage.js', 'docs-knowledge.js', 'docs-security.js'];
 
   // The fonts tokens.css names, as they are written in it: url("fonts/X.woff2").
   function fontsIn(tokens) { return tokens.match(/url\("fonts\/[A-Za-z0-9_-]+\.woff2"\)/g) || []; }
@@ -158,7 +159,7 @@
       'model: ' + one((V && V.versionText(ver)) || 'version unknown (no git commit was read with this model)'),
       ver ? 'model commit: ' + ver.commit : null,
       'generated: ' + now,
-      'modules: the own modules (' + mine.modules.length + ')' + (market ? '; ' + market + ' Marketplace ' + (market === 1 ? 'module' : 'modules') + ' left out' : ''),
+      'modules: the own modules (' + mine.modules.length + ')' + (market ? '; ' + market + ' Marketplace ' + (market === 1 ? 'module is' : 'modules are') + ' not here — each is a short block in the pack, “## module <Name> (Marketplace)”' : ''),
       'flows described: ' + described + ' of ' + flows,
       'out of date: ' + stale + (stale ? ' — each marked "(out of date …)" after its description: the flow changed since it was written' : ''),
       ai.written || ai.by ? 'descriptions: ' + ['written ' + one(ai.written || 'at an unknown date'), ai.by ? 'by ' + one(ai.by) : null].filter(Boolean).join(' ') : null,
