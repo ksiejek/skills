@@ -6,7 +6,7 @@ What MxScout finds wrong in a Mendix model, turned into how to build it right. E
 
 **How to use it.** Refining a story that changes the model: name the standards it touches by id (for example 'anon', 'scope-write', 'conv-microflow-prefix'), and build to them. Fixing a risk MxScout reported: the part of its id after 'mx-' and before the subject is the entry to read.
 
-Three parts: **Checked by MxScout** (29 standards, one per check, under the check’s id), **Judged by an agent** (9, no check) and **Conventions** (7, no check).
+Three parts: **Checked by MxScout** (29 standards, one per check, under the check’s id), **Judged by an agent** (12, no check) and **Conventions** (7, no check).
 
 ## Checked by MxScout
 
@@ -474,6 +474,30 @@ A value that differs per environment or is a business rule (a URL, a limit, a ra
 Flows and pages nothing reaches are deleted, not kept as _New, _Old or copies; disabled activities are removed from a flow before it is committed.
 
 **Source.** MxScout `skills/mendix-describe/reference/risk-levels.md`
+
+### `judged-retrieve-range` — Whole list retrieved for one object or a count
+
+*no check · P3 · performance*
+
+A database retrieve whose list is used only for its first element (head(), a Head list operation) or only for count() in an expression loads every row to keep one or a number. Retrieve with Range First for one object, Custom with limit 2 to check that there is exactly one, and Aggregate list right after the retrieve for a count (one COUNT query).
+
+**Source.** 
+
+### `judged-flow-size` — Microflow too large to read
+
+*no check · P3 · logic*
+
+A microflow keeps to 25 activities or fewer; a larger one is split into sub-microflows (validation and data-copy flows may be longer). One with more than 10 activities or more than 2 decisions starts with an annotation saying its purpose, parameters and result.
+
+**Source.** 
+
+### `judged-invented-prefix` — Name with a prefix no standard has
+
+*no check · P3 · naming*
+
+A document's prefix comes from how it is used (conv-microflow-prefix, conv-other-prefix) or from the project's own naming standard, which wins over Mendix's. A prefix neither defines (for example SEED_ for a start-up data seed, which is ASU_ or SUB_) is a finding; so is a document the project standard gives a prefix (for example CONST_) that does not carry it.
+
+**Source.** 
 
 ## Conventions — no check
 

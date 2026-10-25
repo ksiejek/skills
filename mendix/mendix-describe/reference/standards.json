@@ -495,6 +495,30 @@
       "theme": "dead",
       "standard": "Flows and pages nothing reaches are deleted, not kept as _New, _Old or copies; disabled activities are removed from a flow before it is committed.",
       "source": { "mxscout": "skills/mendix-describe/reference/risk-levels.md" }
+    },
+    {
+      "id": "judged-retrieve-range",
+      "name": "Whole list retrieved for one object or a count",
+      "levels": ["P3"],
+      "theme": "performance",
+      "standard": "A database retrieve whose list is used only for its first element (head(), a Head list operation) or only for count() in an expression loads every row to keep one or a number. Retrieve with Range First for one object, Custom with limit 2 to check that there is exactly one, and Aggregate list right after the retrieve for a count (one COUNT query).",
+      "source": { "craft": "Skills/budowa/mxcraft-model/reference/build-rules.md", "learned": "Craftsman CRAFT-3, CRAFT-8, CRAFT-11 (2026-10-25)" }
+    },
+    {
+      "id": "judged-flow-size",
+      "name": "Microflow too large to read",
+      "levels": ["P3"],
+      "theme": "logic",
+      "standard": "A microflow keeps to 25 activities or fewer; a larger one is split into sub-microflows (validation and data-copy flows may be longer). One with more than 10 activities or more than 2 decisions starts with an annotation saying its purpose, parameters and result.",
+      "source": { "craft": "Skills/budowa/mxcraft-model/reference/build-rules.md", "learned": "Craftsman CRAFT-3, CRAFT-8, CRAFT-11 (2026-10-25)" }
+    },
+    {
+      "id": "judged-invented-prefix",
+      "name": "Name with a prefix no standard has",
+      "levels": ["P3"],
+      "theme": "naming",
+      "standard": "A document's prefix comes from how it is used (conv-microflow-prefix, conv-other-prefix) or from the project's own naming standard, which wins over Mendix's. A prefix neither defines (for example SEED_ for a start-up data seed, which is ASU_ or SUB_) is a finding; so is a document the project standard gives a prefix (for example CONST_) that does not carry it.",
+      "source": { "craft": "Skills/budowa/mxcraft-model/reference/build-rules.md", "learned": "Craftsman CRAFT-3, CRAFT-8, CRAFT-11 (2026-10-25)" }
     }
   ],
   "conventions": [
