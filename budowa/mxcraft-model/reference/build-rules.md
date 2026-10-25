@@ -111,3 +111,11 @@ and the result *after* (one `doc` read). A rule broken on purpose gets one line 
 2. Naming standard of the project (ServiceDesk: `STANDARD-NAZW.md`) wins over these.
 3. No new warnings from `mx check`; unused documents removed before the story is done.
 4. Never modify a Marketplace module — extension module instead.
+
+## 9. Lessons (Craftsman)
+
+Every lesson from a Craftsman story lands here as a rule above (with the date), on the Atlas page
+`craftsman-lekcje` and in the knowledge base. The story ends with a "Czego się nauczyłem" list.
+
+- 2026-10-25 (CRAFT-1): Mendix best-practice guides + MxScout perf checks → sections 1–8; the ServiceDesk
+  audit found all + `head()` twice, missing indexes on own entities, 3 queries per category in search_categories.

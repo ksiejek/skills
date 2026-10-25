@@ -1,6 +1,6 @@
 ---
 name: mxcraft-model
-description: Jak sesja czyta i zmienia model Mendix bez wczytywania go do kontekstu – snapshot modelu w MxCraft (model.json + listy modułów), jeden dokument na wywołanie przez $TANDEM_DIR/modules/mendix/bin/mx-model.js albo Tandem model_read, zapis przez silnik (move, rename), tools/mpr (nowe dokumenty) albo MCP Studio Pro, po zapisie mx check i odświeżenie snapshotu. Używaj, gdy historyjka w MxCraft albo Tandem dotyka modelu Mendix (.mpr) – "przeczytaj mikroflow", "co to woła", "dodaj mikroflow / stronę / enumerację", "zmień nazwę", "przenieś do folderu", "zaimportuj model", "odśwież model", "jak wygląda encja".
+description: Jak sesja czyta i zmienia model Mendix bez wczytywania go do kontekstu – snapshot modelu w MxCraft (model.json + listy modułów), jeden dokument na wywołanie przez $TANDEM_DIR/modules/mendix/bin/mx-model.js albo Tandem model_read, zapis przez silnik (move, rename), tools/mpr (nowe dokumenty) albo MCP Studio Pro, po zapisie mx check i odświeżenie snapshotu. Używaj, gdy historyjka w MxCraft albo Tandem dotyka modelu Mendix (.mpr) – "przeczytaj mikroflow", "co to woła", "dodaj mikroflow / stronę / enumerację", "zmień nazwę", "przenieś do folderu", "zaimportuj model", "odśwież model", "jak wygląda encja", "zbuduj aplikację / funkcję w Mendix" – zawsze przy każdym budowaniu aplikacji Mendix: zasady budowania i lekcje z Craftsman są w reference/build-rules.md.
 ---
 
 # mxcraft-model — the Mendix model from a session
