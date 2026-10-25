@@ -44,8 +44,19 @@ not have the project open (`<name>.mpr.lock`); one story per .mpr at a time.
   validation, one correction. Then review every XPath and expression it lists (MxCraft does not
   check them), fix the file, and write with `node "$TANDEM_DIR/modules/mendix/bin/mxcraft-create.js" <dir> create.json --reviewed`.
   Exit 2 or Ollama down: write the file yourself.
-- Everything else (an existing microflow's activities, a page's widgets): Studio Pro's MCP server
-  while Studio Pro has the project open (probe `"$TANDEM_DIR/modules/mendix/bin/mendix-mcp.js"`; `ped_check_errors` after a
+- A value for an existing enumeration:
+  `python3 -I tools/mpr/enum_add_value.py <dir> <Module> <Enum> <Value> --caption en_US=Text --caption pl_PL=Tekst [--after Value] [--dry-run]`.
+  Widgets whose visibility or editability depends on that enumeration get a condition for the new
+  value too (`--conditions hide` by default, `show`, `like:Value`, `skip`), so mx check gives no CE0456.
+- Activities into an existing microflow or nanoflow: `python3 -I tools/mpr/microflow_insert.py list <dir> <Module> <Name>`
+  shows each object (short id, what it does, position) and its flows; then
+  `microflow_insert.py insert <dir> <Module> <Name> spec.json [--dry-run]` with
+  `{"after": "<id>", "case": "true", "activities": [{"$Type": "Microflows$ActionActivity", "Action": {…}}]}`
+  (or `"before"`, or `"flow"`). It rewires the flow, chains the new activities, moves what lies beyond
+  (down a decision branch: only that column) and grows an enclosing loop. A `MicroflowCall` needs
+  `"QueueSettings": null`; values as in `tools/mpr/examples/`. mx check after the batch.
+- Everything else (a page's widgets, a decision of its own): Studio Pro's MCP server while Studio Pro
+  has the project open (probe `"$TANDEM_DIR/modules/mendix/bin/mendix-mcp.js"`; `ped_check_errors` after a
   batch), or a new `tools/mpr` script built on `elementgen.py` and the specs. Never hand-written BSON.
 
 ## After a batch of writes
