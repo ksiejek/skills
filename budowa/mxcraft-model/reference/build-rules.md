@@ -18,10 +18,8 @@ for what you are about to build. Developing Scout develops Craft and the other w
 - a new MxScout check → its standards.md entry → Craft follows it from the next build;
 - a Craft lesson MxScout cannot check yet → a proposal (ticket) for MxScout.
 
-**After every story, prove it with Scout, new findings only:** run `node check-security.js <dir> --json`
-(mendix-describe) and `MxPerfRisks.risks(model)` (MxScout `public/perfrisks.js`) on the project and on the
-commit before the story (`git worktree add --detach <tmp> <base>`), compare by risk id. Every new id is fixed
-or written into the ticket with a reason. Naming: check the prefixes of every new document (section 8).
+Craft keeps what Scout knows here, so you follow it while writing — no MxScout run after each story
+(the CRAFT-2 audit was a one-off, Karol 2026-10-25). Before writing a document, name the standards it touches.
 
 ## 1. Retrieves
 
@@ -140,6 +138,18 @@ or written into the ticket with a reason. Naming: check the prefixes of every ne
 
 Every lesson from a Craftsman story lands here as a rule above (with the date), on the Atlas page
 `craftsman-lekcje` and in the knowledge base. The story ends with a "Czego się nauczyłem" list.
+
+**The outcome of every Craftsman story** (Karol 2026-10-25), all of it, each confirmed in the ticket:
+
+1. the rule in this file (Craft) — and, when MxScout could look for it, a standard in
+   `mendix-describe/reference/standards.json` (Scout): `node tools/build-standards.js` in MxScout, its tests,
+   then `node bin/skills.js pull mendix-describe` and `publish`;
+2. a dated entry on the Atlas page `craftsman-lekcje` (`~/Atlas`, commit);
+3. the knowledge base: `node bin/tandem-knowledge.js reindex` in Tandem, `search` as proof;
+4. git: commit in Skills, Tandem, MxScout, Atlas — and **push Skills** (`~/Projects/Skills`, origin main);
+5. a readable report for Karol and Mikołaj: what I learned, what I fixed, what is left;
+6. one ticket per practice, with each criterion marked met or not met and its evidence; a ticket goes to
+   Done only when every criterion is met — what is left stays out of Done with the reason.
 
 **Written to be read — by Karol and by Mikołaj.** A lesson list, a ticket comment, a summary: a heading,
 then a short numbered list or a table, one fact per line, the number first ("0 new security findings").
