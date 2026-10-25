@@ -8,6 +8,21 @@ practices for app performance, Security best practices — and MxScout's perform
 Check the plan of every new or changed microflow against this list *before* writing the spec,
 and the result *after* (one `doc` read). A rule broken on purpose gets one line in the ticket.
 
+## 0. One standard with MxScout (Craft ↔ Scout)
+
+Writing must be at least as good as checking. MxScout's standard is the shared one:
+`~/Projects/Skills/mendix/mendix-describe/reference/standards.md` — one entry per MxScout check
+(`mx-<check>-…`), plus what an agent judges (`judged-*`) and Mendix naming (`conv-*`). Read the entries
+for what you are about to build. Developing Scout develops Craft and the other way round:
+
+- a new MxScout check → its standards.md entry → Craft follows it from the next build;
+- a Craft lesson MxScout cannot check yet → a proposal (ticket) for MxScout.
+
+**After every story, prove it with Scout, new findings only:** run `node check-security.js <dir> --json`
+(mendix-describe) and `MxPerfRisks.risks(model)` (MxScout `public/perfrisks.js`) on the project and on the
+commit before the story (`git worktree add --detach <tmp> <base>`), compare by risk id. Every new id is fixed
+or written into the ticket with a reason. Naming: check the prefixes of every new document (section 8).
+
 ## 1. Retrieves
 
 1. **One object → retrieve `Range: First`, never all + `head()`.** `head($List)` after a
@@ -67,7 +82,8 @@ and the result *after* (one `doc` read). A rule broken on purpose gets one line 
    cleanup **[perf-held-objects]**.
 5. No intermediary values stored "for display" (TotalPrice) unless denormalisation is a
    decision recorded in the ticket together with its sync flow.
-6. **Access rules on every new entity**, "Default rights for new members" = None, system-set
+6. **Access rules on every new entity — only for the roles that use it** (MxScout `access-unused`,
+   `access-fails`, `access-past`), "Default rights for new members" = None, system-set
    attributes (status, owner, dates) read-only for users. Data limits go into the access rule's
    XPath, never only into a widget/data source constraint.
 
@@ -108,14 +124,30 @@ and the result *after* (one `doc` read). A rule broken on purpose gets one line 
 ## 8. Naming and hygiene
 
 1. English names, one language per app; user roles singular UpperCamelCase.
-2. Naming standard of the project (ServiceDesk: `STANDARD-NAZW.md`) wins over these.
-3. No new warnings from `mx check`; unused documents removed before the story is done.
-4. Never modify a Marketplace module — extension module instead.
+2. Naming standard of the project (ServiceDesk: `STANDARD-NAZW.md`) wins over these; Mendix's own is
+   standards.md `conv-*`.
+3. Microflows `PREFIX_Entity_Operation`, prefix from how the flow is used (ACT_, SUB_, DS_, VAL_, OCH_,
+   SCE_, ASU_, CRS_, PRS_, MCP_ …). **Never invent a prefix** (ServiceDesk got `SEED_` — not in the standard;
+   a one-off data seed called at start-up is `ASU_`, otherwise `SUB_`).
+4. Other documents: `ENUM_`, `SNIP_`, `JSON_`, `EXM_`, `IMM_`, `JA_`; constants `CONST_` where the project
+   standard says so (ServiceDesk does: 11 new constants were missing it).
+5. Entities singular PascalCase; a non-persistable wrapper holding a list is still one object — name it after
+   what it is (`CategorySearchResult`), not `CategoryList`.
+6. No new warnings from `mx check`; unused documents removed before the story is done.
+7. Never modify a Marketplace module — extension module instead.
 
 ## 9. Lessons (Craftsman)
 
 Every lesson from a Craftsman story lands here as a rule above (with the date), on the Atlas page
 `craftsman-lekcje` and in the knowledge base. The story ends with a "Czego się nauczyłem" list.
 
+**Written to be read — by Karol and by Mikołaj.** A lesson list, a ticket comment, a summary: a heading,
+then a short numbered list or a table, one fact per line, the number first ("0 new security findings").
+Never one long run-on string of commits, paths and semicolons; paths and ids go in a table column or at
+the end of the line.
+
 - 2026-10-25 (CRAFT-1): Mendix best-practice guides + MxScout perf checks → sections 1–8; the ServiceDesk
   audit found all + `head()` twice, missing indexes on own entities, 3 queries per category in search_categories.
+- 2026-10-25 (CRAFT-2): MxScout on my ServiceDesk work, new findings only (base 44d47b67): security 0 new;
+  performance 27 new (2 × P2 missing index, 25 × P3: SUB in a loop, `contains()`); naming 15 (11 constants
+  without `CONST_`, 4 × invented `SEED_`). Rules added: section 0, 4.6, 8.3–8.5.
