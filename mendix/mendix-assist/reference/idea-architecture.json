@@ -1,0 +1,127 @@
+{
+  "format": "mxscout-assist",
+  "version": 1,
+  "items": [
+    {
+      "id": "mxscout-deployment",
+      "kind": "idea",
+      "language": "en",
+      "title": "MxScout on a company machine: how it is deployed",
+      "reported": "Make this an idea to import: the deployment architecture of MxScout on a company machine, levels 1 and 2.",
+      "created": "2026-10-18",
+      "updated": "2026-10-18",
+      "status": "open",
+      "history": [
+        {
+          "date": "2026-10-18",
+          "what": "Written from deployment-architecture/deployment.json, levels 1 and 2 of C4.",
+          "by": "agent"
+        }
+      ],
+      "now": {
+        "summary": "MxScout runs on each person's own machine, next to Studio Pro and the Mendix project's git clone; nothing is hosted.",
+        "story": "A team member clones the Mendix project, starts MxScout from its own clone (Node 22, no install) and opens it in the browser on 127.0.0.1:4289. MxScout reads the .mpr and writes its documentation into the project's mxscout/ folder, which goes to the team through the project's git like any other file.\n\nClaude Code or Codex works in the same project with the Mendix skills and hands its work to MxScout through the inbox. The only things that leave the machine are what the person commits and the files they choose to send."
+      },
+      "proposal": {
+        "summary": "Keep it this way: one MxScout per person, the team shares through the Mendix project's git, and the drawing below is the agreed picture.",
+        "steps": [
+          "Clone the Mendix project",
+          "Start MxScout from its own clone",
+          "Commit mxscout/ with the project"
+        ]
+      },
+      "architecture": {
+        "context": {
+          "nodes": [
+            { "id": "member", "name": "Team member", "note": "developer, tester, analyst", "kind": "person", "group": "People" },
+            { "id": "karol", "name": "Karol", "note": "maintains the tools", "kind": "person", "group": "People" },
+            { "id": "advisor", "name": "The advisor", "note": "Claude in the chat app", "kind": "person", "group": "People" },
+            { "id": "mxscout", "name": "MxScout", "note": "Node 22 + browser, 127.0.0.1:4289", "kind": "app", "group": "The person's machine" },
+            { "id": "agent", "name": "Claude Code, or Codex", "note": "with the Mendix skills", "kind": "system", "group": "The person's machine" },
+            { "id": "studio", "name": "Studio Pro", "note": "edits the .mpr, runs the app", "kind": "system", "group": "The person's machine" },
+            { "id": "mxproject", "name": "The Mendix project", "note": "a git clone: .mpr, mxscout/, .claude/skills/", "kind": "store", "group": "The person's machine" },
+            { "id": "runapp", "name": "The running app", "note": "localhost:8080, admin port 8090 (Developer tools)", "kind": "system", "group": "The person's machine" },
+            { "id": "teamgit", "name": "The app's git server", "note": "the company's: carries mxscout/ to the team", "kind": "store", "group": "Servers" },
+            { "id": "github", "name": "GitHub ksiejek", "note": "public: mxscout, skills; the rest private", "kind": "store", "group": "Servers" },
+            { "id": "craft", "name": "MxCraft and Tandem", "note": "build and run sprints; Karol's machine only", "kind": "system", "group": "Karol's machine" },
+            { "id": "bridge", "name": "advisor-bridge", "note": "this repository: state, architecture, plans", "kind": "store", "group": "Karol's machine" }
+          ],
+          "links": [
+            { "from": "member", "to": "mxscout", "label": "browser tab" },
+            { "from": "member", "to": "agent", "label": "chat" },
+            { "from": "member", "to": "studio", "label": "models" },
+            { "from": "mxscout", "to": "mxproject", "label": "reads .mpr, writes mxscout/" },
+            { "from": "studio", "to": "mxproject", "label": "writes .mpr" },
+            { "from": "agent", "to": "mxproject", "label": "reads docs, writes descriptions and cases" },
+            { "from": "agent", "to": "mxscout", "label": "agent channel (opt-in)" },
+            { "from": "mxproject", "to": "teamgit", "label": "the person commits and pushes" },
+            { "from": "studio", "to": "runapp", "label": "runs" },
+            { "from": "mxscout", "to": "runapp", "label": "app tab bridge, admin port (Developer tools)" },
+            { "from": "github", "to": "mxscout", "label": "git clone mxscout" },
+            { "from": "github", "to": "agent", "label": "skills: clone or install script" },
+            { "from": "karol", "to": "github", "label": "pushes every repository" },
+            { "from": "karol", "to": "craft", "label": "builds with Claude" },
+            { "from": "mxscout", "to": "craft", "label": "its checks become building standards" },
+            { "from": "karol", "to": "bridge", "label": "exports STATE, ARCHITECTURE, PLAN" },
+            { "from": "bridge", "to": "advisor", "label": "reads, answers with prompts" }
+          ],
+          "note": "Everything runs on the person's own machine. The only things that leave it are what the person commits to the Mendix project's git, and the files they choose to send."
+        },
+        "containers": {
+          "nodes": [
+            { "id": "person", "name": "The person", "note": "a browser tab, a Claude Code chat", "kind": "person" },
+            { "id": "server", "name": "MxScout server", "note": "server/: static files, the agent channel in memory, Developer-tool routes; writes nothing", "kind": "part", "group": "MxScout: a clone, double-click launcher" },
+            { "id": "webapp", "name": "MxScout browser app", "note": "public/: parses the .mpr in a Web Worker; File System Access API", "kind": "part", "group": "MxScout: a clone, double-click launcher" },
+            { "id": "idb", "name": "IndexedDB", "note": "origin 127.0.0.1:4289: projects, settings, package keys", "kind": "store", "group": "MxScout: a clone, double-click launcher" },
+            { "id": "mpr", "name": ".mpr and .git", "note": "the model and its version; read only", "kind": "store", "group": "The Mendix project, a git clone" },
+            { "id": "mxfolder", "name": "mxscout/", "note": "committed: mxscout.json, descriptions/, docs/, knowledge/, AGENTS.md, README.md", "kind": "store", "group": "The Mendix project, a git clone" },
+            { "id": "projskills", "name": ".claude/skills/", "note": "mendix-describe, mendix-assist, committed so the team has them", "kind": "store", "group": "The Mendix project, a git clone" },
+            { "id": "home", "name": "The MxScout folder", "note": "<home>/<project>/: project.json (part: local), model.json, documentation.md, ai-pack.md, inbox/, assist/", "kind": "store", "group": "The person's home" },
+            { "id": "library", "name": "~/.mxscout/library.json", "note": "project id → folder; MXSCOUT_PROJECTS wins", "kind": "store", "group": "The person's home" },
+            { "id": "userskills", "name": "~/.claude/skills/", "note": "install.sh / install.ps1 from the MxScout clone, or the Skills repository", "kind": "store", "group": "The person's home" },
+            { "id": "claude", "name": "Claude Code, or Codex", "note": "agent.js, check-descriptions.js, check-security.js", "kind": "part", "group": "Agents" },
+            { "id": "studio", "name": "Studio Pro", "note": "and a git client", "kind": "system", "group": "Agents" },
+            { "id": "apptab", "name": "The app's tab", "note": "localhost:8080: the bridge snippet", "kind": "system", "group": "Developer tools only" },
+            { "id": "adminport", "name": "Admin port", "note": "8090: the one outbound connection, read-only, non-production guard", "kind": "system", "group": "Developer tools only" },
+            { "id": "teamgit", "name": "The app's git server", "note": "mxscout/ and .claude/skills/ reach the team", "kind": "store", "group": "Beyond the machine" },
+            { "id": "files", "name": "Files that travel", "note": ".mxscout package (AES-GCM, access code), documentation HTML, documentation export", "kind": "store", "group": "Beyond the machine" }
+          ],
+          "links": [
+            { "from": "person", "to": "webapp", "label": "uses" },
+            { "from": "person", "to": "claude", "label": "asks" },
+            { "from": "person", "to": "studio", "label": "models" },
+            { "from": "webapp", "to": "server", "label": "same-origin HTTP" },
+            { "from": "server", "to": "webapp", "label": "static files, /api/skills" },
+            { "from": "webapp", "to": "idb", "label": "every save" },
+            { "from": "mpr", "to": "webapp", "label": "read in a Web Worker" },
+            { "from": "webapp", "to": "mxfolder", "label": "written after each save" },
+            { "from": "webapp", "to": "projskills", "label": "when chosen" },
+            { "from": "webapp", "to": "home", "label": "the local part" },
+            { "from": "webapp", "to": "files", "label": "export, import" },
+            { "from": "studio", "to": "mpr", "label": "writes" },
+            { "from": "mxfolder", "to": "teamgit", "label": "the person commits" },
+            { "from": "projskills", "to": "teamgit", "label": "the person commits" },
+            { "from": "mxfolder", "to": "claude", "label": "docs/, descriptions/, AGENTS.md" },
+            { "from": "home", "to": "claude", "label": "ai-pack.md, documentation.md" },
+            { "from": "claude", "to": "mxfolder", "label": "descriptions/, knowledge/" },
+            { "from": "claude", "to": "home", "label": "inbox/" },
+            { "from": "library", "to": "claude", "label": "where the folder is" },
+            { "from": "userskills", "to": "claude", "label": "loads, when the project carries none" },
+            { "from": "projskills", "to": "claude", "label": "loads, in the project root" },
+            { "from": "claude", "to": "server", "label": "agent channel: opt-in, token, memory only" },
+            { "from": "webapp", "to": "apptab", "label": "session token" },
+            { "from": "server", "to": "adminport", "label": "two read-only actions, on a loop" }
+          ],
+          "note": "Boxes on the left ask, boxes on the right hold files. MxScout's server never writes to disk; the browser tab writes only into folders the person picked."
+        },
+        "open": [
+          "Where the team's git server is, and whether Studio Pro commits mxscout/ by itself, is the company's and is not drawn.",
+          "A future company RAG that reads docs/ and knowledge/ from the repositories is not drawn; MxScout itself uploads nothing.",
+          "Which machines the team members use (Windows or macOS) is not drawn; MxScout runs the same on both from a clone, without an install."
+        ]
+      },
+      "open": [],
+      "effort": "none in the model: the drawing documents how MxScout is used"
+    }
+  ]
+}

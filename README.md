@@ -2,31 +2,41 @@
 
 Karol's Claude Code skills. Private repository: it is not to be made public.
 
-**`skills.tsv` is the list of every Claude Code skill on Karol's Mac Studio** — the
-ones kept here and the ones that live in the MxScout and Tandem repositories —
-with the one folder that is each skill's source of truth and whether it is
-`active` or `retired`. `install.sh` links every active row into
-`~/.claude/skills/`; Atlas (section Skille) and Tandem's knowledge base read the
-same file. Edit a skill in its source folder only.
+**This repository is the one place every Claude Code skill on Karol's Mac Studio
+is edited** (2026-10-25). `skills.tsv` lists each skill's source folder here,
+the copies other projects carry, and the retired copies. `install.sh` links the
+sources into `~/.claude/skills/`; Atlas (section Skille) and Tandem's knowledge
+base read the same file.
 
-| Where | Skills | Status |
-|---|---|---|
-| here (`~/Projects/Skills`) | `app-report-presentation`, `mendix-docs` | active |
-| `~/Projects/MxScout/skills` | `mendix-assist`, `mendix-describe`, `mendix-brief`, `mendix-change-proposal`, `mendix-testcases`, `mxscout-project` | active |
-| `~/Projects/Tandem/skills` | `tandem`, `sprinter`, `lean-context`, `mendix/mxcraft-model`, `mendix/mxcraft-workflow`, `mendix/mxcraft-theme-scss` | active |
-| `~/Projects/MxCraft/skills` | the five older copies of the Tandem ones | retired (2026-10-25): never linked, kept for history and the knowledge base |
-
-`mendix-describe/` and `mendix-assist/` are no longer copied here (2026-10-25):
-their one home is MxScout's `skills/` (MxScout Dev 2.0 has no skills).
-
-| Skill kept here | What it does |
+| Folder | Skills |
 |---|---|
-| `mendix-docs/` | Documents a Mendix app straight from its `.mpr` (or an MxScout project folder's `model.json`, handing results back into its `inbox/`; or, with `docs.js repo`, writing a Mendix project's committed `mxscout/docs/` as MxScout does), with nothing else running, as one offline HTML report (the same report MxScout exports). `mendix-docs/` is the installable copy, packed from `mendix-docs-source/`. |
-| `app-report-presentation/` | How to lay out any application's documentation as a readable report or small portal, with a ready visual kit in `assets/` (tokens, components, icons, renderer, `build.js`, an example report). |
+| `mendix/` | `mendix-assist`, `mendix-describe`, `mendix-brief`, `mendix-change-proposal`, `mendix-testcases`, `mxscout-project`, `mendix-docs` (packed from `mendix-docs-source/`) |
+| `budowa/` | `mxcraft-model`, `mxcraft-workflow`, `mxcraft-theme-scss` — building a Mendix model from Tandem |
+| `tablica/` | `tandem`, `sprinter`, `lean-context` — the board and how a session works |
+| `raporty/` | `app-report-presentation` |
+| `retired/mxcraft/` | MxCraft's five old copies: never linked, kept for history and the knowledge base |
+| `bin/skills.js` | writes the copies other projects carry |
+
+## Copies in other projects
+
+MxScout ships its skills (`/api/skills`, its own `skills/install.sh`, CI) and
+Tandem's code reads its own, so both keep a **copy** in their `skills/` folder
+(`copy` rows of `skills.tsv`). Never edit a copy:
+
+```
+node bin/skills.js check              # every copy: ok, behind, edited
+node bin/skills.js publish [names…]   # writes the sources over their copies; then commit there too
+node bin/skills.js pull <name>        # an edit someone made in a copy, back into the source
+```
+
+`publish` refuses a copy edited since it was last written (`.published.json`
+keeps what was written) and says to `pull` it first; `--force` throws the edit
+away. `mendix-describe/engine/` is MxScout's shared core: `check` and `publish`
+refresh it from MxScout's `public/` first, so edit the engine in MxScout.
 
 `mendix-docs-source/` holds mendix-docs' own files (`SKILL.md`, `docs.js`,
 `README.md`, `CHANGELOG.md`) and the two tools that build and check it:
-`pack-skill.js` and `selftest.js`. Everything else in `mendix-docs/` (the
+`pack-skill.js` and `selftest.js`. Everything else in `mendix/mendix-docs/` (the
 engine, the checker, the references) is taken from MxScout when it is packed,
 so it cannot drift. Edit `mendix-docs-source/`, never `mendix-docs/` by hand.
 
@@ -43,13 +53,12 @@ git clone https://github.com/ksiejek/skills.git ~/Projects/Skills
 
 `install.sh` links every active skill of `skills.tsv` into `~/.claude/skills/`
 (an older folder there is moved to `~/.claude/skills-backup/`, never deleted),
-and removes links that point at a retired folder, into MxCraft, or at a folder
-in `~/Projects` that has no `SKILL.md` any more. It is safe to run again: a
-link that is already right is left alone. `./install.sh --check` only says
-what it would change (exit 1 when something would). A skill whose repository
-is not cloned (no MxScout or Tandem beside this one) is skipped with a note.
-Because they are links, updating is only a `git pull` in the skill's own
-repository, then a new Claude Code session. `./install.sh mendix-docs` links
+and removes links that point at a retired folder, a copy in another project,
+into MxCraft, or at a folder in `~/Projects` that has no `SKILL.md` any more.
+It is safe to run again: a link that is already right is left alone.
+`./install.sh --check` only says what it would change (exit 1 when something
+would). Because they are links, updating is only a `git pull` here, then a new
+Claude Code session. `./install.sh mendix-docs` links
 one skill only.
 
 **Codex.** The skills are plain Markdown and Node scripts, not tied to Claude.
@@ -69,8 +78,8 @@ what to add to the repository's root `AGENTS.md`.
 Copy a skill's folder into `~/.claude/skills/<name>/`:
 
 ```
-cp -R mendix-docs             ~/.claude/skills/mendix-docs
-cp -R app-report-presentation ~/.claude/skills/app-report-presentation
+cp -R mendix/mendix-docs              ~/.claude/skills/mendix-docs
+cp -R raporty/app-report-presentation ~/.claude/skills/app-report-presentation
 ```
 
 To replace an installed copy, remove the old folder first so files deleted
@@ -80,8 +89,8 @@ dependencies, nothing to install.
 ## Rebuild mendix-docs from MxScout
 
 ```
-node mendix-docs-source/pack-skill.js mendix-docs --mxscout ~/Projects/MxScout
-node mendix-docs-source/selftest.js --mxscout ~/Projects/MxScout   # expect "36 passed, 0 failed"
+node mendix/mendix-docs-source/pack-skill.js mendix/mendix-docs --mxscout ~/Projects/MxScout
+node mendix/mendix-docs-source/selftest.js --mxscout ~/Projects/MxScout   # expect "36 passed, 0 failed"
 ```
 
 `pack-skill.js` empties the destination first — only when it is empty or holds
@@ -103,9 +112,10 @@ git status && git diff --stat                     # review, then commit
 engine and mendix-describe's checker, copies MxScout's
 `public/guide-team.html` to `docs/guide.html`, and runs the selftest.
 
-A change to mendix-describe or mendix-assist belongs in MxScout's `skills/`.
-A change to mendix-docs goes into `mendix-docs-source/`, then `./sync.sh`.
-A new skill, or one moved or retired: change its row in `skills.tsv`, then
+A change to any skill is made here, then `node bin/skills.js publish` when it
+has a copy elsewhere. A change to mendix-docs goes into
+`mendix/mendix-docs-source/`, then `./sync.sh`. A new skill, or one moved or
+retired: its folder under the right family, its row in `skills.tsv`, then
 `./install.sh`.
 
 ## Never commit client data

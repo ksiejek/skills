@@ -1,0 +1,36 @@
+{
+  "about": "Config used for Service Desk (story SD-12): theme/web/fonts.css, ui.css, darkmode.css -> themesource/helpdesktheme/web/helpdesk/. Line numbers refer to ui.css as it was before the change.",
+  "app": "ServiceDesk",
+  "name": "helpdesk",
+  "prefix": "hd",
+  "eol": "crlf",
+  "files": [
+    { "file": "fonts.css", "partial": "fonts", "title": "Font Roboto" },
+    {
+      "file": "ui.css",
+      "palette": {
+        "example": "gray-600",
+        "scales": { "gray": "Szarości", "primary": "Kolor główny (primary)" },
+        "colorsTitle": "Kolory znaczeniowe i tekstu",
+        "colors": ["bg-color", "bg-color2", "success", "success-light", "success-dark", "danger", "danger-light", "danger-dark", "warning",
+                   "border-color", "border-color-light", "border-color-vlight", "default-color", "dark-color", "edge-color", "light-color"],
+        "otherTitle": "Rozmiary i układ (zmieniane też w _responsive.scss)"
+      },
+      "parts": [
+        { "name": "base", "title": "Podstawy: body, html, nagłówki, linki, drobne poprawki widgetów", "from": 67 },
+        { "name": "layout", "title": "Układ: modal, bottomPop, Force save, menu boczne, topBar", "from": 113 },
+        { "name": "typography", "title": "Typografia i tytuły", "from": 227 },
+        { "name": "utilities", "title": "Klasy pomocnicze: kolory, odstępy, flex", "from": 296 },
+        { "name": "forms", "title": "Alerty, formularze, edytor CKE", "from": 594 },
+        { "name": "panels", "title": "Statystyki kolejek, instalacja PWA, prawy panel, rightPop, załączniki", "from": 716 },
+        { "name": "widgets", "title": "Widgety: listView, data grid 2, tabela, przyciski, alerty, zakładki, tagi, color picker, file dropper, combo, kroki, submenu, wiadomości, boxy, powiadomienia", "from": 752 },
+        { "name": "app", "title": "Ekrany aplikacji: ticket, operator view, operator grid, tooltip, FAQ, wyszukiwanie, zadania, poczta, wiadomości, formularze", "from": 1022 },
+        { "name": "responsive", "title": "Media queries: 1600 / 1350 / 1200 / 1000 / 640 px", "from": 1346 },
+        { "name": "scrollbar-animations", "title": "Pasek przewijania i animacje (keyframes)", "from": 1389 },
+        { "name": "phone", "title": "Profil telefonu (.profile-phone)", "from": 1433 },
+        { "name": "components", "title": "Komponenty: kroki (Steps), radio segmentowe", "from": 1691 }
+      ]
+    },
+    { "file": "darkmode.css", "partial": "darkmode", "title": "Tryb ciemny", "note": "nadpisanie zmiennych palety i poprawki widgetów pod .darkMode.", "dark": ".darkMode" }
+  ]
+}

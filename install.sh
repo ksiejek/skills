@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Links every active skill of skills.tsv into Claude Code, so a `git pull` in the skill's own repository updates it at once.
+# Links every active skill of skills.tsv (its source in this repository) into Claude Code, so editing it here or a
+# `git pull` here updates it at once. The copies other projects carry are never linked (bin/skills.js writes them).
 #   ./install.sh                         all active skills, and drops links to retired or missing skills
 #   ./install.sh mendix-docs             only the ones named (nothing is dropped)
 #   ./install.sh --check                 says what it would change and changes nothing; exit 1 when something would change
@@ -28,13 +29,14 @@ for arg in "$@"; do
   esac
 done
 
-# skills.tsv → ACTIVE_NAME/ACTIVE_DIR (the rows to link) and RETIRED_DIR (folders whose links are dropped)
+# skills.tsv → ACTIVE_NAME/ACTIVE_DIR (the rows to link) and RETIRED_DIR (retired folders and the copies other projects
+# carry: a link to one of them is dropped, an active skill's link is pointed at its source)
 ACTIVE_NAME=(); ACTIVE_DIR=(); RETIRED_DIR=()
 while IFS=$'\t' read -r name status folder note || [ -n "${name:-}" ]; do
   case "$name" in ''|'#'*|name) continue ;; esac
   case "$status" in
     active)  ACTIVE_NAME+=("$name"); ACTIVE_DIR+=("$PROJECTS/$folder") ;;
-    retired) RETIRED_DIR+=("$PROJECTS/$folder") ;;
+    retired|copy) RETIRED_DIR+=("$PROJECTS/$folder") ;;
     *) echo "skills.tsv: $name has an unknown status '$status'" >&2; exit 2 ;;
   esac
 done < "$MANIFEST"
@@ -108,4 +110,4 @@ if [ "$CHECK" = yes ]; then
   if [ "$CHANGES" -eq 0 ]; then echo "Up to date: nothing to change."; exit 0; fi
   echo "$CHANGES change(s) waiting. Run without --check to make them."; exit 1
 fi
-echo "Done ($CHANGES change(s)). Update later with git pull in each skill's repository (the links follow it); restart Claude Code to reload."
+echo "Done ($CHANGES change(s)). Update later with git pull here (the links follow it); restart Claude Code to reload."

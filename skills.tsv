@@ -1,24 +1,39 @@
-# Every Claude Code skill on Karol's Mac Studio: the one place each skill lives and whether it is in use.
-# install.sh links every "active" row into ~/.claude/skills; Atlas (Skille) and Tandem's knowledge base read this file too.
-# Columns, separated by one tab: name, status (active | retired), folder (relative to ~/Projects), note.
-# A skill has exactly one active row: that folder is its source of truth; edit the skill there and nowhere else.
+# Every Claude Code skill on Karol's Mac Studio. This repository is the one place each skill is edited.
+# Columns, separated by one tab: name, status, folder (relative to ~/Projects), note.
+#   active   the skill's source of truth, a folder of this repository: install.sh links it into ~/.claude/skills
+#   copy     a copy another project carries (MxScout ships its skills, Tandem's code reads its own): written only by
+#            node bin/skills.js publish; never edit it there (bin/skills.js check sees it, pull brings it back here)
+#   retired  kept for history and Tandem's knowledge base, never linked
+# Atlas (Skille) and Tandem's knowledge base read this file too.
 name	status	folder	note
-app-report-presentation	active	Skills/app-report-presentation
-mendix-docs	active	Skills/mendix-docs	packed from Skills/mendix-docs-source by sync.sh
-mendix-assist	active	MxScout/skills/mendix-assist
-mendix-describe	active	MxScout/skills/mendix-describe
-mendix-brief	active	MxScout/skills/mendix-brief
-mendix-change-proposal	active	MxScout/skills/mendix-change-proposal
-mendix-testcases	active	MxScout/skills/mendix-testcases
-mxscout-project	active	MxScout/skills/mxscout-project
-tandem	active	Tandem/skills/tandem
-sprinter	active	Tandem/skills/sprinter
-lean-context	active	Tandem/skills/lean-context
-mxcraft-model	active	Tandem/skills/mendix/mxcraft-model
-mxcraft-workflow	active	Tandem/skills/mendix/mxcraft-workflow
-mxcraft-theme-scss	active	Tandem/skills/mendix/mxcraft-theme-scss
-lean-context	retired	MxCraft/skills/lean-context	MxCraft retired; replaced by Tandem/skills/lean-context (2026-10-25)
-sprinter	retired	MxCraft/skills/sprinter	MxCraft retired; replaced by Tandem/skills/sprinter (2026-10-25)
-mxcraft-model	retired	MxCraft/skills/mxcraft-model	MxCraft retired; replaced by Tandem/skills/mendix/mxcraft-model (2026-10-25)
-mxcraft-workflow	retired	MxCraft/skills/mxcraft-workflow	MxCraft retired; replaced by Tandem/skills/mendix/mxcraft-workflow (2026-10-25)
-mxcraft-theme-scss	retired	MxCraft/skills/mxcraft-theme-scss	MxCraft retired; replaced by Tandem/skills/mendix/mxcraft-theme-scss (2026-10-25)
+mendix-assist	active	Skills/mendix/mendix-assist
+mendix-describe	active	Skills/mendix/mendix-describe	engine/ is generated from MxScout/public (edit the engine in MxScout)
+mendix-brief	active	Skills/mendix/mendix-brief
+mendix-change-proposal	active	Skills/mendix/mendix-change-proposal
+mendix-testcases	active	Skills/mendix/mendix-testcases
+mxscout-project	active	Skills/mendix/mxscout-project
+mendix-docs	active	Skills/mendix/mendix-docs	packed from Skills/mendix/mendix-docs-source by sync.sh
+mxcraft-model	active	Skills/budowa/mxcraft-model
+mxcraft-workflow	active	Skills/budowa/mxcraft-workflow
+mxcraft-theme-scss	active	Skills/budowa/mxcraft-theme-scss
+tandem	active	Skills/tablica/tandem
+sprinter	active	Skills/tablica/sprinter
+lean-context	active	Skills/tablica/lean-context
+app-report-presentation	active	Skills/raporty/app-report-presentation
+mendix-assist	copy	MxScout/skills/mendix-assist	MxScout ships it (/api/skills, skills/install.sh)
+mendix-describe	copy	MxScout/skills/mendix-describe	MxScout ships it (/api/skills, skills/install.sh)
+mendix-brief	copy	MxScout/skills/mendix-brief	MxScout ships it (skills/install.sh)
+mendix-change-proposal	copy	MxScout/skills/mendix-change-proposal	MxScout ships it (skills/install.sh)
+mendix-testcases	copy	MxScout/skills/mendix-testcases	MxScout ships it (skills/install.sh)
+mxscout-project	copy	MxScout/skills/mxscout-project	MxScout ships it (skills/install.sh)
+mxcraft-model	copy	Tandem/skills/mendix/mxcraft-model	Tandem's code and MCP server read it
+mxcraft-workflow	copy	Tandem/skills/mendix/mxcraft-workflow	Tandem's code and MCP server read it
+mxcraft-theme-scss	copy	Tandem/skills/mendix/mxcraft-theme-scss	Tandem's code and MCP server read it
+tandem	copy	Tandem/skills/tandem	Tandem's code and MCP server read it
+sprinter	copy	Tandem/skills/sprinter	Tandem's code and MCP server read it
+lean-context	copy	Tandem/skills/lean-context	Tandem's code and MCP server read it
+lean-context	retired	Skills/retired/mxcraft/lean-context	MxCraft's copy, retired 2026-10-25
+sprinter	retired	Skills/retired/mxcraft/sprinter	MxCraft's copy, retired 2026-10-25
+mxcraft-model	retired	Skills/retired/mxcraft/mxcraft-model	MxCraft's copy, retired 2026-10-25
+mxcraft-workflow	retired	Skills/retired/mxcraft/mxcraft-workflow	MxCraft's copy, retired 2026-10-25
+mxcraft-theme-scss	retired	Skills/retired/mxcraft/mxcraft-theme-scss	MxCraft's copy, retired 2026-10-25

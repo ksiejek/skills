@@ -24,7 +24,7 @@ if [ ! -f "$MXSCOUT_DIR/public/docs-file.js" ]; then
 fi
 
 echo "mendix-docs <- mendix-docs-source + $MXSCOUT_DIR"
-node "$HERE/mendix-docs-source/pack-skill.js" "$HERE/mendix-docs" --mxscout "$MXSCOUT_DIR"
+node "$HERE/mendix/mendix-docs-source/pack-skill.js" "$HERE/mendix/mendix-docs" --mxscout "$MXSCOUT_DIR"
 
 node "$HERE/docs/build-full-guide.js" "$MXSCOUT_DIR"
 GUIDE_SRC="$MXSCOUT_DIR/public/guide-team.html"
@@ -36,7 +36,7 @@ else
 fi
 
 echo "selftest"
-node "$HERE/mendix-docs-source/selftest.js" --mxscout "$MXSCOUT_DIR"
+node "$HERE/mendix/mendix-docs-source/selftest.js" --mxscout "$MXSCOUT_DIR"
 
 echo
 echo "MxScout at $(git -C "$MXSCOUT_DIR" rev-parse --short HEAD 2>/dev/null || echo '?'). Review with: git -C \"$HERE\" status"
