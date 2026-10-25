@@ -27,6 +27,12 @@ Context rules: skill `lean-context`.
 
 ## Write: pick the tool, back up first
 
+**What you build follows `reference/build-rules.md`** (Mendix best practices + MxScout's `mx-perf-*`
+checks): one object = retrieve `First`, never all + `head()`; no retrieve, commit or delete in a
+loop; count = retrieve + aggregate; an index for every filtered attribute; access rules on every
+entity; error handling and a log on every integration call. Check each planned flow against it
+before the spec and once after the write.
+
 Before the first write: clone the Mendix repo to `~/Mendix/_backups` and tag it. Studio Pro must
 not have the project open (`<name>.mpr.lock`); one story per .mpr at a time.
 
