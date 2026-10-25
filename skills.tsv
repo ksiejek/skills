@@ -1,0 +1,24 @@
+# Every Claude Code skill on Karol's Mac Studio: the one place each skill lives and whether it is in use.
+# install.sh links every "active" row into ~/.claude/skills; Atlas (Skille) and Tandem's knowledge base read this file too.
+# Columns, separated by one tab: name, status (active | retired), folder (relative to ~/Projects), note.
+# A skill has exactly one active row: that folder is its source of truth; edit the skill there and nowhere else.
+name	status	folder	note
+app-report-presentation	active	Skills/app-report-presentation
+mendix-docs	active	Skills/mendix-docs	packed from Skills/mendix-docs-source by sync.sh
+mendix-assist	active	MxScout/skills/mendix-assist
+mendix-describe	active	MxScout/skills/mendix-describe
+mendix-brief	active	MxScout/skills/mendix-brief
+mendix-change-proposal	active	MxScout/skills/mendix-change-proposal
+mendix-testcases	active	MxScout/skills/mendix-testcases
+mxscout-project	active	MxScout/skills/mxscout-project
+tandem	active	Tandem/skills/tandem
+sprinter	active	Tandem/skills/sprinter
+lean-context	active	Tandem/skills/lean-context
+mxcraft-model	active	Tandem/skills/mendix/mxcraft-model
+mxcraft-workflow	active	Tandem/skills/mendix/mxcraft-workflow
+mxcraft-theme-scss	active	Tandem/skills/mendix/mxcraft-theme-scss
+lean-context	retired	MxCraft/skills/lean-context	MxCraft retired; replaced by Tandem/skills/lean-context (2026-10-25)
+sprinter	retired	MxCraft/skills/sprinter	MxCraft retired; replaced by Tandem/skills/sprinter (2026-10-25)
+mxcraft-model	retired	MxCraft/skills/mxcraft-model	MxCraft retired; replaced by Tandem/skills/mendix/mxcraft-model (2026-10-25)
+mxcraft-workflow	retired	MxCraft/skills/mxcraft-workflow	MxCraft retired; replaced by Tandem/skills/mendix/mxcraft-workflow (2026-10-25)
+mxcraft-theme-scss	retired	MxCraft/skills/mxcraft-theme-scss	MxCraft retired; replaced by Tandem/skills/mendix/mxcraft-theme-scss (2026-10-25)
