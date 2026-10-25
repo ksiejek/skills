@@ -156,7 +156,7 @@ A Service Desk ticket — a user's report — checked against the model.
 | `needs[]` | for `cannot-tell` or `low` | what would settle it: the logs of that day, the record's data, the steps to reproduce, the version deployed |
 | `reply` | no, but write it | a few sentences to paste back into the ticket, in the item's `language` (English by default) unless the person asked for the ticket's own language. With open questions, it holds them, ready to paste to the reporter |
 | `fix` | for a `bug` | the proposed fix, as a proposal (`summary`, `story`, `steps`, `diagram`, `changes`) and an optional `effort` |
-| `risk` | no | Developer tools: the id of a known risk the ticket reports — exactly as the pack's `## risk triage` or the documentation's Risks section gives it (`p2-saved-twice`, `c-7d3f2a9e`). Never one you made up |
+| `risk` | no | The id of a known risk the ticket reports — exactly as the pack's `## risk triage` or the documentation's Risks section gives it (`p2-saved-twice`, `c-7d3f2a9e`). Never one you made up |
 
 ## A Jira issue (`kind: "jira"`)
 

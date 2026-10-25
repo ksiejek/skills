@@ -5,7 +5,7 @@ description: Propose a change to a Mendix model as a file that can be drawn. Rea
 
 # Proposing a change to a Mendix model
 
-MxScout (with Developer tools on) reads a `.mpr` and hands out a JSON file of its flows' drawings.
+MxScout reads a `.mpr` and hands out a JSON file of its flows' drawings.
 MxScaffold imports that file and draws it. This skill is the step in between: **read the file, make the
 change that was asked for, and write a second file plus an explanation** — so
 the proposal is something to look at on a canvas, next to the original, rather
@@ -158,10 +158,9 @@ labelled outlets.
 writes, from a real `.mpr`, two ways:
 
 - **Export drawings**, in the header of the **Microflows** screen and of the
-  **Nanoflows** screen: every microflow (or nanoflow) shown for the role picked
-  in **View as** that has a drawing — the button's tooltip says how many ("Write
-  the drawings of the 12 microflows shown for this role …"). To export them
-  all, set **View as** to **Everything** first. The file is
+  **Nanoflows** screen: every microflow (or nanoflow) that has a drawing — the
+  button's tooltip says how many ("Write the drawings of the 12 microflows …").
+  The file is
   `mxscout-flows-<project>-<date>.json`.
 - **Export drawing**, in the head of a flow's window (the one that opens over
   the screen for a single microflow or nanoflow): that one flow, as

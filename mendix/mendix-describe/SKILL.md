@@ -756,7 +756,7 @@ older format, which MxScout still reads and moves to Assist, and which
 `agent.js write` refuses. It is described in `reference/migration.md`, for
 reading an older file only.
 
-With Developer tools on, a proposal can also be drawn — the changed flows and domain
+A proposal can also be drawn — the changed flows and domain
 model on a canvas — with the mendix-change-proposal skill.
 
 ## A ticket, a Jira issue or an idea? Use mendix-assist
@@ -909,7 +909,7 @@ reopens one marked fixed that is still there. Never change the model for it.
 
 ## Risk triage: what a person already decided
 
-Developer tools let the person work through your risks: **confirm** one
+On the Risks page the person works through your risks: **confirm** one
 (it holds, still to fix), mark one a **false positive** with the reason,
 **accept** it, mark one **fixed**, reopen it. A comment can be a
 risk too, **raised by a person**. When there is any of that, the pack has a

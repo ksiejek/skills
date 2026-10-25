@@ -2812,8 +2812,8 @@
               statusMark(x.s)])
           ], function () { go({ view: 'risks', sub: riskId(x.i)}); }));
         });
-        // The status filter (risk triage) and whose a risk is: docs-triage.js.
-        var statusBar = TRI.statusBar({ h: h, everything: everything, inOrigin: inOrigin, rf: rf, setF: setF, shown: triaged.length || people, people: people, agents: agents });
+        // The status filter (risk triage) and whose a risk is: docs-triage.js — also while a filter other than Open is on.
+        var statusBar = TRI.statusBar({ h: h, everything: everything, inOrigin: inOrigin, rf: rf, setF: setF, shown: triaged.length || people || (rf.st && rf.st !== 'open'), people: people, agents: agents });
         var listCol = h('section', { class: 'dx-rk-list', 'aria-label': 'Findings', 'data-keep-scroll': 'rk-list' }, [
           statusBar,
           h('div', { class: 'dx-rk-lh' }, [

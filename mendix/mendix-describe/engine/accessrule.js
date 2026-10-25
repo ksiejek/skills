@@ -176,7 +176,7 @@
           (namesRole
             ? 'This one reaches a user ROLE through System, which is the shape most often reported as a rule that matches no rows at run time.\n\n'
             : 'A path through System is also the shape most often reported as a rule that matches no rows at run time.\n\n') +
-          'MxScout does not claim that is what happens here — it has not checked, and it cannot check from the model. Connect the app and see what this rule actually returns before relying on it.'
+          'MxScout does not claim that is what happens here — it has not checked, and it cannot check from the model. See what this rule actually returns in the running app before relying on it.'
       };
     }
     if (missing) {

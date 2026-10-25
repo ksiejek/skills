@@ -351,7 +351,7 @@ put it in `needs` or `open`. Do not guess it.
    steps 3 and 4 say — in Mendix terms, by the application's own conventions,
    one entry per model change. A fix that creates or edits a record from a
    page goes through a non-persistent copy (the save pattern in step 3).
-5. **If it is a known risk, say which** (Developer tools): when the pack's `##
+5. **If it is a known risk, say which**: when the pack's `##
    risk triage` or the documentation's Risks section has a risk that describes
    this very problem, put its id in `risk`. Only an id you read there.
 6. **Write the reply** — `reply`, a few sentences for the ticket's reporter,
