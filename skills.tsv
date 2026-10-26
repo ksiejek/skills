@@ -13,9 +13,9 @@ mendix-change-proposal	active	Skills/mendix/mendix-change-proposal
 mendix-testcases	active	Skills/mendix/mendix-testcases
 mxscout-project	active	Skills/mendix/mxscout-project
 mendix-docs	active	Skills/mendix/mendix-docs	packed from Skills/mendix/mendix-docs-source by sync.sh
-mxcraft-model	active	Skills/budowa/mxcraft-model
-mxcraft-workflow	active	Skills/budowa/mxcraft-workflow
-mxcraft-theme-scss	active	Skills/budowa/mxcraft-theme-scss
+mxcraft-model	active	mxcraft-skills/skills/mxcraft-model	shared repo ksiejek/mxcraft-skills (CRAFT-16); edit there, on a skill/<topic> branch
+mxcraft-workflow	active	mxcraft-skills/skills/mxcraft-workflow	shared repo ksiejek/mxcraft-skills (CRAFT-16); edit there, on a skill/<topic> branch
+mxcraft-theme-scss	active	mxcraft-skills/skills/mxcraft-theme-scss	shared repo ksiejek/mxcraft-skills (CRAFT-16); edit there, on a skill/<topic> branch
 tandem	active	Skills/tablica/tandem
 sprinter	active	Skills/tablica/sprinter
 lean-context	active	Skills/tablica/lean-context
@@ -37,3 +37,6 @@ sprinter	retired	Skills/retired/mxcraft/sprinter	MxCraft's copy, retired 2026-10
 mxcraft-model	retired	Skills/retired/mxcraft/mxcraft-model	MxCraft's copy, retired 2026-10-25
 mxcraft-workflow	retired	Skills/retired/mxcraft/mxcraft-workflow	MxCraft's copy, retired 2026-10-25
 mxcraft-theme-scss	retired	Skills/retired/mxcraft/mxcraft-theme-scss	MxCraft's copy, retired 2026-10-25
+mxcraft-model	retired	Skills/retired/budowa/mxcraft-model	the source before the shared repo, retired 2026-10-26 (CRAFT-16)
+mxcraft-workflow	retired	Skills/retired/budowa/mxcraft-workflow	the source before the shared repo, retired 2026-10-26 (CRAFT-16)
+mxcraft-theme-scss	retired	Skills/retired/budowa/mxcraft-theme-scss	the source before the shared repo, retired 2026-10-26 (CRAFT-16)
