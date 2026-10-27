@@ -20,6 +20,7 @@ tandem	active	Skills/tablica/tandem
 sprinter	active	Skills/tablica/sprinter
 lean-context	active	Skills/tablica/lean-context
 app-report-presentation	active	Skills/raporty/app-report-presentation
+dokumentacja	active	Skills/raporty/dokumentacja
 mendix-assist	copy	MxScout/skills/mendix-assist	MxScout ships it (/api/skills, skills/install.sh)
 mendix-describe	copy	MxScout/skills/mendix-describe	MxScout ships it (/api/skills, skills/install.sh)
 mendix-brief	copy	MxScout/skills/mendix-brief	MxScout ships it (skills/install.sh)
@@ -32,6 +33,7 @@ mxcraft-theme-scss	copy	Tandem/skills/mendix/mxcraft-theme-scss	Tandem's code an
 tandem	copy	Tandem/skills/tandem	Tandem's code and MCP server read it
 sprinter	copy	Tandem/skills/sprinter	Tandem's code and MCP server read it
 lean-context	copy	Tandem/skills/lean-context	Tandem's code and MCP server read it
+dokumentacja	copy	Tandem/skills/dokumentacja	Tandem's copy (GEN-47)
 lean-context	retired	Skills/retired/mxcraft/lean-context	MxCraft's copy, retired 2026-10-25
 sprinter	retired	Skills/retired/mxcraft/sprinter	MxCraft's copy, retired 2026-10-25
 mxcraft-model	retired	Skills/retired/mxcraft/mxcraft-model	MxCraft's copy, retired 2026-10-25

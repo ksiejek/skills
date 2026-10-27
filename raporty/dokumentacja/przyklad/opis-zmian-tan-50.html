@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="pl" data-theme="light" data-accent="cobalt"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Historyjka czekająca na Karola nie blokuje już kolejki</title>
+<style>
+/* MxScout light theme tokens (public/tokens.css), cobalt accent */
+:root {
+  color-scheme: light;
+  --chrome:#ECEDF0; --panel:#FFFFFF; --raised:#F6F7F9; --sunken:#FAFAFB; --canvas:#F7F8FA;
+  --line:#E4E6EA; --line2:#D3D7DD; --edge:#AEB4BD;
+  --ink:#121417; --ink2:#3B4048; --muted:#646A74;
+  --p1:#C9302C; --p1bg:#FCE9E8; --p2:#B45309; --p2bg:#FBF0E2; --ok:#15803D; --okbg:#E7F6EC;
+  --acc:#2A57F0; --acc-on:#FFFFFF; --acc-text:#2148D0; --acc-soft:#EBF0FF;
+  --font-ui:"Instrument Sans","Segoe UI",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+* { box-sizing:border-box; }
+html, body { margin:0; }
+body { background:var(--chrome); color:var(--ink); font:400 15px/1.6 var(--font-ui); -webkit-font-smoothing:antialiased; }
+.island { max-width:980px; margin:24px auto; background:var(--panel); border:1px solid var(--line); border-radius:16px; box-shadow:0 1px 0 rgba(16,18,23,.04), 0 24px 60px -36px rgba(16,18,23,.35); padding:56px 64px 64px; }
+code, .mono { font-family:var(--font-mono); font-size:.86em; }
+code { padding:1px 6px; border-radius:5px; background:var(--raised); border:1px solid var(--line); color:var(--ink); white-space:nowrap; }
+p { margin:0; text-wrap:pretty; }
+ul, ol { margin:0; padding-left:20px; }
+li { margin:4px 0; }
+li::marker { color:var(--muted); }
+
+/* header */
+.eyebrow { font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--acc-text); }
+h1 { margin:12px 0 0; font-size:46px; line-height:1.05; font-weight:600; letter-spacing:-.035em; }
+h1 .arrow { color:var(--acc); }
+.lead { margin-top:18px; font-size:20px; line-height:1.45; font-weight:500; letter-spacing:-.01em; max-width:780px; }
+.chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:24px; }
+.chip { display:flex; flex-direction:column; padding:7px 12px; border:1px solid var(--line); border-radius:9px; background:var(--panel); font-size:13px; line-height:1.35; }
+.chip .cap { font-size:10.5px; }
+.chip.status { border-color:color-mix(in srgb, var(--p2) 35%, transparent); background:var(--p2bg); }
+.chip.status b { color:var(--p2); }
+.cap { margin:0; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+
+/* contents */
+.toc { margin-top:36px; padding:16px 20px; border:1px solid var(--line); border-radius:12px; background:var(--sunken); }
+.toc ol { list-style:none; padding:0; margin:8px 0 0; columns:2; column-gap:32px; font-size:14px; }
+.toc li { margin:3px 0; break-inside:avoid; }
+.toc a { color:var(--ink2); text-decoration:none; }
+.toc a:hover { color:var(--acc-text); }
+.toc .n { display:inline-block; width:22px; font:600 12px var(--font-mono); color:var(--acc-text); }
+
+/* sections */
+section { margin-top:48px; }
+.sec-h { display:flex; align-items:baseline; gap:14px; padding-bottom:10px; border-bottom:1px solid var(--line); margin-bottom:18px; }
+.sec-h .no { font:600 13px var(--font-mono); color:var(--acc-text); background:var(--acc-soft); border-radius:6px; padding:2px 8px; }
+h2 { margin:0; font-size:24px; line-height:1.2; font-weight:600; letter-spacing:-.02em; }
+h3 { margin:0; font-size:16px; font-weight:600; letter-spacing:-.01em; display:flex; align-items:baseline; gap:10px; }
+h3 .no { font:600 12px var(--font-mono); color:var(--muted); }
+.prose > * + * { margin-top:12px; }
+.prose { color:var(--ink2); max-width:820px; }
+.prose b, .prose strong { color:var(--ink); font-weight:600; }
+
+/* cards */
+.card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 20px 18px; break-inside:avoid; }
+.card + .card { margin-top:12px; }
+.card p, .card ul { color:var(--ink2); font-size:14.5px; }
+.card h3 + * { margin-top:8px; }
+.card > * + * { margin-top:8px; }
+.grid2 { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; }
+.grid2 .card + .card { margin-top:0; }
+
+/* table (MxScout dx-md-table) */
+.table { border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+table { width:100%; border-collapse:collapse; font-size:13.5px; }
+th { background:var(--raised); font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); text-align:left; padding:9px 14px; border-bottom:1px solid var(--line); }
+td { padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top; color:var(--ink2); line-height:1.5; }
+tr:last-child td { border-bottom:0; }
+td.name { width:170px; font-weight:600; color:var(--ink); }
+td.name .cap { margin-top:3px; font-size:10px; font-weight:500; }
+tr { break-inside:avoid; }
+
+/* callouts and tags */
+.note { display:flex; gap:12px; align-items:flex-start; padding:12px 16px; border-radius:10px; background:var(--raised); border:1px solid var(--line); font-size:14px; color:var(--ink2); break-inside:avoid; }
+.note.bad { background:var(--p1bg); border-color:color-mix(in srgb, var(--p1) 22%, transparent); }
+.note.bad .tag { color:var(--p1); background:var(--panel); border-color:color-mix(in srgb, var(--p1) 30%, transparent); }
+.note.acc { background:var(--acc-soft); border-color:color-mix(in srgb, var(--acc) 22%, transparent); }
+.tag { flex:none; display:inline-block; font:600 10.5px/19px var(--font-mono); padding:0 7px; border-radius:5px; border:1px solid var(--line2); color:var(--ink2); background:var(--panel); text-transform:uppercase; letter-spacing:.04em; }
+.tag.p1 { color:var(--p1); background:var(--p1bg); border-color:transparent; }
+.tag.p2 { color:var(--p2); background:var(--p2bg); border-color:transparent; }
+.tag.ok { color:var(--ok); background:var(--okbg); border-color:transparent; }
+.tag.acc { color:var(--acc-text); background:var(--acc-soft); border-color:transparent; }
+.req { display:block; margin-top:10px; padding:9px 12px; border-radius:8px; background:var(--sunken); border:1px solid var(--line); font:500 12.5px/1.6 var(--font-mono); color:var(--ink); white-space:pre-wrap; overflow-wrap:anywhere; }
+.req .k { color:var(--acc-text); }
+
+/* sync flow diagram */
+.flow { display:grid; grid-template-columns:1fr 28px 1fr 28px 1fr 28px 1fr; align-items:stretch; margin-top:4px; break-inside:avoid; }
+.step { display:flex; flex-direction:column; gap:6px; padding:14px 14px 16px; border:1px solid var(--line2); border-radius:12px; background:var(--panel); }
+.step .num { width:24px; height:24px; border-radius:50%; display:grid; place-items:center; font:600 12px var(--font-mono); background:var(--acc); color:var(--acc-on); }
+.step b { font-size:14.5px; font-weight:600; line-height:1.3; color:var(--ink); }
+.step span { font-size:12.5px; line-height:1.45; color:var(--ink2); }
+.step .src { margin-top:auto; padding-top:6px; font:500 11px var(--font-mono); color:var(--muted); }
+.step.mx { border-color:color-mix(in srgb, var(--acc) 40%, transparent); background:var(--acc-soft); }
+.link { display:flex; align-items:center; justify-content:center; }
+.link svg { width:28px; height:16px; }
+.lanes { display:flex; gap:16px; margin-top:12px; font-size:12px; color:var(--muted); }
+.lanes i { display:inline-block; width:12px; height:12px; border-radius:3px; vertical-align:-2px; margin-right:6px; border:1px solid var(--line2); background:var(--panel); }
+.lanes i.mx { background:var(--acc-soft); border-color:color-mix(in srgb, var(--acc) 40%, transparent); }
+
+/* lists with marks */
+.checks { list-style:none; padding:0; display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; }
+.checks li { margin:0; display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border:1px solid var(--line); border-radius:10px; font-size:14px; color:var(--ink2); break-inside:avoid; }
+.checks li b { color:var(--ink); font-weight:600; }
+.checks .mk { flex:none; width:20px; height:20px; border-radius:50%; display:grid; place-items:center; background:var(--okbg); color:var(--ok); font-size:12px; font-weight:700; margin-top:1px; }
+.verify { list-style:none; padding:0; counter-reset:v; }
+.verify li { counter-increment:v; display:grid; grid-template-columns:28px 1fr; gap:4px 12px; padding:12px 0; border-bottom:1px solid var(--line); margin:0; break-inside:avoid; }
+.verify li:last-child { border-bottom:0; }
+.verify li::before { content:counter(v); grid-row:1 / 3; width:24px; height:24px; border-radius:6px; display:grid; place-items:center; font:600 12px var(--font-mono); background:var(--p2bg); color:var(--p2); }
+.verify b { color:var(--ink); font-weight:600; font-size:14.5px; }
+.verify span { color:var(--ink2); font-size:14px; }
+.steps { list-style:none; padding:0; display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:10px; counter-reset:s; }
+.steps li { counter-increment:s; margin:0; padding:14px 14px 16px; border:1px solid var(--line); border-top:3px solid var(--acc); border-radius:10px; font-size:13.5px; color:var(--ink2); break-inside:avoid; }
+.steps li::before { content:"Krok " counter(s); display:block; font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--acc-text); margin-bottom:6px; }
+.steps li b { display:block; color:var(--ink); font-weight:600; font-size:14.5px; margin-bottom:4px; }
+
+footer { margin-top:56px; padding-top:16px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px; font-size:12px; color:var(--muted); }
+
+@media screen and (max-width:760px) {
+  .island { margin:0; border-radius:0; padding:32px 22px 40px; }
+  h1 { font-size:34px; }
+  .grid2, .checks, .steps { grid-template-columns:1fr; }
+  .toc ol { columns:1; }
+  .flow { grid-template-columns:1fr; }
+  .link { height:24px; } .link svg { transform:rotate(90deg); }
+}
+@page { size:A4; margin:16mm 14mm 18mm; }
+@media print {
+  * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  body { background:#fff; font-size:13px; }
+  .island { max-width:none; margin:0; padding:0; border:0; border-radius:0; box-shadow:none; }
+  h1 { font-size:36px; }
+  .lead { font-size:17px; }
+  section { margin-top:30px; }
+  .sec-h { break-after:avoid; }
+  h2, h3 { break-after:avoid; }
+  .toc, #flow, #later { break-inside:avoid; }
+  .toc a { color:var(--ink2); }
+  .flow { grid-template-columns:1fr 20px 1fr 20px 1fr 20px 1fr; }
+  .link svg { width:20px; }
+  a[href^="#"] { text-decoration:none; }
+}
+</style>
+</head><body>
+<main class="island">
+
+<header>
+  <div class="eyebrow">Opis zmian · Tandem</div>
+  <h1>Historyjka czekająca na Karola nie blokuje już kolejki</h1>
+  <p class="lead">Gdy historyjka czeka na krok, który może wykonać tylko Karol, Tandem odkłada ją na bok i <b>od razu bierze następną niezależną</b>. Dotyczy projektów poza Mendix.</p>
+  <div class="chips"><div class="chip"><span class="cap">Dla kogo</span><b>Karol (Product Owner)</b></div><div class="chip"><span class="cap">Zmiana</span><b>TAN-50</b></div><div class="chip status"><span class="cap">Status</span><b>Przykładowy dokument</b></div><div class="chip"><span class="cap">Data</span><b>27 października 2026</b></div></div>
+</header>
+
+<nav class="toc" aria-label="Spis treści">
+  <p class="cap">Spis treści</p>
+  <ol><li><a href="#summary"><span class="n">1</span>W skrócie</a></li><li><a href="#why"><span class="n">2</span>Po co ta zmiana</a></li><li><a href="#what"><span class="n">3</span>Co się zmieniło</a></li><li><a href="#test"><span class="n">4</span>Jak to sprawdzić</a></li><li><a href="#next"><span class="n">5</span>Następne kroki</a></li></ol>
+</nav>
+
+<section id="summary">
+  <div class="sec-h"><span class="no">01</span><h2>W skrócie</h2></div>
+  <div class="prose"><p>Dotąd każda historyjka, która stanęła na kroku „zrób to w Studio Pro” albo „zaloguj się do op”, <b>zatrzymywała cały projekt</b>. Teraz ona czeka z napisem „Czeka na Karola”, a Tandem pracuje dalej.</p></div>
+  <div class="grid2"><div class="card"><p class="cap">Dziś</p><p>Jedna historyjka czeka na Ciebie, cały projekt stoi.</p></div><div class="card" style="border-color:color-mix(in srgb, var(--acc) 35%, transparent);background:var(--acc-soft)"><p class="cap">Po zmianie</p><p>Historyjka czeka na swojej gałęzi, następna niezależna rusza w osobnym worktree.</p></div></div>
+</section>
+
+<section id="why">
+  <div class="sec-h"><span class="no">02</span><h2>Po co ta zmiana</h2></div>
+  <ul><li>Nie tracisz czasu pracy agentów, gdy odpowiedź przyjdzie za kilka godzin.</li><li>Widzisz od razu, <b>na co dokładnie</b> czeka historyjka (akcja jest na karcie).</li><li>Po Twojej odpowiedzi historyjka wraca do pracy zaraz po bieżącej.</li></ul>
+  <div class="note bad"><span class="tag ">Wyjątek</span><span>W projektach <b>Mendix</b> zasada „jeden job na projekt” zostaje: blokada nadal zatrzymuje projekt.</span></div>
+</section>
+
+<section id="what">
+  <div class="sec-h"><span class="no">03</span><h2>Co się zmieniło</h2></div>
+  <div class="table"><table><thead><tr><th>Obszar</th><th>Było</th><th>Jest</th></tr></thead><tbody><tr><td class="name">Karta historyjki</td><td>Czerwona ramka „Potrzebna odpowiedź”</td><td>Napis „Czeka na Karola” z opisem akcji</td></tr><tr><td class="name">Kolejka</td><td>Stoi, dopóki nie odpowiesz</td><td>Rusza następna historyjka, która nie zależy od zablokowanej ani nie dzieli z nią plików</td></tr><tr><td class="name">Limit</td><td>Brak</td><td>Najwyżej <b>dwie</b> odłożone historyjki na projekt, potem projekt się zatrzymuje</td></tr></tbody></table></div>
+</section>
+
+<section id="test">
+  <div class="sec-h"><span class="no">04</span><h2>Jak to sprawdzić</h2></div>
+  <div class="prose"><p>Środowisko: Tandem na Macu, <b>http://127.0.0.1:4291/</b>, projekt bez Mendix. Potrzebne są trzy historyjki w To do; pierwsza kończy się pytaniem do Karola.</p></div>
+  <ol class="steps"><li><b>Zablokuj</b>Uruchom pierwszą historyjkę; w kroku wymagającym Ciebie wybierz „Czeka na Karola”.</li><li><b>Sprawdź kartę</b>Karta pokazuje napis i opis akcji, nie czerwoną ramkę.</li><li><b>Następna rusza</b>Druga, niezależna historyjka przechodzi do Running w osobnym worktree.</li><li><b>Odpowiedz</b>Po odpowiedzi pierwsza wraca do pracy dopiero po zakończeniu bieżącej.</li></ol>
+  <ol class="verify"><li><b>Zależna historyjka</b><span>Trzecia historyjka zależy od pierwszej: <b>nie</b> może ruszyć, dopóki pierwsza czeka.</span></li><li><b>Limit dwóch</b><span>Przy trzeciej odłożonej historyjce projekt się zatrzymuje.</span></li></ol>
+</section>
+
+<section id="next">
+  <div class="sec-h"><span class="no">05</span><h2>Następne kroki</h2></div>
+  <ul class="checks"><li><span class="mk">✓</span><span><b>Karol testuje</b> scenariusz z sekcji „Jak to sprawdzić” na własnym sprincie.</span></li><li><span class="mk">✓</span><span><b>Uwagi</b> wpisz w historyjce; poprawka wejdzie w następnej turze.</span></li></ul>
+</section>
+
+<footer><span>Historyjka czekająca na Karola · Przykładowy dokument</span><span>Claude · 27 października 2026</span></footer>
+</main>
+</body></html>

@@ -1,0 +1,57 @@
+{
+  "type": "release-notes",
+  "lang": "pl",
+  "eyebrow": "Opis zmian · Tandem",
+  "title": "Historyjka czekająca na Karola nie blokuje już kolejki",
+  "lead": "Gdy historyjka czeka na krok, który może wykonać tylko Karol, Tandem odkłada ją na bok i **od razu bierze następną niezależną**. Dotyczy projektów poza Mendix.",
+  "meta": [
+    {"k": "Dla kogo", "v": "Karol (Product Owner)"},
+    {"k": "Zmiana", "v": "TAN-50"},
+    {"k": "Status", "v": "Przykładowy dokument", "status": true},
+    {"k": "Data", "v": "27 października 2026"}
+  ],
+  "sections": [
+    {"id": "summary", "title": "W skrócie", "blocks": [
+      {"p": "Dotąd każda historyjka, która stanęła na kroku „zrób to w Studio Pro” albo „zaloguj się do op”, **zatrzymywała cały projekt**. Teraz ona czeka z napisem „Czeka na Karola”, a Tandem pracuje dalej."},
+      {"grid": [
+        {"cap": "Dziś", "text": "Jedna historyjka czeka na Ciebie, cały projekt stoi."},
+        {"cap": "Po zmianie", "text": "Historyjka czeka na swojej gałęzi, następna niezależna rusza w osobnym worktree.", "accent": true}
+      ]}
+    ]},
+    {"id": "why", "title": "Po co ta zmiana", "blocks": [
+      {"ul": [
+        "Nie tracisz czasu pracy agentów, gdy odpowiedź przyjdzie za kilka godzin.",
+        "Widzisz od razu, **na co dokładnie** czeka historyjka (akcja jest na karcie).",
+        "Po Twojej odpowiedzi historyjka wraca do pracy zaraz po bieżącej."
+      ]},
+      {"note": {"tag": "Wyjątek", "kind": "bad", "text": "W projektach **Mendix** zasada „jeden job na projekt” zostaje: blokada nadal zatrzymuje projekt."}}
+    ]},
+    {"id": "what", "title": "Co się zmieniło", "blocks": [
+      {"table": {"head": ["Obszar", "Było", "Jest"], "rows": [
+        ["Karta historyjki", "Czerwona ramka „Potrzebna odpowiedź”", "Napis „Czeka na Karola” z opisem akcji"],
+        ["Kolejka", "Stoi, dopóki nie odpowiesz", "Rusza następna historyjka, która nie zależy od zablokowanej ani nie dzieli z nią plików"],
+        ["Limit", "Brak", "Najwyżej **dwie** odłożone historyjki na projekt, potem projekt się zatrzymuje"]
+      ]}}
+    ]},
+    {"id": "test", "title": "Jak to sprawdzić", "blocks": [
+      {"p": "Środowisko: Tandem na Macu, **http://127.0.0.1:4291/**, projekt bez Mendix. Potrzebne są trzy historyjki w To do; pierwsza kończy się pytaniem do Karola."},
+      {"steps": [
+        {"title": "Zablokuj", "text": "Uruchom pierwszą historyjkę; w kroku wymagającym Ciebie wybierz „Czeka na Karola”."},
+        {"title": "Sprawdź kartę", "text": "Karta pokazuje napis i opis akcji, nie czerwoną ramkę."},
+        {"title": "Następna rusza", "text": "Druga, niezależna historyjka przechodzi do Running w osobnym worktree."},
+        {"title": "Odpowiedz", "text": "Po odpowiedzi pierwsza wraca do pracy dopiero po zakończeniu bieżącej."}
+      ]},
+      {"verify": [
+        {"title": "Zależna historyjka", "text": "Trzecia historyjka zależy od pierwszej: **nie** może ruszyć, dopóki pierwsza czeka."},
+        {"title": "Limit dwóch", "text": "Przy trzeciej odłożonej historyjce projekt się zatrzymuje."}
+      ]}
+    ]},
+    {"id": "next", "title": "Następne kroki", "blocks": [
+      {"checks": [
+        "**Karol testuje** scenariusz z sekcji „Jak to sprawdzić” na własnym sprincie.",
+        "**Uwagi** wpisz w historyjce; poprawka wejdzie w następnej turze."
+      ]}
+    ]}
+  ],
+  "footer": ["Historyjka czekająca na Karola · Przykładowy dokument", "Claude · 27 października 2026"]
+}
