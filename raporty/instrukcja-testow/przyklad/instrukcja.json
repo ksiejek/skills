@@ -1,0 +1,414 @@
+{
+  "name": "instrukcja-testow-service-desk",
+  "app": "Service Desk",
+  "title": "Service Desk: sprawy księgowości dla zespołu myConnect – instrukcja testów",
+  "audience": "Testerzy Service Desku (bez wiedzy technicznej)",
+  "date": "2026-10-28",
+  "scope": "Jak wejść na testowy Service Desk i sprawdzić, jak księgowość i operatorzy myConnect prowadzą razem jedną sprawę.",
+  "lead": "Sprawdzasz jedną nową funkcję: księgowość zgłasza w Service Desku sprawę dotyczącą przesyłki, a zespół myConnect ją prowadzi. Najpierw wchodzisz na środowisko testowe (rozdział 2), potem przechodzisz scenariusze po kolei, każdy z kontem podanym przy nim. Jeden scenariusz zajmuje kilka minut.",
+  "access": {
+    "intro": "Service Desk do testów działa na komputerze Mac Studio, nie w chmurze. Ma tylko dane testowe: niczego nie zepsujesz, a to, co wpiszesz, nie trafi do prawdziwych osób. Aplikacja nie wysyła maili.",
+    "gate": "https://servicedesk-test.seajack.dev",
+    "walkUrl": "https://mac-studio-karol.tailaf34e0.ts.net:8443",
+    "login": "Służbowy e-mail @raben-group.com i jednorazowy kod z maila. Hasła nie ma.",
+    "start": "Gdy aplikacja śpi, pod adresem widzisz przycisk „Uruchom aplikację” (albo „Spróbuj ponownie”). Kliknij go; start trwa do dwóch minut, strona odświeży się sama.",
+    "autoStop": "Po 2 godzinach bez ruchu, a także po 1–2 godzinach pracy (ograniczenie wersji testowej).",
+    "restart": "Odśwież adres i kliknij „Uruchom aplikację” albo „Spróbuj ponownie”. Konta i dane zostają, przepada tylko niezapisany formularz.",
+    "popup": "Po wejściu może pojawić się okienko „Install the app”. Kliknij „Don't show again”; nic nie instalujesz.",
+    "loginSteps": [
+      "Otwórz adres **https://servicedesk-test.seajack.dev**. Zobaczysz stronę „Log in to Service Desk demo (testerzy)”.",
+      "W polu **Email** wpisz swój służbowy adres @raben-group.com i kliknij **Send login code**.",
+      "Przepisz kod z maila (przychodzi w minutę) i zatwierdź. Kod działa raz.",
+      "Jeśli aplikacja śpi, kliknij **Uruchom aplikację** albo **Spróbuj ponownie** i poczekaj, aż strona sama się odświeży.",
+      "Na stronie „Wybierz, kim chcesz być w aplikacji” kliknij konto podane w scenariuszu. Bramka zaloguje Cię sama.",
+      "Aby później zmienić konto, otwórz **https://servicedesk-test.seajack.dev/_gate/as** albo kliknij ciemną zakładkę z ludzikiem przy prawej krawędzi ekranu."
+    ]
+  },
+  "accounts": [
+    {
+      "role": "Księgowość",
+      "name": "TEST Ksiegowosc (MyConnect requester)",
+      "what": "zgłasza sprawy dla zespołu myConnect i odpowiada w nich"
+    },
+    {
+      "role": "Operator myConnect, depot Gądki",
+      "name": "TEST myConnect operator DPL62 Intercom",
+      "what": "prowadzi sprawy z Service Desku dla depotu"
+    },
+    {
+      "role": "Operator myConnect, transport",
+      "name": "TEST myConnect operator DPL62 RND",
+      "what": "dostaje sprawy bez numeru przesyłki"
+    },
+    {
+      "role": "Pracownik",
+      "name": "TEST Pracownik (employee)",
+      "what": "zwykły pracownik; spraw księgowości nie widzi"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "S0",
+      "title": "Wejście na środowisko testowe",
+      "goal": "Dojść od adresu do strony wyboru konta.",
+      "account": "TEST Ksiegowosc (MyConnect requester)",
+      "steps": [
+        {
+          "text": "Otwórz adres https://servicedesk-test.seajack.dev i sprawdź, że widzisz pole Email i przycisk Send login code.",
+          "do": [
+            {
+              "open": "https://servicedesk-test.seajack.dev/"
+            },
+            {
+              "see": "Send login code"
+            }
+          ]
+        },
+        {
+          "text": "Wpisz służbowy e-mail, kliknij Send login code i przepisz kod z maila.",
+          "human": "kod przychodzi na skrzynkę testera; Claude wchodzi dalej tą samą bramką jako właściciel"
+        },
+        {
+          "text": "Jeśli aplikacja śpi, kliknij Uruchom aplikację (albo Spróbuj ponownie) i poczekaj na stronę wyboru konta.",
+          "do": [
+            {
+              "open": "/_gate/as",
+              "settle": 2000
+            },
+            {
+              "click": "Uruchom aplikację",
+              "optional": true,
+              "within": 2000,
+              "settle": 5000
+            },
+            {
+              "click": "Spróbuj ponownie",
+              "optional": true,
+              "within": 2000,
+              "settle": 5000
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "text": "Widzisz stronę „Wybierz, kim chcesz być w aplikacji” z listą kont testowych, między innymi TEST Ksiegowosc.",
+        "do": {
+          "see": "Wybierz, kim chcesz być",
+          "timeout": 180000
+        }
+      }
+    },
+    {
+      "id": "S1",
+      "title": "Księgowość widzi swoje sprawy dla myConnect",
+      "goal": "Sprawdzić, że księgowość widzi na liście swoje sprawy, ich stan i odpowiedzi zespołu myConnect.",
+      "account": "TEST Ksiegowosc (MyConnect requester)",
+      "steps": [
+        {
+          "text": "Zaloguj się jako TEST Ksiegowosc (MyConnect requester). Jeśli pojawi się okienko „Install the app”, kliknij „Don't show again”.",
+          "do": [
+            {
+              "loginAs": "TEST Ksiegowosc (MyConnect requester)"
+            },
+            {
+              "click": "Don't show again",
+              "optional": true,
+              "within": 5000
+            }
+          ]
+        },
+        {
+          "text": "Na stronie startowej, w części „Current requests”, znajdź sprawę **#8821** ze stanem „Waiting for response”.",
+          "do": [
+            {
+              "see": "Current requests"
+            },
+            {
+              "see": "#8821"
+            },
+            {
+              "see": "Waiting for response"
+            }
+          ]
+        },
+        {
+          "text": "Kliknij tę sprawę.",
+          "do": {
+            "click": "#8821",
+            "settle": 4000
+          }
+        },
+        {
+          "text": "Zejdź do zakładki **Messages** i przeczytaj ostatnią wiadomość od operatora.",
+          "do": [
+            {
+              "click": "Don't show again",
+              "optional": true,
+              "within": 3000
+            },
+            {
+              "click": "Messages"
+            },
+            {
+              "see": "please send the delivery note"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "text": "Widzisz sprawę #8821 ze stanem „Waiting for response”, depotem Gądki i prośbą operatora o list przewozowy. Księgowość nie ma przycisku zmiany stanu sprawy (nie ma „Change to”): stan zmienia tylko zespół myConnect.",
+        "do": [
+          {
+            "see": "depot: Gądki"
+          },
+          {
+            "seeNot": "Change to"
+          }
+        ]
+      }
+    },
+    {
+      "id": "S2",
+      "title": "Księgowość odpowiada w sprawie",
+      "goal": "Sprawdzić, że księgowość może dopisać odpowiedź do swojej sprawy.",
+      "account": "TEST Ksiegowosc (MyConnect requester)",
+      "before": "zrób scenariusz S1; zostań w sprawie #8821.",
+      "steps": [
+        {
+          "text": "Zaloguj się jako TEST Ksiegowosc (MyConnect requester) i otwórz sprawę **#8821** (jak w S1).",
+          "do": [
+            {
+              "loginAs": "TEST Ksiegowosc (MyConnect requester)"
+            },
+            {
+              "click": "Don't show again",
+              "optional": true,
+              "within": 5000
+            },
+            {
+              "click": "#8821",
+              "settle": 4000
+            }
+          ]
+        },
+        {
+          "text": "W zakładce **Messages** kliknij **New message**.",
+          "do": [
+            {
+              "click": "Don't show again",
+              "optional": true,
+              "within": 3000
+            },
+            {
+              "click": "Messages"
+            },
+            {
+              "click": "New message",
+              "settle": 3000
+            }
+          ]
+        },
+        {
+          "text": "W polu **Description** wpisz: „Test instrukcji: list przewozowy w załączeniu jutro.”",
+          "do": {
+            "fill": "Description",
+            "value": "Test instrukcji: list przewozowy w załączeniu jutro."
+          }
+        },
+        {
+          "text": "Kliknij **Send message**.",
+          "do": {
+            "click": "Send message",
+            "settle": 4000
+          }
+        }
+      ],
+      "expect": {
+        "text": "Okno się zamyka, a w zakładce Messages pojawia się Twoja wiadomość z dzisiejszą datą i nazwą TEST Ksiegowosc.",
+        "do": [
+          {
+            "see": "Test instrukcji: list przewozowy w załączeniu jutro."
+          },
+          {
+            "see": "TEST Ksiegowosc (MyConnect requester) | M#"
+          }
+        ]
+      }
+    },
+    {
+      "id": "S3",
+      "title": "Operator myConnect widzi odpowiedź księgowości",
+      "goal": "Sprawdzić, że operator myConnect widzi w sprawie wiadomości księgowości, nie tylko swoje.",
+      "account": "TEST myConnect operator DPL62 Intercom",
+      "before": "zrób scenariusz S2 (wiadomość księgowości musi już być w sprawie).",
+      "steps": [
+        {
+          "text": "Zmień konto na TEST myConnect operator DPL62 Intercom.",
+          "do": [
+            {
+              "loginAs": "TEST myConnect operator DPL62 Intercom"
+            },
+            {
+              "click": "Don't show again",
+              "optional": true,
+              "within": 5000
+            }
+          ]
+        },
+        {
+          "text": "Na stronie startowej, na liście **My tickets**, znajdź wiersz z numerem **8821**.",
+          "do": [
+            {
+              "see": "My tickets"
+            },
+            {
+              "see": "8821"
+            }
+          ]
+        },
+        {
+          "text": "Kliknij numer 8821.",
+          "do": {
+            "click": "8821",
+            "settle": 5000
+          }
+        },
+        {
+          "text": "Przewiń w dół do wiadomości w sprawie.",
+          "do": {
+            "see": "Test instrukcji: list przewozowy w załączeniu jutro."
+          }
+        }
+      ],
+      "expect": {
+        "text": "Widzisz wiadomość księgowości „Test instrukcji: list przewozowy w załączeniu jutro.” z jej nazwą. Na górze operator ma przyciski zmiany stanu: „In progress” i „Resolve”.",
+        "do": [
+          {
+            "see": "TEST Ksiegowosc"
+          },
+          {
+            "see": "Change to:"
+          },
+          {
+            "see": "Resolve"
+          }
+        ]
+      }
+    },
+    {
+      "id": "S4",
+      "title": "Sprawa bez numeru przesyłki trafia do zespołu transportu",
+      "goal": "Sprawdzić, że sprawa zgłoszona bez numeru przesyłki jest u operatora transportu.",
+      "account": "TEST myConnect operator DPL62 RND",
+      "steps": [
+        {
+          "text": "Zmień konto na TEST myConnect operator DPL62 RND.",
+          "do": [
+            {
+              "loginAs": "TEST myConnect operator DPL62 RND"
+            },
+            {
+              "click": "Don't show again",
+              "optional": true,
+              "within": 5000
+            }
+          ]
+        },
+        {
+          "text": "Strona startowa jest pusta. Kliknij **myConnect** w menu po lewej stronie.",
+          "do": {
+            "click": "myConnect",
+            "settle": 5000
+          }
+        },
+        {
+          "text": "Na liście **My team tickets** znajdź sprawę z numerem **8823**.",
+          "do": [
+            {
+              "see": "My team tickets"
+            },
+            {
+              "see": "8823"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "text": "Sprawa 8823 („without shipment number”, stan New) jest na liście zespołu operatora transportu, a zgłaszającym jest TEST Ksiegowosc.",
+        "do": [
+          {
+            "see": "without shipment number"
+          },
+          {
+            "see": "TEST Ksiegowosc"
+          }
+        ]
+      }
+    },
+    {
+      "id": "S5",
+      "title": "Pracownik nie widzi spraw księgowości",
+      "goal": "Sprawdzić, że zwykły pracownik nie widzi cudzych spraw dla myConnect.",
+      "account": "TEST Pracownik (employee)",
+      "steps": [
+        {
+          "text": "Zmień konto na TEST Pracownik (employee).",
+          "do": [
+            {
+              "loginAs": "TEST Pracownik (employee)"
+            },
+            {
+              "click": "Don't show again",
+              "optional": true,
+              "within": 5000
+            }
+          ]
+        },
+        {
+          "text": "Obejrzyj stronę startową i listę „Current requests”.",
+          "do": {
+            "see": "Sign out"
+          }
+        }
+      ],
+      "expect": {
+        "text": "Na liście nie ma spraw księgowości (#8819–#8823) ani pozycji menu „myConnect”.",
+        "do": [
+          {
+            "seeNot": "#8821"
+          },
+          {
+            "seeNot": "#8819"
+          },
+          {
+            "seeNot": "myConnect"
+          }
+        ]
+      }
+    }
+  ],
+  "troubles": [
+    {
+      "title": "Strona „Aplikacja nie wystartowała” albo przycisk „Uruchom aplikację”",
+      "text": "Aplikacja sama się wyłączyła. Kliknij „Spróbuj ponownie” albo „Uruchom aplikację” i poczekaj do dwóch minut."
+    },
+    {
+      "title": "Błąd połączenia w trakcie testu",
+      "text": "Odśwież adres bramki i uruchom aplikację jeszcze raz; zacznij scenariusz od początku."
+    },
+    {
+      "title": "„The current license does not allow more users to sign in”",
+      "text": "Za dużo osób jest zalogowanych naraz (najwyżej 6). Napisz do Karola."
+    },
+    {
+      "title": "Nie przyszedł kod z maila",
+      "text": "Sprawdź folder spam i odczekaj minutę. Po kilku prośbach z rzędu odczekaj 15 minut."
+    }
+  ],
+  "notInGuide": [
+    "Zakładanie nowej sprawy przez księgowość: na środowisku testowym brakuje pełnej listy kategorii.",
+    "Maile o korespondencji wewnętrznej: środowisko testowe nie wysyła maili.",
+    "Praca z asystentem w Teams i z Claude operatora: mają osobne instrukcje.",
+    "Drobne poprawki i zmiany niewidoczne dla użytkownika (porządki, wygląd bez zmian, praca w tle)."
+  ]
+}

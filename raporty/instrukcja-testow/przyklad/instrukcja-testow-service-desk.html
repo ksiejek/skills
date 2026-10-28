@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="pl" data-theme="light" data-accent="cobalt"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Service Desk: sprawy księgowości dla zespołu myConnect – instrukcja testów</title>
+<style>
+/* MxScout light theme tokens (public/tokens.css), cobalt accent */
+:root {
+  color-scheme: light;
+  --chrome:#ECEDF0; --panel:#FFFFFF; --raised:#F6F7F9; --sunken:#FAFAFB; --canvas:#F7F8FA;
+  --line:#E4E6EA; --line2:#D3D7DD; --edge:#AEB4BD;
+  --ink:#121417; --ink2:#3B4048; --muted:#646A74;
+  --p1:#C9302C; --p1bg:#FCE9E8; --p2:#B45309; --p2bg:#FBF0E2; --ok:#15803D; --okbg:#E7F6EC;
+  --acc:#2A57F0; --acc-on:#FFFFFF; --acc-text:#2148D0; --acc-soft:#EBF0FF;
+  --font-ui:"Instrument Sans","Segoe UI",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+* { box-sizing:border-box; }
+html, body { margin:0; }
+body { background:var(--chrome); color:var(--ink); font:400 15px/1.6 var(--font-ui); -webkit-font-smoothing:antialiased; }
+.island { max-width:980px; margin:24px auto; background:var(--panel); border:1px solid var(--line); border-radius:16px; box-shadow:0 1px 0 rgba(16,18,23,.04), 0 24px 60px -36px rgba(16,18,23,.35); padding:56px 64px 64px; }
+code, .mono { font-family:var(--font-mono); font-size:.86em; }
+code { padding:1px 6px; border-radius:5px; background:var(--raised); border:1px solid var(--line); color:var(--ink); white-space:nowrap; }
+p { margin:0; text-wrap:pretty; }
+ul, ol { margin:0; padding-left:20px; }
+li { margin:4px 0; }
+li::marker { color:var(--muted); }
+
+/* header */
+.eyebrow { font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--acc-text); }
+h1 { margin:12px 0 0; font-size:46px; line-height:1.05; font-weight:600; letter-spacing:-.035em; }
+h1 .arrow { color:var(--acc); }
+.lead { margin-top:18px; font-size:20px; line-height:1.45; font-weight:500; letter-spacing:-.01em; max-width:780px; }
+.chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:24px; }
+.chip { display:flex; flex-direction:column; padding:7px 12px; border:1px solid var(--line); border-radius:9px; background:var(--panel); font-size:13px; line-height:1.35; }
+.chip .cap { font-size:10.5px; }
+.chip.status { border-color:color-mix(in srgb, var(--p2) 35%, transparent); background:var(--p2bg); }
+.chip.status b { color:var(--p2); }
+.cap { margin:0; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+
+/* contents */
+.toc { margin-top:36px; padding:16px 20px; border:1px solid var(--line); border-radius:12px; background:var(--sunken); }
+.toc ol { list-style:none; padding:0; margin:8px 0 0; columns:2; column-gap:32px; font-size:14px; }
+.toc li { margin:3px 0; break-inside:avoid; }
+.toc a { color:var(--ink2); text-decoration:none; }
+.toc a:hover { color:var(--acc-text); }
+.toc .n { display:inline-block; width:22px; font:600 12px var(--font-mono); color:var(--acc-text); }
+
+/* sections */
+section { margin-top:48px; }
+.sec-h { display:flex; align-items:baseline; gap:14px; padding-bottom:10px; border-bottom:1px solid var(--line); margin-bottom:18px; }
+.sec-h .no { font:600 13px var(--font-mono); color:var(--acc-text); background:var(--acc-soft); border-radius:6px; padding:2px 8px; }
+h2 { margin:0; font-size:24px; line-height:1.2; font-weight:600; letter-spacing:-.02em; }
+h3 { margin:0; font-size:16px; font-weight:600; letter-spacing:-.01em; display:flex; align-items:baseline; gap:10px; }
+h3 .no { font:600 12px var(--font-mono); color:var(--muted); }
+.prose > * + * { margin-top:12px; }
+.prose { color:var(--ink2); max-width:820px; }
+.prose b, .prose strong { color:var(--ink); font-weight:600; }
+
+/* cards */
+.card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 20px 18px; break-inside:avoid; }
+.card + .card { margin-top:12px; }
+.card p, .card ul { color:var(--ink2); font-size:14.5px; }
+.card h3 + * { margin-top:8px; }
+.card > * + * { margin-top:8px; }
+.grid2 { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; }
+.grid2 .card + .card { margin-top:0; }
+
+/* table (MxScout dx-md-table) */
+.table { border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+table { width:100%; border-collapse:collapse; font-size:13.5px; }
+th { background:var(--raised); font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); text-align:left; padding:9px 14px; border-bottom:1px solid var(--line); }
+td { padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top; color:var(--ink2); line-height:1.5; }
+tr:last-child td { border-bottom:0; }
+td.name { width:170px; font-weight:600; color:var(--ink); }
+td.name .cap { margin-top:3px; font-size:10px; font-weight:500; }
+tr { break-inside:avoid; }
+
+/* callouts and tags */
+.note { display:flex; gap:12px; align-items:flex-start; padding:12px 16px; border-radius:10px; background:var(--raised); border:1px solid var(--line); font-size:14px; color:var(--ink2); break-inside:avoid; }
+.note.bad { background:var(--p1bg); border-color:color-mix(in srgb, var(--p1) 22%, transparent); }
+.note.bad .tag { color:var(--p1); background:var(--panel); border-color:color-mix(in srgb, var(--p1) 30%, transparent); }
+.note.acc { background:var(--acc-soft); border-color:color-mix(in srgb, var(--acc) 22%, transparent); }
+.tag { flex:none; display:inline-block; font:600 10.5px/19px var(--font-mono); padding:0 7px; border-radius:5px; border:1px solid var(--line2); color:var(--ink2); background:var(--panel); text-transform:uppercase; letter-spacing:.04em; }
+.tag.p1 { color:var(--p1); background:var(--p1bg); border-color:transparent; }
+.tag.p2 { color:var(--p2); background:var(--p2bg); border-color:transparent; }
+.tag.ok { color:var(--ok); background:var(--okbg); border-color:transparent; }
+.tag.acc { color:var(--acc-text); background:var(--acc-soft); border-color:transparent; }
+.req { display:block; margin-top:10px; padding:9px 12px; border-radius:8px; background:var(--sunken); border:1px solid var(--line); font:500 12.5px/1.6 var(--font-mono); color:var(--ink); white-space:pre-wrap; overflow-wrap:anywhere; }
+.req .k { color:var(--acc-text); }
+
+/* sync flow diagram */
+.flow { display:grid; grid-template-columns:1fr 28px 1fr 28px 1fr 28px 1fr; align-items:stretch; margin-top:4px; break-inside:avoid; }
+.step { display:flex; flex-direction:column; gap:6px; padding:14px 14px 16px; border:1px solid var(--line2); border-radius:12px; background:var(--panel); }
+.step .num { width:24px; height:24px; border-radius:50%; display:grid; place-items:center; font:600 12px var(--font-mono); background:var(--acc); color:var(--acc-on); }
+.step b { font-size:14.5px; font-weight:600; line-height:1.3; color:var(--ink); }
+.step span { font-size:12.5px; line-height:1.45; color:var(--ink2); }
+.step .src { margin-top:auto; padding-top:6px; font:500 11px var(--font-mono); color:var(--muted); }
+.step.mx { border-color:color-mix(in srgb, var(--acc) 40%, transparent); background:var(--acc-soft); }
+.link { display:flex; align-items:center; justify-content:center; }
+.link svg { width:28px; height:16px; }
+.lanes { display:flex; gap:16px; margin-top:12px; font-size:12px; color:var(--muted); }
+.lanes i { display:inline-block; width:12px; height:12px; border-radius:3px; vertical-align:-2px; margin-right:6px; border:1px solid var(--line2); background:var(--panel); }
+.lanes i.mx { background:var(--acc-soft); border-color:color-mix(in srgb, var(--acc) 40%, transparent); }
+
+/* lists with marks */
+.checks { list-style:none; padding:0; display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; }
+.checks li { margin:0; display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border:1px solid var(--line); border-radius:10px; font-size:14px; color:var(--ink2); break-inside:avoid; }
+.checks li b { color:var(--ink); font-weight:600; }
+.checks .mk { flex:none; width:20px; height:20px; border-radius:50%; display:grid; place-items:center; background:var(--okbg); color:var(--ok); font-size:12px; font-weight:700; margin-top:1px; }
+.verify { list-style:none; padding:0; counter-reset:v; }
+.verify li { counter-increment:v; display:grid; grid-template-columns:28px 1fr; gap:4px 12px; padding:12px 0; border-bottom:1px solid var(--line); margin:0; break-inside:avoid; }
+.verify li:last-child { border-bottom:0; }
+.verify li::before { content:counter(v); grid-row:1 / 3; width:24px; height:24px; border-radius:6px; display:grid; place-items:center; font:600 12px var(--font-mono); background:var(--p2bg); color:var(--p2); }
+.verify b { color:var(--ink); font-weight:600; font-size:14.5px; }
+.verify span { color:var(--ink2); font-size:14px; }
+.steps { list-style:none; padding:0; display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:10px; counter-reset:s; }
+.steps li { counter-increment:s; margin:0; padding:14px 14px 16px; border:1px solid var(--line); border-top:3px solid var(--acc); border-radius:10px; font-size:13.5px; color:var(--ink2); break-inside:avoid; }
+.steps li::before { content:"Krok " counter(s); display:block; font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--acc-text); margin-bottom:6px; }
+.steps li b { display:block; color:var(--ink); font-weight:600; font-size:14.5px; margin-bottom:4px; }
+
+footer { margin-top:56px; padding-top:16px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px; font-size:12px; color:var(--muted); }
+
+@media screen and (max-width:760px) {
+  .island { margin:0; border-radius:0; padding:32px 22px 40px; }
+  h1 { font-size:34px; }
+  .grid2, .checks, .steps { grid-template-columns:1fr; }
+  .toc ol { columns:1; }
+  .flow { grid-template-columns:1fr; }
+  .link { height:24px; } .link svg { transform:rotate(90deg); }
+}
+@page { size:A4; margin:16mm 14mm 18mm; }
+@media print {
+  * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  body { background:#fff; font-size:13px; }
+  .island { max-width:none; margin:0; padding:0; border:0; border-radius:0; box-shadow:none; }
+  h1 { font-size:36px; }
+  .lead { font-size:17px; }
+  section { margin-top:30px; }
+  .sec-h { break-after:avoid; }
+  h2, h3 { break-after:avoid; }
+  .toc, #flow, #later { break-inside:avoid; }
+  .toc a { color:var(--ink2); }
+  .flow { grid-template-columns:1fr 20px 1fr 20px 1fr 20px 1fr; }
+  .link svg { width:20px; }
+  a[href^="#"] { text-decoration:none; }
+}
+</style>
+</head><body>
+<main class="island">
+
+<header>
+  <div class="eyebrow">Instrukcja testów · Service Desk</div>
+  <h1>Service Desk: sprawy księgowości dla zespołu myConnect – instrukcja testów</h1>
+  <p class="lead">Jak wejść na testowy Service Desk i sprawdzić, jak księgowość i operatorzy myConnect prowadzą razem jedną sprawę.</p>
+  <div class="chips"><div class="chip"><span class="cap">Dla kogo</span><b>Testerzy Service Desku (bez wiedzy technicznej)</b></div><div class="chip"><span class="cap">Scenariusze</span><b>6</b></div><div class="chip status"><span class="cap">Status</span><b>Sprawdzona w przeglądarce</b></div><div class="chip"><span class="cap">Data</span><b>2026-10-28</b></div></div>
+</header>
+
+<nav class="toc" aria-label="Spis treści">
+  <p class="cap">Spis treści</p>
+  <ol><li><a href="#summary"><span class="n">1</span>W skrócie</a></li><li><a href="#access"><span class="n">2</span>Jak wejść na środowisko testowe</a></li><li><a href="#accounts"><span class="n">3</span>Konta testowe</a></li><li><a href="#s-s0"><span class="n">4</span>S0. Wejście na środowisko testowe</a></li><li><a href="#s-s1"><span class="n">5</span>S1. Księgowość widzi swoje sprawy dla myConnect</a></li><li><a href="#s-s2"><span class="n">6</span>S2. Księgowość odpowiada w sprawie</a></li><li><a href="#s-s3"><span class="n">7</span>S3. Operator myConnect widzi odpowiedź księgowości</a></li><li><a href="#s-s4"><span class="n">8</span>S4. Sprawa bez numeru przesyłki trafia do zespołu transportu</a></li><li><a href="#s-s5"><span class="n">9</span>S5. Pracownik nie widzi spraw księgowości</a></li><li><a href="#troubles"><span class="n">10</span>Gdy coś nie działa</a></li><li><a href="#out"><span class="n">11</span>Czego ta instrukcja nie obejmuje</a></li><li><a href="#report"><span class="n">12</span>Jak zgłosić błąd</a></li></ol>
+</nav>
+
+<section id="summary">
+  <div class="sec-h"><span class="no">01</span><h2>W skrócie</h2></div>
+  <div class="prose"><p>Sprawdzasz jedną nową funkcję: księgowość zgłasza w Service Desku sprawę dotyczącą przesyłki, a zespół myConnect ją prowadzi. Najpierw wchodzisz na środowisko testowe (rozdział 2), potem przechodzisz scenariusze po kolei, każdy z kontem podanym przy nim. Jeden scenariusz zajmuje kilka minut.</p></div>
+  <div class="table"><table><thead><tr><th>Scenariusz</th><th>Kto testuje</th><th>Cel</th></tr></thead><tbody><tr><td class="name">S0. Wejście na środowisko testowe</td><td>TEST Ksiegowosc (MyConnect requester)</td><td>Dojść od adresu do strony wyboru konta.</td></tr><tr><td class="name">S1. Księgowość widzi swoje sprawy dla myConnect</td><td>TEST Ksiegowosc (MyConnect requester)</td><td>Sprawdzić, że księgowość widzi na liście swoje sprawy, ich stan i odpowiedzi zespołu myConnect.</td></tr><tr><td class="name">S2. Księgowość odpowiada w sprawie</td><td>TEST Ksiegowosc (MyConnect requester)</td><td>Sprawdzić, że księgowość może dopisać odpowiedź do swojej sprawy.</td></tr><tr><td class="name">S3. Operator myConnect widzi odpowiedź księgowości</td><td>TEST myConnect operator DPL62 Intercom</td><td>Sprawdzić, że operator myConnect widzi w sprawie wiadomości księgowości, nie tylko swoje.</td></tr><tr><td class="name">S4. Sprawa bez numeru przesyłki trafia do zespołu transportu</td><td>TEST myConnect operator DPL62 RND</td><td>Sprawdzić, że sprawa zgłoszona bez numeru przesyłki jest u operatora transportu.</td></tr><tr><td class="name">S5. Pracownik nie widzi spraw księgowości</td><td>TEST Pracownik (employee)</td><td>Sprawdzić, że zwykły pracownik nie widzi cudzych spraw dla myConnect.</td></tr></tbody></table></div>
+  <div class="note acc"><span class="tag acc">Sprawdzone</span><span>Claude przeszedł tę instrukcję w przeglądarce krok po kroku, tymi samymi kontami: <b>wszystkie scenariusze przechodzą</b> (2026-10-28 05:36). Kroków tylko dla człowieka (1, np. kod z maila) przeglądarka nie robi; Claude przeszedł dalej tą samą bramką.</span></div>
+</section>
+
+<section id="access">
+  <div class="sec-h"><span class="no">02</span><h2>Jak wejść na środowisko testowe</h2></div>
+  <div class="prose"><p>Service Desk do testów działa na komputerze Mac Studio, nie w chmurze. Ma tylko dane testowe: niczego nie zepsujesz, a to, co wpiszesz, nie trafi do prawdziwych osób. Aplikacja nie wysyła maili.</p></div>
+  <div class="table"><table><thead><tr><th>Co</th><th>Jak</th></tr></thead><tbody><tr><td class="name">Adres</td><td><b>https://servicedesk-test.seajack.dev</b></td></tr><tr><td class="name">Logowanie</td><td>Służbowy e-mail @raben-group.com i jednorazowy kod z maila. Hasła nie ma.</td></tr><tr><td class="name">Uruchomienie aplikacji</td><td>Gdy aplikacja śpi, pod adresem widzisz przycisk „Uruchom aplikację” (albo „Spróbuj ponownie”). Kliknij go; start trwa do dwóch minut, strona odświeży się sama.</td></tr><tr><td class="name">Samo się wyłącza</td><td>Po 2 godzinach bez ruchu, a także po 1–2 godzinach pracy (ograniczenie wersji testowej).</td></tr><tr><td class="name">Ponowne uruchomienie</td><td>Odśwież adres i kliknij „Uruchom aplikację” albo „Spróbuj ponownie”. Konta i dane zostają, przepada tylko niezapisany formularz.</td></tr></tbody></table></div>
+  <ol class="steps"><li><b>Krok 1</b>Otwórz adres <b>https://servicedesk-test.seajack.dev</b>. Zobaczysz stronę „Log in to Service Desk demo (testerzy)”.</li><li><b>Krok 2</b>W polu <b>Email</b> wpisz swój służbowy adres @raben-group.com i kliknij <b>Send login code</b>.</li><li><b>Krok 3</b>Przepisz kod z maila (przychodzi w minutę) i zatwierdź. Kod działa raz.</li><li><b>Krok 4</b>Jeśli aplikacja śpi, kliknij <b>Uruchom aplikację</b> albo <b>Spróbuj ponownie</b> i poczekaj, aż strona sama się odświeży.</li><li><b>Krok 5</b>Na stronie „Wybierz, kim chcesz być w aplikacji” kliknij konto podane w scenariuszu. Bramka zaloguje Cię sama.</li><li><b>Krok 6</b>Aby później zmienić konto, otwórz <b>https://servicedesk-test.seajack.dev/_gate/as</b> albo kliknij ciemną zakładkę z ludzikiem przy prawej krawędzi ekranu.</li></ol>
+  <div class="note "><span class="tag ">Okienko</span><span>Po wejściu może pojawić się okienko „Install the app”. Kliknij „Don't show again”; nic nie instalujesz.</span></div>
+</section>
+
+<section id="accounts">
+  <div class="sec-h"><span class="no">03</span><h2>Konta testowe</h2></div>
+  <div class="prose"><p>Każda rola ma swoje konto. Wybierasz je na stronie wyboru konta („Wybierz, kim chcesz być w aplikacji”); hasła nie wpisujesz. Jedna rola na jedno okno przeglądarki.</p></div>
+  <div class="table"><table><thead><tr><th>Rola</th><th>Konto (tak jak na stronie wyboru)</th><th>Do czego</th></tr></thead><tbody><tr><td class="name">Księgowość</td><td>TEST Ksiegowosc (MyConnect requester)</td><td>zgłasza sprawy dla zespołu myConnect i odpowiada w nich</td></tr><tr><td class="name">Operator myConnect, depot Gądki</td><td>TEST myConnect operator DPL62 Intercom</td><td>prowadzi sprawy z Service Desku dla depotu</td></tr><tr><td class="name">Operator myConnect, transport</td><td>TEST myConnect operator DPL62 RND</td><td>dostaje sprawy bez numeru przesyłki</td></tr><tr><td class="name">Pracownik</td><td>TEST Pracownik (employee)</td><td>zwykły pracownik; spraw księgowości nie widzi</td></tr></tbody></table></div>
+</section>
+
+<section id="s-s0">
+  <div class="sec-h"><span class="no">04</span><h2>S0. Wejście na środowisko testowe</h2></div>
+  <div class="prose"><p><b>Cel:</b> Dojść od adresu do strony wyboru konta.</p></div>
+  <div class="prose"><p><b>Konto:</b> TEST Ksiegowosc (MyConnect requester)</p></div>
+  <ol class="steps"><li><b>Krok 1</b>Otwórz adres https://servicedesk-test.seajack.dev i sprawdź, że widzisz pole Email i przycisk Send login code.</li><li><b>Krok 2</b>Wpisz służbowy e-mail, kliknij Send login code i przepisz kod z maila.</li><li><b>Krok 3</b>Jeśli aplikacja śpi, kliknij Uruchom aplikację (albo Spróbuj ponownie) i poczekaj na stronę wyboru konta.</li></ol>
+  <div class="note acc"><span class="tag acc">Oczekiwany wynik</span><span>Widzisz stronę „Wybierz, kim chcesz być w aplikacji” z listą kont testowych, między innymi TEST Ksiegowosc.</span></div>
+</section>
+
+<section id="s-s1">
+  <div class="sec-h"><span class="no">05</span><h2>S1. Księgowość widzi swoje sprawy dla myConnect</h2></div>
+  <div class="prose"><p><b>Cel:</b> Sprawdzić, że księgowość widzi na liście swoje sprawy, ich stan i odpowiedzi zespołu myConnect.</p></div>
+  <div class="prose"><p><b>Konto:</b> TEST Ksiegowosc (MyConnect requester)</p></div>
+  <ol class="steps"><li><b>Krok 1</b>Zaloguj się jako TEST Ksiegowosc (MyConnect requester). Jeśli pojawi się okienko „Install the app”, kliknij „Don't show again”.</li><li><b>Krok 2</b>Na stronie startowej, w części „Current requests”, znajdź sprawę <b>#8821</b> ze stanem „Waiting for response”.</li><li><b>Krok 3</b>Kliknij tę sprawę.</li><li><b>Krok 4</b>Zejdź do zakładki <b>Messages</b> i przeczytaj ostatnią wiadomość od operatora.</li></ol>
+  <div class="note acc"><span class="tag acc">Oczekiwany wynik</span><span>Widzisz sprawę #8821 ze stanem „Waiting for response”, depotem Gądki i prośbą operatora o list przewozowy. Księgowość nie ma przycisku zmiany stanu sprawy (nie ma „Change to”): stan zmienia tylko zespół myConnect.</span></div>
+</section>
+
+<section id="s-s2">
+  <div class="sec-h"><span class="no">06</span><h2>S2. Księgowość odpowiada w sprawie</h2></div>
+  <div class="prose"><p><b>Cel:</b> Sprawdzić, że księgowość może dopisać odpowiedź do swojej sprawy.</p></div>
+  <div class="prose"><p><b>Konto:</b> TEST Ksiegowosc (MyConnect requester). <b>Zanim zaczniesz:</b> zrób scenariusz S1; zostań w sprawie #8821.</p></div>
+  <ol class="steps"><li><b>Krok 1</b>Zaloguj się jako TEST Ksiegowosc (MyConnect requester) i otwórz sprawę <b>#8821</b> (jak w S1).</li><li><b>Krok 2</b>W zakładce <b>Messages</b> kliknij <b>New message</b>.</li><li><b>Krok 3</b>W polu <b>Description</b> wpisz: „Test instrukcji: list przewozowy w załączeniu jutro.”</li><li><b>Krok 4</b>Kliknij <b>Send message</b>.</li></ol>
+  <div class="note acc"><span class="tag acc">Oczekiwany wynik</span><span>Okno się zamyka, a w zakładce Messages pojawia się Twoja wiadomość z dzisiejszą datą i nazwą TEST Ksiegowosc.</span></div>
+</section>
+
+<section id="s-s3">
+  <div class="sec-h"><span class="no">07</span><h2>S3. Operator myConnect widzi odpowiedź księgowości</h2></div>
+  <div class="prose"><p><b>Cel:</b> Sprawdzić, że operator myConnect widzi w sprawie wiadomości księgowości, nie tylko swoje.</p></div>
+  <div class="prose"><p><b>Konto:</b> TEST myConnect operator DPL62 Intercom. <b>Zanim zaczniesz:</b> zrób scenariusz S2 (wiadomość księgowości musi już być w sprawie).</p></div>
+  <ol class="steps"><li><b>Krok 1</b>Zmień konto na TEST myConnect operator DPL62 Intercom.</li><li><b>Krok 2</b>Na stronie startowej, na liście <b>My tickets</b>, znajdź wiersz z numerem <b>8821</b>.</li><li><b>Krok 3</b>Kliknij numer 8821.</li><li><b>Krok 4</b>Przewiń w dół do wiadomości w sprawie.</li></ol>
+  <div class="note acc"><span class="tag acc">Oczekiwany wynik</span><span>Widzisz wiadomość księgowości „Test instrukcji: list przewozowy w załączeniu jutro.” z jej nazwą. Na górze operator ma przyciski zmiany stanu: „In progress” i „Resolve”.</span></div>
+</section>
+
+<section id="s-s4">
+  <div class="sec-h"><span class="no">08</span><h2>S4. Sprawa bez numeru przesyłki trafia do zespołu transportu</h2></div>
+  <div class="prose"><p><b>Cel:</b> Sprawdzić, że sprawa zgłoszona bez numeru przesyłki jest u operatora transportu.</p></div>
+  <div class="prose"><p><b>Konto:</b> TEST myConnect operator DPL62 RND</p></div>
+  <ol class="steps"><li><b>Krok 1</b>Zmień konto na TEST myConnect operator DPL62 RND.</li><li><b>Krok 2</b>Strona startowa jest pusta. Kliknij <b>myConnect</b> w menu po lewej stronie.</li><li><b>Krok 3</b>Na liście <b>My team tickets</b> znajdź sprawę z numerem <b>8823</b>.</li></ol>
+  <div class="note acc"><span class="tag acc">Oczekiwany wynik</span><span>Sprawa 8823 („without shipment number”, stan New) jest na liście zespołu operatora transportu, a zgłaszającym jest TEST Ksiegowosc.</span></div>
+</section>
+
+<section id="s-s5">
+  <div class="sec-h"><span class="no">09</span><h2>S5. Pracownik nie widzi spraw księgowości</h2></div>
+  <div class="prose"><p><b>Cel:</b> Sprawdzić, że zwykły pracownik nie widzi cudzych spraw dla myConnect.</p></div>
+  <div class="prose"><p><b>Konto:</b> TEST Pracownik (employee)</p></div>
+  <ol class="steps"><li><b>Krok 1</b>Zmień konto na TEST Pracownik (employee).</li><li><b>Krok 2</b>Obejrzyj stronę startową i listę „Current requests”.</li></ol>
+  <div class="note acc"><span class="tag acc">Oczekiwany wynik</span><span>Na liście nie ma spraw księgowości (#8819–#8823) ani pozycji menu „myConnect”.</span></div>
+</section>
+
+<section id="troubles">
+  <div class="sec-h"><span class="no">10</span><h2>Gdy coś nie działa</h2></div>
+  <ol class="verify"><li><b>Strona „Aplikacja nie wystartowała” albo przycisk „Uruchom aplikację”</b><span>Aplikacja sama się wyłączyła. Kliknij „Spróbuj ponownie” albo „Uruchom aplikację” i poczekaj do dwóch minut.</span></li><li><b>Błąd połączenia w trakcie testu</b><span>Odśwież adres bramki i uruchom aplikację jeszcze raz; zacznij scenariusz od początku.</span></li><li><b>„The current license does not allow more users to sign in”</b><span>Za dużo osób jest zalogowanych naraz (najwyżej 6). Napisz do Karola.</span></li><li><b>Nie przyszedł kod z maila</b><span>Sprawdź folder spam i odczekaj minutę. Po kilku prośbach z rzędu odczekaj 15 minut.</span></li></ol>
+</section>
+
+<section id="out">
+  <div class="sec-h"><span class="no">11</span><h2>Czego ta instrukcja nie obejmuje</h2></div>
+  <ul><li>Zakładanie nowej sprawy przez księgowość: na środowisku testowym brakuje pełnej listy kategorii.</li><li>Maile o korespondencji wewnętrznej: środowisko testowe nie wysyła maili.</li><li>Praca z asystentem w Teams i z Claude operatora: mają osobne instrukcje.</li><li>Drobne poprawki i zmiany niewidoczne dla użytkownika (porządki, wygląd bez zmian, praca w tle).</li></ul>
+</section>
+
+<section id="report">
+  <div class="sec-h"><span class="no">12</span><h2>Jak zgłosić błąd</h2></div>
+  <ol><li>Zapisz numer scenariusza i kroku, w którym coś poszło inaczej.</li><li>Zrób zrzut ekranu całego okna.</li><li>Napisz, co zrobiłeś, co zobaczyłeś i czego się spodziewałeś, i wyślij to do Karola razem ze zrzutem.</li></ol>
+</section>
+
+<footer><span>Instrukcja testów · Service Desk</span><span>przygotował Claude dla Karola</span></footer>
+</main>
+</body></html>
