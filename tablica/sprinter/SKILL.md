@@ -1,11 +1,11 @@
 ---
 name: sprinter
-description: Zasady Sprintera, wspólnego rdzenia MxCraft i Tandem – tygodniowe sprinty, historyjki z kryteriami (standard „Dla Ciebie” + „Dla Claude · polecenie”: jak pisać historyjkę, żeby Karol zrozumiał ją od razu), tablica To do · Running · Done (z pipeline: Draft · To do · Running · Automated Testing · Done · On Prod), testy automatyczne i role (Karol jest Product Ownerem i Scrum Masterem, Claude Developerem; testu człowieka w Tandem nie ma). Mówi, jak brać historyjki z To do w kolejności sprintu, kiedy przesuwać je między kolumnami, kto ustawia Done (Claude albo pipeline, nie Karol) i jak zapisywać historię, kryteria i zmiany w modelu w tickecie, nie w czacie. Używaj w każdym projekcie prowadzonym w MxCraft albo Tandem, gdy planujesz, szacujesz, budujesz albo zmieniasz status pracy; skill tandem dokłada do tego raportowanie kroków i tokenów.
+description: Zasady Sprintera, wspólnego rdzenia MxCraft i Tandem – tygodniowe sprinty, historyjki z kryteriami (standard „Dla Ciebie” + „Dla Claude · polecenie”: jak pisać historyjkę, żeby Karol zrozumiał ją od razu), tablica To do · Running · Done (z pipeline: Draft · To do · Running · Automated Testing · Done · On Prod), testy automatyczne i kto co robi (Karol mówi, czego chce, i wypuszcza na prod; Claude buduje; testu człowieka w Tandem nie ma). Mówi, jak brać historyjki z To do w kolejności sprintu, kiedy przesuwać je między kolumnami, kto ustawia Done (Claude albo pipeline, nie Karol) i jak zapisywać historię, kryteria i zmiany w modelu w tickecie, nie w czacie. Używaj w każdym projekcie prowadzonym w MxCraft albo Tandem, gdy planujesz, szacujesz, budujesz albo zmieniasz status pracy; skill tandem dokłada do tego raportowanie kroków i tokenów.
 ---
 
 # Sprinter: jak pracuje zespół Karol + Claude
 
-Wersja 0.9 · 2026-10-24 (GEN-33: tag „kto” na tickecie: kto robi, blokada przed przypadkowym startem. 0.8: GEN-26: bez testu człowieka – kolumny Testing i Human Testing, testy dla Karola i Done na jego commit znikają; koniec historyjki to Done albo Automated Testing. 0.7: Pomysły: miejsce przed historyjkami, zamiana tylko po pytaniu Draft czy To do. 0.6: tablica projektu z pipeline: Draft → On Prod, kto co przesuwa; Automated Testing i Draft po nieudanym przebiegu też są „jednym jobem”. 0.5: kryteria ocenia Claude w raporcie końcowym; rozmiar do czytania przez konektor: najwyżej 24 KB, sekcje, podsumowanie na górze)
+Wersja 0.12 · 2026-10-29 (TAN-65: bez tagu „kto”; kto ma ticket, mówi tylko przypisanie (Karol / Claude), zmieniane z nagłówka ticketu razem ze statusem. 0.11: TAN-28: blokada historyjek w wydaniu na prod, „Anuluj wydanie”. 0.10: TAN-14: bez punktów i ról, tylko imiona; opis dla Karola krótki i jasny, polecenie dla Claude zawsze szczegółowe; TAN-19: Pauza zamiast „Tylko odczyt”. 0.9: GEN-33: tag „kto” na tickecie: kto robi, blokada przed przypadkowym startem. 0.8: GEN-26: bez testu człowieka – kolumny Testing i Human Testing, testy dla Karola i Done na jego commit znikają; koniec historyjki to Done albo Automated Testing. 0.7: Pomysły: miejsce przed historyjkami, zamiana tylko po pytaniu Draft czy To do. 0.6: tablica projektu z pipeline: Draft → On Prod, kto co przesuwa; Automated Testing i Draft po nieudanym przebiegu też są „jednym jobem”. 0.5: kryteria ocenia Claude w raporcie końcowym; rozmiar do czytania przez konektor: najwyżej 24 KB, sekcje, podsumowanie na górze)
 
 Ten plik mieszka w Tandem (`skills/sprinter/SKILL.md`, od GEN-19). Kopia w repo MxCraft
 zostaje tylko do jego wyłączenia (GEN-20); nie zmieniaj jej. `$TANDEM_DIR` to folder repo Tandem.
@@ -14,13 +14,15 @@ Sprinter to wspólny rdzeń MxCraft i Tandem: te same sprinty, historyjki i tabl
 zapisane jako pliki JSON w folderze roboczym MxCraft (`workspace/`).
 Strony odświeżają się same, gdy coś zapiszesz. Karol patrzy na postęp tam, nie w czacie.
 
-## Role
+## Kto co robi
 
-- **Karol** – Product Owner i Scrum Master. Mówi, czego chce, ustala kolejność,
+Na tickecie widać tylko imiona: Claude, Karol. Ról (tester, deweloper) ani punktów nie ma.
+
+- **Karol** mówi, czego chce, ustala kolejność,
   odpowiada na pytania z refinementu i wypuszcza na prod („Na prod”). W Tandem nie
   testuje: przed wydaniem sam sprawdza, co chce, a historyjkę z Done może odesłać
   („Popraw z uwagami”).
-- **Claude** – Developer. Zapisuje historyjki według standardu niżej (część dla Karola
+- **Claude** zapisuje historyjki według standardu niżej (część dla Karola
   i polecenie dla siebie), bierze je z To do w kolejności sprintu, jedną naraz, buduje,
   dopisuje testy automatyczne, ocenia kryteria i przenosi do Done (z pipeline: do
   Automated Testing).
@@ -35,23 +37,17 @@ Strony odświeżają się same, gdy coś zapiszesz. Karol patrzy na postęp tam,
   (1 2 3 5 8 13), `prompt` (polecenie, które Claude pisze dla siebie), `intent`, `acceptance` (kryteria),
   `questions`, `decisions`, `changes` (zmiany w modelu), `assignee` (karol | claude),
   `log` (historia). Testów dla Karola (ticketów typu test) już nie ma.
-- **Tag „kto”** (`owner`): kto robi ticket, kolorowy znacznik na karcie i filtr „Kto” nad tablicą.
-  Wartości: `claude` (Claude), `karol-claude` (Karol → Claude), `mikolaj-claude` (Mikołaj → Claude),
-  `karol`, `mikolaj`, `research`. Tickety Karol, Mikołaj i Research nigdy nie trafiają do To do ani
-  Running (strona, oba serwery, MCP i konektor odmawiają). „X → Claude” wchodzi do To do dopiero z
-  `ownerReady` – potwierdzeniem, że krok człowieka jest zrobiony; w konektorze `ownerReady: true`
-  podajesz tylko, gdy Karol to powiedział. Dopisku w nawiasie w tytule („[Karol → Claude] …”) już nie
-  piszesz: serwer i konektor zamieniają go na tag i usuwają z tytułu.
 
 ## Tablica z pipeline
 
 Projekt z włączonym pipeline (Ustawienia → Pipeline, `project.pipeline.enabled`) ma
-sześć kolumn (Human Testing tylko z `pipeline.humanTesting`, GEN-29); `sprint_read` zwraca je w `columns`, a historyjki w `draft`, `autotest`
+sześć kolumn (projekt Mendix siedem: z Planowaniem przed To do, TAN-22; `sprint_read.planning`) (Human Testing tylko z `pipeline.humanTesting`, GEN-29); `sprint_read` zwraca je w `columns`, a historyjki w `draft`, `autotest`
 i `prod` obok `queue`, `running`, `done` (i `testing`, gdy projekt ma Human Testing).
 
 | Kolumna | Status | Kto przesuwa dalej |
 |---|---|---|
 | Draft | `draft` | Karol do To do, gdy historyjka gotowa. Pipeline nigdy nie cofa tu historyjki sam; trafia tu tylko, gdy Karol przeniesie zatrzymaną (`failedRun`, powód w `fixes`). |
+| Planowanie | `plan` | Tylko projekt Mendix, domyślnie (TAN-22; Karol może ją usunąć w Ustawieniach → Kolumny). Claude planuje całą kolumnę razem (`plan_read`, `plan_save`: kolejność, zależności, elementy modelu do aktywności i decyzji, new/chg/del) i niczego nie zmienia w modelu; historyjka dostaje „Plan gotowy”. Do To do przenosi Karol: to akceptacja planu. |
 | To do | `todo` | Claude (`story_next`) albo pipeline sam startuje sesję; To do znaczy „buduj”. |
 | Running | `running` | Claude: oceniasz kryteria i `story_move` do `autotest` (dawne `testing` serwer też przyjmie jako koniec budowy, ale pisz `autotest`). |
 | Automated Testing | `autotest` | Pipeline: kroki testów automatycznych. Krok, który czeka na Claude, zgłaszasz przez `step_report` (`pipeline_status` pokazuje który). Fail → historyjka zostaje tu zatrzymana (`halt`, czerwona ramka, jedno zdanie), wszystko zaliczone → pipeline sam przenosi do Done (GEN-29: bez Human Testing) i zapisuje to w historii. |
@@ -77,6 +73,14 @@ jedno zdanie powodu), czerwoną ramką i przypisaniem do Karola. Karol decyduje:
 (krok od nowa, z tego samego miejsca), „Pomiń krok” albo sam przenosi ją do Draft lub
 To do – wtedy powód trafia do `fixes`, a Ty bierzesz ją jak każdą inną i zaczynasz od
 `fixes`. Zatrzymanej historyjki nie przesuwasz sam.
+
+## Blokada w wydaniu na prod (TAN-28)
+
+Gdy wydanie na prod stoi w kolejce albo trwa, jego historyjki mają kłódkę z powodem i nie da się ich przenieść,
+zmienić (tytuł, opis, kryteria, polecenie) ani usunąć: na stronie (też wsadowo), przez konektor i MCP. Komentarz
+i historia przechodzą. Blokada leży w zapisie wydania (`pipeline/release`), więc przeżywa restart, i znika sama po
+sukcesie, błędzie albo anulowaniu. „Anuluj wydanie” zatrzymuje wydanie, którego Mac jeszcze nie wziął;
+wdrożenia w toku nie przerywa.
 
 ## Rytm historyjki
 
@@ -148,7 +152,9 @@ Ten standard obowiązuje każdą sesję Claude w MxCraft i w Tandem: przy `story
 ### Część dla Karola (`intent` + `acceptance`)
 
 Prosty polski, pełne zdania, bez żargonu sesji. Pisz tak, jakby czytał ją ktoś, kto
-nie widział rozmowy, w której historyjka powstała.
+nie widział rozmowy, w której historyjka powstała. **Krótko i jasno**: po co jest
+historyjka i co ma powstać, nic więcej. To pierwszy widok strony historyjki w Tandem
+(„Opis”, pod nim pliki); kryteria są w osobnej zakładce, polecenie w zakładce „Dla Claude”.
 
 - **Intencja** (`intent`) ma trzy akapity, oddzielone pustą linią:
   - **Dziś:** co jest nie tak albo czego brakuje, z punktu widzenia Karola (jedno–dwa zdania).
@@ -194,8 +200,8 @@ mikroprzepływ, stronę albo encję z modelu projektu.
 
 ### Część dla Claude (`prompt`)
 
-Techniczna i konkretna, tyle, żeby nowa sesja z pustym kontekstem zrobiła historyjkę
-bez pytań: kontekst (repozytorium, od czego zależy), pliki, kroki, ograniczenia
+**Zawsze szczegółowa**, nawet gdy opis dla Karola ma dwa zdania: techniczna i konkretna,
+tyle, żeby nowa sesja z pustym kontekstem zrobiła historyjkę bez pytań: kontekst (repozytorium, od czego zależy), pliki, kroki, ograniczenia
 (czego nie ruszać), testy, jak raportować. Wolno używać nazw plików, funkcji, pól
 i skrótów. Claude pisze polecenie od razu przy zakładaniu historyjki, nie czeka na Karola.
 Gdy coś musi zrobić Karol (token, klik na GitHubie), polecenie mówi, kiedy o to
@@ -285,7 +291,8 @@ Każda odpowiedź ma najpierw pole summary (2–3 zdania do czytania na głos), 
   zostają w spokoju.
 - Przed zmianą w modelu prawdziwej aplikacji obowiązuje zasada backupu Karola:
   kopia repo na dysku i tag w git.
-- Gdy Karol włączył „Tylko odczyt”, czytasz i proponujesz, niczego nie zapisujesz.
+- Gdy Karol wstrzymał Tandem (Pauza na Teraz), nie bierzesz nowej historyjki; bieżącą kończysz. Przy wyłączniku
+  awaryjnym czytasz i proponujesz, niczego nie zapisujesz. Zmiany w Mendix idą zawsze przez pliki (TAN-19).
 - Plany, raporty i dokumentację piszesz w Markdown z podsumowaniem na górze i sekcjami do 24 KB
   (zob. „Rozmiar: Claude czyta przez konektor”).
 
