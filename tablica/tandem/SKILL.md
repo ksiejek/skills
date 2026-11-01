@@ -246,7 +246,7 @@ projekt”), prawdziwe dane i `.mpr` prawdziwego projektu bez zgody, rotacja klu
    w Running. Każde polecenie, także pełny zestaw testów, uruchamiaj na pierwszym
    planie, z `timeout` do 1800000 ms (30 min) i wynikiem przez `| tail -30`. Tury nie
    kończ zdaniem „dokończę, gdy testy się skończą”: koniec tury to historyjka
-   w Done albo Automated Testing (albo zatrzymanie z punktu 6).
+   w Done albo Automated Testing (albo zatrzymanie z punktu 7).
 10. **Mniej wywołań** (TAN-85). Każde wywołanie narzędzia wysyła całą rozmowę od nowa, więc koszt budowy to
    liczba wywołań × kontekst (SD-94: 126 wywołań, 15,7 mln). Jakość się nie zmienia: te same testy i sprawdzenia,
    tylko w mniejszej liczbie wywołań.
