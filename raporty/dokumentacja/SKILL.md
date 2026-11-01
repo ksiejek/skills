@@ -6,7 +6,7 @@ argument-hint: "[opis-zmian | techniczna | dostep] [temat]"
 
 # Dokumentacja w stylu MxScout
 
-Wersja 0.1 · 2026-10-27 (GEN-47). Wzór: dokument „Intercom → Qlik: przyrostowy feed danych” (`~/Projects/Intercom/docs/qlik-delta-feed-proposal.pl.html`).
+Wersja 0.2 · 2026-10-31 (GEN-47; 0.2: `bin/build.js` da się też `require`, renderery bloków i `css()` dla paczki skilla instrukcja-testow). Wzór: dokument „Intercom → Qlik: przyrostowy feed danych” (`~/Projects/Intercom/docs/qlik-delta-feed-proposal.pl.html`).
 Wygląd: tokeny jasnego motywu MxScout (`public/tokens.css`), akcent kobaltowy, Instrument Sans i JetBrains Mono.
 
 Skill nie zmienia kodu aplikacji. Robi trzy pliki z jednego opisu (JSON): `.html`, `.docx`, `.md`.

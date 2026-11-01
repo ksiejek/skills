@@ -1,0 +1,883 @@
+{
+  "name": "service-desk-instrukcje-testow",
+  "app": "Service Desk",
+  "env": "Test",
+  "title": "Instrukcje testów na środowisku Test",
+  "lead": "Każdy plik to jeden temat. Zacznij od wejścia na Test, potem wykonuj scenariusze w dowolnej kolejności. Pliki działają bez internetu: wystarczy je otworzyć dwuklikiem.",
+  "audience": "Testerzy biznesowi",
+  "date": "2026-10-31",
+  "access": {
+    "kind": "cloud",
+    "url": "https://myhelpdesk-test.apps.eu-1c.mendixcloud.com/login-admin.html",
+    "passwordEnv": "SD_TEST_PASSWORD",
+    "passwordOp": "op://Praca/SD test/password",
+    "lead": "Jak otworzyć Service Desk na środowisku Test, zalogować się kontem testowym i przełączać się między kontami.",
+    "summary": "Adres, logowanie, wybór konta testowego, zmiana konta.",
+    "login": "Jedno wspólne hasło dla wszystkich kont `test.*`. Dostajesz je od Karola w osobnej wiadomości.",
+    "loginSteps": [
+      {
+        "text": "Otwórz adres z karty wyżej. Użyj dokładnie adresu kończącego się na `login-admin.html`.",
+        "expect": "Widzisz formularz z polami na login i hasło oraz przyciskiem **Sign in**."
+      },
+      {
+        "text": "Wpisz login konta testowego (np. `test.ksiegowosc`) i wspólne hasło. Kliknij **Sign in**.",
+        "expect": "Otwiera się Service Desk. W prawym panelu jest powitanie z nazwą konta, która zaczyna się od „TEST”."
+      },
+      {
+        "text": "Gdy pojawi się okno „Install the app”, kliknij **Don't show again** albo **x**.",
+        "expect": "Okno znika. Nic nie instalujesz."
+      }
+    ],
+    "notes": [
+      {
+        "tag": "Ważne",
+        "kind": "acc",
+        "text": "Nie używaj przycisku logowania firmowego (SSO) ani swojego konta. Zwykły adres bez `login-admin.html` przekierowuje do logowania firmowego."
+      },
+      {
+        "tag": "Blokada",
+        "kind": "bad",
+        "text": "Trzy błędne hasła blokują konto do następnego restartu środowiska. Po dwóch błędach przerwij i napisz do Karola."
+      }
+    ],
+    "accountsIntro": "Każdy scenariusz mówi, którym kontem wykonać który krok. Poniżej wszystkie konta, których używają instrukcje z tej paczki, i kilka dodatkowych. Wszystkie mają nazwę zaczynającą się od „TEST” i adres e-mail, na który nic nie wychodzi.",
+    "accountsNote": {
+      "tag": "Info",
+      "text": "Konta odtwarzają się przy każdym restarcie Test: role, zespoły i hasło wracają do stanu wyjściowego. Zmiany, które zrobisz w zgłoszeniach, zostają."
+    },
+    "switch": [
+      "Kliknij **Sign out** na dole menu po lewej.",
+      "Zaloguj się innym kontem jak w części 01.",
+      "Wygodniej: otwórz drugie konto w oknie prywatnym (incognito) przeglądarki. Każde okno prywatne to osobna sesja, więc zgłaszający i operator mogą być zalogowani naraz."
+    ],
+    "switchNote": {
+      "tag": "Dane",
+      "kind": "acc",
+      "text": "Środowisko Test ma kopię danych produkcyjnych. Nie zmieniaj zgłoszeń innych niż Twoje testowe (tytuł zaczyna się od „TEST”). Maile i roboty są na Test wyłączone, więc nic nie trafia do prawdziwych osób."
+    },
+    "dismiss": [
+      "Don't show again"
+    ]
+  },
+  "accounts": [
+    {
+      "id": "ksiegowosc",
+      "role": "Księgowość (zgłaszający)",
+      "login": "test.ksiegowosc",
+      "name": "TEST Ksiegowosc (MyConnect requester)",
+      "what": "Pracownik księgowości. Zakłada sprawy do zespołu myConnect z kategorii „Shipment issue SD22”."
+    },
+    {
+      "id": "rnd",
+      "role": "Operator myConnect RND",
+      "login": "test.mc.rnd",
+      "name": "TEST myConnect operator DPL62 RND",
+      "op": true,
+      "what": "Operator zespołu DPL62 Transport (RND). Przejmuje sprawę, odpowiada, zmienia status i ją zamyka."
+    },
+    {
+      "id": "depot",
+      "role": "Operator myConnect depot",
+      "login": "test.mc.depot",
+      "name": "TEST myConnect operator DPL62",
+      "op": true,
+      "what": "Operator depotu Gądki. Widzi kolejki Intercom i RND tego depotu."
+    },
+    {
+      "id": "pracownik",
+      "role": "Pracownik",
+      "login": "test.pracownik",
+      "name": "TEST Pracownik",
+      "what": "Zwykły pracownik bez dostępu do spraw myConnect."
+    },
+    {
+      "id": "operator",
+      "role": "Operator SD",
+      "login": "test.operator",
+      "name": "TEST Operator",
+      "op": true,
+      "what": "Operator zespołu ASC GL DE w Service Desk."
+    },
+    {
+      "id": "viewer",
+      "role": "Podgląd myConnect",
+      "login": "test.mc.viewer",
+      "name": "TEST myConnect podgląd (viewer)",
+      "what": "Widzi sprawy myConnect, ale ich nie przejmuje i nie odpowiada."
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "A",
+      "file": "02-scenariusz-a-sprawa-do-myconnect.html",
+      "eyebrow": "od zgłoszenia do zamknięcia",
+      "title": "Sprawa księgowości dla zespołu myConnect",
+      "lead": "Pracownik księgowości zakłada w Service Desk sprawę dla zespołu myConnect. Operator myConnect ją widzi, przejmuje, odpowiada, zmienia status i zamyka. Po każdym etapie zgłaszający sprawdza, co widzi u siebie.",
+      "summary": "Zgłoszenie, przejęcie przez operatora, odpowiedź, zmiana statusu, zamknięcie; widok zgłaszającego na każdym etapie.",
+      "goal": "Sprawa przechodzi od zgłoszenia do zamknięcia, a zgłaszający widzi każdy etap u siebie.",
+      "account": "ksiegowosc",
+      "hint": "Najwygodniej mieć zgłaszającego w zwykłym oknie, a operatora w oknie prywatnym.",
+      "steps": [
+        {
+          "heading": "Zgłoszenie"
+        },
+        {
+          "account": "ksiegowosc",
+          "text": "W menu po lewej kliknij **My tickets**, potem **Create new SD ticket**.",
+          "expect": "Otwiera się formularz „New ticket”.",
+          "do": [
+            {
+              "loginAs": "ksiegowosc"
+            },
+            {
+              "click": "My tickets"
+            },
+            {
+              "click": "Create new SD ticket"
+            },
+            {
+              "see": "New ticket"
+            }
+          ]
+        },
+        {
+          "account": "ksiegowosc",
+          "text": "W polu **Category** wpisz „Shipment” i wybierz **Shipment issue SD22**.",
+          "expect": "Pod kategorią pojawiają się pola **Shipment number** (z przyciskiem **Get data**), **Business unit** i **Depot**.",
+          "do": [
+            {
+              "fill": "Category",
+              "value": "Shipment"
+            },
+            {
+              "click": "Shipment issue SD22"
+            },
+            {
+              "see": "Shipment number"
+            },
+            {
+              "see": "Get data"
+            },
+            {
+              "see": "Business unit"
+            },
+            {
+              "see": "Depot"
+            }
+          ]
+        },
+        {
+          "account": "ksiegowosc",
+          "text": "Wpisz Title „TEST A <Twoje inicjały>” i Description „Scenariusz A”. **Shipment number** zostaw pusty. Business unit: **Raben Logistics Polska Sp. z o.o.**, Depot: **Gądki**.",
+          "expect": "Pola są wypełnione, nie ma komunikatów błędu.",
+          "do": [
+            {
+              "fill": "Title",
+              "value": "TEST A CL {run}"
+            },
+            {
+              "fill": "Description",
+              "value": "Scenariusz A"
+            },
+            {
+              "choose": "Business unit",
+              "value": "Raben Logistics Polska Sp. z o.o."
+            },
+            {
+              "choose": "Depot",
+              "value": "Gądki"
+            }
+          ]
+        },
+        {
+          "account": "ksiegowosc",
+          "text": "Kliknij **Submit ticket**. Zapisz numer sprawy (#…).",
+          "expect": "Otwiera się nowa sprawa „Transport#<numer>”, kategoria SD22.T, status **New**, zespół **DPL62 Transport (RND)**.",
+          "do": [
+            {
+              "click": "Submit ticket",
+              "settle": 4000
+            },
+            {
+              "see": "Transport#"
+            },
+            {
+              "see": "New"
+            },
+            {
+              "see": "DPL62 Transport (RND)"
+            }
+          ]
+        },
+        {
+          "heading": "Operator przejmuje sprawę"
+        },
+        {
+          "account": "rnd",
+          "text": "Zaloguj się. W menu po lewej kliknij **myConnect**.",
+          "expect": "Lista **My team tickets** zawiera Twoją sprawę ze statusem New, zgłaszający „TEST Ksiegowosc”.",
+          "do": [
+            {
+              "click": "myConnect"
+            },
+            {
+              "see": "My team tickets"
+            },
+            {
+              "see": "TEST A CL {run}"
+            },
+            {
+              "see": "TEST Ksiegowosc"
+            }
+          ]
+        },
+        {
+          "account": "rnd",
+          "text": "Kliknij sprawę na liście.",
+          "expect": "Widać zgłaszającego, Business unit, depot Gądki i termin (Due date). Na górze: zespół DPL62 Transport (RND), „Unassigned” i przycisk **Assign to me**.",
+          "do": [
+            {
+              "click": "TEST A CL {run}"
+            },
+            {
+              "see": "Gądki"
+            },
+            {
+              "see": "Unassigned"
+            },
+            {
+              "see": "Assign to me"
+            }
+          ]
+        },
+        {
+          "account": "rnd",
+          "text": "Kliknij **Assign to me**.",
+          "expect": "Status zmienia się na **In progress**, w prawym panelu jest operator „TEST myConnect operator DPL62 RND”. Na górze są przyciski **Wait for response** i **Resolve**.",
+          "do": [
+            {
+              "click": "Assign to me",
+              "settle": 3000
+            },
+            {
+              "see": "In progress"
+            },
+            {
+              "see": "Wait for response"
+            },
+            {
+              "see": "Resolve"
+            }
+          ]
+        },
+        {
+          "account": "ksiegowosc",
+          "text": "W **My tickets** otwórz swoją sprawę.",
+          "expect": "Status **In progress**, widać operatora. Nie ma przycisku zmiany statusu.",
+          "do": [
+            {
+              "click": "My tickets"
+            },
+            {
+              "click": "TEST A CL {run}"
+            },
+            {
+              "see": "In progress"
+            },
+            {
+              "seeNot": "Assign to me"
+            }
+          ]
+        },
+        {
+          "heading": "Odpowiedź i zmiana statusu"
+        },
+        {
+          "account": "rnd",
+          "text": "Na dole, na zakładce **Messages**, kliknij **New message**. W panelu po prawej, w polu **Description**, wpisz „TEST A odpowiedź operatora” i kliknij **Send message**.",
+          "expect": "Wiadomość pojawia się na liście Messages z nazwą operatora. Zaraz potem pojawia się pytanie „Would you like to change ticket status to Waiting for response?”.",
+          "do": [
+            {
+              "click": "myConnect"
+            },
+            {
+              "click": "TEST A CL {run}"
+            },
+            {
+              "click": "Messages",
+              "optional": true,
+              "within": 2000
+            },
+            {
+              "click": "New message"
+            },
+            {
+              "fill": "Description",
+              "selector": "textarea[id*=\"SNIP_NewMessage\"]",
+              "value": "TEST A odpowiedź operatora"
+            },
+            {
+              "click": "Send message",
+              "settle": 3000
+            },
+            {
+              "see": "TEST A odpowiedź operatora"
+            },
+            {
+              "see": "Would you like to change ticket status to Waiting for response?"
+            }
+          ]
+        },
+        {
+          "account": "rnd",
+          "text": "Na pytanie „Would you like to change ticket status to Waiting for response?” kliknij **Confirm**.",
+          "expect": "Status zmienia się na **Waiting for response**. Na liście Messages jest wpis „In progress → Waiting for response”.",
+          "do": [
+            {
+              "click": "Confirm",
+              "settle": 3000
+            },
+            {
+              "see": "Waiting for response"
+            }
+          ]
+        },
+        {
+          "account": "ksiegowosc",
+          "text": "Odśwież swoją sprawę (przycisk odświeżania na górze albo F5).",
+          "expect": "Status **Waiting for response**. Widać odpowiedź operatora i zmianę statusu.",
+          "do": [
+            {
+              "click": "My tickets"
+            },
+            {
+              "click": "TEST A CL {run}"
+            },
+            {
+              "see": "Waiting for response"
+            },
+            {
+              "see": "TEST A odpowiedź operatora"
+            }
+          ]
+        },
+        {
+          "account": "ksiegowosc",
+          "text": "Kliknij **New message**, w polu **Description** w panelu po prawej wpisz „TEST A odpowiedź zgłaszającego”, kliknij **Send message**. Na pytanie „Would you like to change ticket status to In Progress?” kliknij **Confirm**.",
+          "expect": "Status wraca do **In progress**, Twoja wiadomość jest na liście.",
+          "do": [
+            {
+              "click": "New message"
+            },
+            {
+              "fill": "Description",
+              "selector": "textarea[id*=\"SNIP_NewMessage\"]",
+              "value": "TEST A odpowiedź zgłaszającego"
+            },
+            {
+              "click": "Send message"
+            },
+            {
+              "click": "Confirm",
+              "optional": true,
+              "within": 5000,
+              "settle": 3000
+            },
+            {
+              "see": "In progress"
+            },
+            {
+              "see": "TEST A odpowiedź zgłaszającego"
+            }
+          ]
+        },
+        {
+          "account": "rnd",
+          "text": "Otwórz sprawę ponownie.",
+          "expect": "Status **In progress**. Na liście Messages jest wiadomość zgłaszającego.",
+          "do": [
+            {
+              "click": "myConnect"
+            },
+            {
+              "click": "TEST A CL {run}"
+            },
+            {
+              "see": "In progress"
+            },
+            {
+              "see": "TEST A odpowiedź zgłaszającego"
+            }
+          ]
+        },
+        {
+          "note": {
+            "tag": "Znany błąd",
+            "kind": "bad",
+            "text": "Na Test operator może jeszcze nie widzieć wiadomości zgłaszającego. Poprawka czeka na wdrożenie nowej wersji na Test. Jeśli jej nie widzisz, idź dalej: to znany błąd, nie zgłaszaj go ponownie."
+          }
+        },
+        {
+          "heading": "Zamknięcie"
+        },
+        {
+          "account": "rnd",
+          "text": "Kliknij **Resolve**. W panelu po prawej wpisz krótko rozwiązanie, np. „TEST A rozwiązane”, i kliknij **Confirm**.",
+          "expect": "Status **Solved**, w prawym panelu pojawia się **Closed date**. Przyciski zmiany statusu znikają.",
+          "do": [
+            {
+              "click": "Resolve"
+            },
+            {
+              "fill": "Resolution",
+              "value": "TEST A rozwiązane"
+            },
+            {
+              "click": "Confirm",
+              "settle": 3000
+            },
+            {
+              "see": "Solved"
+            },
+            {
+              "see": "Closed date"
+            }
+          ]
+        },
+        {
+          "account": "ksiegowosc",
+          "text": "Otwórz swoją sprawę.",
+          "expect": "Status **Solved**. Na liście Messages jest wpis „In progress → Solved” z tekstem rozwiązania. Na liście **My tickets** sprawa ma status Solved.",
+          "do": [
+            {
+              "click": "My tickets"
+            },
+            {
+              "click": "TEST A CL {run}"
+            },
+            {
+              "see": "Solved"
+            },
+            {
+              "see": "TEST A rozwiązane"
+            }
+          ]
+        }
+      ],
+      "notes": [
+        {
+          "tag": "Info",
+          "text": "Pod **Additional statuses** operator ma jeszcze **External Service** i **Reject**. Ten scenariusz ich nie sprawdza."
+        }
+      ],
+      "expect": {
+        "text": "Sprawa przeszła od zgłoszenia do zamknięcia: status **Solved** u operatora i u zgłaszającego, z całą wymianą wiadomości na liście Messages.",
+        "do": [
+          {
+            "see": "Solved"
+          }
+        ]
+      }
+    },
+    {
+      "id": "B",
+      "file": "03-scenariusz-b-numer-przesylki.html",
+      "eyebrow": "numer przesyłki",
+      "title": "Sprawa z numerem przesyłki i danymi z myTT",
+      "lead": "Na środowisku Test pobieranie danych przesyłki z myTT działa: przycisk **Get data** pobiera odcinki przesyłki, a Ty wybierasz jednostkę biznesową z tej listy. Ten scenariusz sprawdza, że dane się pobierają i że sprawę z numerem przesyłki da się wysłać.",
+      "summary": "Get data pobiera odcinki przesyłki z myTT, sprawa z numerem trafia do zespołu depotu.",
+      "goal": "Dane przesyłki pobierają się z myTT, a sprawę z numerem przesyłki da się wysłać.",
+      "account": "ksiegowosc",
+      "accountsNote": {
+        "tag": "Test",
+        "kind": "acc",
+        "text": "Pobieranie danych przesyłki działa na Test tak jak na Acceptance (to samo połączenie z myTT). Dane przychodzą z prawdziwego myTT, więc używaj tylko numerów z tabeli niżej."
+      },
+      "sections": [
+        {
+          "id": "numery",
+          "title": "Numery przesyłek do testu",
+          "blocks": [
+            "Te przesyłki jadą przez kilka jednostek Raben. Po **Get data** wybierasz odcinek w polu **Business unit**: w tym scenariuszu zawsze odcinek polski.",
+            {
+              "table": {
+                "head": [
+                  "Numer przesyłki",
+                  "Business unit do wyboru po Get data",
+                  "Depot"
+                ],
+                "rows": [
+                  [
+                    "`428294000950453`",
+                    "Raben Logistics Polska Sp. z o.o. (616594011636442)",
+                    "DPL62 Gądki"
+                  ],
+                  [
+                    "`428294000947279` (zapasowy)",
+                    "Raben Logistics Polska Sp. z o.o. (616154010497515)",
+                    "DPL62 Gądki"
+                  ]
+                ]
+              }
+            },
+            "myTT przechowuje przesyłki przez ograniczony czas. Jeśli pierwszy numer da „Shipment not found in myTT…” albo „Cannot connect to myTT…”, użyj zapasowego. Gdy oba dają błąd, napisz do Karola."
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "text": "**My tickets** → **Create new SD ticket**. W **Category** wybierz **Shipment issue SD22**.",
+          "expect": "Widać pola **Shipment number** z przyciskiem **Get data**, **Business unit** i **Depot**.",
+          "do": [
+            {
+              "loginAs": "ksiegowosc"
+            },
+            {
+              "click": "My tickets"
+            },
+            {
+              "click": "Create new SD ticket"
+            },
+            {
+              "fill": "Category",
+              "value": "Shipment"
+            },
+            {
+              "click": "Shipment issue SD22"
+            },
+            {
+              "see": "Shipment number"
+            },
+            {
+              "see": "Get data"
+            }
+          ]
+        },
+        {
+          "text": "W **Shipment number** wpisz `428294000950453` i kliknij **Get data**.",
+          "expect": "Po chwili pole numeru staje się szare (tylko do odczytu), obok jest czerwony przycisk **×**. Nie ma komunikatu błędu.",
+          "do": [
+            {
+              "fill": "Shipment number",
+              "value": "428294000950453"
+            },
+            {
+              "click": "Get data",
+              "settle": 6000
+            },
+            {
+              "seeNot": "Shipment not found"
+            },
+            {
+              "seeNot": "Cannot connect"
+            }
+          ]
+        },
+        {
+          "text": "Rozwiń **Business unit**.",
+          "expect": "Na górze listy są odcinki przesyłki z numerami w nawiasach: SIA Raben Latvia, Raben Trans European Germany GmbH i Raben Logistics Polska Sp. z o.o. Pod nimi pozostałe jednostki.",
+          "do": [
+            {
+              "see": "Business unit"
+            }
+          ]
+        },
+        {
+          "text": "Wybierz **Raben Logistics Polska Sp. z o.o. (616594011636442)**, potem w **Depot** wybierz **Gądki**.",
+          "expect": "Jednostka i depot są wybrane. Lista depotów pokazuje depoty polskie.",
+          "do": [
+            {
+              "choose": "Business unit",
+              "value": "Raben Logistics Polska Sp. z o.o. (616594011636442)"
+            },
+            {
+              "choose": "Depot",
+              "value": "Gądki"
+            },
+            {
+              "click": "OK",
+              "optional": true,
+              "within": 3000
+            }
+          ]
+        },
+        {
+          "text": "Wpisz Title „TEST B <Twoje inicjały>” i Description „Scenariusz B”. Kliknij **Submit ticket**.",
+          "expect": "Otwiera się nowa sprawa „Transport#<numer>”, status **New**, zespół **DPL62 Transport (RND)**. Opis zaczyna się od „Shipment: 428294000950453, business unit: Raben Logistics Polska Sp. z o.o., depot: Gądki”.",
+          "do": [
+            {
+              "fill": "Title",
+              "value": "TEST B CL {run}"
+            },
+            {
+              "fill": "Description",
+              "value": "Scenariusz B"
+            },
+            {
+              "click": "Submit ticket",
+              "settle": 4000
+            },
+            {
+              "see": "Transport#"
+            },
+            {
+              "see": "DPL62 Transport (RND)"
+            },
+            {
+              "see": "Shipment: 428294000950453"
+            }
+          ]
+        },
+        {
+          "text": "Wróć do **My tickets**.",
+          "expect": "Sprawa jest na górze listy, tytuł kończy się numerem przesyłki.",
+          "do": [
+            {
+              "click": "My tickets"
+            },
+            {
+              "see": "428294000950453"
+            }
+          ]
+        },
+        {
+          "note": {
+            "tag": "Znany błąd",
+            "kind": "bad",
+            "text": "Zaraz po wyborze depotu pojawia się okno „Error: Executing runtime operation failed for security reasons”. Kliknij **OK** i idź dalej: sprawa i tak się zapisuje. Błąd jest już zgłoszony, nie zgłaszaj go ponownie."
+          }
+        }
+      ],
+      "expect": {
+        "text": "Sprawa z numerem przesyłki jest zapisana ze statusem New w zespole DPL62 Transport (RND), a jej opis zaczyna się od danych przesyłki z myTT.",
+        "do": [
+          {
+            "see": "428294000950453"
+          }
+        ]
+      }
+    },
+    {
+      "id": "C",
+      "file": "04-scenariusz-c-get-data-i-blad-polaczenia.html",
+      "eyebrow": "Get data i błąd połączenia",
+      "title": "Get data, Submit i co, gdy myTT nie odpowie",
+      "lead": "**Get data** pobiera dane przesyłki z myTT tak jak w myConnect, a potem sprawę wysyłasz przyciskiem **Submit ticket**. Druga część sprawdza, co widzi zgłaszający, gdy danych nie da się pobrać.",
+      "summary": "Pobranie danych i wysłanie; co widzi zgłaszający, gdy danych nie da się pobrać.",
+      "goal": "Get data pobiera dane i pozwala wysłać sprawę; bez danych z myTT sprawę da się wysłać dopiero po zaznaczeniu pola wyboru.",
+      "account": "ksiegowosc",
+      "steps": [
+        {
+          "section": "Część 1: dane pobrane, potem Submit"
+        },
+        {
+          "text": "**My tickets** → **Create new SD ticket**, Category **Shipment issue SD22**.",
+          "expect": "Widać **Shipment number** z przyciskiem **Get data**.",
+          "do": [
+            {
+              "loginAs": "ksiegowosc"
+            },
+            {
+              "click": "My tickets"
+            },
+            {
+              "click": "Create new SD ticket"
+            },
+            {
+              "fill": "Category",
+              "value": "Shipment"
+            },
+            {
+              "click": "Shipment issue SD22"
+            },
+            {
+              "see": "Get data"
+            }
+          ]
+        },
+        {
+          "text": "Wpisz numer `428294000947279` i kliknij **Get data**.",
+          "expect": "Numer staje się tylko do odczytu, obok jest czerwony **×**. Na liście **Business unit** są odcinki tej przesyłki (Latvia i Polska).",
+          "do": [
+            {
+              "fill": "Shipment number",
+              "value": "428294000947279"
+            },
+            {
+              "click": "Get data",
+              "settle": 6000
+            },
+            {
+              "seeNot": "Shipment not found"
+            }
+          ]
+        },
+        {
+          "text": "Kliknij czerwony **×** obok numeru.",
+          "expect": "Pole numeru jest puste i znów można w nim pisać.",
+          "do": [
+            {
+              "click": "×",
+              "selector": "button.btn-danger",
+              "settle": 1500
+            }
+          ]
+        },
+        {
+          "text": "Wpisz numer jeszcze raz i kliknij **Get data**. Business unit **Raben Logistics Polska Sp. z o.o. (616154010497515)**, Depot **Gądki**, Title „TEST C1 <inicjały>”, Description „Scenariusz C1”. **Submit ticket**.",
+          "expect": "Sprawa zapisana jak w scenariuszu B: status New, zespół DPL62 Transport (RND), opis zaczyna się od „Shipment: 428294000947279”.",
+          "do": [
+            {
+              "fill": "Shipment number",
+              "value": "428294000947279"
+            },
+            {
+              "click": "Get data",
+              "settle": 6000
+            },
+            {
+              "choose": "Business unit",
+              "value": "Raben Logistics Polska Sp. z o.o. (616154010497515)"
+            },
+            {
+              "choose": "Depot",
+              "value": "Gądki"
+            },
+            {
+              "click": "OK",
+              "optional": true,
+              "within": 3000
+            },
+            {
+              "fill": "Title",
+              "value": "TEST C1 CL {run}"
+            },
+            {
+              "fill": "Description",
+              "value": "Scenariusz C1"
+            },
+            {
+              "click": "Submit ticket",
+              "settle": 4000
+            },
+            {
+              "see": "DPL62 Transport (RND)"
+            },
+            {
+              "see": "Shipment: 428294000947279"
+            }
+          ]
+        },
+        {
+          "note": {
+            "tag": "Znany błąd",
+            "kind": "bad",
+            "text": "Okno „Executing runtime operation failed for security reasons” po wyborze depotu to ten sam znany błąd co w scenariuszu B. Kliknij **OK**."
+          }
+        },
+        {
+          "section": "Część 2: danych nie da się pobrać"
+        },
+        {
+          "p": "Używamy starego numeru, którego myTT już nie ma: aplikacja mówi wtedy, że przesyłki nie znaleziono, i pozwala wysłać sprawę bez danych z myTT. Prawdziwej awarii połączenia na Test nie wywołasz; wtedy komunikat brzmi „Cannot connect to myTT. Try again later or send the request without shipment data.”, a dalej wszystko działa tak samo."
+        },
+        {
+          "text": "**Create new SD ticket**, Category **Shipment issue SD22**. Wpisz numer `616444012217328` i kliknij **Get data**.",
+          "expect": "Pod numerem pojawia się komunikat **„Shipment not found in myTT. Check the number or send the request without shipment data.”** (bez apostrofów). Pod polem numeru jest pole wyboru **Send the request without shipment data from myTT**, niezaznaczone. Business unit się nie wypełnia.",
+          "do": [
+            {
+              "click": "My tickets"
+            },
+            {
+              "click": "Create new SD ticket"
+            },
+            {
+              "fill": "Category",
+              "value": "Shipment"
+            },
+            {
+              "click": "Shipment issue SD22"
+            },
+            {
+              "fill": "Shipment number",
+              "value": "616444012217328"
+            },
+            {
+              "click": "Get data",
+              "settle": 8000
+            },
+            {
+              "see": "Shipment not found in myTT"
+            },
+            {
+              "see": "Send the request without shipment data from myTT"
+            }
+          ]
+        },
+        {
+          "text": "Wybierz Business unit **Raben Logistics Polska Sp. z o.o.**, Depot **Gądki**, wpisz Title „TEST C2 <inicjały>”, Description „Scenariusz C2”. Kliknij **Submit ticket**.",
+          "expect": "Sprawa się **nie** wysyła. Przy numerze jest komunikat „Please import data from myTT”.",
+          "do": [
+            {
+              "choose": "Business unit",
+              "value": "Raben Logistics Polska Sp. z o.o."
+            },
+            {
+              "choose": "Depot",
+              "value": "Gądki"
+            },
+            {
+              "fill": "Title",
+              "value": "TEST C2 CL {run}"
+            },
+            {
+              "fill": "Description",
+              "value": "Scenariusz C2"
+            },
+            {
+              "click": "Submit ticket",
+              "settle": 3000
+            },
+            {
+              "see": "Please import data from myTT"
+            }
+          ]
+        },
+        {
+          "text": "Zaznacz **Send the request without shipment data from myTT** i kliknij **Submit ticket**.",
+          "expect": "Sprawa wysyła się z numerem `616444012217328`, bez danych z myTT: status New, zespół **DPL62 Transport (RND)**.",
+          "do": [
+            {
+              "click": "Send the request without shipment data from myTT"
+            },
+            {
+              "click": "Submit ticket",
+              "settle": 4000
+            },
+            {
+              "see": "DPL62 Transport (RND)"
+            },
+            {
+              "see": "616444012217328"
+            }
+          ]
+        },
+        {
+          "note": {
+            "tag": "Nowe",
+            "kind": "acc",
+            "text": "Pole wyboru pojawia się tylko po nieudanym **Get data**. Bez jego zaznaczenia Submit dalej wymaga pobrania danych (krok 06). Usunięcie numeru i wysłanie sprawy bez niego też nadal działa."
+          }
+        }
+      ],
+      "expect": {
+        "text": "Z danymi z myTT sprawa wysyła się jak w scenariuszu B; bez nich wysyła się dopiero po zaznaczeniu pola wyboru, z numerem przesyłki w sprawie.",
+        "do": [
+          {
+            "see": "616444012217328"
+          }
+        ]
+      }
+    }
+  ]
+}

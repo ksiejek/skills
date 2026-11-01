@@ -19,7 +19,6 @@ _Instrukcja testów · Service Desk_
 9. S5. Pracownik nie widzi spraw księgowości
 10. Gdy coś nie działa
 11. Czego ta instrukcja nie obejmuje
-12. Jak zgłosić błąd
 
 ## 1. W skrócie
 
@@ -155,12 +154,6 @@ Każda rola ma swoje konto. Wybierasz je na stronie wyboru konta („Wybierz, ki
 - Maile o korespondencji wewnętrznej: środowisko testowe nie wysyła maili.
 - Praca z asystentem w Teams i z Claude operatora: mają osobne instrukcje.
 - Drobne poprawki i zmiany niewidoczne dla użytkownika (porządki, wygląd bez zmian, praca w tle).
-
-## 12. Jak zgłosić błąd
-
-1. Zapisz numer scenariusza i kroku, w którym coś poszło inaczej.
-2. Zrób zrzut ekranu całego okna.
-3. Napisz, co zrobiłeś, co zobaczyłeś i czego się spodziewałeś, i wyślij to do Karola razem ze zrzutem.
 
 ---
 Instrukcja testów · Service Desk · przygotował Claude dla Karola

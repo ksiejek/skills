@@ -3,17 +3,14 @@
 // <name>.html (MxScout look, one offline file), <name>.md and <name>.docx. Zero npm dependencies;
 // the .docx is written as plain OOXML and zipped with the system `zip`.
 // Usage: node build.js spec.json [outDir]   (outDir defaults to the spec's folder)
+// Required as a module (instrukcja-testow's pack.js) it exports the renderers and builds nothing.
 'use strict';
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const specFile = process.argv[2];
-if (!specFile) { console.error('Usage: node build.js spec.json [outDir]'); process.exit(2); }
-const spec = JSON.parse(fs.readFileSync(specFile, 'utf8'));
-const outDir = process.argv[3] || path.dirname(path.resolve(specFile));
-const baseName = path.basename(specFile).replace(/\.json$/, '');
-fs.mkdirSync(outDir, { recursive: true });
+// The spec being built (set by main; the renderers of one block need none of it).
+let spec = {}, sections = [];
 
 // Escapes text for HTML and XML.
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -34,7 +31,6 @@ const inlineHtml = (s) => pieces(s).map((p) => p.b ? `<b>${esc(p.t)}</b>` : p.c 
 const inlineMd = (s) => String(s);
 const plain = (s) => pieces(s).map((p) => p.t).join('');
 
-const sections = spec.sections || [];
 const no2 = (i) => String(i + 1).padStart(2, '0');
 const ARROW = '<div class="link"><svg viewBox="0 0 28 16" aria-hidden="true"><path d="M2 8h20M17 3l6 5-6 5" fill="none" stroke="#AEB4BD" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>';
 
@@ -60,8 +56,10 @@ function blockHtml(b) {
   throw new Error('Unknown block: ' + JSON.stringify(Object.keys(b)));
 }
 
+// The MxScout stylesheet of the skill, inlined into every HTML it builds.
+const css = () => fs.readFileSync(path.join(__dirname, '..', 'szablon.css'), 'utf8');
+
 function buildHtml() {
-  const css = fs.readFileSync(path.join(__dirname, '..', 'szablon.css'), 'utf8');
   const chips = (spec.meta || []).map((m) => `<div class="chip${m.status ? ' status' : ''}"><span class="cap">${esc(m.k)}</span><b>${esc(m.v)}</b></div>`).join('');
   const toc = sections.map((s, i) => `<li><a href="#${esc(s.id)}"><span class="n">${i + 1}</span>${esc(s.title)}</a></li>`).join('');
   const body = sections.map((s, i) => `<section id="${esc(s.id)}">\n  <div class="sec-h"><span class="no">${no2(i)}</span><h2>${esc(s.title)}</h2></div>\n  ${s.blocks.map(blockHtml).join('\n  ')}\n</section>`).join('\n\n');
@@ -70,7 +68,7 @@ function buildHtml() {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(plain(spec.title))}</title>
 <style>
-${css}</style>
+${css()}</style>
 </head><body>
 <main class="island">
 
@@ -182,7 +180,20 @@ function buildDocx(file) {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
 
-fs.writeFileSync(path.join(outDir, baseName + '.html'), buildHtml());
-fs.writeFileSync(path.join(outDir, baseName + '.md'), buildMd());
-buildDocx(path.join(outDir, baseName + '.docx'));
-console.log(['html', 'md', 'docx'].map((e) => path.join(outDir, baseName + '.' + e)).join('\n'));
+// The command: one spec → <name>.html, .md, .docx beside it (or in outDir).
+function main() {
+  const specFile = process.argv[2];
+  if (!specFile) { console.error('Usage: node build.js spec.json [outDir]'); process.exit(2); }
+  spec = JSON.parse(fs.readFileSync(specFile, 'utf8'));
+  sections = spec.sections || [];
+  const outDir = process.argv[3] || path.dirname(path.resolve(specFile));
+  const baseName = path.basename(specFile).replace(/\.json$/, '');
+  fs.mkdirSync(outDir, { recursive: true });
+  fs.writeFileSync(path.join(outDir, baseName + '.html'), buildHtml());
+  fs.writeFileSync(path.join(outDir, baseName + '.md'), buildMd());
+  buildDocx(path.join(outDir, baseName + '.docx'));
+  console.log(['html', 'md', 'docx'].map((e) => path.join(outDir, baseName + '.' + e)).join('\n'));
+}
+
+if (require.main === module) main();
+module.exports = { esc, pieces, inlineHtml, plain, blockHtml, blockMd, blockDocx, css };

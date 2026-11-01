@@ -20,9 +20,9 @@ Kto: Claude wybiera zmiany, pisze instrukcję i przechodzi ją w przeglądarce. 
 
 1. **Zakres:** instrukcja obejmuje funkcje widoczne dla użytkownika z ticketów {zakres}, pogrupowane według funkcji; zmiany techniczne i drobne poprawki są pominięte (lista pominiętych jest w komentarzu ticketu).
 2. **Język:** w instrukcji nie ma numerów ticketów ani nazw technicznych; każdy krok mówi, co tester kliknie i zobaczy.
-3. **Wejście:** instrukcja zaczyna się od wejścia na {srodowisko}: adres bramki, logowanie kodem z maila, konto testowe per rola, uruchomienie aplikacji, samo wyłączanie i ponowne uruchomienie.
+3. **Wejście:** instrukcja zaczyna się od wejścia na {srodowisko}: adres, logowanie (kod z maila na bramce albo login i wspólne hasło w chmurze; hasła nie ma w dokumencie), konto testowe per rola, uruchomienie, zmiana konta.
 4. **Scenariusze:** każdy ma cel, konto, ponumerowane kroki i oczekiwany wynik.
-5. **Pliki:** .html, .docx i .md zbudowane skillem dokumentacja są dołączone do ticketu.
+5. **Pliki:** dokument (.html, .docx, .md) albo paczka ZIP osobnych stron HTML (jeden temat na plik), zbudowane skillem, są dołączone do ticketu.
 6. **Test w przeglądarce:** Claude przeszedł w przeglądarce dokładnie kroki z instrukcji, tymi samymi kontami; każdy krok, który nie przeszedł, jest poprawiony w instrukcji albo zgłoszony jako błąd; ostatnie przejście przechodzi w całości, a zrzut każdego scenariusza jest dołączony.
 
 ## Dla Claude · polecenie (prompt)
@@ -30,4 +30,5 @@ Kto: Claude wybiera zmiany, pisze instrukcję i przechodzi ją w przeglądarce. 
 Use the instrukcja-testow skill for {aplikacja}, scope {zakres}, environment {srodowisko}. Read the project's tickets
 (bin/tickets.js), pick only user-visible functionality, write instrukcja.json, check it (guide.js --check), walk it in
 the browser (walkthrough.js) until every scenario passes, fixing the guide or filing a bug on each failed step, then
-build the documents (guide.js --walk) and attach the three files, walkthrough.md and one screenshot per scenario.
+build the document (guide.js --walk) or the pack (--pack) and attach the files (three files or the ZIP), walkthrough.md
+and one screenshot per scenario.
