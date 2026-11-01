@@ -14,6 +14,7 @@ base read the same file.
 | `budowa/` | `mxcraft-model`, `mxcraft-workflow`, `mxcraft-theme-scss` — building a Mendix model from Tandem |
 | `tablica/` | `tandem`, `sprinter`, `lean-context` — the board and how a session works |
 | `raporty/` | `app-report-presentation` |
+| `raben/` | `raben-app` — how a Raben Mendix app is built (MDM_Generic + MDM, MxAdmin, Queues, RabenDesign); Raben rules never go to mxcraft-skills |
 | `retired/mxcraft/` | MxCraft's five old copies: never linked, kept for history and the knowledge base |
 | `bin/skills.js` | writes the copies other projects carry |
 
