@@ -10,7 +10,7 @@ The bill is calls × context. Every tool call re-sends the whole window; a file 
 ## 1. One task per session
 - One story, ticket or "krok" per session. When it reaches Testing (or the step is reported), end the turn; the next piece starts in a fresh session (Tandem loop does this by itself).
 - Never continue a session from a previous day. `/clear` beats `/compact` on an old session.
-- If the context passes ~150k mid-task: finish the current step, write the state down (story comment, run_report, or a note file), then recommend a new session.
+- If the context passes ~150k mid-task: finish the current step, write the state down (story comment, run_report, or a note file), then recommend a new session. Headless Tandem sessions (`tandem-watch`) compact by themselves at 75% of the window, about 150k (`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`, TAN-85); keep the acceptance criteria, the plan and the finished steps on the ticket before that, so the compacted session picks them up from `story_next`.
 
 ## 2. Read narrowly
 - Locate first: `grep -n`, `rg -n`, `ls`, `wc -l`. Then read only the lines you need: `sed -n 'A,Bp'` with B−A ≤ 120, or Read with offset/limit.
@@ -28,10 +28,13 @@ The bill is calls × context. Every tool call re-sends the whole window; a file 
 
 ## 4. Delegate bulk reading
 - "Where is X handled", "summarise this module", "list all microflows that…": run it in a subagent (Explore, or a `model: haiku` read-only agent) and keep only its summary in the main window.
+- The same for one large result: a whole Mendix document (microflow, page, model export), a long log or any output above ~3k tokens goes to the subagent, which returns the part you need.
 - Ask the subagent for a conclusion with file:line pointers, never for the file contents.
 
 ## 5. Fewer calls
 - Plan the next 3–5 actions before the first call; batch independent calls in one message.
+- A progress report is never a call of its own: send `run_report` / `step_report` / `story_comment` in the same message as the next tool call (TAN-85). Measured on TAN-80/81/83/84: 2–3 report-only calls and 12–30 back-to-back single Bash calls per story, each paying the whole context.
+- Chain shell commands in one Bash call (`;` or `&&`) whenever the next one does not depend on reading the previous output; keep git, database and deploy commands one at a time so an error is seen.
 - Don't poll (no sleep-and-check loops); `/loop` and scheduled tasks re-send the full window every tick.
 - Don't re-run a command to re-see output that is already in the window.
 

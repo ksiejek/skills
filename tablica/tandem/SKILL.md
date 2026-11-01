@@ -6,7 +6,7 @@ argument-hint: [next | status | <KLUCZ>]
 
 # Tandem: historyjka od wzięcia do Done, z tokenami
 
-Wersja 0.13 · 2026-11-01 (TAN-121: „Jak pisać do Karola”: podsumowanie dla Karola i summaryTech, krok jako czasownik, wpis historii ludzki i techniczny, „do sprawdzenia” jako akcja, zatrzymanie: co się stało, prod, co zrobić. 0.12: ML-38: nauka Qwen, praca równoległa w nowych projektach. 0.11: GEN-42: kontekst projektu czytany przed pracą. 0.10: GEN-26: bez testu człowieka; skrypty z folderu Tandem: `$TANDEM_DIR`, GEN-19. 0.9: praca równoległa w osobnym worktree, TRIO-68)
+Wersja 0.14 · 2026-11-01 (scalone dwie linie tego skilla: TAN-121: „Jak pisać do Karola”: podsumowanie dla Karola i summaryTech, krok jako czasownik, wpis historii ludzki i techniczny, „do sprawdzenia” jako akcja, zatrzymanie: co się stało, prod, co zrobić; ML-38: nauka Qwen, praca równoległa w nowych projektach. TAN-85: mniej wywołań w budowie: raport razem z innym narzędziem, polecenia w jednym Bash, duże odczyty przez subagenta, zwijanie przy ok. 150 tys. 0.11.5: TAN-55: gałąź w innym repo zgłaszasz w `result.repos`; bez scalenia w main tego repo ticket czeka w Automated Testing. 0.11.4: TAN-28: historyjka w wydaniu na prod jest zablokowana (przeniesienie i edycja), odmowę czytasz w odpowiedzi narzędzia. 0.11.3: TAN-19: bez ekranu Skille, Pauza zamiast „Tylko odczyt”, „Równolegle agenci” w ustawieniach aplikacji. 0.11.2: TAN-13: konektor zmienia ustawienia projektu po zgodzie Karola. 0.11.1: TAN-12: reguła kolumny w story_next. 0.11: GEN-42: kontekst projektu czytany przed pracą. 0.10: GEN-26: bez testu człowieka; skrypty z folderu Tandem: `$TANDEM_DIR`, GEN-19. 0.9: praca równoległa w osobnym worktree, TRIO-68)
 
 Karol patrzy na postęp w Tandem (http://127.0.0.1:4291/), nie w czacie. Twoja praca
 ma być tam widoczna krok po kroku: co robisz, ile to trwa i ile kosztuje w tokenach.
@@ -32,11 +32,13 @@ Serwer MCP tego pilnuje: drugie `story_next` bez `key` w tej samej sesji zwraca
   sesji była już inna. Po niej znów koniec.
 - `alreadyRunning` – historyjka została w Running po poprzedniej sesji; dokończ ją.
   To jest Twoja jedna historyjka.
-- Przełącznik „Jedna historyjka na sesję” wyłączony w Tandem (ekran Skille,
-  `settings.oneStoryPerSession: false`): po podsumowaniu wołasz `story_next` i idziesz
+- `settings.oneStoryPerSession: false` w ustawieniach projektu (bez przełącznika na stronie,
+  ekranu Skille nie ma od TAN-19): po podsumowaniu wołasz `story_next` i idziesz
   dalej w tej samej sesji, dopóki kolejka nie jest pusta albo `paused`.
 
-Niezależnie od przełącznika obowiązuje zasada **jeden job na projekt**: dopóki
+Niezależnie od tego obowiązuje zasada **jeden job na projekt**, dopóki „Równolegle agenci”
+w Ustawieniach → Tandem (jedna wartość dla wszystkich projektów, domyślnie 1, projekt Mendix
+zawsze 1) to 1: dopóki
 historyjka projektu jest w Running albo w Automated Testing, `story_next` nic nie bierze
 (zwraca listy `running` / `autotest`, „czeka na testy automatyczne”), a pętle
 `tandem-loop` i `tandem-watch` czekają. Done nigdy nie blokuje: następną bierze nowa
@@ -52,6 +54,8 @@ nie czeka na Karola ani na jego commit.
 - `/tandem` albo `/tandem next`: `sprint_read`, potem `story_next`. Jeśli zwróci
   `paused`, `sessionDone` albo pustą kolejkę, powiedz to jednym zdaniem i stop.
   `alreadyRunning` znaczy: dokończ tę, która jest w Running.
+- `/tandem plan`: kolumna Planowanie projektu Mendix (TAN-22, niżej „Planowanie”). Nie bierzesz historyjki przez
+  `story_next`; planujesz całą kolumnę i kończysz turę.
 - `/tandem status`: `sprint_read` i trzy zdania: co w Running (w pipeline też Automated Testing), na co Karol ma odpowiedzieć (`run_wait`, `run_ask`),
   ile tokenów w sprincie. Niczego nie zmieniaj.
 - `/tandem SD-15`: `story_next` z `key`; to Twoja jedyna historyjka w tej sesji.
@@ -78,7 +82,35 @@ Pierwszy krok planu mówi to wprost, np. „Czytam kontekst projektu i uwagi”,
 mówi jednym zdaniem, co z kontekstu wpływa na tę historyjkę. Bez tych pól (projekt bez kontekstu) nic
 nie robisz i niczego nie zgłaszasz. Kontekst dla testów (`context-tests`) dostają tylko sesje kroków
 testowych, nie Ty. Sam kontekstu nie zmieniasz: zmienia go właściciel w Tandem; z czatu czyta go
-konektor (`get_project_context`).
+konektor (`get_project_context`, wszystkie ustawienia: `get_project_settings`), a zmienia
+`update_project_settings` (TAN-13): najpierw podgląd bez `confirm`, zapis z `confirm=true` dopiero po
+„tak” Karola; każda zmiana jest w Ustawienia → Historia zmian.
+
+**Logowania na starcie (TAN-105).** `story_next` (z wzięciem historyjki) sprawdza za Ciebie, jakie logowania i tokeny
+będą potrzebne (lista `credentials` w Ustawienia → Pipeline, plus narzędzia wymienione w poleceniu: op, gh z zakresami,
+az, cloudflared, konta testowe) i zwraca `credentials`. Gdy `credentials.ok` jest `true`, nie pytasz o logowania wcale.
+Gdy są `missing`, **przed jakąkolwiek pracą** wysyłasz JEDNO `run_wait` z `credentials.wait` (`question` z pełną listą:
+co, po co, jedna linia naprawy; `why`; `gate`), `run_report` z tokenami i kończysz turę. Nie pytasz o logowania po
+kolei w trakcie pracy: to, co dało się sprawdzić na starcie, jest sprawdzone. Wartości sekretów nigdy nie są
+wypisywane. Trafiłeś w trakcie na logowanie spoza listy: dopisz je do jednego `run_wait` z całą resztą, której
+jeszcze brakuje, a Karolowi zaproponuj dopisanie go do `credentials` projektu.
+
+**Reguła kolumny (TAN-12).** Każda kolumna tablicy ma regułę dla Claude (Ustawienia → Kolumny;
+domyślna dla kolumn systemowych, projekt może ją nadpisać, kolumna własna ma tylko swoją).
+`story_next` zwraca `columnRule` (`column`, `name`, `rule`, `source`: domyślna albo projektu):
+regułę kolumny, z której bierzesz historyjkę, gdy to kolumna własna z regułą (np. Refinement),
+a dla To do regułę Running. Trzymaj się jej obok polecenia i kontekstu projektu. Historyjka
+z kolumny własnej przychodzi z `karolNotes` (komentarze Karola od końca poprzedniego przebiegu):
+od nich zaczynasz, potem idziesz zwykłą drogą do Done. `story_move` oddaje `columnRule` kolumny,
+do której historyjka wchodzi; Tandem zapisuje każdą w `run.columnRules`. Kolumna własna z regułą
+jest w kolejce przed To do; bez reguły tylko parkuje historyjki dla Karola.
+
+**MxScout (TAN-26).** Jeśli odpowiedź `story_next` ma `scoutBriefing` (dokumentacja z MxScout: logika biznesowa, ryzyka
+P1–P3 i opisy elementów, których dotyczy historyjka; `scoutRead` mówi, co przeczytano i trafia do historii ticketu),
+przeczytaj ją **przed** planem, wspomnij o niej w pierwszym kroku i nie powtarzaj ryzyk P1 bez wzmianki. `scoutWarning`
+znaczy, że MxScout jest niedostępny albo projekt nie jest wybrany: planuj dalej i dopisz to do „do sprawdzenia przez
+Ciebie”. Po Done Tandem sam skanuje model w MxScout i dopisuje notatkę zmiany; nieudane odświeżenie widać w Ustawieniach →
+Mendix → „Projekt MxScout” (Ty niczego w dokumentacji MxScout nie edytujesz ręcznie).
 
 **Skrypty.** `$TANDEM_DIR` to folder repo Tandem (zwykle `~/Projects/Tandem`; bez zmiennej podstaw
 ten folder). Liczenie tokenów i zapis do bazy są w `$TANDEM_DIR/bin/`, skrypty Mendix
@@ -97,6 +129,77 @@ albo projekt bez aplikacji testowej, nic nie mów. Kod 1: kolizja – przekaż K
 zdaniu linię ze skryptu (kto trzyma port i „Użyj wolnych portów X/Y”) i dopisz to do „do
 sprawdzenia przez Ciebie”. Portów sam nie zmieniaj: Karol ustawia je w Ustawieniach projektu →
 Narzędzia Mendix (formularz podpowiada tę samą parę). Projekt bez Mendix: pomiń ten krok.
+
+## Planowanie (projekt Mendix, TAN-22)
+
+Projekt Mendix ma domyślnie kolumnę **Planowanie** (status `plan`) między Draft a To do. Karol wrzuca tam historyjki
+(jedną albo partią); runner Mendix po 20 s ciszy w kolumnie startuje jedną sesję planowania (tryb `spawn`), a w trybie
+`external` robisz to Ty po `/tandem plan`. `sprint_read.planning` pokazuje, co tam jest i co ma już plan (`planReady`).
+
+1. `plan_read`: wszystkie historyjki kolumny (polecenie, intencja, kryteria, `claudeNotes` od Karola: uwzględnij i potwierdź w `acks`) i plany tych, które są już w To do i dalej.
+2. `model_read` dla modułów, których dotykają (albo `mx-model.js`); model tylko czytasz.
+3. Planujesz **całą kolumnę razem**: kolejność (`order`) i zależności (`dependsOn`), potem dla każdej historyjki
+   `summary` dla Karola i `elements`: procesy biznesowe (`process`: `qn` to nazwa procesu, `steps`, `description`),
+   moduły, encje z atrybutami, asocjacje (`from` = właściciel, `to`, `type` reference albo reference set), mikroflowy
+   i nanoflowy rozpisane do pojedynczych aktywności i decyzji (`activities: { no, type, text, why }`, decyzja z
+   `branches`: pierwsza tak, druga nie; `to` to numer aktywności albo „koniec”, `next` mówi, dokąd idzie ostatnia
+   aktywność gałęzi), strony (`widgets`); każdy element `state` new, chg albo del i `why`.
+   Do tego **widok biznesowy** (TAN-71) `business`: `summary` prostym językiem, bez nazw z modelu, co zmieni się dla
+   użytkownika i w procesie, i `process { actors, steps: [{ actor, text, branches, next }] }` – kto co robi, po kolei,
+   gdzie proces się rozgałęzia. Z niego powstaje diagram procesu, a z `activities` diagram każdego nowego i zmienionego
+   mikroflowa; Karol przełącza w tickecie „Biznesowy · Techniczny”.
+4. Jeden `plan_save` dla całej kolumny. Serwer odrzuca plan bez jakiejś historyjki, kolejność wbrew zależnościom,
+   mikroflow bez aktywności, decyzję z jedną gałęzią, aktywność bez uzasadnienia, plan bez widoku biznesowego
+   (bez `summary`, proces krótszy niż dwa kroki, krok bez `actor`), nazwę z modelu w widoku biznesowym i gałąź do
+   kroku, którego nie ma. Po zapisie historyjki mają
+   „Plan gotowy”, a Karol dostaje powiadomienie.
+5. Gotowy plan sam trafia do MxScout (TAN-68), gdy projekt jest wysyłany do MxScout Team (`~/Mx/mxscout-sync.json`,
+   po `scoutProjectId` z linku albo po folderze Mendix): Tandem zapisuje `mxscout/stories/KLUCZ.json` w tym folderze,
+   a mxscout-sync w ciągu 5 minut wysyła go jako historię z kluczem ticketu (ponowne planowanie zmienia tę samą).
+   Ty nic nie robisz; `plan_save` zwraca to w `scout`. Projekt bez MxScout planuje jak dotąd.
+
+Planowanie niczego nie zmienia w modelu i niczego nie przesuwa: `story_next` nie bierze historyjki z Planowania,
+a `story_move` z Planowania do To do odmówi – to akceptacja planu, robi ją Karol. Gdy historyjka z planem trafi do
+To do, `story_next` zwraca go w `story.modelPlan`; budujesz według niego, a odstępstwo zapisujesz w `story_comment`
+z `decision`. Historyjka cofnięta do Draft traci plan i w Planowaniu dostanie nowy.
+
+## Blokada wydania (TAN-28)
+
+Historyjka w wydaniu na prod (kolejka albo w toku) jest zablokowana: `story_move`, konektor i strona odmawiają
+przeniesienia i zmiany, odmowa mówi dlaczego. Nie obchodź jej; poczekaj na koniec wydania albo napisz do Karola,
+że może je anulować („Anuluj wydanie”, tylko gdy Mac go jeszcze nie wziął). Komentarz (`story_comment`) zawsze przechodzi.
+
+## Eskalacja: najpierw spróbuj obejść (TAN-108)
+
+Czerwony krok albo błąd dostaje klasę, zanim zapytasz Karola. Katalog obejść i pełna tabela są w Atlasie
+(`proces-eskalacja`, „Gdy pipeline staje”); tu tylko reguła:
+
+| Klasa | Co robisz |
+| --- | --- |
+| Przejściowy (timeout, przydział, niestabilny test, własny port) | ponawiasz po 1, 5 i 15 min; stajesz po 3 porażkach |
+| Wina otoczenia (czerwone też na origin/main, konflikt z cudzym plikiem, stary Mac) | ostrzeżenie zamiast zatrzymania, ticket naprawczy, obejście z Atlasu; stajesz, gdy poprawka wychodzi poza obszar ticketu |
+| Wina ticketu (test czerwony tylko u Ciebie, nazwy w modelu, własny konflikt) | poprawiasz sam na gałęzi ticketu, krok jeszcze raz; stajesz po drugiej porażce |
+| Tylko Karol (logowanie, Studio Pro, push do Team Server, prawdziwy projekt, zakres) | od razu `run_wait` z jedną akcją i całą listą potrzeb w jednym pytaniu |
+
+Pięć kroków przed zatrzymaniem (klasy 1–3):
+
+1. Przeczytaj `halt.explain` i sprawdź, czy ta przyczyna wraca.
+2. Uruchom padający test albo krok na origin/main: ta sama porażka = nie wina ticketu.
+3. Zastosuj znane obejście z Atlasu „Gdy pipeline staje” (nie kopiuj go do ticketu).
+4. Ponów raz. Nigdy nie powtarzaj identycznej akcji bez zmiany (kodu, ustawienia, stanu otoczenia).
+5. Dopiero wtedy `run_wait` ze zgłoszeniem niżej.
+
+**Zgłoszenie błędu** (pola jak `halt.explain` z TAN-107, w `question` i `why` albo w `story_comment`):
+1. Co się stało (krok, polecenie, kod wyjścia, ostatnie linie).
+2. Przyczyna i klasa, z dowodem.
+3. Co próbowałem (każda próba z wynikiem).
+4. Proponowana poprawka (gotowa po „tak”).
+5. Jedna akcja dla Karola (przycisk albo polecenie).
+6. Czy wraca (inne tickety z tą przyczyną, ticket naprawczy).
+
+**Nigdy sam** (zawsze pytasz, nawet przy dobrym obejściu): obejście strażnika albo zmiana jego ustawień („Prawdziwy
+projekt”), prawdziwe dane i `.mpr` prawdziwego projektu bez zgody, rotacja kluczy, scalenie w mxcraft-skills bez
+„gotowe”, wydanie na prod, DNS i Cloudflare, usuwanie gałęzi i plików spoza obszaru ticketu.
 
 ## Przebieg: zgłaszaj, zanim zrobisz
 
@@ -119,23 +222,49 @@ Narzędzia Mendix (formularz podpowiada tę samą parę). Projekt bez Mendix: po
    `/tandem KLUCZ`, a `story_next` zwraca `resumeFrom` (krok i odpowiedzi) i hint: wznawiasz
    od tego kroku na istniejącym planie (bez nowego `plan`). `story_next` przy pytaniu bez
    odpowiedzi zwraca `waitingForAnswer` i nic nie bierze.
-5. **Decyzje i zmiany w modelu** → `story_comment` z `decision` albo `change`,
+5. **Informacja dla Claude (TAN-72).** Karol może w każdej kolumnie dopisać do historyjki wskazówkę. Nieprzeczytane
+   przychodzą w `claudeNotes` (`story_next`, `sprint_read`, `plan_read`, a w trakcie pracy w odpowiedzi na `run_report`
+   i `step_report`, bez przerywania przebiegu). Uwzględnij każdą i potwierdź w `acks: [{ id, text }]` (`run_report` albo
+   `story_comment`): co zrobiłeś albo dlaczego nie. Nieuwzględnionej nie zostawiaj bez potwierdzenia.
+6. **Decyzje i zmiany w modelu** → `story_comment` z `decision` albo `change`,
    w chwili, gdy je podejmujesz, nie na końcu.
    Raport, log albo zrzut, który Karol ma przeczytać, dołącz do ticketu
    (`story_attach` z `text` albo `base64`), zamiast odsyłać go do pliku w repo.
-6. **Stop.** Gdy `run_report` zwróci `stop: true`, Karol zlecił zatrzymanie: dokończ
+   **Wynik w załączniku** (TAN-76): gdy wynikiem jest paczka, ZIP albo eksport, dołącz go `story_attach`, trzymaj
+   źródła paczki w `dist/` (albo w ścieżkach `pipeline.deliverablePaths` projektu) i wpisz je w `result.files`;
+   pipeline pominie testy aplikacji z notką „wynik w załączniku: <plik>”, scali gałąź z main i da Done.
+   Nie zmieniaj obok kodu aplikacji, modelu ani bazy: wtedy testy idą jak zawsze.
+7. **Stop.** Gdy `run_report` zwróci `stop: true`, Karol zlecił zatrzymanie: dokończ
    bieżący krok, wyślij `summary` i `result`, zostaw historyjkę w Running (albo
    przenieś do Done / Automated Testing, jeśli praca jest skończona) i zakończ jednym zdaniem.
-7. **Praca równoległa** (TRIO-68). Gdy watch uruchomił Cię w worktree (`<repo>-wt/<KLUCZ>`,
+8. **Praca równoległa** (TRIO-68). Gdy watch uruchomił Cię w worktree (`<repo>-wt/<KLUCZ>`,
    gałąź `tandem/<klucz>`, mówi o tym dopisek w prompcie systemowym), zmieniasz pliki tylko tam,
    commitujesz na tej gałęzi (temat „KLUCZ: …”), nie pushujesz i nie scalasz; w `run_report`
    `result.branch` to ta gałąź. Scala wdrożenie po Done, po kolei z innymi historyjkami.
-8. **Nic w tle.** Sesja bez terminala (`claude -p`, np. z `tandem-watch`) kończy się
+9. **Nic w tle.** Sesja bez terminala (`claude -p`, np. z `tandem-watch`) kończy się
    razem z turą i zabija wszystko, co puściłeś w tle: testy giną, historyjka zostaje
    w Running. Każde polecenie, także pełny zestaw testów, uruchamiaj na pierwszym
    planie, z `timeout` do 1800000 ms (30 min) i wynikiem przez `| tail -30`. Tury nie
    kończ zdaniem „dokończę, gdy testy się skończą”: koniec tury to historyjka
    w Done albo Automated Testing (albo zatrzymanie z punktu 6).
+10. **Mniej wywołań** (TAN-85). Każde wywołanie narzędzia wysyła całą rozmowę od nowa, więc koszt budowy to
+   liczba wywołań × kontekst (SD-94: 126 wywołań, 15,7 mln). Jakość się nie zmienia: te same testy i sprawdzenia,
+   tylko w mniejszej liczbie wywołań.
+   - **Raport razem z pracą.** `run_report`, `step_report` i `story_comment` wysyłasz w tym samym bloku co następne
+     narzędzie (koniec kroku N + start kroku N+1 + pierwsze polecenie kroku N+1 w jednej wiadomości), nigdy jako
+     osobne wywołanie przed albo po pracy. Sam raport tylko na końcu tury (`summary`, `result`).
+   - **Polecenia w jednym Bash.** Kilka poleceń, które od siebie nie zależą albo zależą tylko po kolei
+     (`grep …; sed -n …; wc -l …`, edycja i od razu testy `&& node --test … | tail -30`), łączysz w jedno wywołanie.
+     Osobno tylko wtedy, gdy kolejny krok zależy od tego, co zobaczysz (wybór pliku po grepie), albo polecenie
+     zmienia coś trudnego do cofnięcia (git, baza, wdrożenie): wtedy jedno na raz, żeby zobaczyć błąd.
+   - **Duże odczyty przez subagenta.** Przegląd wielu plików, cały moduł, duży dokument modelu Mendix (mikroflow,
+     strona, eksport) albo wynik powyżej ok. 3 tys. tokenów: subagent (Explore albo `model: haiku`) zwraca streszczenie
+     z `plik:linia`, nie treść. Sam czytasz tylko linie, które zmieniasz.
+   - **Zwijanie przy ok. 150 tys.** Sesje z `tandem-watch` zwijają rozmowę same przy 75% okna (ok. 150 tys. z 200 tys.,
+     `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` w `lib/executor.js`). Zanim kontekst tam dojdzie, stan pracy ma być w tickecie,
+     nie tylko w rozmowie: plan i ukończone kroki w `run_report`, decyzje w `story_comment`. Po zwinięciu zaczynasz
+     od `sprint_read` / `story_next` z `key` tej historyjki (kryteria, plan, kroki, decyzje wracają z serwera)
+     i idziesz od pierwszego kroku bez `done`.
 
 ## Nauka Qwen (ML-38)
 
@@ -205,8 +334,9 @@ około dziesięć razy (Karol, 2026-10-18).
    (→ done / autotest), ale pisz `done` / `autotest`. Konflikt cherry-picku na ACCP (ticket
    zatrzymany w Acceptance) rozwiązujesz Ty: commity tej historyjki z test na ACCP,
    `git cherry-pick -x`, jeden commit nigdy dla dwóch historyjek.
-5. `run_report` z `summary` (najwyżej 3 zdania po polsku dla Karola, bez nazw plików i narzędzi; technikalia w `summaryTech`, „Jak pisać do Karola”; nazwy z modelu w nawiasach
-   monospace nie są potrzebne, Tandem je wyróżni) i `result`:
+5. `run_report` z `summary` (najwyżej 3 zdania po polsku dla Karola, bez nazw plików i narzędzi; technikalia
+   w `summaryTech`, „Jak pisać do Karola”; nazwy z modelu w nawiasach monospace nie są potrzebne, Tandem je
+   wyróżni) i `result`:
    - `model`: `["ServiceDesk.SE_Ticket_Escalate · nowe zdarzenie co 60 min", …]`
    - `sprinter`: `["SD-15 · Running → Done"]` (z pipeline: `"SD-15 · Running → Automated Testing"`)
    - `files`: `["descriptions.json · 1 nowy opis"]` – ścieżka od korzenia repo przed „ · ”, każdy
@@ -214,6 +344,11 @@ około dziesięć razy (Karol, 2026-10-18).
      w folderze projektu staje (D26).
    - `branch`: gałąź z Twoim kodem, gdy pracowałeś w worktree (`claude/mxc-91-…`); wdrożenie
      sprawdzi, czy jest scalona z origin, i niczego nie commituje za Ciebie.
+   - `repos`: każda gałąź, którą zostawiłeś w **innym** repo niż projekt (np. mxcraft-skills),
+     `[{ repo: "mxcraft-skills", branch: "skill/ml-74-consolidate", commit: "1234776" }]` (`dir`, gdy kopia
+     nie leży w `~/Projects/<repo>`). Taki ticket nigdy nie jest „dokumentem”: „Scalenie z main” sprawdza,
+     czy commit jest w main tego repo, inaczej wypycha gałąź, otwiera PR (`gh`) i ticket czeka w Automated
+     Testing („czeka na scalenie …”). Do main obcego repo nie scalasz sam (TAN-55).
 6. **Treść commitu po angielsku**, gdy commit robi Karol (model Mendix w Studio Pro,
    repo, którego nie commitujesz sam): pierwsza linia do 72 znaków z kluczem
    („SD-22: Let accounting raise myConnect tickets from SD”), pusta linia, potem 3–8
@@ -280,7 +415,11 @@ Karol może odesłać historyjkę z Done przez „Popraw z uwagami”. Wtedy
 `review` (co odhaczył, a co nie). Zacznij od uwag: pierwszy krok planu to „Czytam uwagi
 Karola”, a `summary` na końcu mówi, co zmieniło się względem poprzedniej rundy.
 
-## Bez serwera MCP (transport „przez pliki projektu”)
+**Pauza.** Karol wstrzymuje Tandem przyciskiem Pauza/Wznów na Teraz: `story_next` zwraca `paused`,
+bieżąca historyjka idzie do końca. Trybu „Tylko odczyt” nie ma (TAN-19); stary zapis czyta się jako pauza.
+Zmiany w aplikacji Mendix robisz zawsze przez pliki (silnik, tools/mpr), nigdy przez MCP Studio Pro.
+
+## Bez serwera MCP (zapis przez pliki projektu)
 
 Te same pola zapisujesz przez `node "$TANDEM_DIR/bin/db.js" update projects/<p>/stories/<KLUCZ> -`
 z JSON-em na stdin: `run` (cały obiekt z `steps`), `tokens`, `timeSec`, `review`,
