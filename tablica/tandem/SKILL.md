@@ -6,7 +6,7 @@ argument-hint: [next | status | <KLUCZ>]
 
 # Tandem: historyjka od wzięcia do Done, z tokenami
 
-Wersja 0.10 · 2026-10-24 (GEN-26: bez testu człowieka; skrypty z folderu Tandem: `$TANDEM_DIR`, GEN-19. 0.9: praca równoległa w osobnym worktree, TRIO-68)
+Wersja 0.13 · 2026-11-01 (TAN-121: „Jak pisać do Karola”: podsumowanie dla Karola i summaryTech, krok jako czasownik, wpis historii ludzki i techniczny, „do sprawdzenia” jako akcja, zatrzymanie: co się stało, prod, co zrobić. 0.12: ML-38: nauka Qwen, praca równoległa w nowych projektach. 0.11: GEN-42: kontekst projektu czytany przed pracą. 0.10: GEN-26: bez testu człowieka; skrypty z folderu Tandem: `$TANDEM_DIR`, GEN-19. 0.9: praca równoległa w osobnym worktree, TRIO-68)
 
 Karol patrzy na postęp w Tandem (http://127.0.0.1:4291/), nie w czacie. Twoja praca
 ma być tam widoczna krok po kroku: co robisz, ile to trwa i ile kosztuje w tokenach.
@@ -64,17 +64,26 @@ Serwer zajmuje historyjkę atomowo i zapisuje Cię w `run.by`; Karol widzi kompu
 na karcie, w pasku „Claude pracuje” i na Teraz. Dwie sesje nigdy nie dostaną tej samej
 historyjki. `runningElsewhere` znaczy: historyjkę prowadzi inna sesja – niczego nie bierz,
 powiedz to jednym zdaniem i stop. Po 30 min bez `run_report` historyjka ma „bez sygnału”
-i Karol może ją zwolnić w MxCraft albo w Tandem; gdy `run_report` odpowie, że Karol ją zwolnił, zakończ
+i Karol może ją zwolnić w Tandem; gdy `run_report` odpowie, że Karol ją zwolnił, zakończ
 turę bez dalszej pracy.
 
 Historyjki przypisane do Karola mogą stać w To do, ale ich sam nie bierzesz: kolejka
 (`sprint_read.queue`) i `story_next` bez `key` je pomijają (są w `forKarol`), bierzesz
 taką tylko wtedy, gdy Karol poda jej klucz.
 
+**Kontekst projektu (GEN-42).** Jeśli odpowiedź `story_next` ma `projectContext` (tekst, który Karol
+pisze w Ustawieniach projektu → „Kontekst projektu”, z `updatedAt` i `updatedBy`) i/albo `projectRules`
+(reguły gałęzi i wdrożenia z ustawień projektu), przeczytaj je **przed** planem i pracą i trzymaj się ich.
+Pierwszy krok planu mówi to wprost, np. „Czytam kontekst projektu i uwagi”, a jego `message` w `run_report`
+mówi jednym zdaniem, co z kontekstu wpływa na tę historyjkę. Bez tych pól (projekt bez kontekstu) nic
+nie robisz i niczego nie zgłaszasz. Kontekst dla testów (`context-tests`) dostają tylko sesje kroków
+testowych, nie Ty. Sam kontekstu nie zmieniasz: zmienia go właściciel w Tandem; z czatu czyta go
+konektor (`get_project_context`).
+
 **Skrypty.** `$TANDEM_DIR` to folder repo Tandem (zwykle `~/Projects/Tandem`; bez zmiennej podstaw
 ten folder). Liczenie tokenów i zapis do bazy są w `$TANDEM_DIR/bin/`, skrypty Mendix
-(model, porty, silnik) w `$TANDEM_DIR/modules/mendix/bin/`. Stare ścieżki z folderu MxCraft
-przekierowują tu do czasu jego wyłączenia (GEN-20).
+(model, porty, silnik) w `$TANDEM_DIR/modules/mendix/bin/`. MxCraft jest wyłączony (GEN-20):
+nie wołaj skryptów z jego folderu.
 
 Projekt: ten wybrany w Tandem (`tandem/current`). Gdy narzędzie poprosi o `project`,
 podaj id z listy, którą zwróciło.
@@ -128,6 +137,27 @@ Narzędzia Mendix (formularz podpowiada tę samą parę). Projekt bez Mendix: po
    kończ zdaniem „dokończę, gdy testy się skończą”: koniec tury to historyjka
    w Done albo Automated Testing (albo zatrzymanie z punktu 6).
 
+## Nauka Qwen (ML-38)
+
+W projekcie z nauką (`node ~/Projects/MacLab/nauka/bin/nauka.js czy <projekt>`, kod 0) każdy element, który budujesz
+(enumeracja, encja, mikroflow, XPath, formularz, kawałek kodu), robi równolegle Qwen. Nowy projekt w Tandem (założony
+po 26.10.2026) przy pierwszej historyjce rejestrujesz: `nauka.js projekt <id> [--wlasny] [--mendix <folder>]`
+(`--wlasny` tylko dla własnego kodu Karola: kod klienta nigdy nie idzie do treningu). Na element:
+
+1. `nauka.js zadanie <projekt> <typ> --tresc @zadanie.txt --zrodlo <KLUCZ>`; zrób go sam jak zwykle.
+2. `nauka.js claude <id> --rozwiazanie @plik --kroki @kroki.md --wyjasnienie @dlaczego.md`: kroki na poziomie Mendix
+   z uzasadnieniem, bez gotowego pliku (narzędzie odrzuci kroki z kawałkiem rozwiązania).
+3. `nauka.js qwen <id>`: Qwen dostaje reguły, pasujące lekcje (RAG) i Twoje kroki; wynik walidacji MxCraft i porównanie
+   z Twoim rozwiązaniem dostajesz od razu.
+4. `nauka.js ocena <id> dobrze` albo `zle --krytyka "co i dlaczego"` (bez odpowiedzi) `[--lekcja "jedno zdanie"]`, potem
+   znów `qwen`, aż „dobrze” albo limit prób; po limicie zadanie czeka na Karola (`nauka.js karol`).
+
+Do modelu idzie zawsze Twoje rozwiązanie; Qwen buduje sam tylko typy, które w profilu (MxCraft `docs/local-model.md`) mają
+„Qwen”. Każde „nie” Karola zapisujesz od razu: `nauka.js poprawka --tytul "lekcja jednym zdaniem" --co-zle … --jak …
+--dlaczego … [--przed @a --po @b] --tagi … --typ … --projekt …`; na koniec sesji pokaż Karolowi `nauka.js karol`, a jego
+decyzję wpisz `nauka.js zatwierdz <id…>` (dopiero zatwierdzone mają najwyższą wagę). Treści zadań, rozwiązań i poprawek
+nie wpisujesz do ticketów: zostają w bazie na Macu. Tokeny tej pracy liczą się jako budowa.
+
 ## Tokeny: jak je liczyć
 
 Tokeny wejścia i wyjścia to miara zużycia. Dolary liczy skrypt (`usd` niżej), nie Ty: odczyty z cache są
@@ -175,7 +205,7 @@ około dziesięć razy (Karol, 2026-10-18).
    (→ done / autotest), ale pisz `done` / `autotest`. Konflikt cherry-picku na ACCP (ticket
    zatrzymany w Acceptance) rozwiązujesz Ty: commity tej historyjki z test na ACCP,
    `git cherry-pick -x`, jeden commit nigdy dla dwóch historyjek.
-5. `run_report` z `summary` (3–5 zdań po polsku, nazwy z modelu w nawiasach
+5. `run_report` z `summary` (najwyżej 3 zdania po polsku dla Karola, bez nazw plików i narzędzi; technikalia w `summaryTech`, „Jak pisać do Karola”; nazwy z modelu w nawiasach
    monospace nie są potrzebne, Tandem je wyróżni) i `result`:
    - `model`: `["ServiceDesk.SE_Ticket_Escalate · nowe zdarzenie co 60 min", …]`
    - `sprinter`: `["SD-15 · Running → Done"]` (z pipeline: `"SD-15 · Running → Automated Testing"`)
@@ -196,6 +226,42 @@ około dziesięć razy (Karol, 2026-10-18).
    tokenów, 11:27. Następną weźmie nowa sesja.” (z pipeline: „SD-15 w Automated Testing; …”) Nie wołasz `story_next`.
    (Tylko gdy `settings.oneStoryPerSession` jest `false`: `story_next` – następna,
    chyba że `paused`.)
+
+## Jak pisać do Karola (TAN-121)
+
+Wszystko, co Claude zgłasza w tickecie (podsumowanie, kroki, wpisy historii, „do sprawdzenia”, zatrzymania),
+czyta Karol, nie Claude. Pięć reguł, każda z przykładem „dziś → tak”:
+
+1. **Podsumowanie dla Karola: najwyżej trzy zdania, bez nazw plików, narzędzi, ścieżek i hashy.** Technikalia idą
+   osobno (`run_report.summaryTech`); strona pokazuje podsumowanie jako „Co zrobił Claude”, a technikalia zwija pod
+   „Szczegóły techniczne”. Serwer MCP odrzuca podsumowanie dłuższe niż 60 słów albo z kodem bez `summaryTech`
+   (odmowa ma `error`, `why` i `example`: przepisz i wyślij jeszcze raz).
+   - Dziś: „Dodano lib/report-standard.js i pole summaryTech w mcp/server.js; testy w test/report-standard.test.js.”
+   - Tak: „Serwer odrzuca podsumowanie pisane do Claude. Strona pokazuje część dla Ciebie, a techniczną zwija. Testy
+     przechodzą.” + `summaryTech`: „lib/report-standard.js, mcp/server.js, test/report-standard.test.js”.
+2. **Krok to czasownik i przedmiot**, nie lista rzeczowników po przecinku. Serwer ostrzega (`stepWarnings` w
+   odpowiedzi `run_report`), ale nie blokuje.
+   - Dziś: „Atlas, CHANGELOG, commit”.
+   - Tak: „Dopisuję dokumentację i zapisuję zmiany”.
+3. **Wpis w historii ma linię ludzką i techniczną.** Ludzka po polsku, co to znaczy dla Karola; techniczna (commit,
+   komputer, polecenie) w `tech`, strona pokazuje ją po kliknięciu „szczegóły” (`lib/log-line.js`, `logLine(human, tech)`).
+   - Dziś: „Run 1: Scalenie z main — pass (Mac). Scalono origin/main (c92b3ce)…”.
+   - Tak: „Scalone z główną gałęzią, testy zielone, wysłane do repozytorium”, pod spodem „commit c92b3ce · Mac”.
+4. **„Do sprawdzenia przez Ciebie” to zawsze jedna akcja z rodzajem**: Kliknij, Zdecyduj albo Sprawdź, z miejscem
+   i tym, co zrobić. Polecenia i wyjaśnienia idą pod spód, nie na początek.
+   - Dziś (TAN-8): „Przed restartem Tandem wpisz TANDEM_ACCESS_AUD (Application Audience Tag z Cloudflare Zero Trust →
+     Access → Applications) do ~/Mx/secrets/tandem.env. Nigdzie go nie było…” (akapit z trzema poleceniami).
+   - Tak: „Kliknij: Cloudflare Zero Trust → Access → Applications → Tandem, skopiuj „Application Audience Tag” i wklej
+     go do ustawień Tandem jako AUD; bez niego Tandem po restarcie nie wystartuje.”
+5. **Zatrzymanie mówi po kolei: co się stało, czy coś poszło na prod, co masz zrobić.** Log polecenia idzie pod
+   „Szczegóły”. Tak samo pytanie: jedno pełne zdanie z założeniem, które przyjmujesz.
+   - Dziś (CRAFT-65): „Release na prod (mac:192.168.31.59) nie przeszedł: sh bin/release.sh → kod 1 (1.5 s): release:
+     tools/sanitize.py --check found client traces; merge undone, nothing pushed.”
+   - Tak: „Wydanie zatrzymało się, bo w kodzie zostały ślady klienta. Na produkcję nic nie poszło. Zdecyduj, czy
+     usunąć te ślady i wydać jeszcze raz.” + w „Szczegóły” polecenie i jego log.
+   - Pytanie dziś (SD-19): „„BU/OCL/AC? lub ECL” to flagi kategorii Category.OCL/ACL/ECL/TCL…? (AC = ACL?)”.
+   - Tak: „Zakładam, że „AC” w opisie to kategoria ACL, tak jak w formularzu myConnect; jeśli chodzi o inną, napisz
+     którą.”
 
 ## Zakładanie i zmiana historyjek (`story_add`, `story_edit`)
 

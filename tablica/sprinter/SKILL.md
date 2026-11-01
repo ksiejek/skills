@@ -5,7 +5,7 @@ description: Zasady Sprintera, wspólnego rdzenia MxCraft i Tandem – tygodniow
 
 # Sprinter: jak pracuje zespół Karol + Claude
 
-Wersja 0.12 · 2026-10-29 (TAN-65: bez tagu „kto”; kto ma ticket, mówi tylko przypisanie (Karol / Claude), zmieniane z nagłówka ticketu razem ze statusem. 0.11: TAN-28: blokada historyjek w wydaniu na prod, „Anuluj wydanie”. 0.10: TAN-14: bez punktów i ról, tylko imiona; opis dla Karola krótki i jasny, polecenie dla Claude zawsze szczegółowe; TAN-19: Pauza zamiast „Tylko odczyt”. 0.9: GEN-33: tag „kto” na tickecie: kto robi, blokada przed przypadkowym startem. 0.8: GEN-26: bez testu człowieka – kolumny Testing i Human Testing, testy dla Karola i Done na jego commit znikają; koniec historyjki to Done albo Automated Testing. 0.7: Pomysły: miejsce przed historyjkami, zamiana tylko po pytaniu Draft czy To do. 0.6: tablica projektu z pipeline: Draft → On Prod, kto co przesuwa; Automated Testing i Draft po nieudanym przebiegu też są „jednym jobem”. 0.5: kryteria ocenia Claude w raporcie końcowym; rozmiar do czytania przez konektor: najwyżej 24 KB, sekcje, podsumowanie na górze)
+Wersja 0.14 · 2026-11-01 (TAN-121: „Jak pisać do Karola”, pięć reguł z przykładami; serwer MCP odrzuca podsumowanie bez części dla Karola. 0.13: TAN-118: polskie nazwy kolumn, zakładek, kroków i stanów na ekranie, id bez zmian. 0.12: TAN-65: bez tagu „kto”; kto ma ticket, mówi tylko przypisanie (Karol / Claude), zmieniane z nagłówka ticketu razem ze statusem. 0.11: TAN-28: blokada historyjek w wydaniu na prod, „Anuluj wydanie”. 0.10: TAN-14: bez punktów i ról, tylko imiona; opis dla Karola krótki i jasny, polecenie dla Claude zawsze szczegółowe; TAN-19: Pauza zamiast „Tylko odczyt”. 0.9: GEN-33: tag „kto” na tickecie: kto robi, blokada przed przypadkowym startem. 0.8: GEN-26: bez testu człowieka – kolumny Testing i Human Testing, testy dla Karola i Done na jego commit znikają; koniec historyjki to Done albo Automated Testing. 0.7: Pomysły: miejsce przed historyjkami, zamiana tylko po pytaniu Draft czy To do. 0.6: tablica projektu z pipeline: Draft → On Prod, kto co przesuwa; Automated Testing i Draft po nieudanym przebiegu też są „jednym jobem”. 0.5: kryteria ocenia Claude w raporcie końcowym; rozmiar do czytania przez konektor: najwyżej 24 KB, sekcje, podsumowanie na górze)
 
 Ten plik mieszka w Tandem (`skills/sprinter/SKILL.md`, od GEN-19). Kopia w repo MxCraft
 zostaje tylko do jego wyłączenia (GEN-20); nie zmieniaj jej. `$TANDEM_DIR` to folder repo Tandem.
@@ -38,6 +38,28 @@ Na tickecie widać tylko imiona: Claude, Karol. Ról (tester, deweloper) ani pun
   `questions`, `decisions`, `changes` (zmiany w modelu), `assignee` (karol | claude),
   `log` (historia). Testów dla Karola (ticketów typu test) już nie ma.
 
+### Nazwy na ekranie (TAN-118)
+
+Identyfikatory kolumn w plikach, MCP i konektorze się nie zmieniają; ekran, historia ticketu i konektor pokazują
+polskie nazwy z jednego słownika (`shared/labels.js`). W tym skillu i w poleceniach dalej piszemy też nazwy dawne.
+
+| id | dawna nazwa | na ekranie |
+|---|---|---|
+| `draft` | Draft | Szkic |
+| `plan` | Planowanie | Planowanie (tylko Mendix) |
+| `todo` | To do | Do zrobienia |
+| `running` | Running | Claude buduje |
+| `autotest` | Automated Testing | Testy |
+| `testing` | Human Testing | Test Karola (tylko z `pipeline.humanTesting`) |
+| `done` | Done | Gotowe |
+| `prod` | On Prod / Produkcja | Na produkcji (Mendix: Acceptance) |
+
+Zakładki ticketu: Dla Ciebie · Kryteria · Dla Claude · Przebieg · Historia. Kroki: Sprawdzenie kodu (`codeCheck`),
+Sprawdzenie modelu (`modelCheck`), Bezpieczeństwo (`security`), Testy (`unitTests`), Baza (`database`), Test ekranu
+(`uiTest`), Scalenie z główną gałęzią (`mainMerge`). Stany: zielone (`pass`), czerwone (`fail`), w toku, pominięte
+(`skipped`, z powodem: „pominięte: brak polecenia w profilu”), z ostrzeżeniem (`warning`). Własna nazwa kolumny projektu
+(Ustawienia → Kolumny, np. Qwen: „Qwen pracuje”) wygrywa ze słownikiem. W `story_move` i `move_ticket` podajesz zawsze id.
+
 ## Tablica z pipeline
 
 Projekt z włączonym pipeline (Ustawienia → Pipeline, `project.pipeline.enabled`) ma
@@ -47,10 +69,10 @@ i `prod` obok `queue`, `running`, `done` (i `testing`, gdy projekt ma Human Test
 | Kolumna | Status | Kto przesuwa dalej |
 |---|---|---|
 | Draft | `draft` | Karol do To do, gdy historyjka gotowa. Pipeline nigdy nie cofa tu historyjki sam; trafia tu tylko, gdy Karol przeniesie zatrzymaną (`failedRun`, powód w `fixes`). |
-| Planowanie | `plan` | Tylko projekt Mendix, domyślnie (TAN-22; Karol może ją usunąć w Ustawieniach → Kolumny). Claude planuje całą kolumnę razem (`plan_read`, `plan_save`: kolejność, zależności, elementy modelu do aktywności i decyzji, new/chg/del) i niczego nie zmienia w modelu; historyjka dostaje „Plan gotowy”. Do To do przenosi Karol: to akceptacja planu. |
+| Planowanie | `plan` | Tylko projekt Mendix, domyślnie (TAN-22; Karol może ją usunąć w Ustawieniach → Kolumny). Claude planuje całą kolumnę razem (`plan_read`, `plan_save`: kolejność, zależności, elementy modelu do aktywności i decyzji, new/chg/del, i widok biznesowy z diagramem procesu, TAN-71) i niczego nie zmienia w modelu; historyjka dostaje „Plan gotowy”, a w projekcie połączonym z MxScout Team plan sam trafia do MxScout jako historia z kluczem ticketu (TAN-68). Do To do przenosi Karol: to akceptacja planu. |
 | To do | `todo` | Claude (`story_next`) albo pipeline sam startuje sesję; To do znaczy „buduj”. |
 | Running | `running` | Claude: oceniasz kryteria i `story_move` do `autotest` (dawne `testing` serwer też przyjmie jako koniec budowy, ale pisz `autotest`). |
-| Automated Testing | `autotest` | Pipeline: kroki testów automatycznych. Krok, który czeka na Claude, zgłaszasz przez `step_report` (`pipeline_status` pokazuje który). Fail → historyjka zostaje tu zatrzymana (`halt`, czerwona ramka, jedno zdanie), wszystko zaliczone → pipeline sam przenosi do Done (GEN-29: bez Human Testing) i zapisuje to w historii. |
+| Automated Testing | `autotest` | Pipeline: kroki testów automatycznych. Krok, który czeka na Claude, zgłaszasz przez `step_report` (`pipeline_status` pokazuje który). Fail → historyjka zostaje tu zatrzymana (`halt`, czerwona ramka, jedno zdanie), wszystko zaliczone → pipeline sam przenosi do Done (GEN-29: bez Human Testing) i zapisuje to w historii. Bez testów od razu do Done idą: ticket z samymi dokumentami (GEN-38) i ticket z wynikiem w załączniku (TAN-76: plik dołączony przez `story_attach` w tym przebiegu i zmiany tylko w plikach paczki – `dist/` albo lista `pipeline.deliverablePaths`, `.gitignore`, dokumenty; bez załącznika oznacz go `pipeline.deliverable: true`); jego gałąź i tak scala się z main. Zmiana kodu, modelu albo bazy obok paczki = testy jak zawsze. |
 | Done | `done` | Z `gitFlow` w profilu: skrypt commituje historyjkę na gałęzi test (temat „KLUCZ: …”, tylko jej pliki i zmienione pliki modelu MPR v2, nigdy dwie historyjki w jednym commicie). Bez `gitFlow`: commit, push i wdrożenie z profilu projektu (bez polecenia wdrożenia historyjka zostaje w Done). |
 | Acceptance | `prod` | Karol przenosi tu, co ma iść na akceptację; skrypt przenosi (cherry-pick) commity tych historyjek z test na ACCP i dopisuje wynik w tickecie. Konflikt: ticket zatrzymany w Acceptance z plikami w powodzie – wtedy, i tylko wtedy, wkracza Claude. Bez `gitFlow` tu kończy wdrożenie. Claude nie przesuwa tu narzędziem. Kiedy wdrożenie rusza, mówi tryb wdrożenia projektu (profil, `deployMode`): `manual` (domyślny) – Karol klika „Release na prod” nad tablicą i jeden job wdraża całe Done; `each` – po każdym Done; `off` – nigdy. Zamknięcie sprintu niczego nie wdraża. |
 
@@ -280,8 +302,47 @@ GitHub: fine-grained token, tylko Contents: read, tylko repo advisor-bridge, w z
 Każda odpowiedź ma najpierw pole summary (2–3 zdania do czytania na głos), potem treść. Testy na lokalnej kopii repo (fixture), bez sieci. README: nowe narzędzia i zmienna z tokenem. Decyzje w tickecie.
 ```
 
+## Jak pisać do Karola (TAN-121)
+
+Wszystko, co Claude zgłasza w tickecie (podsumowanie, kroki, wpisy historii, „do sprawdzenia”, zatrzymania),
+czyta Karol, nie Claude. Pięć reguł, każda z przykładem „dziś → tak”:
+
+1. **Podsumowanie dla Karola: najwyżej trzy zdania, bez nazw plików, narzędzi, ścieżek i hashy.** Technikalia idą
+   osobno (`run_report.summaryTech`); strona pokazuje podsumowanie jako „Co zrobił Claude”, a technikalia zwija pod
+   „Szczegóły techniczne”. Serwer MCP odrzuca podsumowanie dłuższe niż 60 słów albo z kodem bez `summaryTech`
+   (odmowa ma `error`, `why` i `example`: przepisz i wyślij jeszcze raz).
+   - Dziś: „Dodano lib/report-standard.js i pole summaryTech w mcp/server.js; testy w test/report-standard.test.js.”
+   - Tak: „Serwer odrzuca podsumowanie pisane do Claude. Strona pokazuje część dla Ciebie, a techniczną zwija. Testy
+     przechodzą.” + `summaryTech`: „lib/report-standard.js, mcp/server.js, test/report-standard.test.js”.
+2. **Krok to czasownik i przedmiot**, nie lista rzeczowników po przecinku. Serwer ostrzega (`stepWarnings` w
+   odpowiedzi `run_report`), ale nie blokuje.
+   - Dziś: „Atlas, CHANGELOG, commit”.
+   - Tak: „Dopisuję dokumentację i zapisuję zmiany”.
+3. **Wpis w historii ma linię ludzką i techniczną.** Ludzka po polsku, co to znaczy dla Karola; techniczna (commit,
+   komputer, polecenie) w `tech`, strona pokazuje ją po kliknięciu „szczegóły” (`lib/log-line.js`, `logLine(human, tech)`).
+   - Dziś: „Run 1: Scalenie z main — pass (Mac). Scalono origin/main (c92b3ce)…”.
+   - Tak: „Scalone z główną gałęzią, testy zielone, wysłane do repozytorium”, pod spodem „commit c92b3ce · Mac”.
+4. **„Do sprawdzenia przez Ciebie” to zawsze jedna akcja z rodzajem**: Kliknij, Zdecyduj albo Sprawdź, z miejscem
+   i tym, co zrobić. Polecenia i wyjaśnienia idą pod spód, nie na początek.
+   - Dziś (TAN-8): „Przed restartem Tandem wpisz TANDEM_ACCESS_AUD (Application Audience Tag z Cloudflare Zero Trust →
+     Access → Applications) do ~/Mx/secrets/tandem.env. Nigdzie go nie było…” (akapit z trzema poleceniami).
+   - Tak: „Kliknij: Cloudflare Zero Trust → Access → Applications → Tandem, skopiuj „Application Audience Tag” i wklej
+     go do ustawień Tandem jako AUD; bez niego Tandem po restarcie nie wystartuje.”
+5. **Zatrzymanie mówi po kolei: co się stało, czy coś poszło na prod, co masz zrobić.** Log polecenia idzie pod
+   „Szczegóły”. Tak samo pytanie: jedno pełne zdanie z założeniem, które przyjmujesz.
+   - Dziś (CRAFT-65): „Release na prod (mac:192.168.31.59) nie przeszedł: sh bin/release.sh → kod 1 (1.5 s): release:
+     tools/sanitize.py --check found client traces; merge undone, nothing pushed.”
+   - Tak: „Wydanie zatrzymało się, bo w kodzie zostały ślady klienta. Na produkcję nic nie poszło. Zdecyduj, czy
+     usunąć te ślady i wydać jeszcze raz.” + w „Szczegóły” polecenie i jego log.
+   - Pytanie dziś (SD-19): „„BU/OCL/AC? lub ECL” to flagi kategorii Category.OCL/ACL/ECL/TCL…? (AC = ACL?)”.
+   - Tak: „Zakładam, że „AC” w opisie to kategoria ACL, tak jak w formularzu myConnect; jeśli chodzi o inną, napisz
+     którą.”
+
 ## Zasady
 
+- Informacja dla Claude (TAN-72): Karol dopisuje wskazówki do historyjki w każdej kolumnie (zakładka „Dla Claude”,
+  w czacie `add_note`). Czytasz je przy planowaniu, budowie i ponownym przebiegu, a w Running przy najbliższym kroku;
+  każdą potwierdzasz w historii (`acks`): uwzględnione albo dlaczego nie.
 - Historia, kryteria, decyzje i zmiany w modelu żyją w tickecie, nie w czacie.
   W czacie zostaw jedno zdanie: co zrobiłeś i klucz historyjki.
 - Krótkie zdania, po polsku, jak Karol. W poleceniu i w komentarzach technicznych
@@ -295,6 +356,11 @@ Każda odpowiedź ma najpierw pole summary (2–3 zdania do czytania na głos), 
   awaryjnym czytasz i proponujesz, niczego nie zapisujesz. Zmiany w Mendix idą zawsze przez pliki (TAN-19).
 - Plany, raporty i dokumentację piszesz w Markdown z podsumowaniem na górze i sekcjami do 24 KB
   (zob. „Rozmiar: Claude czyta przez konektor”).
+
+- Nigdy sam (TAN-108): obejście strażnika albo zmiana jego ustawień („Prawdziwy projekt”), prawdziwe dane i `.mpr`
+  prawdziwego projektu bez zgody, rotacja kluczy, scalenie w mxcraft-skills bez „gotowe”, wydanie na prod, DNS
+  i Cloudflare, usuwanie gałęzi i plików spoza obszaru ticketu. Resztę błędów najpierw klasyfikujesz i próbujesz
+  obejść według skilla tandem („Eskalacja”) i Atlasu „Gdy pipeline staje”; Karola pytasz po wyczerpaniu prób.
 
 ## Pomysły
 
