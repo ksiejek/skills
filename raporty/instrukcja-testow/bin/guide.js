@@ -187,6 +187,7 @@ fs.mkdirSync(outDir, { recursive: true });
 if (packMode) {
   const r = require('./pack.js').build(guide, walk, outDir);
   console.log(r.files.map(f => path.join(r.dir, f)).concat(r.zip).join('\n'));
+  r.warnings.forEach(w => console.error('Uwaga: ' + w));
 } else {
   const specFile = path.join(outDir, name + '.json');
   fs.writeFileSync(specFile, JSON.stringify(spec(walk), null, 2) + '\n');

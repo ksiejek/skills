@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // pack.js: the pack form of the "instrukcja-testow" skill (0.3). Instead of one document, a folder of standalone HTML
 // files in the MxScout look, one topic per file (the list, the access page, one page per scenario), zipped together.
-// Every file inlines the stylesheet of the "dokumentacja" skill and, when MxScout is beside it, its two fonts, so it
-// opens offline by double-click. Generic blocks render through dokumentacja's bin/build.js (required as a module);
+// Every file inlines the stylesheet of the "dokumentacja" skill; MxScout's two fonts sit once in the folder (fonts.css
+// and czcionki/, linked relatively), so the pack opens offline by double-click and weighs a quarter of what it did
+// with the fonts inlined in every page (MXS-171). Each scenario ends with a result form kept in the tester's browser;
+// who gets the results is named once, in the list (g.report). Generic blocks render through dokumentacja's bin/build.js (required as a module);
 // the blocks only a tester guide has (step table with the account column, account table, file cards) are here.
 // Not a command of its own: guide.js --pack calls build(guide, walk, outDir). The folder <outDir>/<name> is rebuilt
 // from scratch every time; <outDir>/<name>.zip beside it is what testers get.
@@ -45,22 +47,81 @@ td.exp { color:var(--ink); }
 .files .card b { display:block; margin-top:4px; font-size:17px; color:var(--ink); }
 .files .card span.d { display:block; margin-top:6px; color:var(--ink2); font-size:14px; }
 .backlink { display:inline-block; margin-bottom:28px; font-size:13px; text-decoration:none; }
+.result-form { display:grid; grid-template-columns:auto 160px 120px; gap:14px 20px; align-items:end; padding:18px 20px; border:1px solid var(--line); border-radius:12px; background:var(--raised); }
+.result-form fieldset { border:0; padding:0; margin:0; display:flex; gap:18px; align-items:center; flex-wrap:wrap; }
+.result-form .cap { display:block; margin-bottom:6px; }
+.result-form fieldset .cap { width:100%; margin-bottom:0; }
+.result-form fieldset label { font-weight:600; color:var(--ink); }
+.result-form input[type=text], .result-form textarea { width:100%; box-sizing:border-box; font:inherit; color:var(--ink); background:var(--panel); border:1px solid var(--line2); border-radius:8px; padding:7px 10px; }
+.result-form .rf-notes, .result-form .rf-copy { grid-column:1 / -1; }
+.result-form textarea { resize:vertical; min-height:72px; }
+.result-form button { font:600 14px var(--font-ui); color:var(--acc-on); background:var(--acc); border:0; border-radius:8px; padding:9px 16px; cursor:pointer; }
+.rf-copy { display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+.rf-line { font:13px var(--font-mono); color:var(--ink); }
+.rf-msg { font-size:13px; color:var(--ok); }
+@media screen and (max-width:760px) { .result-form { grid-template-columns:1fr; } }
+@media print {
+  .result-form { background:none; border:0; padding:0; grid-template-columns:auto 200px 140px; }
+  .result-form input[type=text], .result-form textarea { border:0; border-bottom:1px solid #000; border-radius:0; background:none; padding:4px 0; }
+  .result-form textarea { min-height:0; height:96px; resize:none; background:repeating-linear-gradient(transparent 0 31px, #000 31px 32px); border-bottom:0; }
+  .rf-copy, .backlink { display:none; }
+}
 @media screen and (max-width:760px) { col.c-who { width:auto; } }
 `;
 
-// MxScout's fonts (Instrument Sans, JetBrains Mono) inlined as data URIs, their licences copied beside the pages.
-// Without MxScout the pages fall back to the system fonts named in the stylesheet.
+// MxScout's fonts (Instrument Sans, JetBrains Mono): copied once into czcionki/ with their licences, declared in
+// fonts.css beside index.html, which every page links relatively (works from file://). Without MxScout there is no
+// fonts.css and the pages fall back to the system fonts named in the stylesheet.
+const FONT_DIR = 'czcionki';
 function fonts() {
   const dir = path.join(process.env.MXSCOUT_DIR || path.join(os.homedir(), 'Projects', 'MxScout'), 'public', 'fonts');
-  const face = (family, file, weight) => {
-    const f = path.join(dir, file);
-    if (!fs.existsSync(f)) return '';
-    return `@font-face{font-family:"${family}";src:url(data:font/woff2;base64,${fs.readFileSync(f).toString('base64')}) format("woff2");font-weight:${weight};font-display:swap;}`;
-  };
-  const css = face('Instrument Sans', 'InstrumentSans.woff2', '400 700') + face('JetBrains Mono', 'JetBrainsMono.woff2', '100 800');
-  const licences = ['OFL-InstrumentSans.txt', 'OFL-JetBrainsMono.txt'].map(f => path.join(dir, f)).filter(f => fs.existsSync(f));
-  return { css, licences };
+  const faces = [['Instrument Sans', 'InstrumentSans.woff2', '400 700'], ['JetBrains Mono', 'JetBrainsMono.woff2', '100 800']]
+    .filter(([, file]) => fs.existsSync(path.join(dir, file)));
+  const css = faces.map(([family, file, weight]) => `@font-face{font-family:"${family}";src:url(${FONT_DIR}/${file}) format("woff2");font-weight:${weight};font-display:swap;}`).join('\n');
+  const files = faces.map(([, file]) => path.join(dir, file))
+    .concat(faces.length ? ['OFL-InstrumentSans.txt', 'OFL-JetBrainsMono.txt'].map(f => path.join(dir, f)).filter(f => fs.existsSync(f)) : []);
+  return { css, files };
 }
+
+// Who gets the results and gives out the password: one variable of the guide, shown only in the list.
+const reportOf = (g) => Object.assign({ to: 'osoba, która przysłała Ci tę paczkę', channel: '' }, g.report || {});
+
+// The result section of a scenario page: OK / NIE OK, date, initials, notes, kept in localStorage under the pack and
+// scenario; "Skopiuj wynik" puts one sentence for the e-mail on the clipboard (or selects it when that is not allowed).
+function resultForm(g, sc) {
+  const key = ['instrukcja-testow', g.name || 'instrukcja-testow', g.date || '', sc.id].join(':');
+  return `<form class="result-form" data-key="${esc(key)}" data-sc="${esc(sc.id)}" autocomplete="off">
+<fieldset><span class="cap">Wynik</span><label><input type="radio" name="verdict" value="OK"> OK</label><label><input type="radio" name="verdict" value="NIE OK"> NIE OK</label></fieldset>
+<label><span class="cap">Data</span><input type="text" name="date" placeholder="dd.mm.rrrr"></label>
+<label><span class="cap">Inicjały</span><input type="text" name="initials" maxlength="8"></label>
+<label class="rf-notes"><span class="cap">Uwagi (przy NIE OK: numer kroku, co się stało, co powinno się stać)</span><textarea name="notes" rows="3"></textarea></label>
+<div class="rf-copy"><button type="button">Skopiuj wynik</button><output class="rf-line"></output><span class="rf-msg" role="status"></span></div>
+</form>`;
+}
+const RESULT_JS = `(function () {
+  var f = document.querySelector('.result-form'); if (!f) return;
+  var el = f.elements, key = f.getAttribute('data-key'), st = null, saved = {};
+  try { st = window.localStorage; saved = JSON.parse(st.getItem(key) || '{}') || {}; } catch (e) { st = null; }
+  var pad = function (n) { return (n < 10 ? '0' : '') + n; }, d = new Date();
+  el.date.value = saved.date || pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '.' + d.getFullYear();
+  el.initials.value = saved.initials || ''; el.notes.value = saved.notes || '';
+  [].forEach.call(f.querySelectorAll('input[name=verdict]'), function (r) { r.checked = r.value === saved.verdict; });
+  function val() { var v = f.querySelector('input[name=verdict]:checked'); return { verdict: v ? v.value : '', date: el.date.value.trim(), initials: el.initials.value.trim(), notes: el.notes.value.trim() }; }
+  function save() { try { if (st) st.setItem(key, JSON.stringify(val())); } catch (e) {} }
+  f.addEventListener('input', save); f.addEventListener('change', save);
+  f.querySelector('button').addEventListener('click', function () {
+    var v = val(), out = f.querySelector('.rf-line'), msg = f.querySelector('.rf-msg');
+    var s = 'Scenariusz ' + f.getAttribute('data-sc') + ': ' + [v.verdict || 'bez wyniku', v.date, v.initials].filter(Boolean).join(', ') + (v.verdict === 'NIE OK' && v.notes ? '. Uwagi: ' + v.notes : '');
+    out.textContent = s;
+    function select() {
+      var r = document.createRange(); r.selectNodeContents(out); var w = window.getSelection(); w.removeAllRanges(); w.addRange(r);
+      var ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+      msg.textContent = ok ? 'Skopiowane.' : 'Zaznaczone: skopiuj Ctrl+C (Mac: Cmd+C).';
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(s).then(function () { msg.textContent = 'Skopiowane.'; }, select);
+    else select();
+  });
+})();`;
 
 // A file-name piece from a Polish title.
 const slug = (s) => String(s).toLowerCase().replace(/[ąćęłńóśźż]/g, c => 'acelnoszz'['ąćęłńóśźż'.indexOf(c)]).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
@@ -92,7 +153,7 @@ function block(b, g) {
 }
 
 // One standalone page: header with chips, numbered sections, footer; a link back to the list on every page but the list.
-function page(p, g, css) {
+function page(p, g, css, fontsCss) {
   const chips = p.meta.map(m => `<div class="chip${m.status ? ' status' : ''}"><span class="cap">${esc(m.k)}</span><b>${esc(m.v)}</b></div>`).join('');
   const secs = p.sections.map((s, i) => `<section id="${esc(s.id)}">\n<div class="sec-h"><span class="no">${no2(i + 1)}</span><h2>${esc(s.title)}</h2></div>\n${s.blocks.map(b => block(b, g)).join('\n')}\n</section>`).join('\n');
   const footer = g.footer || [`${g.app} · środowisko ${g.env || 'Test'} · instrukcja dla testerów`, 'Stan na ' + plDate(g.date || new Date().toISOString().slice(0, 10))];
@@ -102,7 +163,7 @@ function page(p, g, css) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(p.title)} · ${esc(g.app)}</title>
-<style>${css}</style>
+${fontsCss ? '<link rel="stylesheet" href="fonts.css">\n' : ''}<style>${css}</style>
 </head>
 <body>
 <main class="island">
@@ -116,7 +177,7 @@ ${p.index ? '' : '<a class="backlink" href="index.html">← Wszystkie instrukcje
 ${secs}
 <footer><span>${esc(footer[0])}</span><span>${esc(footer[1] || '')}</span></footer>
 </main>
-</body>
+${p.script ? `<script>${p.script}</script>\n` : ''}</body>
 </html>
 `;
 }
@@ -180,7 +241,11 @@ function pages(g, walk) {
     (sc.notes || []).forEach(nt => cur.blocks.push({ note: nt }));
     cur.blocks.push({ note: { tag: 'Oczekiwany wynik', kind: 'acc', text: sc.expect.text } });
     stepSecs.push(cur);
-    out.push({ file: sc.file || `${no2(i + 2)}-scenariusz-${slug(sc.id)}-${slug(sc.title)}.html`, id: sc.id, accounts: used.length,
+    stepSecs.push({ id: 'wynik', title: 'Wynik testu', blocks: [
+      { html: '<div class="prose"><p>Po przejściu kroków zaznacz wynik, wpisz datę i inicjały. Przy NIE OK zrób zrzut ekranu i w uwagach podaj numer kroku, co się stało i co powinno się stać. Nie poprawiaj danych sam. Pola zostają w tej przeglądarce; „Skopiuj wynik” daje gotowe zdanie do wiadomości. ' +
+        'Wyniki wyślij do osoby ze spisu (<a href="index.html#raport">Jak raportować</a>).</p></div>' },
+      { html: resultForm(g, sc) }] });
+    out.push({ script: RESULT_JS, file: sc.file || `${no2(i + 2)}-scenariusz-${slug(sc.id)}-${slug(sc.title)}.html`, id: sc.id, accounts: used.length,
       eyebrow: 'Scenariusz ' + sc.id + (sc.eyebrow ? ' · ' + sc.eyebrow : ''), title: sc.title, lead: sc.lead || sc.goal, summary: sc.summary || sc.goal,
       meta: meta(konta(used.length)), sections: secs.concat(stepSecs) });
   });
@@ -190,6 +255,14 @@ function pages(g, walk) {
     ? { href: p.file, cap: '01 · zacznij tutaj', title: p.title, text: a.summary || 'Adres, logowanie, wybór konta testowego, zmiana konta.' }
     : { href: p.file, cap: 'Scenariusz ' + p.id + ' · ' + konta(p.accounts), title: p.title, text: p.summary });
   const listSections = [{ id: 'pliki', title: 'Pliki w paczce', blocks: (walk && walk.note ? [{ note: walk.note }] : []).concat([{ files }]) }];
+  const rep = reportOf(g);
+  listSections.push({ id: 'raport', title: 'Jak raportować', blocks: [
+    { ol: [
+      'Każdy scenariusz kończy się sekcją „Wynik testu”: zaznacz OK albo NIE OK, wpisz datę i inicjały. Przy NIE OK zrób zrzut ekranu i w uwagach podaj numer scenariusza i kroku (np. „A, krok 07”), co się stało i co powinno się stać.',
+      'Wpisane pola zostają w Twojej przeglądarce. Przycisk **Skopiuj wynik** daje gotowe zdanie, np. „Scenariusz A: OK, ' + plDate(g.date || new Date().toISOString().slice(0, 10)) + ', KS”.',
+      'Komu wysyłasz wyniki: **' + rep.to + '**' + (rep.channel ? ' (' + rep.channel + ')' : '') + '.' + (cloud ? ' Hasło do kont testowych dostajesz od tej samej osoby, osobno.' : '')
+    ] },
+    { note: { tag: 'Info', text: 'Kroki oznaczone „Znany błąd” są już zgłoszone. Zapisz, co zobaczyłeś, ale nie traktuj ich jako nowego błędu.' } }] });
   if ((g.notInGuide || []).length) listSections.push({ id: 'poza', title: 'Czego te instrukcje nie obejmują', blocks: [{ ul: g.notInGuide }] });
   out.unshift({ file: 'index.html', index: true, eyebrow: g.app + ' · instrukcje dla testerów', title: g.title,
     lead: g.lead || 'Każdy plik to jeden temat. Zacznij od wejścia na środowisko, potem wykonuj scenariusze w dowolnej kolejności. Pliki działają bez internetu: wystarczy je otworzyć dwuklikiem.',
@@ -203,18 +276,28 @@ function build(g, walk, outDir) {
   const name = g.name || 'instrukcja-testow';
   const dir = path.join(outDir, name), zip = path.join(outDir, name + '.zip');
   const f = fonts();
-  const css = f.css + doc.css() + PACK_CSS;
+  const css = doc.css() + PACK_CSS;
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
   const list = pages(g, walk);
-  for (const p of list) fs.writeFileSync(path.join(dir, p.file), page(p, g, css));
-  if (f.licences.length) {
-    fs.mkdirSync(path.join(dir, 'licencje-czcionek'));
-    f.licences.forEach(l => fs.copyFileSync(l, path.join(dir, 'licencje-czcionek', path.basename(l))));
+  const warnings = [];
+  // The recipient is named in the list only, so changing them is changing one file (MXS-171).
+  const to = g.report && g.report.to;
+  const named = to ? new RegExp('(^|[^\\p{L}])' + to.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u') : null;
+  for (const p of list) {
+    const html = page(p, g, css, f.css);
+    if (named && !p.index && named.test(html.replace(/<style>[\s\S]*?<\/style>|<script>[\s\S]*?<\/script>|<[^>]+>/g, ' ')))
+      warnings.push(`${p.file}: wymienia adresata „${to}”; w scenariuszach i na stronie wejścia pisz „osoba ze spisu”.`);
+    fs.writeFileSync(path.join(dir, p.file), html);
+  }
+  if (f.css) {
+    fs.writeFileSync(path.join(dir, 'fonts.css'), f.css + '\n');
+    fs.mkdirSync(path.join(dir, FONT_DIR));
+    f.files.forEach(l => fs.copyFileSync(l, path.join(dir, FONT_DIR, path.basename(l))));
   }
   fs.rmSync(zip, { force: true });
   execFileSync('zip', ['-qr', '-X', zip, '.'], { cwd: dir });
-  return { dir, zip, files: list.map(p => p.file) };
+  return { dir, zip, files: list.map(p => p.file), warnings };
 }
 
-module.exports = { build };
+module.exports = { build, pages, RESULT_JS };

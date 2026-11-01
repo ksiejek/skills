@@ -4,6 +4,7 @@
   "env": "Test",
   "title": "Instrukcje testów na środowisku Test",
   "lead": "Każdy plik to jeden temat. Zacznij od wejścia na Test, potem wykonuj scenariusze w dowolnej kolejności. Pliki działają bez internetu: wystarczy je otworzyć dwuklikiem.",
+  "report": { "to": "Karol", "channel": "mail albo Teams" },
   "audience": "Testerzy biznesowi",
   "date": "2026-10-31",
   "access": {
@@ -13,7 +14,7 @@
     "passwordOp": "op://Praca/SD test/password",
     "lead": "Jak otworzyć Service Desk na środowisku Test, zalogować się kontem testowym i przełączać się między kontami.",
     "summary": "Adres, logowanie, wybór konta testowego, zmiana konta.",
-    "login": "Jedno wspólne hasło dla wszystkich kont `test.*`. Dostajesz je od Karola w osobnej wiadomości.",
+    "login": "Jedno wspólne hasło dla wszystkich kont `test.*`. Dostajesz je osobno, od osoby ze spisu (część „Jak raportować”).",
     "loginSteps": [
       {
         "text": "Otwórz adres z karty wyżej. Użyj dokładnie adresu kończącego się na `login-admin.html`.",
@@ -37,7 +38,7 @@
       {
         "tag": "Blokada",
         "kind": "bad",
-        "text": "Trzy błędne hasła blokują konto do następnego restartu środowiska. Po dwóch błędach przerwij i napisz do Karola."
+        "text": "Trzy błędne hasła blokują konto do następnego restartu środowiska. Po dwóch błędach przerwij i napisz do osoby ze spisu (część „Jak raportować”)."
       }
     ],
     "accountsIntro": "Każdy scenariusz mówi, którym kontem wykonać który krok. Poniżej wszystkie konta, których używają instrukcje z tej paczki, i kilka dodatkowych. Wszystkie mają nazwę zaczynającą się od „TEST” i adres e-mail, na który nic nie wychodzi.",
@@ -520,7 +521,7 @@
                 ]
               }
             },
-            "myTT przechowuje przesyłki przez ograniczony czas. Jeśli pierwszy numer da „Shipment not found in myTT…” albo „Cannot connect to myTT…”, użyj zapasowego. Gdy oba dają błąd, napisz do Karola."
+            "myTT przechowuje przesyłki przez ograniczony czas. Jeśli pierwszy numer da „Shipment not found in myTT…” albo „Cannot connect to myTT…”, użyj zapasowego. Gdy oba dają błąd, napisz do osoby ze spisu (część „Jak raportować”)."
           ]
         }
       ],

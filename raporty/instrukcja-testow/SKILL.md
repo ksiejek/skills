@@ -6,7 +6,7 @@ argument-hint: "<projekt Tandem> [zakres: sprint, tickety, od daty] [--pack]"
 
 # Instrukcja testów dla testerów nietechnicznych
 
-Wersja 0.3 · 2026-10-31 (GEN-50). Wygląd i pliki: skill `dokumentacja` (GEN-47), nigdy własny styl.
+Wersja 0.4 · 2026-11-01 (MXS-171: w paczce pola wyniku do wypełnienia, fonty raz w folderze, adresat tylko w spisie; 0.3: GEN-50). Wygląd i pliki: skill `dokumentacja` (GEN-47), nigdy własny styl.
 Przeglądarka: sterownik CDP z Tandem (`$TANDEM_DIR/modules/mendix/lib/cdp.js`, Chrome z Maca, bez npm).
 `$SKILL` to folder tego skilla (`~/.claude/skills/instrukcja-testow`), `$TANDEM_DIR` repo Tandem (`~/Projects/Tandem`).
 Przykłady: `przyklad/instrukcja.json` (bramka lokalna, jeden dokument, zbudowane pliki obok) i
@@ -26,7 +26,12 @@ Instrukcja jest gotowa dopiero, gdy **cała** przechodzi w przeglądarce. Tekst 
 
 Postać: **jeden dokument** (`guide.js`: .html, .docx, .md przez skill `dokumentacja`) albo **paczka** (`guide.js --pack`):
 folder `<name>/` ze spisem `index.html`, stroną `01-wejscie-na-<środowisko>.html` i jedną stroną na scenariusz, czcionki
-w środku (otwiera się dwuklikiem bez internetu), spakowany do `<name>.zip`. Paczka to postać dla testerów biznesowych
+raz w środku (`fonts.css` obok spisu i `czcionki/`, każda strona linkuje je względnie; otwiera się dwuklikiem bez
+internetu), spakowany do `<name>.zip` (Service Desk, 4 strony: ZIP 240 KB zamiast 1,05 MB z czcionkami w każdym pliku).
+Spis ma część „Jak raportować” z adresatem wyników i hasła (`report`), jedyne miejsce, gdzie stoi; każdy scenariusz
+kończy się „Wynik testu”: OK / NIE OK, data (dziś), inicjały, uwagi, zapamiętane w przeglądarce testera
+(`localStorage`, klucz paczki i scenariusza; bez niego też działa) i „Skopiuj wynik” (jedno zdanie do maila:
+„Scenariusz A: OK, 31.10.2026, KS”, przy NIE OK z uwagami; bez schowka zaznacza tekst). W druku pola są liniami. Paczka to postać dla testerów biznesowych
 (tak oddano SD-97); jeden dokument wystarcza, gdy scenariuszy jest kilka i czyta je jedna osoba.
 
 ## Przebieg
@@ -51,6 +56,9 @@ w środku (otwiera się dwuklikiem bez internetu), spakowany do `<name>.zip`. Pa
    z tego, co naprawdę widać: nazwy przycisków, pól i zakładek dokładnie jak na ekranie, numery spraw z danych testowych.
 4. **Napisz `instrukcja.json`** (wzory: `przyklad/instrukcja.json`, `przyklad/paczka-chmura/instrukcja.json`):
    - `name` (nazwa plików), `app`, `env` (nazwa środowiska, np. Test), `title`, `lead`, `audience`, `date`;
+   - `report` (paczka): `{ "to": "Jan Nowak", "channel": "mail albo Teams" }` – kto dostaje wyniki i daje hasło; stoi
+     tylko w spisie, więc nigdzie indziej (strona wejścia, kroki, ramki) nie wymieniaj tej osoby, pisz „osoba ze spisu”
+     (`guide.js --pack` ostrzega, gdy jest gdzie indziej);
    - `access` (zawsze pełny, zawsze pierwszy rozdział). Bramka: `gate` (adres bramki), `login` (e-mail i kod z maila),
      `loginSteps`, `start` („Uruchom aplikację” / „Spróbuj ponownie”), `autoStop` (2 h bez ruchu, 1–2 h licencja
      próbna), `restart`, `popup`; `walkUrl` to droga Claude do tej samej bramki (tailnet Karola), nie trafia do dokumentu.
@@ -111,8 +119,10 @@ w środku (otwiera się dwuklikiem bez internetu), spakowany do `<name>.zip`. Pa
   w zmiennej środowiska, a tester dostaje je od Karola osobno.
 - Dane testowe zmieniane przez scenariusz (nowa wiadomość) są w porządku na środowisku testowym; scenariusz nie może
   zależeć od czegoś, czego poprzedni nie zostawił (`before`). Tytuły spraw zakładanych w teście zaczynają się od „TEST”.
-- Bez rozdziału „jak raportować” czy „jak zgłosić błąd” i bez pól na wynik, datę i podpis: nikt ich nie wypełnia.
-  Tester pisze Karolowi po swojemu, co zobaczył (0.2).
+- Jeden dokument: bez rozdziału „jak raportować” i bez pól na wynik (0.2). Paczka: „Jak raportować” raz w spisie
+  i działające pola wyniku w każdym scenariuszu (0.4); pisze je generator, nie `instrukcja.json`.
+- Sprawdzenie paczki: `node --test $SKILL/bin/pack.test.js` (fonty raz, ZIP poniżej 300 KB, pola wyniku, adresat tylko
+  w spisie, tabele, ramki, druk), potem paczkę otwórz w Chrome: wpisz wynik, odśwież, „Skopiuj wynik”, podgląd druku.
 
 ## Środowisko lokalne na Mac Studio (Mendix)
 
