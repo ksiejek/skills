@@ -51,7 +51,9 @@
   var WEAK = { key: true, pass: true, pwd: true, pw: true, pin: true };
   // A public key is meant to be public; and a name that ends in what it is about (Token·Url,
   // ApiKey·Header, Password·Length) names a setting beside the secret, not the secret.
-  var PUBLIC = /public|publishable/i;
+  // A key the browser is MEANT to have: a public key, a site key, a client id, a publishable key, the VAPID key
+  // web push needs. Flagging one says nothing (MXS-173, the review of 2026-11-01).
+  var PUBLIC = /public|publishable|vapid|site_?key|client_?id|audience/i;
   var BESIDE = { url: true, uri: true, endpoint: true, host: true, path: true, header: true, name: true, expiry: true, lifetime: true, length: true, type: true, policy: true };
 
   function words(name) {
@@ -125,12 +127,26 @@
           detail: f.text, fix: f.fix, where: [c.qualifiedName]
         });
       } else if (c.secret && c.hasDefault) {
-        out.notes.push({ kind: 'default-in-model', constant: c.qualifiedName, module: c.module, marketplace: c.marketplace,
-          text: c.qualifiedName + (c.marketplace ? ' (Marketplace module ' + c.module + ')' : '') + ' has a default value in the model. ' + whyText(c) +
-            '. The value is in every copy of the model, its history and every package; Mendix advises leaving such a constant empty in the model and setting it per environment at deployment.',
-          fix: 'Empty the default value of ' + c.qualifiedName + ' and set it in each environment’s configuration; change the secret if the model was ever shared.' });
-      }
-      if (c.nameWhy && !c.excluded) {
+        // A value in the model that LOOKS like a secret is in every copy of the model, its history and every
+        // package — a real secret already spread, whoever deploys it. That is a finding (P2), not something worth
+        // knowing: risk-levels.md put it at P1 and the rules before gave it P3 (MXS-173, the review of
+        // 2026-11-01, where eleven of them sat among the notes). Only the NAME saying secret stays a note.
+        var why = whyText(c) + (c.nameWhy ? '. The name of ' + c.qualifiedName + ' ' + c.nameWhy.replace(/^the name itself /, 'itself ') : '');
+        var textBoth = c.qualifiedName + (c.marketplace ? ' (Marketplace module ' + c.module + ')' : '') + ' has a default value in the model. ' + why +
+          '. The value is in every copy of the model, its history and every package; Mendix advises leaving such a constant empty in the model and setting it per environment at deployment.';
+        var fixBoth = 'Empty the default value of ' + c.qualifiedName + ' and set it in each environment’s configuration; change the secret if the model was ever shared.' +
+          (c.nameWhy ? ' Rename the constant too, and if it was a real key, change the key.' : '');
+        if (c.valueSecret) {
+          out.findings.push({ kind: 'default-in-model', priority: 'P2', constant: c.qualifiedName, module: c.module, marketplace: c.marketplace,
+            reason: reasonOf(c), key: 'm:secrets:' + c.qualifiedName, confidence: 'confirmed',
+            evidence: ['Its default value ' + (c.defaultWhy || 'looks like a secret') + ', and the model carries it.'], text: textBoth, fix: fixBoth });
+          out.risks.push({ id: 'model-secrets-' + c.qualifiedName, key: 'm:secrets:' + c.qualifiedName, origin: 'model', level: 'P2', theme: 'secrets',
+            confidence: 'confirmed', doubts: null, evidence: ['Its default value ' + (c.defaultWhy || 'looks like a secret') + ', and the model carries it.'],
+            title: 'The model carries a secret as the default value of ' + c.qualifiedName, detail: textBoth, fix: fixBoth, where: [c.qualifiedName] });
+        } else {
+          out.notes.push({ kind: 'default-in-model', constant: c.qualifiedName, module: c.module, marketplace: c.marketplace, text: textBoth, fix: fixBoth });
+        }
+      } else if (c.nameWhy && !c.excluded) {
         out.notes.push({ kind: 'name-is-key', constant: c.qualifiedName, module: c.module, marketplace: c.marketplace,
           text: 'The name of ' + c.qualifiedName + ' — ' + c.nameWhy.replace(/^the name itself /, 'itself ') + '. Every screen and file that lists the constants shows it.',
           fix: 'Rename the constant and, if it was a real key, change the key.' });

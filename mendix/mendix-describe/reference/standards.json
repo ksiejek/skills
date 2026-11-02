@@ -338,6 +338,131 @@
       "source": { "mendix": [{ "title": "XPath Constraints", "url": "https://docs.mendix.com/refguide/xpath-constraints/" }], "mxscout": "public/accessrule.js" }
     },
     {
+      "id": "guard-escalation",
+      "name": "Writes past the role’s own access rules",
+      "registers": ["finding", "suspect"],
+      "levels": ["P1", "P2"],
+      "theme": "access",
+      "owasp": "LCNC-SEC-02",
+      "riskId": "mx-guard-escalation-<microflow>-<entity>-<step>-<why>",
+      "mendix": [],
+      "wrong": "A microflow with Apply entity access off, which a role that does not administer the application may call, changes, creates or deletes a persistable entity either BEYOND that role’s own rules (it holds no such right at all: write none, no delete, a member outside Read, Write) or PAST the XPath that keeps its rules to its own rows — and no decision on the way to the step compares the object with the signed-in user. The flow then does for the caller what no rule of its own allows, on anybody’s object, whatever any page shows or hides. P1 when the step deletes, or when what it writes is a credential or an account; P2 otherwise. To verify when something MxScout cannot read stands in front of the step — a rule, a Java action, a flow deeper than it follows — or when no page, snippet or nanoflow offers the flow at all. Apply entity access off is NOT a risk on its own: most Mendix developers switch it off on purpose, and a step every calling role may take anyway is reported as nothing.",
+      "standard": "A microflow with Apply entity access off carries the check the access rule would have made: before it changes, creates or deletes an object it was handed, a decision compares that object with $currentUser, or the object is fetched with the role’s own XPath instead of taken from the caller. Where the role should hold the right outright, give it the right and switch Apply entity access on, so the access rule is the one place that decides.",
+      "fix": "In the microflow, add a decision before the step that compares the object with the signed-in user — the comparison the role’s own access rule makes — and end the flow when it does not hold; or fetch the object with that XPath instead of taking it from the caller. Where the role is meant to hold the right, give it the right in the access rule and set Apply entity access to Yes.",
+      "source": {
+        "mendix": [
+          { "title": "Microflows", "url": "https://docs.mendix.com/refguide/microflow/" },
+          { "title": "Access Rules", "url": "https://docs.mendix.com/refguide/access-rules/" },
+          { "title": "Implementing Best Practices for App Security", "url": "https://docs.mendix.com/howto/security/best-practices-security/" }
+        ],
+        "mxscout": "public/guards.js"
+      }
+    },
+    {
+      "id": "guard-role-wider",
+      "name": "Callable by more roles than any page offers it to",
+      "registers": ["note"],
+      "levels": ["P3"],
+      "theme": "access",
+      "owasp": "LCNC-SEC-02",
+      "riskId": "mx-guard-role-wider-<microflow>",
+      "mendix": [],
+      "wrong": "A microflow’s allowed roles include a user role that no page, snippet or nanoflow offers it to: every trigger of it sits on a page, or in a container, kept to other roles. Allowed roles are what the runtime enforces, so that role still reaches the flow from the browser’s console — a surface nobody meant to open, usually a role given \"just in case\".",
+      "standard": "A microflow’s allowed roles are exactly the roles the application offers it to: the module roles of the pages and containers that carry its buttons, and nothing more. A sub-microflow only other microflows call needs no allowed roles at all.",
+      "fix": "Take the module roles those user roles carry off Allowed roles of the microflow — or offer the flow to them on a page, if they are meant to run it.",
+      "source": {
+        "mendix": [
+          { "title": "Microflows", "url": "https://docs.mendix.com/refguide/microflow/" },
+          { "title": "Module Security", "url": "https://docs.mendix.com/refguide/module-security/" }
+        ],
+        "mxscout": "public/guards.js"
+      }
+    },
+    {
+      "id": "service-op-unscoped",
+      "name": "Service operation that trusts the key in the request",
+      "registers": ["finding", "suspect"],
+      "levels": ["P1", "P2"],
+      "theme": "access",
+      "owasp": "LCNC-SEC-02",
+      "riskId": "mx-service-op-unscoped-<microflow>",
+      "mendix": [],
+      "wrong": "A published REST operation runs a microflow that does not apply entity access and fetches a persistable entity by a value the request itself carries (an id, a number, a key), while no decision in it compares that object with the user the service authenticated: whoever the service lets in reads or changes anybody’s object by guessing a key. P1 when the operation deletes, or when the entity is an account. The sibling operations of the same service that DO compare are the evidence that it was meant to be checked; where none of them does, it is to verify — the service may be open on purpose.",
+      "standard": "Every published operation that takes a key from the request compares what it fetched with the authenticated user before it is read or changed — or fetches it with an XPath that names that user, so a key that is not theirs finds nothing. The operation’s own microflow carries that check; the service’s role list says who may call it, not whose data they may reach.",
+      "fix": "In the operation’s microflow, after the object is fetched, add a decision that compares it with the authenticated user and answer with an error when it does not belong to them; or give that Retrieve an XPath that also names the user.",
+      "source": {
+        "mendix": [
+          { "title": "Published REST Services", "url": "https://docs.mendix.com/refguide/published-rest-services/" },
+          { "title": "XPath Constraints", "url": "https://docs.mendix.com/refguide/xpath-constraints/" },
+          { "title": "Implementing Best Practices for App Security", "url": "https://docs.mendix.com/howto/security/best-practices-security/" }
+        ],
+        "mxscout": "public/guards.js"
+      }
+    },
+    {
+      "id": "access-not-inherited",
+      "name": "Read in full while its parent is narrowed",
+      "registers": ["finding"],
+      "levels": ["P1", "P2"],
+      "theme": "access",
+      "owasp": "LCNC-SEC-03",
+      "riskId": "mx-access-not-inherited-<entity>",
+      "mendix": [],
+      "wrong": "A role reads every row of an entity — its rule has no XPath — while every rule it holds on the entity that one belongs to keeps the rows to its own. The row filter stops at the parent, so everything hanging off somebody else’s record is open: the copy of a comment, the mail that was sent, the attachment, the line in the audit log — the same data, one association away. P1 when the child carries a file or a member whose name says it holds a secret, P2 otherwise.",
+      "standard": "A child entity is as narrow as its parent: where the parent’s rule has an XPath, the child’s rule has one that follows the association up and repeats it, for example [Module.Child_Parent/Module.Parent/System.owner = '[%CurrentUser%]']. An XPath on a parent alone narrows nothing that hangs off it.",
+      "fix": "Give the rule on the child an XPath that follows the association to its parent and repeats the parent’s constraint there.",
+      "source": {
+        "mendix": [
+          { "title": "Access Rules", "url": "https://docs.mendix.com/refguide/access-rules/" },
+          { "title": "XPath Constraints", "url": "https://docs.mendix.com/refguide/xpath-constraints/" }
+        ],
+        "mxscout": "public/accessuse.js"
+      }
+    },
+    {
+      "id": "secret-attribute",
+      "name": "An attribute whose name says it holds a secret",
+      "registers": ["finding"],
+      "levels": ["P1", "P2"],
+      "theme": "secrets",
+      "owasp": "LCNC-SEC-08",
+      "riskId": "mx-secret-attribute-<entity>-<attribute>",
+      "mendix": [],
+      "wrong": "A persistable entity has an attribute whose name says it holds a password, a token or an API key, and a user role that does not administer the application may read it: P1 when the rule that gives the read has no XPath, so the client may fetch every row of them, P2 when an XPath narrows it. A name is only a hint about what an attribute holds; what makes the finding is who may read it. Where no flow that writes it calls anything that encrypts or hashes, the risk also says the value is stored as it was typed.",
+      "standard": "A credential kept as an attribute is readable by nobody: no access rule gives read on it to a role that is not the application’s administrator, and the value is read in a microflow on the server. What is only ever compared is stored as an HMAC; what has to be read back is encrypted, with the key in the environment’s configuration and never as a default value in the model.",
+      "fix": "Set the member from Read (or Read, Write) to None in the rules that give it, and read the value in a microflow on the server; store a hash where it is only compared, and encrypt it where it has to be read back.",
+      "source": {
+        "mendix": [
+          { "title": "Access Rules", "url": "https://docs.mendix.com/refguide/access-rules/" },
+          { "title": "Encryption", "url": "https://docs.mendix.com/appstore/modules/encryption/" },
+          { "title": "Implementing Best Practices for App Security", "url": "https://docs.mendix.com/howto/security/best-practices-security/" }
+        ],
+        "mxscout": "public/secrisks.js"
+      }
+    },
+    {
+      "id": "logic-note",
+      "name": "What the drawing says about the logic",
+      "registers": ["suspect", "note"],
+      "levels": ["P2", "P3"],
+      "theme": "logic",
+      "owasp": "LCNC-SEC-05",
+      "riskId": "mx-logic-note-<kind>",
+      "mendix": [],
+      "wrong": "Three things a flow’s drawing shows, each said once with its flows as places. A commit or a delete inside a loop: a failure half way through leaves half the work stored and half not, and nothing undoes what already did (P2, to verify — a short list, or a run nobody minds repeating, makes it harmless). A REST call with no error handler on it: when the far side is slow, down or answers with an error, the flow carries on as though it had answered, and whatever it stores afterwards is stored on nothing (P2). A scheduled event switched off: whatever it was for does not happen, and nothing in the application says so (P3).",
+      "standard": "A loop collects what it works on and commits the list once after it, or the whole run rolls back together. Every REST call has an error handler — Custom with an error event, or a path that says the call failed — and the flow decides there what it does without an answer. A scheduled event either runs or is deleted; one switched off is a promise nobody keeps.",
+      "fix": "Move the commit out of the loop and commit the list after it, or wrap the loop so a failure rolls the whole run back. Give each REST call an error handler and a path for the failure. Switch on each scheduled event the application needs, and delete the ones it does not.",
+      "source": {
+        "mendix": [
+          { "title": "Microflows", "url": "https://docs.mendix.com/refguide/microflow/" },
+          { "title": "Error Handling in Microflows", "url": "https://docs.mendix.com/refguide/error-handling-in-microflows/" },
+          { "title": "Call REST Service", "url": "https://docs.mendix.com/refguide/call-rest-action/" },
+          { "title": "Scheduled Events", "url": "https://docs.mendix.com/refguide/scheduled-events/" }
+        ],
+        "mxscout": "public/guards.js"
+      }
+    },
+    {
       "id": "secret-constant",
       "name": "Constant the browser receives that looks like a secret",
       "registers": ["finding", "suspect"],
@@ -421,6 +546,96 @@
       "standard": "A user role carries only the module roles that give it something it needs.",
       "fix": "In App Security, take the module role off those user roles, unless a newer version of the module needs it.",
       "source": { "mendix": [{ "title": "User Roles", "url": "https://docs.mendix.com/refguide/user-roles/" }], "mxscout": "public/marketplace.js" }
+    },
+    {
+      "id": "perf-retrieve-all",
+      "name": "Whole list retrieved for one object or a length",
+      "registers": [
+        "finding"
+      ],
+      "levels": [
+        "P3"
+      ],
+      "theme": "performance",
+      "owasp": "none",
+      "riskId": "mx-perf-retrieve-all-<flow>-<list>",
+      "mendix": [],
+      "wrong": "A database retrieve of all rows whose list is used only through head() or length() in an expression loads every row to keep one object or a number.",
+      "standard": "Retrieve with the range First for one object, Custom with limit 2 to check that there is exactly one, and an Aggregate list (Count) right after the retrieve for a count: the runtime then counts in the database.",
+      "fix": "Change the retrieve's range to First (or Custom with a limit) and drop head(); replace length() of the list by an Aggregate list Count activity placed right after the retrieve.",
+      "source": {
+        "mendix": [],
+        "mxscout": "public/perfrisks.js"
+      }
+    },
+    {
+      "id": "shape-flow-size",
+      "name": "Microflow too large to read",
+      "registers": [
+        "finding"
+      ],
+      "levels": [
+        "P3"
+      ],
+      "theme": "logic",
+      "owasp": "none",
+      "riskId": "mx-shape-flow-size-<flow>",
+      "mendix": [],
+      "wrong": "A microflow with more than 25 activities is hard to read on one screen and to test in parts (validation flows, VAL_, are left out).",
+      "standard": "A microflow keeps to 25 activities or fewer; a larger one is split into sub-microflows. One with more than 10 activities or more than 2 decisions starts with an annotation saying its purpose, parameters and result.",
+      "fix": "Move a coherent part of the flow into a sub-microflow (SUB_…) and call it; repeat until the main flow reads as a list of steps.",
+      "source": {
+        "mendix": [],
+        "mxscout": "public/perfrisks.js"
+      }
+    },
+    {
+      "id": "shape-error-handler",
+      "name": "Service or Java call with no error handler",
+      "registers": [
+        "finding"
+      ],
+      "levels": [
+        "P2",
+        "P3"
+      ],
+      "theme": "silent",
+      "owasp": "none",
+      "riskId": "mx-shape-error-handler-<flow>",
+      "mendix": [],
+      "wrong": "A REST, web service or XML import or export call (P2), or a Java action call (P3), whose error handling is left on the default: when it fails the whole flow ends with an error and nobody is told in a useful way.",
+      "standard": "Every call to a REST, OData or web service has a custom error handler that logs the error and ends the flow in a known way, telling the user when one waits; no call is left to fail silently. The same for a Java action that can fail.",
+      "fix": "Right-click the call, set Error handling to a custom one (with or without rollback), and draw the error flow to a log activity and an end event or a message to the user.",
+      "source": {
+        "mendix": [],
+        "mxscout": "public/perfrisks.js"
+      }
+    },
+    {
+      "id": "naming-prefix",
+      "name": "Name that breaks the prefix convention",
+      "registers": [
+        "finding"
+      ],
+      "levels": [
+        "P3"
+      ],
+      "theme": "naming",
+      "owasp": "none",
+      "riskId": "mx-naming-prefix-<module>-<kind>",
+      "mendix": [],
+      "wrong": "A microflow with a prefix Mendix's list does not have (SEED_ for a start-up seed, which is ASU_ or SUB_), or an enumeration, snippet, mapping or JSON structure without ENUM_, SNIP_, IMM_, EXM_ or JSON_. A prefix the project's own conventions give is accepted.",
+      "standard": "A document's prefix comes from how it is used (conv-microflow-prefix, conv-other-prefix) or from the project's own naming standard, which wins over Mendix's: an invented prefix is a finding, and so is a document that lacks the prefix its kind has.",
+      "fix": "Rename the document in Studio Pro (rename updates every reference), to the prefix of what it does or without a prefix when none fits.",
+      "source": {
+        "mendix": [
+          {
+            "title": "Naming Convention Best Practices",
+            "url": "https://docs.mendix.com/refguide/naming-convention-best-practices/"
+          }
+        ],
+        "mxscout": "public/perfrisks.js"
+      }
     }
   ],
   "judged": [
@@ -446,14 +661,6 @@
       "levels": ["P1"],
       "theme": "delete",
       "standard": "A microflow that deletes or changes many objects checks who may do it and what the objects belong to before it starts, and deletes only what it was meant for.",
-      "source": { "mxscout": "skills/mendix-describe/reference/risk-levels.md" }
-    },
-    {
-      "id": "judged-error-handler",
-      "name": "Service call with no error handler",
-      "levels": ["P2"],
-      "theme": "silent",
-      "standard": "Every call to a REST, OData or web service has a custom error handler that logs the error and ends the flow in a known way, telling the user when one waits; no call is left to fail silently.",
       "source": { "mxscout": "skills/mendix-describe/reference/risk-levels.md" }
     },
     {
@@ -495,30 +702,6 @@
       "theme": "dead",
       "standard": "Flows and pages nothing reaches are deleted, not kept as _New, _Old or copies; disabled activities are removed from a flow before it is committed.",
       "source": { "mxscout": "skills/mendix-describe/reference/risk-levels.md" }
-    },
-    {
-      "id": "judged-retrieve-range",
-      "name": "Whole list retrieved for one object or a count",
-      "levels": ["P3"],
-      "theme": "performance",
-      "standard": "A database retrieve whose list is used only for its first element (head(), a Head list operation) or only for count() in an expression loads every row to keep one or a number. Retrieve with Range First for one object, Custom with limit 2 to check that there is exactly one, and Aggregate list right after the retrieve for a count (one COUNT query).",
-      "source": { "craft": "Skills/budowa/mxcraft-model/reference/build-rules.md", "learned": "Craftsman CRAFT-3, CRAFT-8, CRAFT-11 (2026-10-25)" }
-    },
-    {
-      "id": "judged-flow-size",
-      "name": "Microflow too large to read",
-      "levels": ["P3"],
-      "theme": "logic",
-      "standard": "A microflow keeps to 25 activities or fewer; a larger one is split into sub-microflows (validation and data-copy flows may be longer). One with more than 10 activities or more than 2 decisions starts with an annotation saying its purpose, parameters and result.",
-      "source": { "craft": "Skills/budowa/mxcraft-model/reference/build-rules.md", "learned": "Craftsman CRAFT-3, CRAFT-8, CRAFT-11 (2026-10-25)" }
-    },
-    {
-      "id": "judged-invented-prefix",
-      "name": "Name with a prefix no standard has",
-      "levels": ["P3"],
-      "theme": "naming",
-      "standard": "A document's prefix comes from how it is used (conv-microflow-prefix, conv-other-prefix) or from the project's own naming standard, which wins over Mendix's. A prefix neither defines (for example SEED_ for a start-up data seed, which is ASU_ or SUB_) is a finding; so is a document the project standard gives a prefix (for example CONST_) that does not carry it.",
-      "source": { "craft": "Skills/budowa/mxcraft-model/reference/build-rules.md", "learned": "Craftsman CRAFT-3, CRAFT-8, CRAFT-11 (2026-10-25)" }
     }
   ],
   "conventions": [

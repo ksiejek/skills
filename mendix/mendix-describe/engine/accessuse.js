@@ -65,6 +65,12 @@
   // How a use narrows the entity, in the order a reader is told about them.
   // 'all' is the one that does not narrow.
   var HOW = ['all', 'xpath', 'association', 'context', 'microflow', 'parameter', 'mention'];
+  // What it means for the APPLICATION, not a page, to lead to a flow: the navigation, a menu item, App Settings
+  // or a published operation. A flow no button carries, that the navigation runs, is still offered to whoever may
+  // run it — and "allowed to run, not allowed to do" has to count it (MXS-173). A scheduled event is not here: it
+  // runs as nobody, so no role's own rights are measured against it.
+  var ENTRY_KIND = { menu: true, navigation: true, 'App Settings': true,
+    'published REST service': true, 'published web service': true, 'published OData service': true };
 
   function grantsRead(rule) {
     if (!rule) return false;
@@ -145,16 +151,33 @@
       });
       return r;
     }
-    // Rights on the entity or on any specialization of it: a step that works
-    // on a variable of the generalization may be handed either.
+    // Rights on the entity or on any specialization of it: a step that works on a variable of the
+    // generalization may be handed either — so a right counts only when the generalization itself gives it, or
+    // when EVERY specialization does. One that only some of them give leaves the others failing, and the rules
+    // before read it as a right on all of them (MXS-173, the review of 2026-11-01).
     function rightsAround(qn, roles) {
-      var all = [qn].concat(descendants(qn)).map(function (x) { return rightsOn(x, roles); });
-      var r = { any: false, read: false, create: rightsOn(qn, roles).create, del: false, write: {} };
-      all.forEach(function (x) {
-        r.any = r.any || x.any; r.read = r.read || x.read; r.del = r.del || x.del;
-        Object.keys(x.write).forEach(function (a) { r.write[a] = true; });
-      });
+      var own = rightsOn(qn, roles), kids = descendants(qn).map(function (x) { return rightsOn(x, roles); });
+      var every = function (pick) { return kids.length > 0 && kids.every(pick); };
+      var r = { any: own.any || kids.some(function (x) { return x.any; }), create: own.create,
+        read: own.read || every(function (x) { return x.read; }),
+        del: own.del || every(function (x) { return x.del; }), write: {} };
+      Object.keys(own.write).forEach(function (a) { r.write[a] = true; });
+      if (kids.length) {
+        Object.keys(kids[0].write).forEach(function (a) { if (kids.every(function (x) { return x.write[a]; })) r.write[a] = true; });
+      }
       return r;
+    }
+    // Whether an entity is, or specializes, another one.
+    function isUnder(qn, want) { return qn === want || ancestors(qn).indexOf(want) !== -1; }
+    // A child entity holds data worth more than its parent's key: a file, a picture, or a member whose name says
+    // it is a secret. What makes the finding is the missing XPath; this only says how heavily it weighs.
+    var SENSITIVE = /password|passwd|passphrase|secret|token|apikey|api_?key|private_?key|credential|content|contents|attachment/i;
+    function sensitiveOf(qn) {
+      var e = entityByName[qn];
+      if (!e) return null;
+      if (isUnder(qn, 'System.FileDocument') || isUnder(qn, 'System.Image')) return 'every row is a file';
+      var hit = (e.attributes || []).filter(function (a) { return a && (SENSITIVE.test(a.name) || a.type === 'Binary'); }).map(function (a) { return a.name; });
+      return hit.length ? 'it carries ' + hit.slice(0, 4).join(', ') : null;
     }
 
     var flowByName = {};
@@ -202,7 +225,7 @@
     }
 
     var visible = options.visible || null; // a Set of entity names to report on
-    var wider = [], unused = [], setAside = [], unwritten = [], cannotDo = {}, pastAccess = {}, writersBy = {}, deletersBy = {};
+    var wider = [], unused = [], setAside = [], unwritten = [], cannotDo = {}, pastAccess = {}, writersBy = {}, deletersBy = {}, notInherited = [];
     var pastCache = {}; // writesPast, per flow
 
     subjects.forEach(function (subject) {
@@ -277,18 +300,27 @@
       });
 
       // ---- allowed to run, not allowed to do ----
-      reach.rightsFlows.forEach(function (rf) {
+      // Only a flow the role can actually set off: a page, snippet or data source it reaches offers it, a
+      // published operation exposes it, or a flow that is itself reachable calls it. A role listed in a flow's
+      // allowed roles with nothing anywhere that runs it fails at nothing — eight of the sixteen risks of this
+      // kind in the reviewed application were exactly that (MXS-173). Past entity access keeps the console.
+      reach.rightsFlows.filter(function (rf) { return legacy || reach.uiReachable[rf.flow.qualifiedName]; }).forEach(function (rf) {
         var f = rf.flow, act = f.activity;
         if (!act) return;
         var missing = [];
         (act.retrieves || []).forEach(function (x) {
+          // An entity this model does not carry (System.Session, a module read without its rules) says nothing
+          // about a missing right: the rules before counted it as one.
+          if (!entityByName[x.entity] && !legacy) return;
           if (!rightsAround(x.entity, roles).read) push(missing, { what: 'read', entity: x.entity });
         });
+        // A non-persistable entity needs no create or delete right: nothing is stored, and only the rights to its
+        // members are checked. Four of the risks of this kind were a password form and a search result (MXS-173).
         createsOf(f).forEach(function (e) {
-          if (entityByName[e] && !rightsOn(e, roles).create) push(missing, { what: 'create', entity: e });
+          if (entityByName[e] && (legacy || entityByName[e].persistable !== false) && !rightsOn(e, roles).create) push(missing, { what: 'create', entity: e });
         });
         (act.deletes || []).forEach(function (e) {
-          if (entityByName[e] && !rightsAround(e, roles).del) push(missing, { what: 'delete', entity: e });
+          if (entityByName[e] && (legacy || entityByName[e].persistable !== false) && !rightsAround(e, roles).del) push(missing, { what: 'delete', entity: e });
         });
         Object.keys(act.writes || {}).forEach(function (e) {
           if (!entityByName[e]) return;
@@ -316,6 +348,33 @@
         });
         if (beyond.length) collect(pastAccess, pf.flow, 'microflow', subject.name, beyond);
       });
+
+      // ---- the row filter the child did not inherit ----
+      // A parent kept to its owner by an XPath, and a child of it — the copy of a comment, the mail that was
+      // sent, the attachment, the line in the audit log — read by the same role with no XPath at all. The row
+      // filter stops at the parent, and everything hanging off it is open: the same data, one association away.
+      // The rules before counted this among the hundreds of "reads every row" notes, where nobody saw it (MXS-173).
+      entities.forEach(function (child) {
+        var qn = child.qualifiedName;
+        if ((visible && !visible.has(qn)) || child.persistable === false) return;
+        var mine = (child.accessRules || []).filter(function (r) { return r && roles[r.moduleRole] && grantsRead(r); });
+        if (!mine.length || mine.some(function (r) { return r.xpathConstraint; })) return;
+        (model.associations || []).forEach(function (a) {
+          if (!a || a.type !== 'Reference' || !isUnder(qn, a.owner)) return;
+          var parent = entityByName[a.other];
+          if (!parent || parent.persistable === false || a.other === qn) return;
+          // The parent has to be kept to the SIGNED-IN USER: any other XPath (a status, a flag) narrows rows in a
+          // way the child need not repeat, and taking every XPath for this makes a note of half the model.
+          var keeps = typeof window !== 'undefined' && window.MxAccounts && window.MxAccounts.restrictsToUser;
+          var up = (parent.accessRules || []).filter(function (r) { return r && roles[r.moduleRole] && grantsRead(r); });
+          if (!up.length || !keeps || !up.every(function (r) { return r.xpathConstraint && keeps(r.xpathConstraint); })) return;
+          notInherited.push({ entity: qn, name: child.name, module: child.module, userRole: subject.name,
+            parent: a.other, association: a.name.indexOf('.') === -1 && a.module ? a.module + '.' + a.name : a.name,
+            moduleRoles: unique(mine.map(function (r) { return r.moduleRole; })),
+            parentXPaths: unique(up.map(function (r) { return String(r.xpathConstraint).replace(/\s+/g, ' ').trim(); })),
+            sensitive: sensitiveOf(qn) });
+        });
+      });
     });
 
     function push(list, item) {
@@ -342,6 +401,8 @@
 
     return { wider: wider, unused: unused, setAside: setAside, judged: subjects.length - setAside.length,
       unwritten: unwritten, cannotDo: flatten(cannotDo), pastAccess: flatten(pastAccess),
+      // Per user role: a child entity read with no XPath whose parent is kept to the role's own rows.
+      notInherited: notInherited,
       // Per user role: entity -> attribute -> [{ via, name }], every page and
       // flow with the role's rights that writes it. Not filtered by `visible`.
       writers: writersBy,
@@ -384,7 +445,7 @@
         return (item.allowedModuleRoles || []).some(function (mr) { return roles[mr]; });
       }
 
-      var flowQueue = [], flowSeen = {};
+      var flowQueue = [], flowSeen = {}, uiSeeds = [];
       // A flow a page or snippet names runs for this role only when the role may call it — a microflow or
       // nanoflow lists its allowed roles, and the runtime refuses everyone else — and when the role sees
       // something that runs it: a widget shown only to other module roles runs nothing for this one. Flows
@@ -412,7 +473,7 @@
         Object.keys(seen).forEach(function (f) { if (!open[f]) out[f] = true; });
         return out;
       }
-      function queueFromPage(name, hidden) { if (!hidden[name] && mayRun(name)) queueFlow(name); }
+      function queueFromPage(name, hidden) { if (!hidden[name] && mayRun(name)) { uiSeeds.push(name); queueFlow(name); } }
       function queueFlow(name) {
         if (!name || flowSeen[name]) return;
         flowSeen[name] = true;
@@ -431,6 +492,7 @@
             use(s.entity, 'context', at);
           } else if (s.kind === 'microflow' || s.kind === 'nanoflow') {
             if (!mayRun(s.flow)) return;
+            uiSeeds.push(s.flow);
             queueFlow(s.flow);
             // What a data source flow returns reaches the client whatever
             // the flow did to find it.
@@ -476,7 +538,18 @@
       Object.keys(roles).forEach(function (mr) {
         (restFlowsFor[mr] || []).forEach(function (name) {
           callable[name] = true;
+          uiSeeds.push(name);
           queueFlow(name);
+        });
+      });
+      // And what the application itself leads to, however it is reached (ENTRY_KIND): the role may run it, and
+      // something outside a page sets it off.
+      ['microflows', 'nanoflows'].forEach(function (key) {
+        (model[key] || []).forEach(function (f) {
+          if (!f || !f.qualifiedName || !(f.calledBy || []).some(function (c) { return c && ENTRY_KIND[c.kind]; })) return;
+          if (!mayRun(f.qualifiedName)) return;
+          uiSeeds.push(f.qualifiedName);
+          queueFlow(f.qualifiedName);
         });
       });
 
@@ -517,7 +590,22 @@
         if (kind === 'microflow' && !withRights && isCallable) pastFlows.push({ flow: f, writes: writesPast(f) });
       }
 
-      return { uses: uses, writes: writes, writers: writers, creates: creates, deletes: deletes, deleters: deleters, rightsFlows: rightsFlows, pastFlows: pastFlows };
+      // The flows something in the application actually sets off for this role: a page, a snippet or a data
+      // source it reaches, or a published operation — and whatever those call, however deep. A role merely named
+      // in a flow's allowed roles is not among them (see "allowed to run, not allowed to do").
+      var uiReachable = {};
+      if (legacy) Object.keys(flowSeen).forEach(function (n) { uiReachable[n] = true; });
+      else {
+        var q2 = uiSeeds.slice();
+        while (q2.length) {
+          var nm = q2.shift();
+          if (!nm || uiReachable[nm]) continue;
+          uiReachable[nm] = true;
+          (flowByName[nm] || []).forEach(function (e) { (((e.flow || {}).activity || {}).calls || []).forEach(function (c) { q2.push(c); }); });
+        }
+      }
+
+      return { uses: uses, writes: writes, writers: writers, creates: creates, deletes: deletes, deleters: deleters, rightsFlows: rightsFlows, pastFlows: pastFlows, uiReachable: uiReachable };
     }
 
     // What a microflow without entity access writes, through the calls that

@@ -735,13 +735,22 @@
       var x = typeof node.XPathConstraint === 'string' ? node.XPathConstraint.trim() : '';
       return x || null;
     }
-    function walk(node, widget, depth, here) {
+    // An input inside a data view, list view or table that is itself never editable writes nothing: the runtime
+    // shows it read-only whatever the input says. The reader counted such a widget as a place that writes the
+    // attribute, which made a write right look used and a page look as though it set a state it only displays
+    // (MXS-173, the review of 2026-11-01 — four risks).
+    function neverEditable(node) {
+      var mode = node.Editable !== undefined ? node.Editable : node.Editability;
+      return mode === 'Never';
+    }
+    function walk(node, widget, depth, here, frozen) {
       if (!node || typeof node !== 'object' || depth > 400) return;
       if (Array.isArray(node)) {
-        for (var i = 0; i < node.length; i++) walk(node[i], widget, depth + 1, here);
+        for (var i = 0; i < node.length; i++) walk(node[i], widget, depth + 1, here, frozen);
         return;
       }
       var type = node['$Type'];
+      if (!frozen && node.DataSource && typeof node.DataSource === 'object' && neverEditable(node)) frozen = true;
       // The nearest named widget, so a finding can say WHICH list it means.
       if (node !== raw && typeof node.Name === 'string' && node.Name) widget = node.Name;
       // The object a widget's children work on: the entity of its own data
@@ -752,7 +761,7 @@
         if (typeof node.Name === 'string' && node.Name) widgetEntity[node.Name] = own.entity;
       }
       if (typeof type === 'string') {
-        if (PAGE_INPUT[type] && node.Editable !== 'Never' && node.AttributeRef && typeof node.AttributeRef.Attribute === 'string') {
+        if (PAGE_INPUT[type] && !frozen && node.Editable !== 'Never' && node.AttributeRef && typeof node.AttributeRef.Attribute === 'string') {
           add(out.edits, node.AttributeRef.Attribute);
         } else if (type === 'Forms$CreateObjectClientAction') {
           var made = pageEntityRef(node.EntityRef);
@@ -803,11 +812,11 @@
           else if (key === 'Attribute') mention(value.split('.').slice(0, 2).join('.'));
           else if (key === 'XPathConstraint') mentionText(value);
         } else if (value && typeof value === 'object') {
-          walk(value, widget, depth + 1, here);
+          walk(value, widget, depth + 1, here, frozen);
         }
       }
     }
-    walk(raw, null, 0, null);
+    walk(raw, null, 0, null, false);
     // A Delete button names the object it deletes by the page parameter, the
     // widget, or nothing at all (the object of the widget it sits in).
     pendingDeletes.forEach(function (d) {
@@ -992,6 +1001,8 @@
       var ct = w.Type && typeof w.Type === 'object' ? w.Type : {};
       n.type = str(ct, 'WidgetName') || String(ct.WidgetId || 'Pluggable widget').split('.').pop();
       var id = String(ct.WidgetId || '');
+      // Its id, which the widget's package in widgets/ names too (widgets.js, MXS-127).
+      if (id) n.widgetId = id;
       // A custom widget that is not a pluggable one is a legacy Dojo widget,
       // which the React client cannot run (upgrade.js). The flag is true on
       // every one of 3692 widgets measured, so only an explicit false counts.
@@ -1313,7 +1324,7 @@
   function readConstant(raw, moduleName) {
     var type = dataTypeText(raw.Type) || 'String';
     var value = typeof raw.DefaultValue === 'string' ? raw.DefaultValue : '';
-    var verdict = constantVerdict(type, value);
+    var verdict = constantVerdict(type, value, raw.Name);
     var c = {
       module: moduleName, name: raw.Name, qualifiedName: moduleName + '.' + raw.Name, type: type,
       exposedToClient: raw.ExposedToClient === true, hasDefault: value.trim() !== '',
@@ -1344,12 +1355,20 @@
     for (var i = 0; i < SECRET_SHAPES.length; i++) if (SECRET_SHAPES[i][0].test(v)) return SECRET_SHAPES[i][1];
     return null;
   }
-  function constantVerdict(type, value) {
+  // `name` is the constant's own name, when the caller has it: when the NAME says the value is a secret, the
+  // value only has to be long and unbroken to be judged one — a passphrase of 22 letters with no digit in it was
+  // called plain and its risk sank to a note (MXS-173, the review of 2026-11-01).
+  function constantVerdict(type, value, name) {
     var v = String(value || '').trim();
     if (!v) return { verdict: 'empty' };
     if (type !== 'String') return { verdict: 'plain' };
     var shape = secretShape(v);
     if (shape) return { verdict: 'looks-secret', why: 'looks like ' + shape };
+    var named = name && typeof window !== 'undefined' && window.MxConstants && window.MxConstants.secretName
+      ? window.MxConstants.secretName(name) : name ? /password|passwd|passphrase|secret|token|apikey|api_?key|private_?key|credential|access_?key/i.test(String(name)) : false;
+    if (named && v.length >= 16 && !/\s/.test(v) && !/^[a-z][a-z0-9+.-]*:\/\//i.test(v) && !/^[\/\\.~]/.test(v) && !/@/.test(v)) {
+      return { verdict: 'looks-secret', why: 'is long and unbroken, in a constant whose name says it is a secret' };
+    }
     // An identifier, not a secret: a GUID (a client id, a tenant id), or a
     // JSON document, which only counts through the shape above.
     if (/^\{?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}?$/i.test(v) || /^[\[{]/.test(v)) return { verdict: 'plain' };
@@ -2901,5 +2920,6 @@
   }
 
   root.MxMpr = { blobToGuid: blobToGuid, payload: payload, idHex: idHex, buildModel: buildModel, collectReferences: collectReferences,
-    applyAssociationDefaults: applyAssociationDefaults, activityKicker: activityKicker, constantVerdict: constantVerdict, readConstant: readConstant };
+    applyAssociationDefaults: applyAssociationDefaults, activityKicker: activityKicker, constantVerdict: constantVerdict, readConstant: readConstant,
+    readPageData: readPageData };
 })(typeof self !== 'undefined' ? self : this);

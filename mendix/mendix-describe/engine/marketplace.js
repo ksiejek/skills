@@ -248,7 +248,13 @@
     var sec = model.security || {};
     var admins = {};
     if (sec.adminUserRole) admins[sec.adminUserRole] = true;
-    (model.userRoles || []).forEach(function (u) { if (u && u.manageAllRoles) admins[u.name] = true; });
+    // The same rule secrisks.js uses (adminsOf): App Security's administrator, a role that may assign every
+    // role, and a role that may give users its OWN role — it administers them. The two files counted
+    // administrators differently, so three risks said of an administrator that it is not one (MXS-173).
+    (model.userRoles || []).forEach(function (u) {
+      if (!u || !u.name) return;
+      if (u.manageAllRoles || (u.manageableRoles || []).indexOf(u.name) !== -1) admins[u.name] = true;
+    });
     out.appAdmins = Object.keys(admins).sort();
 
     // What is in each module, by kind, so a name can say what it is.
@@ -369,7 +375,12 @@
       roles.forEach(function (r) {
         // A name that says Admin or Manager is a hint: the role is shown to administer only by the catalogue, or by
         // what it may do in the module — a create, delete or write right, a flow or a page of its own.
-        var does = r.access.entities.some(function (a) { return a.create || a.delete || a.write; }) || r.access.flows.length || r.access.pages.length;
+        // For a role only its NAME marks as administrative — one the team added to a Marketplace module, which
+        // the catalogue does not know — the name alone is no proof: it has to hold real power. A create, delete or
+        // write right behind an XPath to the signed-in user is a person's own data, not administration, and the
+        // rules before counted it (MXS-173, the review of 2026-11-01); a flow or a page of the module it may run
+        // still counts, since that is what a module's administration screens are.
+        var does = r.access.entities.some(function (a) { return (a.create || a.delete || a.write) && !a.xpath; }) || r.access.flows.length || r.access.pages.length;
         var sure = r.why !== 'name' || does;
         if (r.admin) r.userRoles.forEach(function (u) {
           if (admins[u]) return;

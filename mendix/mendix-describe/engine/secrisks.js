@@ -59,6 +59,10 @@
     'access-wider': 'Reads every row, sees fewer', 'access-unused': 'Granted, never used', 'access-unwritten': 'May write, nothing writes',
     'access-fails': 'May run it, may not do what it does', 'access-finds-nothing': 'May run it, finds nothing',
     'access-past': 'Does for a role what its rules do not allow',
+    'guard-escalation': 'Writes past the role’s own access rules', 'guard-role-wider': 'Callable by more roles than any page offers it to',
+    'service-op-unscoped': 'Service operation that trusts the key in the request',
+    'access-not-inherited': 'Read in full while its parent is narrowed', 'secret-attribute': 'An attribute whose name says it holds a secret',
+    'logic-note': 'What the drawing says about the logic',
     'secret-constant': 'Constant the browser receives that looks like a secret', 'constant-note': 'Constants',
     'advisory': 'Known security advisory',
     'market-admin': 'Administrative role of a Marketplace module on a user role', 'market-unused': 'Marketplace module the app does not use',
@@ -91,7 +95,18 @@
   // a risk the model cannot judge this time (unchecked) keeps what was decided. 4 (2026-10-20): inside a
   // Marketplace module, what nothing in the application leads to, or only its administrators reach, is set aside
   // (asideOf); every risk carries a test case (test) and its fix as steps (repair).
-  var RULES = 4;
+  // 5 (2026-11-01, MXS-173, from the review of 148 risks on a real application where 54 % were false positives):
+  // a microflow is weighed against the ROLE'S OWN RULES, not against the page — a step every calling role may take
+  // anyway is no risk, and one it may not take at all, or one past the XPath that keeps it to its own rows, is a
+  // risk of its own (guard-escalation), whether or not any page hides anything; Apply entity access off is still
+  // never a risk by itself. A page's trigger is followed through a nanoflow to the microflow behind it. Adding
+  // only the CALLER to an object the role already reads is worth knowing, not a finding. Nothing is said about a
+  // role that administers the application, about a non-persistable entity's create and delete rights, or about a
+  // decision that cannot come out both ways. "Does for a role what its rules do not allow" is no longer a risk:
+  // what mattered in it is guard-escalation. New: a child entity read in full while its parent is kept to its
+  // owner, an attribute whose name says it holds a secret, a service operation that fetches by the request's own
+  // key with nothing comparing it to the authenticated user, and what the drawing says about the logic.
+  var RULES = 5;
 
   // ---------- what a password judgement says (security.js draws it) ----------
   // MxScout reads a password once, in the Worker, and keeps only the judgement (mpr.js judgePassword).
@@ -135,7 +150,9 @@
     (model.userRoles || []).forEach(function (r) {
       if (!(r.moduleRoles || []).length) add('role-no-module-role', r.name, 'finding', 'P2', 'User role "' + r.name + '" carries no module role — somebody given it can sign in and reach nothing.',
         'Give the user role the module roles it is for, or remove it.');
-      if (r.manageAllRoles) add('role-manages-all', r.name, 'note', 'P3', '"' + r.name + '" can assign every other role, including roles above its own.',
+      // Not for the role App Security names as the administrator: assigning every role is what that role is
+      // (MXS-173, the review of 2026-11-01).
+      if (r.manageAllRoles && !(s && s.adminUserRole === r.name)) add('role-manages-all', r.name, 'note', 'P3', '"' + r.name + '" can assign every other role, including roles above its own.',
         'Nothing, if it is the administrator; otherwise list the roles it may manage instead of all.');
     });
     (model.publishedServices || []).forEach(function (svc) {
@@ -335,6 +352,62 @@
         inModule(modOf(src.flow));
         break;
       }
+      case 'guard-escalation': {
+        var ef = src.flow, who5 = list((src.roles || []).map(function (x) { return '"' + x + '"'; }));
+        if (src.why === 'past-xpath') {
+          say({ do: 'add-decision', in: ef + ' (microflow editor)', flow: ef, entity: src.entity,
+            text: 'In ' + ef + ', before the step, add a decision that compares ' + shortQn(src.entity) + ' with the signed-in user — the same comparison the role’s own access rule makes (' + (src.xpaths || []).slice(0, 1).join('') + ') — and end the flow when it does not hold.' });
+          say({ do: 'add-xpath', in: ef + ' › the Retrieve of ' + src.entity, flow: ef, entity: src.entity, xpath: (src.xpaths || [])[0] || null,
+            text: 'Or fetch the object with that XPath instead of taking it from the caller.' });
+        } else {
+          r.decide = 'Whether ' + who5 + ' should be able to ' + (src.step === 'delete' ? 'delete ' : src.step === 'create' ? 'create ' : 'change ') + shortQn(src.entity) + ' at all.';
+          say({ do: 'give', in: modOf(src.entity) + ' › Domain model › ' + shortQn(src.entity) + ' › Access rules', entity: src.entity,
+            rights: [src.step === 'delete' ? 'delete' : src.step === 'create' ? 'create' : 'write'], members: src.members || [],
+            text: 'If they should: give the module roles of ' + who5 + ' that right on ' + src.entity + ', and set Apply entity access to Yes on ' + ef + ' so the rule holds.' });
+          say({ do: 'add-decision', in: ef + ' (microflow editor)', flow: ef,
+            text: 'If they should not: add a decision at the start of ' + ef + ' that lets only the roles that may through, and end the flow for the rest.' });
+        }
+        say({ do: 'set', in: ef + ' › Properties', flow: ef, setting: 'Apply entity access', value: 'Yes', text: 'Apply entity access on ' + ef + ' is No, which is why the step runs with no rights at all; switching it on makes the role’s own rules hold — check the flow still does what it should.' });
+        inModule(modOf(ef));
+        break;
+      }
+      case 'guard-role-wider':
+        say({ do: 'remove', in: src.flow + ' › Properties › Security › Allowed roles', flow: src.flow,
+          text: 'Take ' + list((src.roles || []).map(function (x) { return '"' + x + '"'; })) + ' off Allowed roles of ' + src.flow + ' — the module roles they carry, not the user roles.' });
+        say({ do: 'decide', text: 'Or offer the flow to them on a page, if they are meant to run it.' });
+        inModule(modOf(src.flow));
+        break;
+      case 'service-op-unscoped':
+        say({ do: 'add-decision', in: src.flow + ' (microflow editor)', flow: src.flow, entity: src.entity,
+          text: 'In ' + src.flow + ', after the object is fetched, add a decision that compares it with the user the service authenticated, and answer with an error when it does not belong to them.' });
+        say({ do: 'add-xpath', in: src.flow + ' › the Retrieve of ' + src.entity, flow: src.flow, entity: src.entity,
+          text: 'Or give that Retrieve an XPath that also names the authenticated user, so a key that is not theirs finds nothing.' });
+        inModule(modOf(src.flow));
+        break;
+      case 'access-not-inherited': {
+        var ce = (where && where[0]) || src.entity, pe = (where && where[1]) || src.parents && src.parents[0];
+        r.decide = 'Which rows of ' + shortQn(str(ce)) + ' each role may see — the answer is its parent’s XPath, followed over the association.';
+        splitRoles(src.moduleRole || '').concat(rulesOn(ix, str(ce), null).map(function (x) { return x.moduleRole; })).filter(Boolean).forEach(function (mr) {
+          say({ do: 'add-xpath', in: ruleAt(str(ce), mr) + ' › XPath constraint', entity: str(ce), moduleRole: mr,
+            text: 'Give the rule for ' + mr + ' on ' + ce + ' an XPath that follows the association to ' + pe + ' and repeats its constraint there.' });
+        });
+        if (!r.steps.length) say({ do: 'add-xpath', entity: str(ce), text: fix });
+        inModule(modOf(str(ce)));
+        break;
+      }
+      case 'secret-attribute': {
+        var se = (where && where[0]) || '';
+        rulesOn(ix, se, null).forEach(function (rule) {
+          say({ do: 'take-off', in: ruleAt(se, rule.moduleRole), entity: se, moduleRole: rule.moduleRole, rights: ['read'],
+            text: 'In the rule for ' + rule.moduleRole + ' on ' + se + ': set the secret member from Read (or Read, Write) to None, and read it in a microflow on the server.' });
+        });
+        say({ do: 'decide', text: 'Decide what the value is for: compared only — store an HMAC and compare that; read back — encrypt it, with the key in the deployment’s configuration and never as a default in the model.' });
+        inModule(modOf(se));
+        break;
+      }
+      case 'logic-note':
+        say({ do: 'decide', text: fix });
+        break;
       case 'guard-same-entity':
         r.decide = 'How the two objects belong together — the same owner, or one linked to the other.';
         say({ do: 'add-decision', in: src.flow + ' (microflow editor)', flow: src.flow, text: 'In ' + src.flow + ', right after the start, add a decision that checks the two objects of ' + (src.entity || 'the entity') + ' belong together; on false, end the flow.' });
@@ -467,8 +540,10 @@
   // Why a risk is set aside, or null. qn: what the risk is about (a flow or an entity).
   function asideOf(ix, admins, entered, check, qn, src) {
     if (check === 'market-admin') {
-      if (src.module === 'Administration') return null;
+      // The administrator first: the Administration module is never set aside because its account pages are where
+      // personal data is — not so that an administrator holding an administrative role would be reported (MXS-173).
       if (admins[src.userRole]) return '"' + src.userRole + '" ' + admins[src.userRole] + ' — an administrator holding the module’s administrative role is what it is for';
+      if (src.module === 'Administration') return null;
       var opens = (ix.pagesOf[src.moduleRole] || []).concat(ix.flowsOf[src.moduleRole] || []).filter(function (q) { return entered[q]; });
       return opens.length ? null : 'nothing in the application opens what ' + src.moduleRole + ' grants — no page, menu or flow outside ' + src.module + ' leads to its pages or flows';
     }
@@ -484,7 +559,60 @@
     return 'only ' + list(quoted(users)) + ' may reach it in ' + mod + ', and ' + (users.length === 1 ? 'that role is' : 'each of them is') + ' an administrator of the application';
   }
   // The checks whose risk is about one flow (its first place) or one entity, in a module of its own.
-  var ASIDE = { 'guard-page-hides': true, 'guard-bypass-xpath': true, 'guard-same-entity': true, 'access-fails': true, 'scope-write': true, 'scope-delete': true, 'market-admin': true };
+  var ASIDE = { 'guard-page-hides': true, 'guard-bypass-xpath': true, 'guard-same-entity': true, 'guard-escalation': true, 'guard-role-wider': true,
+    'service-op-unscoped': true, 'access-fails': true, 'scope-write': true, 'scope-delete': true, 'market-admin': true };
+
+  // ---------- an attribute whose name says it holds a secret (rules 5, MXS-173) ----------
+  // A password, a token or an API key kept as an ATTRIBUTE, not as a constant: the name is the only hint the model
+  // gives about what is in it, and what decides is who may READ it. A role that administers the application is
+  // left out — holding the application's own credentials is what it is for. Whether the value is stored as it was
+  // typed is read from the flows that write it: one that calls nothing which encrypts or hashes stores it plainly.
+  // The review of 2026-11-01 found three such places, every one hidden inside the hundreds of P3 access notes.
+  var ENCRYPTS = /encrypt|decrypt|hmac|hash|bcrypt|scrypt|pbkdf|cipher|crypto/i;
+  function secretAttributes(model, admins) {
+    var W = typeof window !== 'undefined' ? window : {};
+    var says = W.MxConstants && W.MxConstants.secretName ? W.MxConstants.secretName
+      : function (n) { return /password|passwd|passphrase|secret|token|apikey|api_?key|private_?key|credential|access_?key/i.test(str(n)); };
+    var flows = (model.microflows || []).concat(model.nanoflows || []), out = [];
+    // Does nothing that writes this member encrypt or hash it on the way?
+    function plainly(entityQn, attr) {
+      var writers = flows.filter(function (f) {
+        var w = (f && f.activity && f.activity.writes) || {};
+        return (w[entityQn] || []).indexOf(attr) !== -1;
+      });
+      if (!writers.length) return false; // nothing in this model writes it: it does not say
+      return !writers.some(function (f) {
+        if ((((f.activity || {}).calls) || []).some(function (c) { return ENCRYPTS.test(str(c)); })) return true;
+        return (((f.graph || {}).nodes) || []).some(function (n) {
+          return n && !n.disabled && n.props && ENCRYPTS.test(str(n.props.target));
+        });
+      });
+    }
+    (model.entities || []).forEach(function (e) {
+      if (!e || !e.qualifiedName || e.persistable === false || /^System\./.test(e.qualifiedName)) return;
+      (e.attributes || []).forEach(function (a) {
+        if (!a || !a.name || !says(a.name)) return;
+        var readers = [], open = [], writers = [];
+        (model.userRoles || []).forEach(function (u) {
+          if (!u || !u.name || admins[u.name] || !(u.moduleRoles || []).length) return;
+          var mine = {};
+          u.moduleRoles.forEach(function (m) { mine[m] = true; });
+          (e.accessRules || []).forEach(function (rule) {
+            if (!rule || !mine[rule.moduleRole]) return;
+            var letter = (rule.attrAccess || {})[a.name] || rule.defaultAccess;
+            if (letter !== 'r' && letter !== 'rw') return;
+            if (readers.indexOf(u.name) === -1) readers.push(u.name);
+            if (!rule.xpathConstraint && open.indexOf(u.name) === -1) open.push(u.name);
+            if (letter === 'rw' && writers.indexOf(u.name) === -1) writers.push(u.name);
+          });
+        });
+        if (!readers.length) return;
+        out.push({ entity: e.qualifiedName, attribute: a.name, type: a.type || 'String',
+          readers: readers.sort(), open: open.sort(), writers: writers.sort(), plain: plainly(e.qualifiedName, a.name) });
+      });
+    });
+    return out;
+  }
 
   // ---------- the test case: how a person shows the risk is real ----------
   // → { who, given, steps[], real, safe } — plain sentences. Who signs in as which role, what has to be there first,
@@ -603,7 +731,9 @@
       var aside = ASIDE[check] ? asideOf(ix, admins, entered, check, str((where || [])[0]), src || {}) : null;
       if (aside) { setAside.push({ id: id, check: check, title: cut(title, 300), why: aside }); return; }
       var suspect = register === 'suspect', note = !suspect && register !== 'finding';
-      var r = { id: id, check: check, register: suspect ? 'suspect' : note ? 'note' : 'finding', level: note ? 'P3' : suspect ? 'P2' : (/^P[12]$/.test(level) ? level : 'P1'), theme: THEMES[theme] ? theme : 'access',
+      // A finding is P1 or P2, and — since rules 5 — P3 where what it describes is real but gains nobody anything
+      // (adding only the caller to an object the role already reads).
+      var r = { id: id, check: check, register: suspect ? 'suspect' : note ? 'note' : 'finding', level: note ? 'P3' : suspect ? (level === 'P3' ? 'P3' : 'P2') : (/^P[123]$/.test(level) ? level : 'P1'), theme: THEMES[theme] ? theme : 'access',
         title: cut((note ? 'Worth knowing: ' : suspect ? 'To verify: ' : '') + title, 300), detail: detail ? cut(detail, 3000) : null, fix: fix ? cut(fix, 1000) : null,
         where: uniq((where || []).map(function (w) { return cut(w, 300); })).slice(0, 40) };
       if (key) r.key = key;
@@ -642,7 +772,7 @@
     if (W.MxAnonRole) W.MxAnonRole.check(model).results.forEach(function (r) {
       if (r.register === 'unchecked') { notChecked.push({ check: 'anon', text: r.code + ' · ' + r.text, where: [] }); return; }
       var subject = [r.code, r.entity, r.userRole, r.moduleRole].filter(Boolean).join(' ');
-      add('anon', subject, r.register, 'P1', 'access', r.code + ' · ' + r.title + (r.entity ? ': ' + r.entity : r.moduleRole ? ': ' + r.moduleRole : ''), r.text, r.fix, [r.entity, r.moduleRole], null, r);
+      add('anon', subject, r.register, r.priority || 'P1', 'access', r.code + ' · ' + r.title + (r.entity ? ': ' + r.entity : r.moduleRole ? ': ' + r.moduleRole : ''), r.text, r.fix, [r.entity, r.moduleRole], null, r);
     });
 
     // A way to register without signing in: one risk per way in and what it hands out.
@@ -672,7 +802,10 @@
     // What a page hides and the microflow behind it does not check: one risk per flow (one cause, its pages as places).
     if (W.MxGuards) {
       var g = W.MxGuards.of(model), byFlow = {}, order = [];
-      g.findings.forEach(function (f) {
+      // Only the two kinds this grouping is about: since rules 5 guards.js also returns escalation-write and
+      // service-unscoped, which are risks of their own below — grouped here they would all come out as
+      // "retrieves past the role's XPath", which is not what any of them says (MXS-173).
+      g.findings.filter(function (f) { return f.kind === 'page-hides' || f.kind === 'bypass-xpath'; }).forEach(function (f) {
         var k = f.kind + ' ' + f.flow;
         if (!byFlow[k]) { byFlow[k] = { kind: f.kind, flow: f.flow, list: [] }; order.push(k); }
         byFlow[k].list.push(f);
@@ -697,8 +830,50 @@
             [b.flow].concat(b.list.map(function (f) { return f.entity; })), null, b);
         }
       });
-      g.notes.forEach(function (n) { add('guard-same-entity', n.flow, 'note', 'P3', 'access', n.flow + ' takes two objects of ' + (n.entity || 'one entity') + ' from the client', n.text,
-        'Check in ' + n.flow + ' that the two objects belong together — the same owner, or one linked to the other — before it changes either.', [n.flow, n.entity], null, n); });
+      // Callable by more roles than any page offers it to: ONE note with the flows as places. On a real
+      // application these run to dozens — a role given "just in case" — and a Risks page of dozens reads as noise.
+      var wider = g.notes.filter(function (n) { return n.kind === 'role-wider'; });
+      if (wider.length) {
+        var widerRoles = uniq([].concat.apply([], wider.map(function (n) { return n.roles; }))).sort();
+        add('guard-role-wider', 'model', 'note', 'P3', 'access', wider.length + ' microflows a role may call that no page offers it',
+          'Every trigger of each sits on a page, or in a container, kept to other roles, while ' + list(quoted(widerRoles)) +
+          ' may still call it: allowed roles are what the runtime enforces, so the browser’s console reaches it. Usually a role given “just in case”. ' +
+          wider.slice(0, 60).map(function (n) { return n.flow; }).join(', ') + (wider.length > 60 ? ' and ' + (wider.length - 60) + ' more.' : '.'),
+          'Take the module roles those user roles carry off Allowed roles of each flow, or offer the flow to them on a page; a sub-microflow only other microflows call needs no allowed roles at all.',
+          wider.map(function (n) { return n.flow; }));
+      }
+      g.notes.filter(function (n) { return n.kind === 'same-entity'; }).forEach(function (n) {
+        add('guard-same-entity', n.flow, 'note', 'P3', 'access', n.flow + ' takes two objects of ' + (n.entity || 'one entity') + ' from the client', n.text,
+          'Check in ' + n.flow + ' that the two objects belong together — the same owner, or one linked to the other — before it changes either.', [n.flow, n.entity], null, n);
+      });
+
+      // Past the role's own rules: one risk per flow, entity and kind of step (rules 5). This is the way to
+      // somebody else's data the rules before did not know, and it does not depend on any page hiding anything.
+      g.findings.filter(function (f) { return f.kind === 'escalation-write'; }).forEach(function (f) {
+        var who = list(f.roles.map(function (x) { return '"' + x + '"'; }));
+        add('guard-escalation', f.flow + ' ' + f.why, reg(f), f.priority, 'access',
+          f.flow + (f.why === 'past-xpath' ? ' works on anybody’s ' : ' writes past the rules of ' + who + ' on ') + shortQn(f.entity),
+          weighed(f.text, f),
+          f.why === 'past-xpath'
+            ? 'In ' + f.flow + ', fetch the object with the XPath of the role’s own rule, or add a decision that compares it with $currentUser before the step; or set Apply entity access to Yes.'
+            : 'Set Apply entity access to Yes on ' + f.flow + ' and give ' + who + ' the access the step needs — or add a decision that refuses the step for a role that may not take it.',
+          [f.flow].concat(f.entities || [f.entity]), null, f);
+      });
+
+      // Published operations that trust the key in the request.
+      g.findings.filter(function (f) { return f.kind === 'service-unscoped'; }).forEach(function (f) {
+        add('service-op-unscoped', f.flow, reg(f), f.priority, 'access',
+          f.operation + ' fetches ' + shortQn(f.entity) + ' by the key in the request, with nothing comparing it to the caller', weighed(f.text, f),
+          'In ' + f.flow + ', compare the object with the user the service authenticated ($currentUser, or the account the authentication microflow returned) before it is read or changed — or fetch it with an XPath that does.',
+          [f.flow, f.entity, f.service], null, f);
+      });
+
+      // What the drawing says about the logic, not about access: one risk per class, its flows as places.
+      (g.logic || []).forEach(function (n) {
+        add('logic-note', n.kind, n.level === 'P3' ? 'note' : 'suspect', n.level, 'logic',
+          n.kind === 'commit-in-loop' ? 'Commits inside a loop' : n.kind === 'rest-no-error' ? 'A REST call with no error handler' : 'Scheduled events switched off',
+          n.text, n.fix, n.flows, null, { doubts: ['Look at each one: a short list, or a run nobody minds repeating, makes it harmless.'] });
+      });
     }
 
     // A write or delete right wider than every place the role uses it.
@@ -722,8 +897,16 @@
     if (use) {
       var WHAT = { read: 'reads', create: 'creates', write: 'changes', del: 'deletes', 'delete': 'deletes' };
       var group = function (check, list, title, said, fix) {
-        // A Marketplace module's own entity or flow that only administrators reach, or nothing leads to, is set aside here too.
-        var ents = uniq(list.map(function (i) { return i.entity || i.flow; })).filter(function (q) { return !asideOf(ix, admins, entered, check, q, {}); }).sort();
+        // Left out (rules 5, MXS-173): a non-persistable entity — "every row in the database" and "create rights
+        // nothing uses" mean nothing for an object that is never stored, and half of these notes were helper
+        // entities, password forms and search results; and a role that administers the application, for which all
+        // of this is its definition. A Marketplace module's own entity or flow that only administrators reach, or
+        // nothing leads to, is set aside here too.
+        var ents = uniq(list.filter(function (i) {
+          if (i.userRole && admins[i.userRole]) return false;
+          var e = ix.ent[i.entity];
+          return !(e && e.persistable === false);
+        }).map(function (i) { return i.entity || i.flow; })).filter(function (q) { return !asideOf(ix, admins, entered, check, q, {}); }).sort();
         if (!ents.length) return;
         add(check, 'model', 'note', 'P3', 'access', ents.length + ' ' + title,
           said + ' ' + (ents.length > 60 ? ents.slice(0, 60).join(', ') + ' and ' + (ents.length - 60) + ' more.' : ents.join(', ') + '.') +
@@ -747,9 +930,64 @@
       });
       group('access-finds-nothing', quiet, 'flows that read an entity the role running them cannot read',
         'Each finds nothing for that role:', 'Give the role read access, or stop offering the flow to it.');
-      group('access-past', use.pastAccess || [], 'microflows that do for a role what its own rules do not allow',
-        'Usually deliberate — a microflow is the controlled way to let a role do it:', 'Nothing, if each is the controlled way to let the role do it.');
+      // "Does for a role what its own rules do not allow" (access-past) is NOT a risk any more (rules 5): on the
+      // reviewed application it listed 284 microflows, of which about nine in ten were wizards, helper entities or
+      // administrators only — a microflow IS the controlled way to let a role do something. What mattered in that
+      // list is now guard-escalation, which weighs each step against the calling role's own rules and says which
+      // of them really reaches past them. accessuse.js still works it out, and MxScout Dev still shows it.
+
+      // The row filter a child did not inherit: one risk per entity, with the roles and the parent's XPath.
+      var child = {};
+      (use.notInherited || []).forEach(function (i) {
+        if (admins[i.userRole]) return;
+        var c = child[i.entity] = child[i.entity] || { entity: i.entity, parents: [], roles: [], xpaths: [], sensitive: i.sensitive || null };
+        if (c.parents.indexOf(i.parent) === -1) c.parents.push(i.parent);
+        if (c.roles.indexOf(i.userRole) === -1) c.roles.push(i.userRole);
+        c.xpaths = uniq(c.xpaths.concat(i.parentXPaths || []));
+        if (!c.sensitive && i.sensitive) c.sensitive = i.sensitive;
+      });
+      Object.keys(child).sort().forEach(function (k) {
+        var c = child[k], who = list(c.roles.sort().map(function (x) { return '"' + x + '"'; })), parent = c.parents.sort()[0];
+        var evidence = ['Every rule ' + who + ' hold' + (c.roles.length > 1 ? '' : 's') + ' on ' + parent + ' has an XPath (' + c.xpaths.slice(0, 2).join(' | ') + '); no rule of theirs on ' + c.entity + ' has one.'];
+        if (c.sensitive) evidence.push('And ' + shortQn(c.entity) + ': ' + c.sensitive + '.');
+        add('access-not-inherited', c.entity, 'finding', c.sensitive ? 'P1' : 'P2', 'access',
+          c.entity + ' is read in full while ' + parent + ' is kept to the role’s own rows',
+          who + ' read every row of ' + c.entity + ' — the rule has no XPath — while every rule they hold on ' + parent +
+          ', which it belongs to, keeps the rows to their own (' + c.xpaths.slice(0, 2).join(' | ') + '). The row filter stops at the parent, so everything hanging off somebody else’s ' +
+          shortQn(parent) + ' is open: the same data, one association away.' + (c.sensitive ? ' And ' + shortQn(c.entity) + ': ' + c.sensitive + '.' : '') +
+          '\nScenario: ' + who + ' may fetch every ' + shortQn(c.entity) + ' in the database and read, through it, what ' + shortQn(parent) + ' keeps from them.' +
+          '\nEffect: ' + (c.sensitive ? 'Files and values of other people’s records are readable.' : 'Rows of other people’s records are readable.') +
+          '\nEvidence: ' + evidence.join(' '),
+          'Give the rule on ' + c.entity + ' an XPath that follows the association to ' + parent + ' and repeats its constraint, so the child is as narrow as its parent.',
+          [c.entity, parent], null, { confidence: 'confirmed', evidence: evidence,
+            scenario: who + ' may fetch every ' + shortQn(c.entity) + ' in the database and read, through it, what ' + shortQn(parent) + ' keeps from them.',
+            impact: c.sensitive ? 'Files and values of other people’s records are readable.' : 'Rows of other people’s records are readable.' });
+      });
     }
+
+    // Attributes whose NAME says they hold a secret, readable by somebody who does not administer the application.
+    secretAttributes(model, admins).forEach(function (a) {
+      var who = list(a.readers.map(function (x) { return '"' + x + '"'; }));
+      var openWho = list(a.open.map(function (x) { return '"' + x + '"'; }));
+      var evidence = [a.entity + '.' + a.attribute + ' is ' + (a.type === 'String' ? 'a String' : 'a ' + a.type) + ' attribute, and ' + who + ' may read it' +
+        (a.open.length ? ' on every row (' + openWho + ': no XPath)' : ' on the rows its XPath allows') + '.'];
+      if (a.writers.length) evidence.push(list(a.writers.map(function (x) { return '"' + x + '"'; })) + ' may write it too.');
+      if (a.plain) evidence.push('No flow that writes it calls anything that encrypts or hashes: what is stored is what was typed.');
+      add('secret-attribute', a.entity + ' ' + a.attribute, 'finding', a.open.length ? 'P1' : 'P2', 'secrets',
+        a.entity + '.' + a.attribute + ' is readable by ' + (a.readers.length > 2 ? a.readers.length + ' user roles' : who),
+        'The name of ' + a.entity + '.' + a.attribute + ' says it holds a secret, and ' + who + ' may read it' +
+        (a.open.length ? ' on every row: the rule for ' + openWho + ' has no XPath, so the client may fetch the lot.' : ', within what the rule’s XPath allows.') +
+        (a.plain ? ' Nothing that writes it encrypts or hashes it, so the value is stored as it was typed.' : '') +
+        ' A name is only a hint about what an attribute holds; what makes this a finding is who may read it.' +
+        '\nScenario: a user who has only ' + (a.readers[0] ? '"' + a.readers[0] + '"' : 'that role') + ' fetches ' + shortQn(a.entity) + ' from the client and reads ' + a.attribute + '.' +
+        '\nEffect: a credential belonging to the application, or to somebody else, is readable by whoever holds the role.' +
+        '\nEvidence: ' + evidence.join(' '),
+        'Take read access to ' + a.attribute + ' off the rule' + (a.readers.length > 1 ? 's' : '') + ' that give' + (a.readers.length > 1 ? '' : 's') +
+        ' it, and read the value only in a microflow on the server' + (a.plain ? '; store a hash (HMAC) where it is only ever compared, and encrypt it where it has to be read back' : '') + '.',
+        [a.entity], null, { confidence: 'confirmed', evidence: evidence,
+          scenario: 'A user who has only ' + (a.readers[0] ? '"' + a.readers[0] + '"' : 'that role') + ' fetches ' + shortQn(a.entity) + ' from the client and reads ' + a.attribute + '.',
+          impact: 'A credential belonging to the application, or to somebody else, is readable by whoever holds the role.' });
+    });
 
     // Constants the browser receives that look like a secret: the risks constants.js gives, with their key.
     if (W.MxConstants) {
@@ -775,11 +1013,11 @@
       mk.findings.forEach(function (f) {
         add('market-admin', f.moduleRole + ' ' + f.userRole, reg(f), 'P2', 'access', 'Administrative role of ' + f.module + ' on "' + f.userRole + '": ' + f.moduleRole, weighed(f.text, f), f.fix, [f.moduleRole], null, f);
       });
-      mk.notes.forEach(function (n) {
-        var unusedModule = n.kind === 'unused-module';
-        add(unusedModule ? 'market-unused' : 'market-role-unused', n.moduleRole || n.module, 'note', 'P3', 'access',
-          unusedModule ? 'Marketplace module ' + n.module + ' is installed and not used' : 'Module role ' + n.moduleRole + ' grants nothing and is on ' + (n.userRoles || []).length + ((n.userRoles || []).length === 1 ? ' user role' : ' user roles'),
-          n.text, n.fix, [n.moduleRole || n.module], null, n);
+      // A module role that grants NOTHING is not a risk (rules 5): it opens no page, no flow and no entity, so
+      // nobody holding it may do anything with it — the module's own catalogue says so. marketplace.js still says
+      // it, on the module's own card, where it belongs.
+      mk.notes.filter(function (n) { return n.kind === 'unused-module'; }).forEach(function (n) {
+        add('market-unused', n.module, 'note', 'P3', 'access', 'Marketplace module ' + n.module + ' is installed and not used', n.text, n.fix, [n.module], null, n);
       });
     }
 
@@ -857,12 +1095,20 @@
     names: 'an attribute whose name only contains Status, State or Phase inside another word is no longer read as a state',
     helpers: 'a helper microflow that stops with an error event when its decision on the object says no now counts as the check',
     creates: 'a “Create list” is no longer counted as creating an object',
-    roles: 'a flow a page names is no longer counted for a role that may not call it, or does not see what runs it'
+    roles: 'a flow is no longer counted for a role that may not call it, or that sees nothing which runs it; a non-persistable entity needs no create or delete right; and an entity this model does not carry says nothing about a missing one',
+    rules5: 'a microflow is weighed against the calling role’s own access rules instead of against the page, and nothing is said about a role that administers the application, a non-persistable entity’s create and delete rights, a wizard’s helper form, a toggle’s own icon, a decision that cannot come out both ways, or “does for a role what its rules do not allow”'
   };
-  function withdrawn(model) {
+  // The two checks rules 5 stopped giving ALTOGETHER: an id of either is withdrawn by the rules, always — the
+  // application cannot have fixed what MxScout no longer asks. The checks rules 5 only NARROWED keep the reading
+  // above, which runs them the old way and says which change took the risk away.
+  // 'constant-note': a secret-looking default value is a finding now, under the secret-constant id, so the note's
+  // own id is gone — taken by the rules, not by the model.
+  var NARROWED = { 'access-past': 1, 'market-role-unused': 1, 'constant-note': 1 };
+  // `ids`: the risks known before (decided, kept), when the caller has them — part() does.
+  function withdrawn(model, ids) {
     model = model || {};
-    var hit = gone && gone.get(model);
-    if (hit) return hit;
+    var base = gone && gone.get(model);
+    if (base) return withIds(model, base, ids);
     var W = typeof window !== 'undefined' ? window : {}, now = {}, out = {};
     var res = of(model);
     res.risks.forEach(function (r) { now[r.id] = true; });
@@ -875,15 +1121,19 @@
           .forEach(function (f) { ids[riskId(f.kind === 'page-hides' ? 'guard-page-hides' : 'guard-bypass-xpath', f.flow)] = true; });
         return ids;
       };
-      var before = guardIds({ legacyNames: true, legacyHelpers: true }), helpersOnly = null;
+      var before = guardIds({ legacyNames: true, legacyHelpers: true }), helpersOnly = null, namesOnly = null;
       Object.keys(before).forEach(function (id) {
         if (now[id]) return;
         helpersOnly = helpersOnly || guardIds({ legacyHelpers: true });
-        out[id] = why(helpersOnly[id] ? 'helpers' : 'names');
+        namesOnly = namesOnly || guardIds({ legacyNames: true });
+        // Neither of those two readings brings it back: what took it away is rules 5 itself.
+        out[id] = why(!helpersOnly[id] && !namesOnly[id] ? 'rules5' : helpersOnly[id] ? 'helpers' : 'names');
       });
+      var scopeNow = {};
+      W.MxEditScope.analyse(model, null).findings.forEach(function (f) { scopeNow[riskId(f.kind === 'delete' ? 'scope-delete' : 'scope-write', f.entity)] = true; });
       W.MxEditScope.analyse(model, legacyUse, { legacyNames: true }).findings.forEach(function (f) {
         var id = riskId(f.kind === 'delete' ? 'scope-delete' : 'scope-write', f.entity);
-        if (!now[id]) out[id] = why('names');
+        if (!now[id]) out[id] = why(scopeNow[id] ? 'names' : 'rules5');
       });
       var createsOnly = null;
       (legacyUse.cannotDo || []).forEach(function (f) {
@@ -899,9 +1149,24 @@
         out[id] = why(createsOnly[id] ? 'creates' : 'roles');
       });
     }
+
     // Set aside in a Marketplace module (rules 4): said why, whichever rules gave it before.
     (res.setAside || []).forEach(function (x) { out[x.id] = 'withdrawn by a change in MxScout’s rules (rules ' + RULES + '): set aside — ' + x.why + ' — the model did not change'; });
     if (gone) gone.set(model, out);
+    return withIds(model, out, ids);
+  }
+  // The ids the caller knew before, on top of what the runs above worked out: whatever rules 5 narrowed and the
+  // model no longer shows. Kept out of the cache, since it depends on what the caller knew.
+  function withIds(model, base, ids) {
+    if (!ids || !ids.length) return base;
+    var now = {}, out = {};
+    of(model).risks.forEach(function (r) { now[r.id] = true; });
+    Object.keys(base).forEach(function (k) { out[k] = base[k]; });
+    ids.forEach(function (id) {
+      if (!id || now[id] || out[id]) return;
+      var c = checkOf(id);
+      if (c && NARROWED[c]) out[id] = 'withdrawn by a change in MxScout’s rules (rules ' + RULES + '): ' + CAUSE.rules5 + ' — the model did not change';
+    });
     return out;
   }
 
@@ -936,7 +1201,7 @@
     });
     // Withdrawn by the rules, not by the model: said so, and never a fix (triage.js, review.js).
     var missing = ids.some(function (id) { return !now[id]; }) || Object.keys(opts.fixed || {}).some(function (id) { return !now[id]; });
-    var off = opts.withdrawn !== undefined ? (opts.withdrawn || {}) : missing ? withdrawn(model) : {};
+    var off = opts.withdrawn !== undefined ? (opts.withdrawn || {}) : missing ? withdrawn(model, ids.concat(Object.keys(opts.fixed || {}))) : {};
     // Not checked this time: nothing is said about it, so what was decided stays (unchecked above).
     var unk = missing ? unchecked(model, ids.concat(Object.keys(opts.fixed || {}))) : {};
     var verify = ids.filter(function (id) { return !now[id] && !unk[id] && (status[id] === 'fixed' || status[id] === 'open' || status[id] === 'confirmed' || status[id] === 'reopened'); })

@@ -57,6 +57,11 @@
     }
     function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); return n; }
     function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
+    // The labels in MxScout's language (docs-i18n.js); the exported file has no language and keeps the English, and so does the Markdown copy (plural).
+    function L() { return typeof window !== 'undefined' && window.MxDocsI18n && window.MxI18n ? window.MxDocsI18n : null; } function local() { return !!(L() && L().local()); }
+    function _(text, vars) { return L() ? L().t(text, vars) : vars ? String(text).replace(/\{(\w+)\}/g, function (m, k) { return vars[k] != null ? String(vars[k]) : m; }) : text; }
+    function count(n, one, many) { return L() ? L().count(n, one, many) : plural(n, one, many); } function every(text) { return L() ? L().every(text) : text || ''; }
+    function capCount(n, one, many) { return local() ? count(n, one, many) : cap(numWord(n)) + ' ' + (n === 1 ? one : many); } // "Four groups of people"; elsewhere "4 grupy osób"
 
     // What a card may say about itself. A short plain value ("'Comics'",
     // "$Order/Number", "from $Ticket") belongs on the card; an expression with
@@ -98,6 +103,7 @@
     // documentation is read from the model and says so; these are not, and a
     // reader must be able to tell the two apart at a glance.
     function aiMark() { return h('span', { class: 'dx-ai', title: 'Written by an AI agent from this model, not read from it', text: '✦ AI' }); }
+    function planTag(p, mini) { return window.MxPlanLayer ? window.MxPlanLayer.tag(h, p, mini) : null; } // data.plan: the plan over the model, drawn by planlayer.js in MxScout only, never in the exported file
 
     function paragraphs(text) {
       return String(text || '').split(/\n\s*\n/).map(function (p) { return p.replace(/\s*\n\s*/g, ' ').trim(); }).filter(Boolean);
@@ -111,7 +117,7 @@
       return m ? [m[1], t.slice(m[0].length)] : [t, ''];
     }
     var WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
-    function numWord(n) { return WORDS[n] || String(n); }
+    function numWord(n) { return local() ? String(n) : WORDS[n] || String(n); } // words in English only
     function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
     function pad2(n) { return n < 10 ? '0' + n : String(n); }
     function requestFrame(fn) { if (window.requestAnimationFrame) window.requestAnimationFrame(fn); else fn(); }
@@ -1353,7 +1359,7 @@
         var place = (opts.only || (opts.preview ? 'preview' : 'file')) + '|' + hashOf(st).split('?')[0];
         main.setAttribute('data-keep-scroll', 'dx-main|' + place);
         list.setAttribute('data-keep-scroll', 'dx-list|' + (opts.only || (opts.preview ? 'preview' : 'file')) + '|' + st.view + '|' + (st.view === 'assist' ? st.akind || '' : ''));
-        root.classList.toggle('no-list', st.view === 'refs' || st.view === 'domain' || st.view === 'start' || st.view === 'quality' || st.view === 'risks' || st.view === 'dev' || st.view === 'arch' || st.view === 'security');
+        root.classList.toggle('no-list', st.view === 'refs' || st.view === 'domain' || st.view === 'start' || st.view === 'quality' || st.view === 'risks' || st.view === 'cases' || st.view === 'dev' || st.view === 'arch' || st.view === 'security');
         DRAW[st.view]();
         putScrolls(root, kept);
       }
@@ -1376,7 +1382,7 @@
       // are the hero's note's business, and the page says so once, up top.
       function drawStart() {
         var k = data.kpi, q = data.quality, app = data.ai && data.ai.app || null;
-        setTitle('Overview', 'What this application is, who uses it and how it is built');
+        setTitle(_('Overview'), _('What this application is, who uses it and how it is built'));
         var secs = [];
         function section(id, label, title, sub, more, body) {
           var node = h('section', { class: 'dx-ov-sec', 'data-sec': id }, [
@@ -1392,71 +1398,70 @@
         var sum = app && app.summary ? firstSentence(app.summary) : null;
         var kinds = [];
         (data.services || []).forEach(function (sv) { if (sv.kind && kinds.indexOf(sv.kind) === -1) kinds.push(sv.kind); });
-        var ver = data.version;
+        var ver = data.version, pk = data.plan ? data.plan.kpi : {}; // pk: "+N in plan" beside the model's count
         var facts = [
           data.mendix ? ['Mendix', data.mendix] : null,
           // Which version of the app, from the Mendix project's git: "main @ a1b2c3d · 14.10.2026 · “Fix order status”".
-          ver ? ['Version', (ver.branch ? ver.branch + ' @ ' : '') + ver.short, [ver.date ? fmtDate(ver.date).slice(0, 10) : null, ver.message ? '“' + ver.message + '”' : null].filter(Boolean).join(' · ') || null] : null,
-          ['Model read', modelRead(data)],
-          ['Modules', k.modules, k.marketplace ? '+' + k.marketplace + ' Marketplace' : 'all own', { view: 'modules' }],
-          ['Microflows', k.microflows, null, { view: 'refs', seg: 'microflow', key: null }],
-          ['Nanoflows', k.nanoflows, null, { view: 'refs', seg: 'nanoflow', key: null }],
-          ['Pages', k.pages, null, { view: 'refs', seg: 'page', key: null }],
-          ['Entities', k.entities, null, { view: 'domain' }],
-          ['User roles', k.roles, null, { view: 'arch', sec: 'roles' }],
-          ['Scheduled events', k.scheduled, k.scheduled ? k.scheduledOn + ' on' : null, { view: 'quality', sub: 'sched' }],
-          ['Published services', k.services, kinds.join(' · ') || null, { view: 'arch', sec: 'runtime' }],
-          risks.length ? ['Risks', risks.length, levelCount('P1') + ' P1', { view: 'risks' }, 'p1'] : null,
-          assist ? ['Assist', assistOpen() + ' open', null, { view: 'assist' }] : null
+          ver ? [_('Version'), (ver.branch ? ver.branch + ' @ ' : '') + ver.short, [ver.date ? fmtDate(ver.date).slice(0, 10) : null, ver.message ? '“' + ver.message + '”' : null].filter(Boolean).join(' · ') || null] : null,
+          [_('Model read'), data.modelReadAt ? modelRead(data) : _('unknown')],
+          [_('Modules'), k.modules, k.marketplace ? '+' + k.marketplace + ' Marketplace' : _('all own'), { view: 'modules' }, null, pk.modules],
+          [_('Microflows'), k.microflows, null, { view: 'refs', seg: 'microflow', key: null }, null, pk.microflows],
+          [_('Nanoflows'), k.nanoflows, null, { view: 'refs', seg: 'nanoflow', key: null }, null, pk.nanoflows],
+          [_('Pages'), k.pages, null, { view: 'refs', seg: 'page', key: null }, null, pk.pages],
+          [_('Entities'), k.entities, null, { view: 'domain' }, null, pk.entities],
+          [_('User roles'), k.roles, null, { view: 'arch', sec: 'roles' }],
+          [_('Scheduled events'), k.scheduled, k.scheduled ? _('{0} on', [k.scheduledOn]) : null, { view: 'quality', sub: 'sched' }],
+          [_('Published services'), k.services, kinds.join(' · ') || null, { view: 'arch', sec: 'runtime' }],
+          risks.length ? [_('Risks'), risks.length, levelCount('P1') + ' P1', { view: 'risks' }, 'p1'] : null,
+          assist ? [_('Assist'), _('{0} open', [assistOpen()]), null, { view: 'assist' }] : null
         ].filter(Boolean);
         var hero = h('header', { class: 'dx-ov-hero', 'data-sec': 'about' }, [
           h('div', { class: 'dx-ov-intro' }, [
-            h('span', { class: 'dx-eyebrow', text: 'Mendix application · documentation' }),
+            h('span', { class: 'dx-eyebrow', text: _('Mendix application · documentation') }),
             h('h1', { class: 'dx-ov-h1', text: data.project }),
-            h('p', { class: 'dx-ov-lead', text: sum ? sum[0] : 'Read from the Mendix model' + (data.app ? ' of ' + data.app : '') + '.' }),
+            h('p', { class: 'dx-ov-lead', text: sum ? sum[0] : data.app ? _('Read from the Mendix model of {0}.', [data.app]) : _('Read from the Mendix model.') }),
             sum ? (sum[1] ? h('p', { class: 'dx-ov-rest', text: sum[1] }) : null)
-              : h('p', { class: 'dx-ov-rest', text: 'Every module, microflow, nanoflow, page and entity: what each flow takes and returns, every step it runs and the data it sets, who may start it, what calls what, and where the model looks unfinished.' }),
+              : h('p', { class: 'dx-ov-rest', text: _('Every module, microflow, nanoflow, page and entity: what each flow takes and returns, every step it runs and the data it sets, who may start it, what calls what, and where the model looks unfinished.') }),
             h('div', { class: 'dx-ov-cta' }, [
-              procPage ? ln({ view: 'processes', proc: 0 }, { class: 'dx-cta' }, ['Read the full description', navIcon('arrow', 14)]) : null,
+              procPage ? ln({ view: 'processes', proc: 0 }, { class: 'dx-cta' }, [_('Read the full description'), navIcon('arrow', 14)]) : null,
               h('span', { class: 'dx-ov-prov', text: data.ai && data.ai.agent !== false
-                ? 'Numbers and structure are read from the model. The texts were written from it by an agent' + (data.ai.by ? ' (' + data.ai.by + ')' : '') + ' and can be wrong where the model is ambiguous.'
-                : 'Everything here is read from the model. Nothing in it was written by hand.' })
+                ? _('Numbers and structure are read from the model. The texts were written from it by an agent{0} and can be wrong where the model is ambiguous.', [data.ai.by ? ' (' + data.ai.by + ')' : ''])
+                : _('Everything here is read from the model. Nothing in it was written by hand.') })
             ])
           ]),
-          h('aside', { class: 'dx-glance', 'aria-label': 'At a glance' }, [
-            h('div', { class: 'dx-glance-h', text: 'At a glance' }),
+          h('aside', { class: 'dx-glance', 'aria-label': _('At a glance') }, [
+            h('div', { class: 'dx-glance-h', text: _('At a glance') }),
             h('dl', null, facts.map(function (f) {
-              var v = [String(f[1]), f[2] ? h('span', { class: 'dx-glance-sub', text: ' · ' + f[2] }) : null];
+              var v = [String(f[1]), f[2] ? h('span', { class: 'dx-glance-sub', text: ' · ' + f[2] }) : null, f[5] ? h('span', { class: 'dx-glance-plan', title: _('Planned in an open story, not in the model yet'), text: ' ' + _('+{0} in plan', [f[5]]) }) : null];
               return [h('dt', { text: f[0] }), h('dd', { class: f[4] || null }, f[3] ? ln(f[3], { class: 'dx-glance-v' }, v) : v)];
             }))
           ])
         ]);
-        secs.push({ id: 'about', label: 'About', node: hero });
+        secs.push({ id: 'about', label: _('About'), node: hero });
 
         // 2. who uses it — groups when the agent wrote them as a list, its sentence when it did not
         var users = app && app.users || [];
-        var rolesLink = ln({ view: 'arch', sec: 'roles' }, { class: 'dx-inline-link' }, plural(k.roles, 'user role', 'user roles'));
-        var who = app && (users.length || app.audience) ? section('users', 'Who uses it', 'Who uses it',
-          [users.length ? cap(numWord(users.length)) + (users.length === 1 ? ' group of people. ' : ' groups of people. ') : '', 'The model gives them ', rolesLink, '.'], null,
+        var rolesLink = ln({ view: 'arch', sec: 'roles' }, { class: 'dx-inline-link' }, count(k.roles, 'user role', 'user roles'));
+        var who = app && (users.length || app.audience) ? section('users', _('Who uses it'), _('Who uses it'), [users.length ? capCount(users.length, 'group of people', 'groups of people') + '. ' : '', _('The model gives them '), rolesLink, '.'], null,
           users.length ? h('div', { class: 'dx-users' }, users.map(function (u) {
             return h('div', { class: 'dx-user' }, [h('span', { class: 'dx-user-i', 'aria-hidden': 'true' }, navIcon('person', 16)), h('div', null, [h('b', { text: u.who }), u.what ? h('span', { text: u.what }) : null])]);
           })) : h('p', { class: 'dx-ov-p', text: app.audience })) : null;
 
         // 3. what it talks to — the agent's context diagram, its groups placed around the application
         var ctx = contextGroups(c4 && c4.context);
-        var talks = ctx ? section('context', 'What it talks to', 'What it talks to',
-          [h('span', { class: 'mono', text: String(ctx.systems) }), ' ' + (ctx.systems === 1 ? 'system' : 'systems') + ' in ' + numWord(ctx.groups.length) + (ctx.groups.length === 1 ? ' group' : ' groups') + '. Arrows show who calls whom.'],
-          more({ view: 'arch', sec: 'context' }, 'Every partner and what it exchanges'), contextDiagram(ctx)) : null;
+        var talks = ctx ? section('context', _('What it talks to'), _('What it talks to'),
+          [h('span', { class: 'mono', text: String(ctx.systems) }), ' ' + _('{0} in {1}. Arrows show who calls whom.', [count(ctx.systems, 'system', 'systems').replace(/^\d+ /, ''), local() ? String(ctx.groups.length) : numWord(ctx.groups.length) + (ctx.groups.length === 1 ? ' group' : ' groups')])],
+          more({ view: 'arch', sec: 'context' }, _('Every partner and what it exchanges')), contextDiagram(ctx)) : null;
         var pair = h('div', { class: 'dx-ov-pair' + (who && talks ? '' : ' one') }, [who, talks]);
 
         // 4. what it does
-        var does = procs.length ? section('processes', 'What it does', 'What it does',
-          procs.length === 1 ? 'One main process. It opens with its steps and the flows that carry it.' : cap(numWord(procs.length)) + ' main processes. Each opens with its steps and the flows that carry it.', null,
+        var does = procs.length ? section('processes', _('What it does'), _('What it does'),
+          procs.length === 1 ? _('One main process. It opens with its steps and the flows that carry it.') : _('{0} main processes. Each opens with its steps and the flows that carry it.', [local() ? procs.length : cap(numWord(procs.length))]), null,
           h('div', { class: 'dx-ov-procs' }, procs.map(function (p, i) {
             return ln({ view: 'processes', proc: i + 1 }, { class: 'dx-ov-proc' }, [
               h('span', { class: 'dx-ov-proc-n', text: pad2(i + 1) }),
-              h('span', { class: 'dx-ov-proc-t' }, [h('b', { text: p.name }), p.summary ? h('span', { text: p.summary }) : null,
-                h('small', { text: plural(p.steps.length, 'step', 'steps') + ' · ' + plural(p.flows.length, 'flow', 'flows') })]),
+              h('span', { class: 'dx-ov-proc-t' }, [h('b', null, [p.name, p.plan ? planTag(p.plan) : null]), p.summary ? h('span', { text: p.summary }) : null,
+                h('small', { text: count(p.steps.length, 'step', 'steps') + ' · ' + count(p.flows.length, 'flow', 'flows') })]),
               navIcon('chev', 15)
             ]);
           }))) : null;
@@ -1465,54 +1470,54 @@
         var off = k.scheduled - k.scheduledOn;
         var p1 = [];
         risks.forEach(function (r, i) { if (r.level === 'P1') p1.push([r, i]); });
-        var health = section('health', 'What needs attention', 'What needs attention',
-          risks.length ? (risks.some(function (r) { return r.origin === 'person'; }) ? 'Risks an agent found in the model or a person raised, and what the model shows directly.' : 'Risks an agent found in the model, and what the model shows directly.') : 'What the model shows directly.',
-          risks.length ? more({ view: 'risks' }, 'All ' + risks.length + ' risks') : null,
+        var health = section('health', _('What needs attention'), _('What needs attention'),
+          risks.length ? (risks.some(function (r) { return r.origin === 'person'; }) ? _('Risks an agent found in the model or a person raised, and what the model shows directly.') : _('Risks an agent found in the model, and what the model shows directly.')) : _('What the model shows directly.'),
+          risks.length ? more({ view: 'risks' }, _('All {0} risks', [risks.length])) : null,
           h('div', { class: 'dx-health' + (risks.length ? '' : ' one') }, [
             h('div', { class: 'dx-health-l' }, [
-              risks.length ? h('div', { class: 'dx-lv3' }, [['P1', 'fix first'], ['P2', 'plan a fix'], ['P3', 'worth knowing']].map(function (l) {
+              risks.length ? h('div', { class: 'dx-lv3' }, [['P1', _('fix first')], ['P2', _('plan a fix')], ['P3', _('worth knowing')]].map(function (l) {
                 return h('div', { class: 'dx-lv3-t ' + l[0].toLowerCase() }, [h('b', { text: String(levelCount(l[0])) }), h('span', { text: l[0] + ' · ' + l[1] })]);
               })) : null,
               h('div', { class: 'dx-facts' }, [
-                h('span', { class: 'dx-cap', text: 'Read from the model' }),
-                ln({ view: 'quality', sub: 'unreached' }, { class: 'dx-fact' }, [h('span', { text: 'Elements nothing reaches' }), h('span', { class: 'mono', text: String(q.unreached.length) })]),
-                ln({ view: 'quality', sub: 'off' }, { class: 'dx-fact' }, [h('span', { text: 'Disabled steps' }), h('span', { class: 'mono', text: String(q.disabled) })]),
-                k.scheduled ? ln({ view: 'quality', sub: 'sched' }, { class: 'dx-fact' }, [h('span', { text: 'Scheduled events switched off' }), h('span', { class: 'mono', text: off + ' of ' + k.scheduled })]) : null
+                h('span', { class: 'dx-cap', text: _('Read from the model') }),
+                ln({ view: 'quality', sub: 'unreached' }, { class: 'dx-fact' }, [h('span', { text: _('Elements nothing reaches') }), h('span', { class: 'mono', text: String(q.unreached.length) })]),
+                ln({ view: 'quality', sub: 'off' }, { class: 'dx-fact' }, [h('span', { text: _('Disabled steps') }), h('span', { class: 'mono', text: String(q.disabled) })]),
+                k.scheduled ? ln({ view: 'quality', sub: 'sched' }, { class: 'dx-fact' }, [h('span', { text: _('Scheduled events switched off') }), h('span', { class: 'mono', text: _('{0} of {1}', [off, k.scheduled]) })]) : null
               ])
             ]),
             risks.length ? h('div', { class: 'dx-p1' }, [
-              h('span', { class: 'dx-cap', text: p1.length === 1 ? 'The one P1 risk' : p1.length ? 'The ' + numWord(p1.length) + ' P1 risks' : 'P1 risks' }),
+              h('span', { class: 'dx-cap', text: p1.length === 1 ? _('The one P1 risk') : p1.length ? _('The {0} P1 risks', [numWord(p1.length)]) : _('P1 risks') }),
               p1.length ? p1.map(function (x) {
                 return ln({ view: 'risks', sub: riskId(x[1]) }, { class: 'dx-p1-row' }, [h('span', { text: x[0].title }), h('span', { class: 'mono', text: riskModule(x[0]) })]);
-              }) : h('span', { class: 'dx-empty', text: 'None.' })
+              }) : h('span', { class: 'dx-empty', text: _('None.') })
             ]) : null
           ]));
 
         // 6. where next, by what the reader came to do
         var flowsN = k.microflows + k.nanoflows + k.pages;
-        var next = section('start', 'Where to go next', 'Where to go next', null, null, h('div', { class: 'dx-next' }, [
-          ['Understand the application', 'What each part is for and how the parts fit together.',
-            [[{ view: 'modules' }, 'Modules', k.modules], [{ view: 'arch' }, 'Architecture', ''], procs.length ? [{ view: 'processes', proc: 0 }, 'Main processes', procs.length] : null]],
-          ['Read the logic', 'Every flow drawn step by step, and the data it works on.',
-            [[{ view: 'refs' }, 'Microflows & pages', flowsN], [{ view: 'domain' }, 'Domain model', k.entities]]],
-          ['Change it safely', risks.length ? 'What to fix first, what is unused, and what breaks easily.' : 'What is unused or switched off, and what breaks easily.',
-            [risks.length ? [{ view: 'risks' }, 'Risks', risks.length] : null, [{ view: 'quality' }, 'Model quality', q.unreached.length], devCtx ? [{ view: 'dev' }, 'For developers', devCount] : null,
-              assist ? [{ view: 'assist' }, 'Assist', assistOpen() + ' open'] : null]]
+        var next = section('start', _('Where to go next'), _('Where to go next'), null, null, h('div', { class: 'dx-next' }, [
+          [_('Understand the application'), _('What each part is for and how the parts fit together.'),
+            [[{ view: 'modules' }, _('Modules'), k.modules], [{ view: 'arch' }, _('Architecture'), ''], procs.length ? [{ view: 'processes', proc: 0 }, _('Main processes'), procs.length] : null]],
+          [_('Read the logic'), _('Every flow drawn step by step, and the data it works on.'),
+            [[{ view: 'refs' }, _('Microflows & pages'), flowsN], [{ view: 'domain' }, _('Domain model'), k.entities]]],
+          [_('Change it safely'), risks.length ? _('What to fix first, what is unused, and what breaks easily.') : _('What is unused or switched off, and what breaks easily.'),
+            [risks.length ? [{ view: 'risks' }, _('Risks'), risks.length] : null, [{ view: 'quality' }, _('Model quality'), q.unreached.length], devCtx ? [{ view: 'dev' }, _('For developers'), devCount] : null,
+              assist ? [{ view: 'assist' }, _('Assist'), _('{0} open', [assistOpen()])] : null]]
         ].map(function (g) {
           return h('div', { class: 'dx-next-g' }, [h('h3', { text: g[0] }), h('p', { text: g[1] }),
             h('ul', null, g[2].filter(Boolean).map(function (l) { return h('li', null, ln(l[0], null, [h('span', { text: l[1] }), h('span', { class: 'mono', text: String(l[2]) })])); }))]);
         })));
         // a model loaded from JSON has no drawings, and says so where it starts
-        var noDrawings = data.drawings ? null : h('div', { class: 'dx-note', text: 'This model was imported as JSON and carries no drawings, so the workflows are not shown. Load the model from the Mendix project folder to see them.' });
+        var noDrawings = data.drawings ? null : h('div', { class: 'dx-note', text: _('This model was imported as JSON and carries no drawings, so the workflows are not shown. Load the model from the Mendix project folder to see them.') });
 
         // In the wide layout, a contents list that follows the scroll, and what this file is.
         var tocLinks = {};
-        var toc = h('aside', { class: 'dx-toc', 'aria-label': 'On this page' }, [
-          h('div', { class: 'dx-toc-l' }, [h('span', { class: 'dx-cap', text: 'On this page' })].concat(secs.map(function (x) {
+        var toc = h('aside', { class: 'dx-toc', 'aria-label': _('On this page') }, [
+          h('div', { class: 'dx-toc-l' }, [h('span', { class: 'dx-cap', text: _('On this page') })].concat(secs.map(function (x) {
             tocLinks[x.id] = ln({ view: 'start', sec: x.id }, { class: 'dx-toc-a' }, x.label, function () { st.sec = x.id; if (opts.hash) history.replaceState(null, '', hashOf(st)); toSection(x.id); });
             return tocLinks[x.id];
           }))),
-          opts.only ? null : h('div', { class: 'dx-toc-file' }, [h('b', { text: 'This file' }), h('span', { text: 'One HTML file. It opens in any browser, offline, with no password. A Markdown copy with the same content reads well in AI tools.' }), opts.preview ? null : mdButton()])
+          opts.only ? null : h('div', { class: 'dx-toc-file' }, [h('b', { text: _('This file') }), h('span', { text: _('One HTML file. It opens in any browser, offline, with no password. A Markdown copy with the same content reads well in AI tools.') }), opts.preview ? null : mdButton()])
         ]);
         main.appendChild(h('div', { class: 'dx-ov' }, [h('article', { class: 'dx-ov-doc' }, [hero, pair, does, health, next, noDrawings]), toc]));
         onScroll = function () {
@@ -1548,7 +1553,7 @@
           var n = group(g); n.style.gridRow = String(i + 2); n.style.gridColumn = '1';
           kids.push(n, conn(g.verb, i + 2, 2));
         });
-        var mid = h('div', { class: 'dx-ctx-app' }, [h('span', { class: 'dx-eyebrow', text: eyebrow || 'Mendix app' }), h('b', { text: c.app.name }), c.app.note ? h('span', { text: c.app.note }) : null]);
+        var mid = h('div', { class: 'dx-ctx-app' }, [h('span', { class: 'dx-eyebrow', text: eyebrow || _('Mendix app') }), h('b', { text: c.app.name }), c.app.note ? h('span', { text: c.app.note }) : null]);
         mid.style.gridRow = '2 / span ' + rows;
         kids.push(mid);
         c.right.forEach(function (g, i) {
@@ -1581,7 +1586,7 @@
         }
         function conv(list) {
           return list.map(function (x) {
-            if (x.t === 'step') return { t: 'step', no: ++no, card: { fam: x.by === 'app' ? 'app' : 'person', kick: x.who || (x.by === 'app' ? 'Application' : ''), title: x.text } };
+            if (x.t === 'step') return { t: 'step', no: ++no, card: { fam: x.by === 'app' ? 'app' : 'person', kick: x.who || (x.by === 'app' ? _('Application') : ''), title: x.text } };
             if (x.t === 'decision') {
               var n = ++no;
               return { t: 'split', no: n, kind: 'decision', title: x.text, cond: null, branches: x.ways.map(function (w) {
@@ -1598,7 +1603,7 @@
       }
       function processDiagram(items, caption) {
         if (!items || !items.length || !window.MxFlowGraph) return null;
-        return h('section', { class: 'dx-pd-sec dx-pd-diagram' }, [h('h3', { class: 'dx-cap', text: caption || 'Diagram' }),
+        return h('section', { class: 'dx-pd-sec dx-pd-diagram' }, [h('h3', { class: 'dx-cap', text: caption || _('Diagram') }),
           h('div', { class: 'dx-pd-graph' }, [window.MxFlowGraph.render({ workflow: diagramFlow(items), params: [] }, {})])]);
       }
       // Flows named by qualified name, each a row: its kind, its name, its size — a link when the model has it.
@@ -1607,7 +1612,7 @@
           var key = flowKey(qn), f = key ? data.flows[key] : null, dot = qn.indexOf('.');
           var kids = [kindTag(f ? { microflow: 'MF', nanoflow: 'NF', page: 'PG' }[f.kind] : '··'),
             h('span', { class: 'dx-pd-qn mono' }, [h('span', { class: 'dx-mod', text: qn.slice(0, dot + 1) }), qn.slice(dot + 1)]),
-            h('span', { class: 'dx-pd-steps-n mono', text: f && f.steps ? plural(f.steps, 'step', 'steps') : '' })];
+            h('span', { class: 'dx-pd-steps-n mono', text: f && f.steps ? count(f.steps, 'step', 'steps') : '' })];
           return f ? ln({ view: 'refs', module: f.module, seg: f.kind, key: key }, { class: 'dx-pd-flow' }, kids) : h('div', { class: 'dx-pd-flow' }, kids);
         }));
       }
@@ -1615,17 +1620,15 @@
       function drawProcesses() {
         var app = data.ai.app;
         var n = Math.min(Math.max(0, st.proc || 0), procs.length);
-        setTitle('Processes', procs.length === 1
-          ? 'What ' + data.project + ' does, told as one business process. An agent wrote it from the model; it lists the flows that carry it.'
-          : 'What ' + data.project + ' does, told as ' + numWord(procs.length) + ' business processes. An agent wrote them from the model; each one lists the flows that carry it.');
+        setTitle(_('Processes'), procs.length === 1 ? _('What {0} does, told as one business process. An agent wrote it from the model; it lists the flows that carry it.', [data.project]) : _('What {0} does, told as {1} business processes. An agent wrote them from the model; each one lists the flows that carry it.', [data.project, numWord(procs.length)]));
         var paras = paragraphs(app.story);
-        var rows = [{ no: '—', name: 'The application', meta: paras.length ? 'Full description · ' + plural(paras.length, 'paragraph', 'paragraphs') : 'Summary' }].concat(procs.map(function (p, i) {
+        var rows = [{ no: '—', name: _('The application'), meta: paras.length ? _('Full description · {0}', [count(paras.length, 'paragraph', 'paragraphs')]) : _('Summary') }].concat(procs.map(function (p, i) {
           var r = processRisks(p).length;
-          return { no: pad2(i + 1), name: p.name, meta: plural(p.steps.length, 'step', 'steps') + ' · ' + plural(p.flows.length, 'flow', 'flows') + (r ? ' · ' + plural(r, 'risk', 'risks') : '') };
+          return { no: pad2(i + 1), name: p.name, plan: p.plan || null, meta: count(p.steps.length, 'step', 'steps') + (p.plan && p.plan.state === 'new' ? ' · ' + _('in the plan of {0}', [p.plan.key]) : ' · ' + count(p.flows.length, 'flow', 'flows')) + (r ? ' · ' + count(r, 'risk', 'risks') : '') };
         }));
         list.appendChild(h('div', { class: 'dx-pl', role: 'list' }, rows.map(function (r, i) {
           var a = ln({ view: 'processes', proc: i }, { class: 'dx-pl-item' + (i === n ? ' on' : ''), 'aria-current': i === n ? 'page' : null }, [
-            h('span', { class: 'dx-pl-n', text: r.no }), h('span', { class: 'dx-pl-t' }, [h('b', { text: r.name }), h('small', { text: r.meta })])]);
+            h('span', { class: 'dx-pl-n', text: r.no }), h('span', { class: 'dx-pl-t' }, [h('b', null, [r.name, r.plan ? planTag(r.plan) : null]), h('small', { text: r.meta })])]);
           return h('div', { role: 'listitem' }, a);
         })));
 
@@ -1633,50 +1636,50 @@
         var users = app.users || [];
         if (!n) {
           wrap.appendChild(h('div', { class: 'dx-pd-head' }, [
-            h('span', { class: 'dx-pd-eye', text: data.project + ' · full description' }),
-            h('h2', { text: 'The application' }),
+            h('span', { class: 'dx-pd-eye', text: data.project + ' · ' + _('full description') }),
+            h('h2', { text: _('The application') }),
             app.summary ? h('p', { class: 'dx-pd-lead', text: app.summary }) : null,
-            users.length ? h('div', { class: 'dx-pd-who' }, [h('b', { text: 'Who uses it.' }), h('ul', null, users.map(function (u) { return h('li', null, [h('b', { text: u.who }), u.what ? ' ' + u.what : null]); }))])
-              : app.audience ? h('p', { class: 'dx-pd-who' }, [h('b', { text: 'Who uses it.' }), ' ' + app.audience]) : null
+            users.length ? h('div', { class: 'dx-pd-who' }, [h('b', { text: _('Who uses it.') }), h('ul', null, users.map(function (u) { return h('li', null, [h('b', { text: u.who }), u.what ? ' ' + u.what : null]); }))])
+              : app.audience ? h('p', { class: 'dx-pd-who' }, [h('b', { text: _('Who uses it.') }), ' ' + app.audience]) : null
           ]));
           wrap.appendChild(h('div', { class: 'dx-pd-grid' }, [
-            paras.length ? h('section', { class: 'dx-pd-story' }, [h('h3', { class: 'dx-cap', text: 'How it works' }), paras.map(function (p) { return h('p', { text: p }); })]) : null,
+            paras.length ? h('section', { class: 'dx-pd-story' }, [h('h3', { class: 'dx-cap', text: _('How it works') }), paras.map(function (p) { return h('p', { text: p }); })]) : null,
             procs.length ? h('section', { class: 'dx-pd-side' }, [
-              h('h3', { class: 'dx-cap', text: procs.length === 1 ? 'The one process' : 'The ' + numWord(procs.length) + ' processes' }),
+              h('h3', { class: 'dx-cap', text: procs.length === 1 ? _('The one process') : _('The {0} processes', [numWord(procs.length)]) }),
               h('div', { class: 'dx-pd-rows' }, procs.map(function (p, i) {
-                return ln({ view: 'processes', proc: i + 1 }, { class: 'dx-pd-idx' }, [h('span', { class: 'dx-pd-no', text: pad2(i + 1) }), h('span', null, [h('b', { text: p.name }), p.summary ? h('span', { text: p.summary }) : null])]);
+                return ln({ view: 'processes', proc: i + 1 }, { class: 'dx-pd-idx' }, [h('span', { class: 'dx-pd-no', text: pad2(i + 1) }), h('span', null, [h('b', null, [p.name, p.plan ? planTag(p.plan) : null]), p.summary ? h('span', { text: p.summary }) : null])]);
               }))
             ]) : null
           ]));
         } else {
-          var p = procs[n - 1], touched = processRisks(p);
+          var p = procs[n - 1], touched = processRisks(p), planned = p.plan && p.plan.state === 'new';
           var steps = h('ol', { class: 'dx-pd-steps' }, p.steps.map(function (x, i) { return h('li', null, [h('span', { class: 'dx-pd-sn', text: String(i + 1) }), h('span', { text: x })]); }));
           wrap.appendChild(h('div', { class: 'dx-pd-head' }, [
-            h('span', { class: 'dx-pd-eye', text: 'Process ' + pad2(n) + ' of ' + procs.length }),
-            h('h2', { text: p.name }),
+            h('span', { class: 'dx-pd-eye', text: _('Process {0} of {1}', [pad2(n), procs.length]) + (planned ? ' · ' + _('planned') : '') }),
+            h('h2', null, [p.name, p.plan ? planTag(p.plan) : null]),
             p.summary ? h('p', { class: 'dx-pd-lead', text: p.summary }) : null
           ]));
-          if (p.steps.length) wrap.appendChild(h('section', { class: 'dx-pd-sec' }, [h('h3', { class: 'dx-cap', text: 'Steps' }), steps]));
+          if (p.steps.length) wrap.appendChild(h('section', { class: 'dx-pd-sec' }, [h('h3', { class: 'dx-cap', text: _('Steps') }), steps])); if (p.plan && p.plan.state === 'changed') wrap.appendChild(window.MxPlanLayer.processChange(h, p, paragraphs));
           var drawn = processDiagram(p.diagram);
           if (drawn) wrap.appendChild(drawn);
           var story2 = paragraphs(p.story);
           wrap.appendChild(h('div', { class: 'dx-pd-grid' }, [
-            story2.length ? h('section', { class: 'dx-pd-story' }, [h('h3', { class: 'dx-cap', text: 'How it works' }), story2.map(function (x) { return h('p', { text: x }); })]) : null,
-            h('div', { class: 'dx-pd-side' }, [
+            story2.length ? h('section', { class: 'dx-pd-story' }, [h('h3', { class: 'dx-cap', text: _('How it works') }), story2.map(function (x) { return h('p', { text: x }); })]) : null,
+            planned ? window.MxPlanLayer.processSide(h, p) : h('div', { class: 'dx-pd-side' }, [
               h('section', null, [
-                h('h3', { class: 'dx-cap', text: 'Flows that carry it · ' + p.flows.length }),
+                h('h3', { class: 'dx-cap', text: _('Flows that carry it') + ' · ' + p.flows.length }),
                 flowRows(p.flows)
               ]),
               h('section', null, [
-                h('h3', { class: 'dx-cap', text: 'Risks along the way · ' + touched.length }),
+                h('h3', { class: 'dx-cap', text: _('Risks along the way') + ' · ' + touched.length }),
                 h('div', { class: 'dx-pd-rows' }, touched.length ? touched.map(function (x) {
                   return ln({ view: 'risks', sub: riskId(x[1]) }, { class: 'dx-pd-risk' }, [h('span', { class: 'dx-lv ' + x[0].level.toLowerCase(), text: x[0].level }), h('span', { text: x[0].title })]);
-                }) : h('span', { class: 'dx-empty', text: 'No risk touches these flows.' }))
+                }) : h('span', { class: 'dx-empty', text: _('No risk touches these flows.') }))
               ])
             ])
           ]));
         }
-        wrap.appendChild(h('p', { class: 'dx-prov', text: 'Written by an agent from the model. Step lists and flow names come from the model; check the wording before you quote it.' }));
+        wrap.appendChild(h('p', { class: 'dx-prov', text: _('Written by an agent from the model. Step lists and flow names come from the model; check the wording before you quote it.') }));
         main.appendChild(wrap);
       }
       // ---------- assist ----------
@@ -1739,10 +1742,10 @@
         var D = derived();
         var mods = D && D.modules ? D.modules : [];
         var own = mods.filter(function (x) { return !x.mp; }).length, mp = mods.length - own;
-        setTitle('Modules', plural(own, 'own module', 'own modules') + (mp ? ' and ' + mp + ' from the Marketplace' : ', none from the Marketplace') + '. Each one holds part of the application: its flows, pages and entities.');
-        if (!mods.length) { main.appendChild(h('div', { class: 'dx-note', text: 'This file holds no modules.' })); return; }
+        setTitle(_('Modules'), mp ? _('{0} and {1} from the Marketplace. Each one holds part of the application: its flows, pages and entities.', [count(own, 'own module', 'own modules'), mp]) : _('{0}, none from the Marketplace. Each one holds part of the application: its flows, pages and entities.', [count(own, 'own module', 'own modules')]));
+        if (!mods.length) { main.appendChild(h('div', { class: 'dx-note', text: _('This file holds no modules.') })); return; }
         var sort = st.msort === 'size' || st.msort === 'risk' ? st.msort : 'az';
-        tools(h('div', { class: 'dx-seg2', role: 'group', 'aria-label': 'Sort modules' }, [h('span', { text: 'Sort' })].concat([['az', 'A–Z'], ['size', 'Size'], ['risk', 'Risks']].map(function (x) {
+        tools(h('div', { class: 'dx-seg2', role: 'group', 'aria-label': _('Sort modules') }, [h('span', { text: _('Sort') })].concat([['az', 'A–Z'], ['size', _('Size')], ['risk', _('Risks')]].map(function (x) {
           return h('button', { type: 'button', class: sort === x[0] ? 'on' : '', 'aria-pressed': sort === x[0] ? 'true' : 'false', text: x[1], onclick: function () { go({ msort: x[0] }); } });
         }))), function (n) { n.classList.add('dx-ml-sort'); list.appendChild(n); });
         var byName = {}, usedBy = {};
@@ -1755,7 +1758,7 @@
         var all2 = mods;
         mods = mods.filter(function (x) { return scope === 'marketplace' ? x.mp : !x.mp; });
         if (!mods.length) mods = all2;
-        if (mp) list.appendChild(h('div', { class: 'dx-seg2 dx-dm-scope dx-ml-scope', role: 'group', 'aria-label': 'Which modules' }, [['own', 'Own', own], ['marketplace', 'Marketplace', mp]].map(function (x) {
+        if (mp) list.appendChild(h('div', { class: 'dx-seg2 dx-dm-scope dx-ml-scope', role: 'group', 'aria-label': _('Which modules') }, [['own', _('Own'), own], ['marketplace', 'Marketplace', mp]].map(function (x) {
           return h('button', { type: 'button', class: scope === x[0] ? 'on' : '', 'aria-pressed': scope === x[0] ? 'true' : 'false', onclick: function () { go({ mscope: x[0], module: null }); } }, [x[1], h('span', { class: 'mono', text: String(x[2]) })]);
         })));
         function cnt(x, k) { return x.items.filter(function (i) { return i[0] === k; }).length; }
@@ -1764,11 +1767,11 @@
         if (sort === 'size') sorted.sort(function (a, b) { return (b.items.length + b.ent.length) - (a.items.length + a.ent.length) || a.n.toLowerCase().localeCompare(b.n.toLowerCase()); });
         else if (sort === 'risk') sorted.sort(function (a, b) { return b.risk[0] - a.risk[0] || rTotal(b) - rTotal(a) || a.n.toLowerCase().localeCompare(b.n.toLowerCase()); });
         else sorted.sort(function (a, b) { return a.n.toLowerCase().localeCompare(b.n.toLowerCase()); });
-        var m = byName[st.module] || sorted[0];
+        var m = byName[st.module] || sorted[0], PM = data.plan ? data.plan.modules : {}; function planN(x) { var q = PM[x.n]; return q ? q.entities + q.microflows + q.nanoflows + q.pages : 0; } function planMk(x) { var q = PM[x.n]; return q ? { state: q.state, key: q.from.key } : null; } // a planned module is new; one the plan adds to says how much
         list.appendChild(h('div', { class: 'dx-ml' }, sorted.map(function (x) {
-          var on = x === m;
+          var on = x === m, pn = planN(x), pm = planMk(x);
           return ln({ view: 'modules', module: x.n }, { class: 'dx-ml-item' + (on ? ' on' : ''), 'aria-current': on ? 'page' : null }, [
-            h('span', { class: 'dx-ml-t' }, [h('b', { class: 'mono', text: x.n }), h('small', { text: plural(cnt(x, 'mf') + cnt(x, 'nf'), 'flow', 'flows') + ' · ' + plural(cnt(x, 'pg'), 'page', 'pages') + ' · ' + plural(x.ent.length, 'entity', 'entities') })]),
+            h('span', { class: 'dx-ml-t' }, [h('b', { class: 'mono' }, [x.n, pm && pm.state === 'new' ? planTag(pm) : null]), h('small', { text: pm && pm.state === 'new' ? _('planned') + ' · ' + count(PM[x.n].entities, 'entity', 'entities') + ' · ' + count(PM[x.n].microflows + PM[x.n].nanoflows, 'flow', 'flows') + ' · ' + count(PM[x.n].pages, 'page', 'pages') : count(cnt(x, 'mf') + cnt(x, 'nf'), 'flow', 'flows') + ' · ' + count(cnt(x, 'pg'), 'page', 'pages') + ' · ' + count(x.ent.length, 'entity', 'entities') + (pn ? ' · ' + _('+{0} in plan', [pn]) : '') })]),
             h('span', { class: 'dx-ml-r' }, [x.risk[0] ? h('span', { class: 'dx-ml-p1', text: x.risk[0] + ' P1' }) : null, h('span', { class: 'mono dx-ml-n', text: rTotal(x) ? String(rTotal(x)) : '' })])
           ], function () { go({ module: x.n }); });
         })));
@@ -1779,30 +1782,30 @@
         var mRisks = [];
         risks.forEach(function (r, i) { var w = (r.where || [])[0]; if (w && String(w).split('|')[0].split('.')[0] === m.n) mRisks.push([r, i]); });
         mRisks.sort(function (a, b) { return LVO[a[0].level] - LVO[b[0].level] || a[1] - b[1]; });
-        var tab = { about: 1, contents: 1, links: 1, risks: 1 }[st.mtab] ? st.mtab : (hasAbout ? 'about' : 'contents');
+        var tab = { about: 1, contents: 1, links: 1, risks: 1 }[st.mtab] ? st.mtab : (hasAbout && !(mp2 && mp2.state === 'new') ? 'about' : 'contents');
         if (tab === 'risks' && !risks.length) tab = 'contents';
         function toTab(t2) { return function () { go({ mtab: t2 }); }; }
-        var nR = rTotal(m);
-        var facts = [[cnt(m, 'mf'), 'microflows', 'contents'], [cnt(m, 'nf'), 'nanoflows', 'contents'], [cnt(m, 'pg'), 'pages', 'contents'], [m.ent.length, 'entities', 'contents'],
-          [usesK.length + ' · ' + byK.length, 'uses · used by', 'links']].concat(risks.length ? [[nR, ['P1', 'P2', 'P3'].map(function (l, k) { return m.risk[k] ? m.risk[k] + ' ' + l : null; }).filter(Boolean).join(' · ') || 'risks', 'risks', m.risk[0] ? 'p1' : '']] : []);
+        var nR = rTotal(m), mp2 = PM[m.n] || null;
+        var facts = [[cnt(m, 'mf'), _('microflows'), 'contents'], [cnt(m, 'nf'), _('nanoflows'), 'contents'], [cnt(m, 'pg'), _('pages'), 'contents'], [m.ent.length, _('entities'), 'contents'],
+          [usesK.length + ' · ' + byK.length, _('uses · used by'), 'links']].concat(mp2 ? [[planN(m), _('in plan · {0}', [mp2.from.key]), 'contents', 'plan']] : []).concat(risks.length ? [[nR, ['P1', 'P2', 'P3'].map(function (l, k) { return m.risk[k] ? m.risk[k] + ' ' + l : null; }).filter(Boolean).join(' · ') || _('risks'), 'risks', m.risk[0] ? 'p1' : '']] : []);
         var wrap = h('div', { class: 'dx-md' }, [
           h('div', { class: 'dx-md-head' }, [
-            h('span', { class: 'dx-pd-eye', text: m.mp ? 'Marketplace module' : 'Own module' }),
-            h('h2', { class: 'mono', text: m.n }),
+            h('span', { class: 'dx-pd-eye', text: m.mp ? _('Marketplace module') : mp2 && mp2.state === 'new' ? _('Planned module · not in the model yet') : _('Own module') }),
+            h('h2', { class: 'mono' }, [m.n, mp2 && mp2.state === 'new' ? planTag(planMk(m)) : null]),
             m.sum ? h('p', { class: 'dx-pd-lead', text: m.sum }) : null,
             h('div', { class: 'dx-md-facts' }, facts.map(function (f) {
               return h('button', { type: 'button', class: 'dx-md-fact', onclick: toTab(f[2]) }, [h('span', { class: 'mono' + (f[3] ? ' ' + f[3] : ''), text: String(f[0]) }), h('small', { text: f[1] })]);
             }))
           ]),
-          h('div', { class: 'dx-tabs2', role: 'tablist' }, [['about', 'About'], ['contents', 'Contents', m.items.length + m.ent.length], ['links', 'Connections', usesK.length + byK.length]].concat(risks.length ? [['risks', 'Risks', nR]] : []).map(function (b) {
+          h('div', { class: 'dx-tabs2', role: 'tablist' }, [['about', _('About')], ['contents', _('Contents'), m.items.length + m.ent.length], ['links', _('Connections'), usesK.length + byK.length]].concat(risks.length ? [['risks', _('Risks'), nR]] : []).map(function (b) {
             var on = tab === b[0];
             return h('button', { type: 'button', role: 'tab', class: on ? 'on' : '', 'aria-selected': on ? 'true' : 'false', onclick: toTab(b[0]) }, [b[1], b[2] !== undefined ? h('span', { class: 'mono', text: String(b[2]) }) : null]);
           }))
         ]);
         if (tab === 'about') {
           wrap.appendChild(hasAbout ? h('div', { class: 'dx-md-about' }, [
-            h('section', { class: 'dx-pd-story' }, story2.length ? [h('h3', { class: 'dx-cap', text: 'What it does' })].concat(story2.map(function (p) { return h('p', { text: p }); }), [h('span', { class: 'dx-prov', text: 'Written by an agent from the model.' })])
-              : [h('h3', { class: 'dx-cap', text: 'What it does' }), h('p', { class: 'dx-empty', text: 'An agent wrote no description of this module.' })]),
+            h('section', { class: 'dx-pd-story' }, story2.length ? [h('h3', { class: 'dx-cap', text: _('What it does') })].concat(story2.map(function (p) { return h('p', { text: p }); }), [h('span', { class: 'dx-prov', text: _('Written by an agent from the model.') })])
+              : [h('h3', { class: 'dx-cap', text: _('What it does') }), h('p', { class: 'dx-empty', text: _('An agent wrote no description of this module.') })]),
             notes.length ? h('div', { class: 'dx-md-notes' }, notes.map(function (n) {
               var cols = n.table ? n.table.columns : [];
               var grid = cols.length === 3 ? '1.1fr 1.1fr 1.6fr' : cols.map(function () { return '1fr'; }).join(' ');
@@ -1818,7 +1821,7 @@
                 })() : null
               ]);
             })) : null
-          ]) : h('p', { class: 'dx-empty', text: 'An agent wrote nothing about this module.' }));
+          ]) : h('p', { class: 'dx-empty', text: _('An agent wrote nothing about this module.') }));
         } else if (tab === 'contents') {
           // Grouped by the first part of each name (spec 13 §3): a role prefix such as ACT_, or the entity the flows work on.
           function tok(n) { var i = n.indexOf('_'); return i > 0 ? n.slice(0, i) : ''; }
@@ -1828,51 +1831,51 @@
           var keys = Object.keys(groups).sort(function (a, b) { if (!a) return 1; if (!b) return -1; return groups[b].length - groups[a].length || a.localeCompare(b); });
           var cards = keys.map(function (k) {
             var its = groups[k];
-            var cols = [['mf', 'Microflows'], ['nf', 'Nanoflows'], ['pg', 'Pages']].map(function (c) {
+            var cols = [['mf', _('Microflows')], ['nf', _('Nanoflows')], ['pg', _('Pages')]].map(function (c) {
               var xs = its.filter(function (i) { return i[0] === c[0]; }).sort(function (a, b) { return a[1].localeCompare(b[1]); });
               if (!xs.length) return null;
               return h('div', { class: 'dx-mc-col' }, [h('span', { class: 'dx-cap', text: c[1] + ' · ' + xs.length })].concat(xs.map(function (i) {
                 var lost = i[3] === 0 && i[4] === 0;
                 var key = flowKey(m.n + '.' + i[1], c[0]);
-                var kids = [h('span', { class: 'dx-mc-n', text: k ? i[1].slice(k.length + 1) || i[1] : i[1] }), h('small', { text: i[0] === 'pg' ? '' : plural(i[2], 'step', 'steps') })];
-                var attrs = { class: 'dx-mc-item' + (lost ? ' lost' : ''), title: m.n + '.' + i[1] + (lost ? ' — nothing reaches it' : '') };
+                var kids = [h('span', { class: 'dx-mc-n', text: k ? i[1].slice(k.length + 1) || i[1] : i[1] }), h('small', { text: i[0] === 'pg' ? '' : count(i[2], 'step', 'steps') })];
+                var attrs = { class: 'dx-mc-item' + (lost ? ' lost' : ''), title: m.n + '.' + i[1] + (lost ? ' — ' + _('nothing reaches it') : '') };
                 return key ? ln({ view: 'refs', module: m.n, seg: KIND_OF_TAG[i[0]], key: key }, attrs, kids) : h('div', attrs, kids);
               })));
             }).filter(Boolean);
             var body = h('div', { class: 'dx-mc-cols' }, cols); body.style.gridTemplateColumns = 'repeat(' + cols.length + ', minmax(0, 1fr))';
-            return h('section', { class: 'dx-mc' }, [h('div', { class: 'dx-mc-h' }, [h('b', { class: 'mono', text: k ? k + '_' : 'Other names' }), h('span', { text: k ? (ROLE_PREFIX[k] || 'named after ' + k) : 'no shared prefix' }), h('span', { class: 'mono dx-fc-n', text: String(its.length) })]), body]);
-          });
-          if (m.ent.length) cards.push(h('section', { class: 'dx-mc' }, [h('div', { class: 'dx-mc-h' }, [h('b', { class: 'mono', text: 'Entities' }), h('span', { text: 'open in the domain model' }), h('span', { class: 'mono dx-fc-n', text: String(m.ent.length) })]),
-            h('div', { class: 'dx-mc-cols one' }, [h('div', { class: 'dx-mc-col' }, [h('span', { class: 'dx-cap', text: 'Entities · ' + m.ent.length })].concat(m.ent.map(function (e) {
+            return h('section', { class: 'dx-mc' }, [h('div', { class: 'dx-mc-h' }, [h('b', { class: 'mono', text: k ? k + '_' : _('Other names') }), h('span', { text: k ? (ROLE_PREFIX[k] ? _(ROLE_PREFIX[k]) : _('named after {0}', [k])) : _('no shared prefix') }), h('span', { class: 'mono dx-fc-n', text: String(its.length) })]), body]);
+          }); var pc = data.plan ? window.MxPlanLayer.moduleCard(h, ln, data.plan, m.n) : null; if (pc) cards.unshift(pc); // the flows and pages the plan builds in it
+          if (m.ent.length) cards.push(h('section', { class: 'dx-mc' }, [h('div', { class: 'dx-mc-h' }, [h('b', { class: 'mono', text: _('Entities') }), h('span', { text: _('open in the domain model') }), h('span', { class: 'mono dx-fc-n', text: String(m.ent.length) })]),
+            h('div', { class: 'dx-mc-cols one' }, [h('div', { class: 'dx-mc-col' }, [h('span', { class: 'dx-cap', text: _('Entities') + ' · ' + m.ent.length })].concat(m.ent.map(function (e) {
               var q = m.n + '.' + e;
-              return data.entities[q] ? ln({ view: 'domain', entity: q }, { class: 'dx-mc-item ent' }, [h('span', { class: 'dx-mc-n', text: e })]) : h('div', { class: 'dx-mc-item' }, [h('span', { class: 'dx-mc-n', text: e })]);
+              var pe = data.entities[q] && data.entities[q].plan; return data.entities[q] ? ln({ view: 'domain', entity: q }, { class: 'dx-mc-item ent' + (pe ? ' plan' : '') }, [h('span', { class: 'dx-mc-n', text: e }), pe ? planTag(pe) : null]) : h('div', { class: 'dx-mc-item' }, [h('span', { class: 'dx-mc-n', text: e })]);
             })))])]));
-          wrap.appendChild(h('div', { class: 'dx-md-sec' }, [h('p', { class: 'dx-md-hint', text: 'Grouped by the first part of each name: a role prefix such as ACT_ or SUB_, or the entity the flows work on. Struck-through names are not reached from anywhere.' }),
-            cards.length ? h('div', { class: 'dx-mc-grid' }, cards) : h('p', { class: 'dx-empty', text: 'This module holds nothing.' })]));
+          wrap.appendChild(h('div', { class: 'dx-md-sec' }, [h('p', { class: 'dx-md-hint', text: _('Grouped by the first part of each name: a role prefix such as ACT_ or SUB_, or the entity the flows work on. Struck-through names are not reached from anywhere.') }),
+            cards.length ? h('div', { class: 'dx-mc-grid' }, cards) : h('p', { class: 'dx-empty', text: _('This module holds nothing.') })]));
         } else if (tab === 'links') {
           function row(name, v, mutual) {
             var what = [];
-            if (v[0]) what.push(plural(v[0], 'call', 'calls'));
-            if (v[1]) what.push(plural(v[1], 'association', 'associations'));
-            return ln({ view: 'modules', module: name, mtab: 'links' }, { class: 'dx-ln-row' }, [h('b', { class: 'mono', text: name }), mutual ? h('span', { class: 'dx-both', title: 'Both modules depend on each other', text: 'both ways' }) : null, h('small', { text: what.join(' · ') })],
+            if (v[0]) what.push(count(v[0], 'call', 'calls'));
+            if (v[1]) what.push(count(v[1], 'association', 'associations'));
+            return ln({ view: 'modules', module: name, mtab: 'links' }, { class: 'dx-ln-row' }, [h('b', { class: 'mono', text: name }), mutual ? h('span', { class: 'dx-both', title: _('Both modules depend on each other'), text: _('both ways') }) : null, h('small', { text: what.join(' · ') })],
               function () { go({ module: name, mtab: 'links' }); });
           }
           function byWeight(o) { return Object.keys(o).sort(function (a, b) { return (o[b][0] + o[b][1]) - (o[a][0] + o[a][1]) || a.localeCompare(b); }); }
-          var runs = (m.sched || []).map(function (x) { return h('div', { class: 'dx-run' }, [kindTag('SCH'), h('span', { class: 'mono', text: x[0] }), h('small', { class: x[2] ? 'on' : '', text: (x[1] || '') + (x[2] ? ' · on' : ' · switched off') })]); })
-            .concat((m.serv || []).map(function (x) { return h('div', { class: 'dx-run' }, [kindTag(x[1] === 'OData' ? 'ODATA' : x[1] === 'REST' ? 'REST' : 'WS'), h('span', { class: 'mono', text: x[0] }), h('small', { text: 'published ' + x[1] })]); }));
+          var runs = (m.sched || []).map(function (x) { return h('div', { class: 'dx-run' }, [kindTag('SCH'), h('span', { class: 'mono', text: x[0] }), h('small', { class: x[2] ? 'on' : '', text: every(x[1]) + ' · ' + (x[2] ? _('on') : _('switched off')) })]); })
+            .concat((m.serv || []).map(function (x) { return h('div', { class: 'dx-run' }, [kindTag(x[1] === 'OData' ? 'ODATA' : x[1] === 'REST' ? 'REST' : 'WS'), h('span', { class: 'mono', text: x[0] }), h('small', { text: _('published {0}', [x[1]]) })]); }));
           wrap.appendChild(h('div', { class: 'dx-md-links' }, [
-            h('section', null, [h('h3', { class: 'dx-cap', text: 'Uses · ' + usesK.length }), h('p', { class: 'dx-md-hint', text: 'Modules whose flows it calls or whose entities it points to.' }),
-              h('div', { class: 'dx-pd-rows' }, usesK.length ? byWeight(m.uses).map(function (k) { return row(k, m.uses[k], !!(byName[k] && byName[k].uses && byName[k].uses[m.n])); }) : [h('span', { class: 'dx-empty', text: 'None.' })])]),
-            h('section', null, [h('h3', { class: 'dx-cap', text: 'Used by · ' + byK.length }), h('p', { class: 'dx-md-hint', text: 'Modules that call its flows or point to its entities.' }),
-              h('div', { class: 'dx-pd-rows' }, byK.length ? byWeight(usedBy[m.n]).map(function (k) { return row(k, usedBy[m.n][k], !!(m.uses && m.uses[k])); }) : [h('span', { class: 'dx-empty', text: 'None.' })])]),
-            h('section', null, [h('h3', { class: 'dx-cap', text: 'Runs on its own' }), h('p', { class: 'dx-md-hint', text: 'Scheduled events and services this module publishes.' }),
-              h('div', { class: 'dx-pd-rows' }, runs.length ? runs : [h('span', { class: 'dx-empty', text: 'Nothing. Everything here starts from a page or from another module.' })])])
+            h('section', null, [h('h3', { class: 'dx-cap', text: _('Uses') + ' · ' + usesK.length }), h('p', { class: 'dx-md-hint', text: _('Modules whose flows it calls or whose entities it points to.') }),
+              h('div', { class: 'dx-pd-rows' }, usesK.length ? byWeight(m.uses).map(function (k) { return row(k, m.uses[k], !!(byName[k] && byName[k].uses && byName[k].uses[m.n])); }) : [h('span', { class: 'dx-empty', text: _('None.') })])]),
+            h('section', null, [h('h3', { class: 'dx-cap', text: _('Used by') + ' · ' + byK.length }), h('p', { class: 'dx-md-hint', text: _('Modules that call its flows or point to its entities.') }),
+              h('div', { class: 'dx-pd-rows' }, byK.length ? byWeight(usedBy[m.n]).map(function (k) { return row(k, usedBy[m.n][k], !!(m.uses && m.uses[k])); }) : [h('span', { class: 'dx-empty', text: _('None.') })])]),
+            h('section', null, [h('h3', { class: 'dx-cap', text: _('Runs on its own') }), h('p', { class: 'dx-md-hint', text: _('Scheduled events and services this module publishes.') }),
+              h('div', { class: 'dx-pd-rows' }, runs.length ? runs : [h('span', { class: 'dx-empty', text: _('Nothing. Everything here starts from a page or from another module.') })])])
           ]));
         } else {
           wrap.appendChild(h('div', { class: 'dx-md-sec' }, [h('div', { class: 'dx-pd-rows' }, mRisks.length ? mRisks.map(function (x) {
             return ln({ view: 'risks', sub: riskId(x[1]) }, { class: 'dx-md-risk' }, [h('span', { class: 'dx-lv ' + x[0].level.toLowerCase(), text: x[0].level }),
-              h('span', { class: 'dx-md-risk-t' }, [h('b', { text: x[0].title }), x[0].fix ? h('span', { text: x[0].fix }) : null]), h('span', { class: 'dx-rk-open' }, ['Open', navIcon('arrow', 12)])]);
-          }) : [h('span', { class: 'dx-empty', text: 'No risks found in this module.' })])]));
+              h('span', { class: 'dx-md-risk-t' }, [h('b', { text: x[0].title }), x[0].fix ? h('span', { text: x[0].fix }) : null]), h('span', { class: 'dx-rk-open' }, [_('Open'), navIcon('arrow', 12)])]);
+          }) : [h('span', { class: 'dx-empty', text: _('No risks found in this module.') })])]));
         }
         main.appendChild(wrap);
       }
@@ -2060,8 +2063,7 @@
         }
         var scopeBar = mktMods.length ? h('div', { class: 'dx-seg2 dx-dm-scope', role: 'group', 'aria-label': 'Which modules' }, [scopeBtn('own', 'Own', ownMods), scopeBtn('marketplace', 'Marketplace', mktMods)]) : null;
         var modList = h('aside', { class: 'dx-dm-mods', 'aria-label': 'Modules', 'data-keep-scroll': 'dm-mods:' + scope }, [h('label', { class: 'dx-rk-search' }, [navIcon('search', 14), find]), found, scopeBar,
-          h('span', { class: 'dx-cap', text: 'Modules · ' + mods.length })].concat(mods.map(function (m) {
-          return ln({ view: 'domain', entity: m[0], dmodule: m[0] }, { class: 'dx-dm-mrow mono' + (m[0] === mod ? ' on' : '') }, [h('span', { text: m[0] }), h('span', { class: 'dx-fc-n', text: String(m[1]) })]);
+          h('span', { class: 'dx-cap', text: 'Modules · ' + mods.length })].concat(mods.map(function (m) { var pm3 = data.plan && data.plan.modules[m[0]]; return ln({ view: 'domain', entity: m[0], dmodule: m[0] }, { class: 'dx-dm-mrow mono' + (m[0] === mod ? ' on' : '') }, [h('span', null, [m[0], pm3 && pm3.state === 'new' ? planTag({ state: 'new', key: pm3.from.key }) : null]), h('span', { class: 'dx-fc-n', text: String(m[1]) })]);
         })));
 
         // ---- the canvas ----
@@ -2103,7 +2105,7 @@
           var k = f < t2 ? f + '>' + t2 : t2 + '>' + f;
           var p = pm[k] || (pm[k] = { a: f, b: t2, n: 0, many: false, names: [], each: [] });
           p.n++; p.names.push(a[0]); if (a[3]) p.many = true;
-          p.each.push({ name: a[0], owner: f, many: !!a[3] });
+          p.each.push({ name: a[0], owner: f, many: !!a[3], plan: a[4] || null });
         });
         var pairs = Object.keys(pm).map(function (k) { return pm[k]; });
         function boxH(n) { var na = E[n].attrs.length; return G.head + Math.min(na, G.maxA) * G.rowH + 14 + (footOf(n, shown) ? G.foot : 0); }
@@ -2157,8 +2159,8 @@
             var pts = offsetPts(rt.pts, (k - (rt.p.each.length - 1) / 2) * 7);
             // the route runs from p.a to p.b; an association owned at p.b runs the other way
             var fwd = as.owner === rt.p.a;
-            var path = s('path', { class: 'dx-dm-edge' + (on ? ' on' : ''), d: pathOf(pts, 8) });
-            var ti = s('title'); ti.textContent = as.name; path.appendChild(ti);
+            var path = s('path', { class: 'dx-dm-edge' + (on ? ' on' : '') + (as.plan ? ' plan' : ''), d: pathOf(pts, 8) });
+            var ti = s('title'); ti.textContent = as.name + (as.plan ? ' — in the plan of ' + as.plan.key : ''); path.appendChild(ti);
             svg.appendChild(path);
             // a line starts at its owner: * there, 1 at the other end — or * for a reference set
             var own = fwd ? [pts[0], pts[1]] : [pts[pts.length - 1], pts[pts.length - 2]];
@@ -2172,12 +2174,12 @@
           var e = E[n], b = L.pos[n], on = n === sel, dim = !!sel && whole && !nbr[n];
           var na = e.attrs.length, list2 = na > G.maxA ? e.attrs.slice(0, G.maxA - 1) : e.attrs;
           var foot = footOf(n, shown);
-          var box = ln(pickEntity(n), { class: 'dx-dm-box' + (e.pers ? '' : ' np') + (e.view ? ' view' : '') + (on ? ' on' : '') + (dim ? ' dim' : ''), 'aria-pressed': on ? 'true' : 'false', title: mod + '.' + n }, [
+          var box = ln(pickEntity(n), { class: 'dx-dm-box' + (e.pers ? '' : ' np') + (e.view ? ' view' : '') + (e.plan ? ' plan plan-' + e.plan.state : '') + (on ? ' on' : '') + (dim ? ' dim' : ''), 'aria-pressed': on ? 'true' : 'false', title: mod + '.' + n + (e.plan ? ' — in the plan of ' + e.plan.key : '') }, [
             // The kind, told two ways (Karol, 2026-10-13: "persistable, not and view must differ more"):
             // the header's colour and the outline (solid, dashed, dotted); the legend names them. The
             // word under the name went (2026-10-14: "not needed").
-            h('span', { class: 'dx-dm-bh' }, [marker(e), h('b', { class: 'mono', text: n }), h('small', { class: 'mono', text: String(na) })]),
-            h('span', { class: 'dx-dm-attrs' }, list2.map(function (a) { return h('span', { class: 'dx-dm-attr mono' }, [h('span', { text: a[0] }), h('small', { text: a[1] })]); })
+            h('span', { class: 'dx-dm-bh' }, [marker(e), h('b', { class: 'mono', text: n }), e.plan && e.plan.state === 'new' ? planTag(e.plan, true) : null, h('small', { class: 'mono', text: String(na) })]),
+            h('span', { class: 'dx-dm-attrs' }, list2.map(function (a) { return h('span', { class: 'dx-dm-attr mono' + (a[3] ? ' plan plan-' + a[3].state : ''), title: a[3] ? 'Proposed: ' + a[3].state + (a[3].was ? ' (was ' + a[3].was + ')' : '') + (a[3].note ? ' — ' + a[3].note : '') : null }, [h('span', { text: a[0] }), h('small', { text: a[3] && e.plan && e.plan.state === 'changed' ? a[3].state : a[1] })]); })
               .concat(na > G.maxA ? [h('span', { class: 'dx-dm-attr more', text: '+ ' + (na - G.maxA + 1) + ' more' })] : [])),
             foot ? h('span', { class: 'dx-dm-foot mono', title: foot, text: foot }) : null
           ]);
@@ -2325,9 +2327,9 @@
         var insp = h('aside', { class: 'dx-dm-insp', 'aria-label': 'Entity', 'data-keep-scroll': 'dm-insp:' + scope + '|' + mod + '|' + sel }, [
           h('div', { class: 'dx-dm-ih' }, [
             h('div', { class: 'dx-dm-meta' }, [h('span', null, ['Entity in ', h('span', { class: 'mono', text: mod })]), h('span', { 'aria-hidden': 'true', text: '·' }), h('span', { class: 'dx-dm-kind' }, [marker(e), kindOf(e)])]),
-            h('h2', { class: 'mono', text: sel }),
-            e.desc ? h('p', { class: 'dx-dm-d', text: e.desc }) : null,
-            e.desc ? h('span', { class: 'dx-prov', text: 'Description written by an agent from the model.' }) : null,
+            h('h2', { class: 'mono' }, [sel, e.plan ? planTag(e.plan) : null]),
+            e.desc && !(e.plan && e.plan.state === 'new') ? h('p', { class: 'dx-dm-d', text: e.desc }) : null,
+            e.desc && !(e.plan && e.plan.state === 'new') ? h('span', { class: 'dx-prov', text: 'Description written by an agent from the model.' }) : null, e.plan ? window.MxPlanLayer.entityNote(h, e.plan) : e.planBuilt && window.MxPlanLayer ? window.MxPlanLayer.builtNote(h, e.planBuilt) : null, // the guide's note, and that it is proposed; or, built, the proposal to compare
             h('div', { class: 'dx-dm-stats' }, [[e.attrs.length, 'attributes'], [nOwned + nRef, 'associations'], [e.access.length, 'access rules']].map(function (x) { return h('div', null, [h('span', { class: 'mono', text: String(x[0]) }), h('small', { text: x[1] })]); })),
             note ? h('p', { class: 'dx-ar-note' }, [navIcon('info', 14), h('span', null, [h('b', { text: 'Read from the model. ' }), note])]) : null,
             // MxScout's own: what the app can do with the entity (its data, a comment).
@@ -2335,7 +2337,7 @@
           ]),
           opts.entitySection ? opts.entitySection(mod + '.' + sel) : null,
           h('section', { class: 'dx-dm-sec' }, [h('h3', { class: 'dx-cap', text: 'Attributes · ' + e.attrs.length }), h('div', { class: 'dx-pd-rows' }, e.attrs.length ? e.attrs.map(function (a) {
-            return h('div', { class: 'dx-dm-attrrow' }, [h('span', { class: 'mono', text: a[0] }), h('small', { text: a[2] })]);
+            return h('div', { class: 'dx-dm-attrrow' + (a[3] ? ' plan plan-' + a[3].state : '') }, [h('span', { class: 'mono', text: a[0] }), h('small', { text: a[3] && a[3].was ? a[3].was + ' → ' + a[2] : a[2] }), a[3] && !(e.plan && e.plan.state === 'new') ? planTag({ state: a[3].state, key: e.plan ? e.plan.key : '' }) : null, a[3] && a[3].note ? h('small', { class: 'dx-dm-pn', text: a[3].note }) : null]);
           }) : [h('span', { class: 'dx-empty', text: 'None of its own' + (e.gen ? ' — it inherits those of ' + short(e.gen) + '.' : '.') })])]),
           h('section', { class: 'dx-dm-sec' }, [h('h3', { class: 'dx-cap', text: 'Associations · ' + (nOwned + nRef) })].concat(
             ownedL.length ? [h('span', { class: 'dx-dm-gt', text: 'It refers to · ' + nOwned }), h('div', { class: 'dx-pd-rows' }, ownedL.map(function (g) { return assocRow(g, true); }))] : [],
@@ -2473,14 +2475,13 @@
       function drawArch() {
         var D = derived(), A = D && D.arch;
         var secs = [];
-        if (c4 && c4.context && contextGroups(c4.context)) secs.push(['context', 'Context']);
-        secs.push(['runtime', 'Runtime']);
-        if (A && A.order.length > 1) secs.push(['modules', 'Modules']);
-        if (A && A.roles.length) secs.push(['roles', 'Roles']);
-        if (c4 && c4.open && c4.open.length) secs.push(['open', 'Open questions']);
-        setTitle('Architecture', c4 ? 'The C4 model adapted to Mendix. An agent drew the context and the runtime from the model; module links and roles are read from the model.'
-          : 'What the application runs, how its modules lean on one another, and who may reach them — read from the model.');
-        tools(h('nav', { class: 'dx-seg2 dx-anchors', 'aria-label': 'On this page' }, secs.map(function (x, i) {
+        if (c4 && c4.context && contextGroups(c4.context)) secs.push(['context', _('Context')]);
+        secs.push(['runtime', _('Runtime')]);
+        if (A && A.order.length > 1) secs.push(['modules', _('Modules')]);
+        if (A && A.roles.length) secs.push(['roles', _('Roles')]);
+        if (c4 && c4.open && c4.open.length) secs.push(['open', _('Open questions')]);
+        setTitle(_('Architecture'), c4 ? _('The C4 model adapted to Mendix. An agent drew the context and the runtime from the model; module links and roles are read from the model.') : _('What the application runs, how its modules lean on one another, and who may reach them — read from the model.'));
+        tools(h('nav', { class: 'dx-seg2 dx-anchors', 'aria-label': _('On this page') }, secs.map(function (x, i) {
           return ln({ view: 'arch', sec: x[0] }, { class: 'dx-anchor' }, [h('span', { class: 'mono', text: String(i + 1) }), x[1]], function () { st.sec = x[0]; if (opts.hash) history.replaceState(null, '', hashOf(st)); toSection(x[0]); });
         })), function (n) { main.appendChild(h('div', { class: 'dx-page-tools' }, [n])); });
         var app = data.project;
@@ -2503,9 +2504,9 @@
               h('span', { class: 'mono dx-ar-dir' + (into.length && !from.length ? '' : ' out'), text: into.length && from.length ? '↔ ' + appNode.name : into.length ? '→ ' + appNode.name : from.length ? appNode.name + ' →' : '—' }),
               h('span', { class: 'dx-q-muted ink', text: [l && l.label, n.note].filter(Boolean).join(' · ') })]));
           });
-          doc.appendChild(section('context', 'Context', 'Who uses ' + app + ' and which systems it exchanges data with: ' + plural(rows.length, 'partner', 'partners') + ' in ' + plural(cx.groups.length, 'group', 'groups') + '. The table under the picture says what each one exchanges.', [
+          doc.appendChild(section('context', _('Context'), _('Who uses {0} and which systems it exchanges data with: {1} in {2}. The table under the picture says what each one exchanges.', [app, count(rows.length, 'partner', 'partners'), count(cx.groups.length, 'group', 'groups')]), [
             contextDiagram(cx, true),
-            h('div', { class: 'dx-ar-table ctx' }, [h('div', { class: 'dx-ar-tr head' }, ['Partner', 'Group', 'Direction', 'What goes over'].map(function (x) { return h('span', { text: x }); }))].concat(rows))
+            h('div', { class: 'dx-ar-table ctx' }, [h('div', { class: 'dx-ar-tr head' }, [_('Partner'), _('Group'), _('Direction'), _('What goes over')].map(function (x) { return h('span', { text: x }); }))].concat(rows))
           ]));
         }
 
@@ -2515,27 +2516,26 @@
           .sort(function (a, b) { return (b[2] ? 1 : 0) - (a[2] ? 1 : 0) || a[0].localeCompare(b[0]); });
         var on = sched.filter(function (x) { return x[2]; }).length;
         var KIND_SERV = function (k) { return k === 'web service' ? 'SOAP' : String(k || '').toUpperCase(); };
-        doc.appendChild(section('runtime', 'Runtime', c4 && c4.containers ? 'What ' + app + ' runs as. In Mendix almost everything is one runtime, so its parts are roles: the client, published services, background work and outgoing connectors, and where the data lives.'
-          : 'What ' + app + ' publishes and what it runs on a schedule, read from the model.', [
+        doc.appendChild(section('runtime', _('Runtime'), c4 && c4.containers ? _('What {0} runs as. In Mendix almost everything is one runtime, so its parts are roles: the client, published services, background work and outgoing connectors, and where the data lives.', [app]) : _('What {0} publishes and what it runs on a schedule, read from the model.', [app]), [
           c4 && c4.containers ? runtimeDiagram(c4.containers, app) : null,
           h('div', { class: 'dx-ar-two' }, [
-            h('div', { 'data-sec': 'services' }, [h('h3', { class: 'dx-cap', text: 'Published services · ' + serv.length }), h('div', { class: 'dx-pd-rows' }, serv.length ? serv.map(function (x) {
+            h('div', { 'data-sec': 'services' }, [h('h3', { class: 'dx-cap', text: _('Published services') + ' · ' + serv.length }), h('div', { class: 'dx-pd-rows' }, serv.length ? serv.map(function (x) {
               var i = x[0].indexOf('.');
               return h('div', { class: 'dx-ar-serv' }, [kindTag(KIND_SERV(x[1])), h('span', { class: 'mono dx-q-qn' }, [h('span', { class: 'dx-mod', text: x[0].slice(0, i + 1) }), x[0].slice(i + 1)]), h('small', { text: x[1] || '' })]);
-            }) : [h('span', { class: 'dx-empty', text: 'None.' })])]),
-            h('div', { 'data-sec': 'schedules' }, [h('h3', { class: 'dx-cap', text: 'Scheduled events · ' + sched.length + (sched.length ? ' · ' + on + ' switched on' : '') }), h('div', { class: 'dx-pd-rows' }, sched.length ? sched.map(function (x) {
+            }) : [h('span', { class: 'dx-empty', text: _('None.') })])]),
+            h('div', { 'data-sec': 'schedules' }, [h('h3', { class: 'dx-cap', text: _('Scheduled events') + ' · ' + sched.length + (sched.length ? ' · ' + _('{0} switched on', [on]) : '') }), h('div', { class: 'dx-pd-rows' }, sched.length ? sched.map(function (x) {
               var i = x[0].indexOf('.');
-              return h('div', { class: 'dx-ar-sched' + (x[2] ? '' : ' off') }, [h('span', { class: 'dx-q-state' + (x[2] ? ' on' : '') }), h('span', { class: 'mono dx-q-qn' }, [h('span', { class: 'dx-mod', text: x[0].slice(0, i + 1) }), x[0].slice(i + 1)]), h('small', { text: (x[1] || '') + (x[2] ? ' · on' : ' · off') })]);
-            }) : [h('span', { class: 'dx-empty', text: 'None.' })]), sched.length ? h('p', { class: 'dx-md-hint', text: 'Switched off in the model. Which ones run in production is set per environment.' }) : null])
+              return h('div', { class: 'dx-ar-sched' + (x[2] ? '' : ' off') }, [h('span', { class: 'dx-q-state' + (x[2] ? ' on' : '') }), h('span', { class: 'mono dx-q-qn' }, [h('span', { class: 'dx-mod', text: x[0].slice(0, i + 1) }), x[0].slice(i + 1)]), h('small', { text: every(x[1]) + ' · ' + (x[2] ? _('on') : _('off')) })]);
+            }) : [h('span', { class: 'dx-empty', text: _('None.') })]), sched.length ? h('p', { class: 'dx-md-hint', text: _('Switched off in the model. Which ones run in production is set per environment.') }) : null])
           ])
         ]));
 
         // 3 · modules: a dependency structure matrix
-        if (A && A.order.length > 1) doc.appendChild(section('modules', 'Modules', 'A module uses another when one of its flows calls a flow there or one of its entities points to an entity there. Read across a row: the row module uses the column module. Modules used least are at the top, the core at the bottom.', [dsm(A)]));
+        if (A && A.order.length > 1) doc.appendChild(section('modules', _('Modules'), _('A module uses another when one of its flows calls a flow there or one of its entities points to an entity there. Read across a row: the row module uses the column module. Modules used least are at the top, the core at the bottom.'), [dsm(A)]));
         // 4 · roles and access
-        if (A && A.roles.length) doc.appendChild(section('roles', 'Roles and access', plural(A.roles.length, 'user role', 'user roles') + '. A mark means the user role carries at least one module role in that module; the number says how many.', roleMatrix(A)));
+        if (A && A.roles.length) doc.appendChild(section('roles', _('Roles and access'), _('{0}. A mark means the user role carries at least one module role in that module; the number says how many.', [count(A.roles.length, 'user role', 'user roles')]), roleMatrix(A)));
         // 5 · what the model does not show
-        if (c4 && c4.open && c4.open.length) doc.appendChild(section('open', 'What the model does not show', cap(numWord(c4.open.length)) + (c4.open.length === 1 ? ' thing' : ' things') + ' to confirm in the environment before relying on this picture. Written by an agent.', [
+        if (c4 && c4.open && c4.open.length) doc.appendChild(section('open', _('What the model does not show'), _('{0} to confirm in the environment before relying on this picture. Written by an agent.', [capCount(c4.open.length, 'thing', 'things')]), [
           h('ol', { class: 'dx-ar-open' }, c4.open.map(function (x, i) { return h('li', null, [h('span', { class: 'mono', text: pad2(i + 1) }), h('span', { text: x })]); }))]));
         main.appendChild(doc);
         if (st.sec) { var want = st.sec; requestFrame(function () { toSection(want); }); }
@@ -2546,12 +2546,12 @@
       // right. Lines are orthogonal, each with its label. Text is set as text.
       function runtimeDiagram(d, app, frameLabel) {
         var L = runtimeLayout(d), pos = L.pos, Hn = L.Hn;
-        var stage = h('div', { class: 'dx-rt', role: 'img', 'aria-label': 'What ' + app + ' runs as' });
+        var stage = h('div', { class: 'dx-rt', role: 'img', 'aria-label': _('What {0} runs as', [app]) });
         stage.style.width = L.W + 'px'; stage.style.height = L.H + 'px';
         var svg = s('svg', { class: 'dx-rt-svg', width: L.W, height: L.H, 'aria-hidden': 'true' });
         if (L.frame) svg.appendChild(s('rect', { class: 'dx-rt-frame', x: L.frame.x, y: L.frame.y, width: L.frame.w, height: L.frame.h, rx: 18 }));
         stage.appendChild(svg);
-        if (L.frame) { var fl = h('span', { class: 'dx-rt-frame-l', text: frameLabel || app + ' runtime · one Mendix app' }); fl.style.left = L.frame.lx + 'px'; fl.style.top = L.frame.ly + 'px'; stage.appendChild(fl); }
+        if (L.frame) { var fl = h('span', { class: 'dx-rt-frame-l', text: frameLabel || _('{0} runtime · one Mendix app', [app]) }); fl.style.left = L.frame.lx + 'px'; fl.style.top = L.frame.ly + 'px'; stage.appendChild(fl); }
         L.edges.forEach(function (e) {
           svg.appendChild(s('path', { class: 'dx-rt-edge', d: e.d }));
           svg.appendChild(s('path', { class: 'dx-rt-arrow', d: e.arrow }));
@@ -2582,36 +2582,36 @@
         var top = order.slice().sort(function (a, b) { return (usedByN[b] || 0) - (usedByN[a] || 0); })[0];
         var sel = order.indexOf(st.amod) !== -1 ? st.amod : (order.indexOf(st.module) !== -1 ? st.module : top);
         function pick(name) { return function () { st.amod = name; if (opts.hash) history.replaceState(null, '', hashOf(st)); var y = main.scrollTop; draw(); main.scrollTop = y; }; }
-        var table = h('div', { class: 'dx-dsm', role: 'table', 'aria-label': 'Module dependency matrix' }, [
+        var table = h('div', { class: 'dx-dsm', role: 'table', 'aria-label': _('Module dependency matrix') }, [
           h('div', { class: 'dx-dsm-r head', role: 'row' }, [h('span', { class: 'dx-dsm-corner' })].concat(order.map(function (b) { return h('span', { class: 'dx-dsm-ch mono' + (b === sel ? ' on' : ''), role: 'columnheader', text: b }); })))
         ].concat(order.map(function (a, i) {
           var rowOn = a === sel;
           return h('div', { class: 'dx-dsm-r', role: 'row' }, [h('button', { type: 'button', class: 'dx-dsm-rh mono' + (rowOn ? ' on' : ''), text: a, onclick: pick(a) })].concat(order.map(function (b, j) {
             var v = val(a, b), mu = v && val(b, a), m = mat[a] && mat[a][b];
             var cls = 'dx-dsm-c' + (i === j ? ' self' : v && mu ? (v >= 5 ? ' mu hi' : ' mu') : v ? (v >= 10 ? ' v4' : v >= 4 ? ' v3' : v >= 2 ? ' v2' : ' v1') : (rowOn || b === sel) ? ' cross' : '');
-            return h('span', { class: cls, role: 'cell', title: v ? a + ' uses ' + b + ': ' + [m[0] ? plural(m[0], 'call', 'calls') : null, m[1] ? plural(m[1], 'association', 'associations') : null].filter(Boolean).join(', ') + (mu ? ' · both ways' : '') : null, text: i === j || !v ? '' : String(v) });
+            return h('span', { class: cls, role: 'cell', title: v ? _('{0} uses {1}', [a, b]) + ': ' + [m[0] ? count(m[0], 'call', 'calls') : null, m[1] ? count(m[1], 'association', 'associations') : null].filter(Boolean).join(', ') + (mu ? ' · ' + _('both ways') : '') : null, text: i === j || !v ? '' : String(v) });
           })));
         })));
         function dRow(name, v, mutual) {
           var what = [];
-          if (v[0]) what.push(plural(v[0], 'call', 'calls'));
-          if (v[1]) what.push(v[1] + ' assoc.');
-          return h('button', { type: 'button', class: 'dx-ln-row', onclick: pick(name) }, [h('b', { class: 'mono', text: name }), mutual ? h('span', { class: 'dx-both', text: 'both ways' }) : null, h('small', { text: what.join(' · ') })]);
+          if (v[0]) what.push(count(v[0], 'call', 'calls'));
+          if (v[1]) what.push(_('{0} assoc.', [v[1]]));
+          return h('button', { type: 'button', class: 'dx-ln-row', onclick: pick(name) }, [h('b', { class: 'mono', text: name }), mutual ? h('span', { class: 'dx-both', text: _('both ways') }) : null, h('small', { text: what.join(' · ') })]);
         }
         var usesL = Object.keys(mat[sel] || {}).filter(function (b) { return b !== sel; }).sort(function (a, b) { return val(sel, b) - val(sel, a) || a.localeCompare(b); });
         var byL = order.filter(function (a) { return a !== sel && val(a, sel); }).sort(function (a, b) { return val(b, sel) - val(a, sel) || a.localeCompare(b); });
         return h('div', null, [
-          h('div', { class: 'dx-ar-facts' }, [[linkN, 'links between ' + order.length + ' modules', ''], [mutualN, mutualN === 1 ? 'pair of modules use each other' : 'pairs of modules use each other', 'p1'], [usedByN[top] || 0, plural(usedByN[top] || 0, 'module uses', 'modules use').replace(/^\d+ /, '') + ' ' + top, '']].map(function (f) {
+          h('div', { class: 'dx-ar-facts' }, [[linkN, _('links between {0}', [count(order.length, 'module', 'modules')]), ''], [mutualN, mutualN === 1 ? _('pair of modules use each other') : _('pairs of modules use each other'), 'p1'], [usedByN[top] || 0, (usedByN[top] === 1 ? _('module uses {0}', [top]) : _('modules use {0}', [top])), '']].map(function (f) {
             return h('div', { class: 'dx-ar-fact' }, [h('span', { class: 'mono ' + f[2], text: String(f[0]) }), h('span', { text: f[1] })]);
           })),
           h('div', { class: 'dx-ar-grid' }, [
             h('div', { class: 'dx-ar-mx' }, [h('div', { class: 'dx-ar-mx-scroll', 'data-keep-scroll': 'ar-modules' }, [table]), h('div', { class: 'dx-ar-legend' }, [
-              h('span', null, [h('i', { class: 'lg-a' }), 'uses, the darker the more']), h('span', null, [h('i', { class: 'lg-m' }), 'both use each other']), h('span', null, [h('i', { class: 'lg-s' }), 'selected module'])])]),
+              h('span', null, [h('i', { class: 'lg-a' }), _('uses, the darker the more')]), h('span', null, [h('i', { class: 'lg-m' }), _('both use each other')]), h('span', null, [h('i', { class: 'lg-s' }), _('selected module')])])]),
             h('aside', { class: 'dx-ar-side' }, [
-              h('div', { class: 'dx-ar-sel' }, [h('small', { text: 'Selected module' }), h('b', { class: 'mono', text: sel })]),
-              h('div', null, [h('h3', { class: 'dx-cap', text: 'Uses · ' + usesL.length }), h('div', { class: 'dx-pd-rows' }, usesL.length ? usesL.map(function (b) { return dRow(b, mat[sel][b], !!val(b, sel)); }) : [h('span', { class: 'dx-empty', text: 'None.' })])]),
-              h('div', null, [h('h3', { class: 'dx-cap', text: 'Used by · ' + byL.length }), h('div', { class: 'dx-pd-rows' }, byL.length ? byL.map(function (a) { return dRow(a, mat[a][sel], !!val(sel, a)); }) : [h('span', { class: 'dx-empty', text: 'None.' })])]),
-              data.modules.some(function (x) { return x.name === sel; }) ? ln({ view: 'modules', module: sel }, { class: 'dx-more-link' }, ['Open the module page', navIcon('arrow', 13)]) : null
+              h('div', { class: 'dx-ar-sel' }, [h('small', { text: _('Selected module') }), h('b', { class: 'mono', text: sel })]),
+              h('div', null, [h('h3', { class: 'dx-cap', text: _('Uses') + ' · ' + usesL.length }), h('div', { class: 'dx-pd-rows' }, usesL.length ? usesL.map(function (b) { return dRow(b, mat[sel][b], !!val(b, sel)); }) : [h('span', { class: 'dx-empty', text: _('None.') })])]),
+              h('div', null, [h('h3', { class: 'dx-cap', text: _('Used by') + ' · ' + byL.length }), h('div', { class: 'dx-pd-rows' }, byL.length ? byL.map(function (a) { return dRow(a, mat[a][sel], !!val(sel, a)); }) : [h('span', { class: 'dx-empty', text: _('None.') })])]),
+              data.modules.some(function (x) { return x.name === sel; }) ? ln({ view: 'modules', module: sel }, { class: 'dx-more-link' }, [_('Open the module page'), navIcon('arrow', 13)]) : null
             ])
           ])
         ]);
@@ -2625,27 +2625,27 @@
         var sel = roles.filter(function (r) { return r.n === st.arole; })[0] || anon || roles[0];
         function pick(name) { return function () { st.arole = name; if (opts.hash) history.replaceState(null, '', hashOf(st)); var y = main.scrollTop; draw(); main.scrollTop = y; }; }
         var note = [];
-        if (anon) { var am = Object.keys(anon.own); note.push(am.length ? 'Anonymous users, who are not signed in, carry module roles in ' + plural(am.length, 'module', 'modules') + ': ' + (am.length > 1 ? am.slice(0, -1).join(', ') + ' and ' + am[am.length - 1] : am[0]) + '.' : 'Anonymous users, who are not signed in, carry no module role in these modules.'); }
-        if (admin) note.push(admin.n + ' reaches ' + Object.keys(admin.own).length + ' of ' + mods.length + '.');
-        var table = h('div', { class: 'dx-dsm roles', role: 'table', 'aria-label': 'User roles by module' }, [
-          h('div', { class: 'dx-dsm-r head', role: 'row' }, [h('span', { class: 'dx-dsm-corner' })].concat(mods.map(function (m) { return h('span', { class: 'dx-dsm-ch mono', role: 'columnheader', text: m }); }), [h('span', { class: 'dx-dsm-tot', text: 'modules' })]))
+        if (anon) { var am = Object.keys(anon.own); note.push(am.length ? _('Anonymous users, who are not signed in, carry module roles in {0}: {1}.', [count(am.length, 'module', 'modules'), am.length > 1 ? am.slice(0, -1).join(', ') + ' ' + _('and') + ' ' + am[am.length - 1] : am[0]]) : _('Anonymous users, who are not signed in, carry no module role in these modules.')); }
+        if (admin) note.push(_('{0} reaches {1} of {2}.', [admin.n, Object.keys(admin.own).length, mods.length]));
+        var table = h('div', { class: 'dx-dsm roles', role: 'table', 'aria-label': _('User roles by module') }, [
+          h('div', { class: 'dx-dsm-r head', role: 'row' }, [h('span', { class: 'dx-dsm-corner' })].concat(mods.map(function (m) { return h('span', { class: 'dx-dsm-ch mono', role: 'columnheader', text: m }); }), [h('span', { class: 'dx-dsm-tot', text: _('modules') })]))
         ].concat(roles.map(function (r) {
           var on = r === sel;
           return h('div', { class: 'dx-dsm-r', role: 'row' }, [h('button', { type: 'button', class: 'dx-dsm-rh' + (on ? ' on' : ''), text: r.n, onclick: pick(r.n) })].concat(mods.map(function (m) {
             var rs = r.own[m], n = rs ? rs.length : 0;
-            return h('span', { class: 'dx-dsm-c' + (n ? (on ? ' v4' : ' v3') : on ? ' cross' : ''), role: 'cell', title: rs ? r.n + ' in ' + m + ': ' + rs.join(', ') : null, text: n > 1 ? String(n) : '' });
+            return h('span', { class: 'dx-dsm-c' + (n ? (on ? ' v4' : ' v3') : on ? ' cross' : ''), role: 'cell', title: rs ? _('{0} in {1}', [r.n, m]) + ': ' + rs.join(', ') : null, text: n > 1 ? String(n) : '' });
           }), [h('span', { class: 'dx-dsm-tot mono' + (on ? ' on' : ''), text: String(Object.keys(r.own).length) })]));
         })));
         var rk = Object.keys(sel.own).sort(function (a, b) { return a.toLowerCase().localeCompare(b.toLowerCase()); });
         var total = rk.reduce(function (n, m) { return n + sel.own[m].length; }, 0) + sel.other.length;
         return [
-          note.length ? h('p', { class: 'dx-ar-note' }, [navIcon('info', 14), h('span', null, [h('b', { text: 'Read from the model. ' }), note.join(' ')])]) : null,
+          note.length ? h('p', { class: 'dx-ar-note' }, [navIcon('info', 14), h('span', null, [h('b', { text: _('Read from the model. ') }), note.join(' ')])]) : null,
           h('div', { class: 'dx-ar-grid' }, [
             h('div', { class: 'dx-ar-mx' }, [h('div', { class: 'dx-ar-mx-scroll', 'data-keep-scroll': 'ar-roles' }, [table])]),
             h('aside', { class: 'dx-ar-side' }, [
-              h('div', { class: 'dx-ar-sel' }, [h('small', { text: 'Selected user role' }), h('b', { text: sel.n }), h('span', { text: rk.length + ' of ' + plural(mods.length, 'module', 'modules') + ' · ' + plural(total, 'module role', 'module roles') })]),
-              h('div', { class: 'dx-pd-rows' }, rk.length ? rk.map(function (m) { return h('div', { class: 'dx-ar-rrow' }, [h('b', { class: 'mono', text: m }), h('span', { text: sel.own[m].join(', ') })]); }) : [h('span', { class: 'dx-empty', text: 'No module role in these modules.' })]),
-              sel.other.length ? h('p', { class: 'dx-md-hint' }, [h('b', { text: 'Also in modules outside this documentation: ' }), h('span', { class: 'mono', text: sel.other.join(', ') })]) : null
+              h('div', { class: 'dx-ar-sel' }, [h('small', { text: _('Selected user role') }), h('b', { text: sel.n }), h('span', { text: _('{0} of {1}', [rk.length, count(mods.length, 'module', 'modules')]) + ' · ' + count(total, 'module role', 'module roles') })]),
+              h('div', { class: 'dx-pd-rows' }, rk.length ? rk.map(function (m) { return h('div', { class: 'dx-ar-rrow' }, [h('b', { class: 'mono', text: m }), h('span', { text: sel.own[m].join(', ') })]); }) : [h('span', { class: 'dx-empty', text: _('No module role in these modules.') })]),
+              sel.other.length ? h('p', { class: 'dx-md-hint' }, [h('b', { text: _('Also in modules outside this documentation: ') }), h('span', { class: 'mono', text: sel.other.join(', ') })]) : null
             ])
           ])
         ];

@@ -336,12 +336,14 @@
       if (e.module !== module) return;
       ents[e.name] = {
         pers: e.persistable, view: e.view, gen: e.generalization, desc: e.desc || e.doc || null,
-        attrs: e.attributes.map(function (a) { return [a.name].concat(typeLabel(a.type)); }),
+        // A planned attribute (planlayer.js) carries its plan as a fourth item; the model's have three.
+        attrs: e.attributes.map(function (a) { return [a.name].concat(typeLabel(a.type), a.plan ? [a.plan] : []); }),
         access: e.access.map(function (ac) { return [ac.role.slice(ac.role.indexOf('.') + 1), ac.userRoles, ac.read, ac.write, ac.create, ac.del, prettyXpath(ac.xpath)].concat(ac.members ? [ac.members] : []); })
       };
+      if (e.plan) ents[e.name].plan = e.plan;
     });
     var assoc = (d.associations || []).filter(function (a) { return a.from.indexOf(module + '.') === 0 || a.to.indexOf(module + '.') === 0; })
-      .map(function (a) { return [a.name, a.from, a.to, a.many]; });
+      .map(function (a) { return [a.name, a.from, a.to, a.many].concat(a.plan ? [a.plan] : []); });
     var mods = sortBy(counter(Object.keys(E).map(function (q) { return E[q].module; })).mostCommon(), function (x) { return [x[0].toLowerCase()]; });
     return { ents: ents, assoc: assoc, mods: mods };
   }

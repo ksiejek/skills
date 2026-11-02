@@ -52,6 +52,12 @@
   var PERSONAL = /^(full|first|last|middle|given|family|display|user|maiden)_?name$|^surname$|e_?-?mail|phone|mobile|telephone|address|birth|iban|ssn|pesel|passport|national_?id|salary/i;
 
   function hasRead(letter) { return letter === 'r' || letter === 'rw'; }
+  // Does an XPath keep the rows to the signed-in user (here: the visitor's own session object)? accounts.js
+  // works this out properly; without it loaded, the token anywhere in the XPath is the best this can say.
+  function restrictsToUser(x) {
+    if (typeof window !== 'undefined' && window.MxAccounts && window.MxAccounts.restrictsToUser) return window.MxAccounts.restrictsToUser(x);
+    return /\[%CurrentUser%\]|\$currentUser\b/i.test(String(x || ''));
+  }
   function values(o) { return o ? Object.keys(o).map(function (k) { return o[k]; }) : []; }
 
   // What one access rule grants, in four words.
@@ -107,11 +113,32 @@
     var roleName = s.guestUserRole || null;
     out.role = roleName;
     var role = (model.userRoles || []).filter(function (r) { return r && r.name === roleName; })[0];
+    // What the app actually opens to a visitor: the pages only the anonymous role's module roles may open, the
+    // navigation among them. Saying "anonymous users are allowed" of an app whose home page IS the visitor's page
+    // says nothing — the fix is then to keep the role narrow (MXS006), not to switch guests off (MXS-173).
+    var guestOnly = [];
+    if (role) {
+      var anon = {};
+      (role.moduleRoles || []).forEach(function (mr) { anon[mr] = true; });
+      (model.pages || []).forEach(function (p) {
+        var mrs = (p && p.allowedModuleRoles) || [];
+        if (!mrs.length || !mrs.every(function (mr) { return anon[mr]; })) return;
+        var entry = (p.calledBy || []).some(function (c) { return c && (c.kind === 'navigation' || c.kind === 'menu'); });
+        guestOnly.push({ page: p.qualifiedName, entry: entry });
+      });
+    }
+    var homes = guestOnly.filter(function (x) { return x.entry; }).map(function (x) { return x.page; });
     out.results.push(result('MXS003', 'note',
-      roleName ? 'Anonymous users are allowed: anyone who can reach the app uses it as "' + roleName + '", without signing in, and nothing they do is tied to a person.'
+      roleName ? 'Anonymous users are allowed: anyone who can reach the app uses it as "' + roleName + '", without signing in, and nothing they do is tied to a person.' +
+          (homes.length ? ' The app uses it: ' + homes.slice(0, 3).join(', ') + (homes.length > 3 ? ' and ' + (homes.length - 3) + ' more' : '') +
+            (homes.length === 1 ? ' is a page' : ' are pages') + ' the navigation opens for the anonymous role alone, so switching guests off would close ' + (homes.length === 1 ? 'it' : 'them') + '.'
+            : guestOnly.length ? ' ' + guestOnly.length + ' page' + (guestOnly.length === 1 ? '' : 's') + ' of the app ' + (guestOnly.length === 1 ? 'is' : 'are') + ' for the anonymous role alone, so it is in use.'
+              : ' Nothing in the app is for the anonymous role alone.')
                : 'Anonymous users are allowed, but no user role is named for them.',
-      'If the app has no use for it (a custom sign-in page alone does not need it), set Allow anonymous users to No in App Security; if it does, keep the anonymous role as narrow as the checks below ask.',
-      roleName ? { userRole: roleName } : null));
+      homes.length || guestOnly.length
+        ? 'Keep the anonymous role as narrow as the checks below ask (MXS006 and MXS010): the app uses guest access, so switching it off is not the fix.'
+        : 'If the app has no use for it (a custom sign-in page alone does not need it), set Allow anonymous users to No in App Security; if it does, keep the anonymous role as narrow as the checks below ask.',
+      roleName ? { userRole: roleName, pages: guestOnly.map(function (x) { return x.page; }) } : null));
     if (!role) {
       out.results.push(result('MXS004–MXS010', 'unchecked',
         roleName ? 'The anonymous user role "' + roleName + '" is not among this model’s user roles, so MXS004–MXS010 were not checked.'
@@ -195,11 +222,17 @@
         if (written.length) what.push('change ' + written.slice(0, 6).join(', ') + (written.length > 6 ? ' and ' + (written.length - 6) + ' more' : ''));
         else if (writing.some(function (r) { return r.defaultAccess === 'rw'; })) what.push('change them');
         if (writing.some(function (r) { return r.allowDelete; })) what.push('delete objects');
+        // How much it matters: a visitor that may DELETE, or write rows that are not its own (no XPath keeping
+        // them to the session's own object), reaches other people's data — P1. One that may only create and fill
+        // in its own row, behind an XPath, is the shape of a public form: a finding, but P2 (MXS-173).
+        var wide = writing.some(function (r) { return r.allowDelete; }) ||
+          writing.some(function (r) { var g = rightsOf(r); return (g.write || g.del) && !restrictsToUser(r.xpathConstraint || ''); });
         out.results.push(result('MXS006', 'finding',
           'On ' + qn + ', a persistable entity, anonymous visitors may ' + (what.length > 1 ? what.slice(0, -1).join(', ') + ' and ' + what[what.length - 1] : what[0]) +
-            ' — written to the database by nobody anyone can name.',
+            ' — written to the database by nobody anyone can name.' +
+            (wide ? '' : ' Every rule that gives the write keeps the rows to the visitor’s own object, and none allows delete: the shape of a public form.'),
           'Take create, write and delete off the rule for ' + where(writing).moduleRole + '; take a visitor’s input in a non-persistable entity and check it in a microflow before anything is stored.',
-          where(writing)));
+          Object.assign({ priority: wide ? 'P1' : 'P2' }, where(writing))));
       }
 
       // MXS010 — read without an XPath on a persistable entity. Not for a

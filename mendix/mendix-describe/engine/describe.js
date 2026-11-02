@@ -568,14 +568,19 @@
   // Assist page, by assist.js, so a proposal, a risk or a piece of evidence is read the same way in both.
   function kindOf(k) { k = typeof k === 'string' ? k.trim().toLowerCase() : ''; return CHANGE_KINDS[k] === true ? k : 'other'; }
   function modelChanges(list) {
-    return (Array.isArray(list) ? list : []).slice(0, 60).map(function (x) {
+    // A whole application's plan (License 2.0: 143 lines) is one proposal, so the list is long (MXS-140).
+    return (Array.isArray(list) ? list : []).slice(0, 400).map(function (x) {
       if (!x || typeof x !== 'object' || !str(x.target, 300) || CHANGE_ACTIONS[x.action] !== true) return null;
       return { kind: kindOf(x.kind), target: str(x.target, 300), action: x.action, what: str(x.what, 1000) };
     }).filter(Boolean);
   }
   function proposalOf(pr) {
     pr = pr && typeof pr === 'object' ? pr : {};
-    return { summary: str(pr.summary, 2000), story: str(pr.story, STORY_MAX), steps: texts(pr.steps, 600, 100), diagram: diagramItems(pr.diagram, 0), changes: modelChanges(pr.changes) };
+    // design: what is to be built, drawn on the model's own screens as Proposed (proposed.js, MXS-140); kept only when it holds something.
+    var design = pr.design && window.MxProposed ? window.MxProposed.design(pr.design) : null;
+    var out = { summary: str(pr.summary, 2000), story: str(pr.story, STORY_MAX), steps: texts(pr.steps, 600, 100), diagram: diagramItems(pr.diagram, 0), changes: modelChanges(pr.changes) };
+    if (design) out.design = design;
+    return out;
   }
   function nowOf(now) {
     now = now && typeof now === 'object' ? now : {};

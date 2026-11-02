@@ -37,13 +37,22 @@
 
   var RULES = 1;
   var CHECKS = ['perf-retrieve-in-loop', 'perf-commit-in-loop', 'perf-delete-in-loop', 'perf-call-in-loop', 'perf-no-index',
-    'perf-heavy-page', 'perf-row-query', 'perf-xpath', 'perf-calculated', 'perf-view-entity', 'perf-held-objects'];
+    'perf-heavy-page', 'perf-row-query', 'perf-xpath', 'perf-calculated', 'perf-view-entity', 'perf-held-objects',
+    'perf-retrieve-all', 'shape-flow-size', 'shape-error-handler', 'naming-prefix'];
   // The client's garbage collector keeps whatever is connected to these (and to entities built on System.User).
   var ROOTS = { 'System.Session': true, 'System.User': true };
   var CLEANUP = /^(JS_ClearUnusedObjects|JA_DeleteNonPersistable)$/;
   var LIST_KINDS = { listview: true, datagrid: true, gallery: true, datalist: true };
   var QUERY_SOURCES = { database: true, microflow: true, nanoflow: true, association: true };
   var HEAVY_P3 = 8, HEAVY_P2 = 12, INDEX_P2 = 3;
+  // Build rules MxScout checks beside the queries (Craft's build-rules.md, MXS-126): the size of a microflow, a call that
+  // can fail with no error handler, and the prefixes of Mendix's naming convention (standards.json: conv-*).
+  var FLOW_SIZE = 25;
+  var SERVICE_CALLS = { RestCallAction: true, RestOperationCallAction: true, CallWebServiceAction: true, CallExternalAction: true, ImportXmlAction: true, ExportXmlAction: true };
+  var JAVA_CALLS = { JavaActionCallAction: true };
+  var MICROFLOW_PREFIXES = ['ACT', 'SUB', 'DS', 'VAL', 'OCH', 'OEN', 'OLE', 'BCO', 'ACO', 'BCR', 'ACR', 'BDE', 'ADE', 'BRO', 'ARO', 'CAL', 'SCE',
+    'ASU', 'BSD', 'HCH', 'CWS', 'CRS', 'PWS', 'PRS', 'POS', 'WFA', 'WFS', 'WFC', 'TEST', 'UT'];
+  var DOCUMENT_PREFIXES = { enumeration: 'ENUM_', snippet: 'SNIP_', 'import mapping': 'IMM_', 'export mapping': 'EXM_', 'JSON structure': 'JSON_', 'XML schema': 'XSD_' };
   var AGG = { Count: 'COUNT', Sum: 'SUM', Average: 'AVG', Minimum: 'MIN', Maximum: 'MAX' };
 
   // ---------- ids: 'mx-perf-…', the same shape and limit as secrisks.js ----------
@@ -114,6 +123,26 @@
   function aggregateOf(n) {
     var m = /^(Count|Sum|Average|Minimum|Maximum)(?: of ([A-Za-z_]\w*))?(?: →|$)/.exec(String(n.meta || '')), list = /^\$?([A-Za-z_]\w*)$/.exec(String(n.title || '').trim());
     return m && list ? { list: list[1], 'function': m[1], attribute: m[2] || null } : null;
+  }
+  // How a list variable is used in a flow: in head() or length() of an expression, or in any other way (a loop, a call,
+  // an aggregate, a retrieve over it, a return). Text is searched, so a use the drawing does not show counts as "other".
+  function listUses(g, from, v) {
+    var u = { head: 0, length: 0, other: 0 }, ref = new RegExp('\\$' + v + '(?![\\w$])', 'g'), wrap = new RegExp('\\b(head|length)\\(\\s*\\$' + v + '\\s*\\)', 'g');
+    g.nodes.forEach(function (n) {
+      if (n === from) return;
+      var P = n.props || {}, texts = [n.expression, n.meta, n.title, n.returnValue];
+      if (n.action === 'AggregateAction' && aggregateOf(n)) { if (aggregateOf(n).list === v) u.other++; return; }
+      if (n.variable === v || (n.loop && n.loop.listVariable === v)) u.other++;
+      (n.fields || []).forEach(function (x) { texts.push(x && x.value); });
+      Object.keys(P).forEach(function (k) { if (k === 'out') return; if (P[k] === v) u.other++; else texts.push(P[k]); });
+      texts.forEach(function (t) {
+        if (typeof t !== 'string') return;
+        var all = (t.match(ref) || []).length, w = t.match(wrap) || [];
+        w.forEach(function (x) { u[/^head/.test(x) ? 'head' : 'length']++; });
+        u.other += all - w.length;
+      });
+    });
+    return u;
   }
   function walk(nodes, fn, list) {
     (nodes || []).forEach(function (n) {
@@ -217,13 +246,79 @@
       });
     });
 
+    // 1b. Build rules (MXS-126): a whole list retrieved for its first element or its length, a microflow too large to read,
+    // a call that can fail with no error handler.
+    flows.forEach(function (f) {
+      var g = f.graph;
+      if (!g || !g.nodes) return;
+      var fq = f.qualifiedName, isMicroflow = (model.nanoflows || []).indexOf(f) < 0;
+      g.nodes.forEach(function (r) {
+        var P = r.props || {};
+        if (r.kind !== 'activity' || r.disabled || r.action !== 'RetrieveAction' || P.source !== 'From database' || !P.out || P.range !== 'All') return;
+        var u = listUses(g, r, P.out);
+        if (!(u.head + u.length) || u.other) return;
+        var head = u.head > 0 && !u.length, what = head ? 'only its first element (head)' : u.head ? 'only its first element and its length' : 'only its length (length)';
+        add('perf-retrieve-all', fq + ' ' + P.out, 'P3', 'performance', fq + ' retrieves every ' + short(P.entity) + ' to use ' + what,
+          fq + ' retrieves all of ' + P.entity + ' from the database into $' + P.out + ' and then uses ' + what + ' in an expression: every row is loaded to keep one object or a number.',
+          head ? 'Retrieve with the range First, to get one object (Custom with limit 2 when the flow must check that there is exactly one).'
+            : 'Put an Aggregate list (Count) right after the retrieve instead of length() in an expression: the runtime counts in the database (one COUNT query) without loading the rows.',
+          [fq, P.entity]);
+      });
+      var steps = g.nodes.filter(function (n) { return n.kind === 'activity' && n.action && !n.disabled; });
+      if (isMicroflow && steps.length > FLOW_SIZE && !/^VAL_/.test(short(fq))) {
+        add('shape-flow-size', fq, 'P3', 'logic', fq + ' has ' + steps.length + ' activities, more than ' + FLOW_SIZE,
+          fq + ' has ' + steps.length + ' activities; a microflow of more than ' + FLOW_SIZE + ' is hard to read in one screen and to test in parts (validation flows are left out).',
+          'Split it into sub-microflows (SUB_…) by what each part does, so the main flow reads as a list of steps.', [fq]);
+      }
+      var failing = steps.filter(function (n) { return SERVICE_CALLS[n.action] || JAVA_CALLS[n.action]; }).filter(function (n) {
+        return !(g.edges || []).some(function (e) { return e.isError && e.from === n.id; });
+      });
+      if (failing.length) {
+        var service = failing.some(function (n) { return SERVICE_CALLS[n.action]; });
+        add('shape-error-handler', fq, service ? 'P2' : 'P3', 'silent', fq + ' calls ' + (service ? 'a service' : 'Java') + ' with no error handler',
+          fq + ' has ' + failing.length + ' call' + (failing.length > 1 ? 's' : '') + ' (' + failing.map(function (n) { return n.title || n.action; }).join(', ') + ') whose error handling is left on the default: when it fails the whole flow ends with an error, and the user sees nothing useful.',
+          'Give the call a custom error handler that logs the error and ends the flow in a known way (an error message for the user, a rollback or a retry flag).', [fq]);
+      }
+    });
+
+    // 1c. Names that break Mendix's convention (conv-microflow-prefix, conv-other-prefix) or the project's own prefixes.
+    var own = {};
+    (model.conventions || []).forEach(function (c) { var m = /^([A-Z][A-Z0-9]*)_/.exec(String(c && c.pattern || '')); if (m) own[m[1]] = true; });
+    var named = {};
+    function wrongName(module, kind, qn, why) {
+      if (!module || module === 'System' || I.market[module]) return;
+      var k = module + ' ' + kind;
+      (named[k] = named[k] || { module: module, kind: kind, items: [] }).items.push({ qn: qn, why: why });
+    }
+    (model.microflows || []).forEach(function (f) {
+      var m = /^([A-Z][A-Z0-9]{1,5})_/.exec(f.name || '');
+      if (m && MICROFLOW_PREFIXES.indexOf(m[1]) < 0 && !own[m[1]]) wrongName(f.module || moduleOf(f.qualifiedName), 'microflow', f.qualifiedName, 'the prefix ' + m[1] + '_ is not one of Mendix’s');
+    });
+    function needs(kind, prefix, qn, module) {
+      if (short(qn).indexOf(prefix) !== 0) wrongName(module || moduleOf(qn), kind, qn, 'does not start with ' + prefix);
+    }
+    (model.enumerations || []).forEach(function (e) { needs('enumeration', 'ENUM_', e.qualifiedName || (e.module + '.' + e.name), e.module); });
+    (model.snippets || []).forEach(function (s) { needs('snippet', 'SNIP_', s.qualifiedName, s.module); });
+    (model.documents || []).forEach(function (d) { if (DOCUMENT_PREFIXES[d.kind] && d.kind !== 'enumeration' && d.kind !== 'snippet') needs(d.kind, DOCUMENT_PREFIXES[d.kind], d.qualifiedName, d.module); });
+    Object.keys(named).sort().forEach(function (k) {
+      var N = named[k], list = N.items;
+      add('naming-prefix', k, 'P3', 'naming', N.module + ' has ' + list.length + ' ' + N.kind + (list.length > 1 ? 's' : '') + ' named against Mendix’s convention',
+        list.map(function (x) { return x.qn + ' (' + x.why + ')'; }).join('; ') + '. A prefix says what a document is for; one that is invented, or missing, makes it hard to find and to tell from the rest.',
+        N.kind === 'microflow' ? 'Rename to the prefix of what the microflow does (ACT_ for a button, SUB_ for a sub-microflow, ASU_ for start-up work …) or drop the prefix; use Studio Pro’s rename, which updates every caller.'
+          : 'Rename with the prefix Mendix’s convention gives a ' + N.kind + ' (' + DOCUMENT_PREFIXES[N.kind] + '), using Studio Pro’s rename so every reference follows.',
+        list.map(function (x) { return x.qn; }));
+    });
+
     // 2. Attributes filtered on in XPath with no index that starts with them; XPath an index cannot serve.
     var filtered = {}, places = function (where, entity, xpath) {
       if (!entity || !xpath) return;
-      compared(xpath).forEach(function (name) {
+      var names = compared(xpath);
+      // An attribute filtered in the same XPath as an indexed one is narrowed by that index first (MXS-126).
+      var narrowed = names.some(function (o) { var h = attrOf(I, entity, o); return h && Array.isArray(h.owner.indexes) && h.owner.indexes.some(function (ix) { return ix[0] === o; }); });
+      names.forEach(function (name) {
         var hit = attrOf(I, entity, name);
         if (!hit || hit.attr.calculated || hit.attr.type === 'Boolean' || !hit.owner.persistable || hit.owner.viewEntity || !Array.isArray(hit.owner.indexes)) return;
-        if (hit.owner.indexes.some(function (ix) { return ix[0] === name; })) return;
+        if (hit.owner.indexes.some(function (ix) { return ix[0] === name; }) || narrowed) return;
         var k = hit.owner.qualifiedName + '.' + name;
         (filtered[k] = filtered[k] || { owner: hit.owner, attr: hit.attr, where: [] }).where.indexOf(where) < 0 && filtered[k].where.push(where);
       });
@@ -419,7 +514,7 @@
   // → nothing about pages. → { prefixes: ['id:mx-perf-…'] }
   function unchecked(model) {
     var pre = [], flows = (model.microflows || []).concat(model.nanoflows || []);
-    if (flows.length && !flows.some(function (f) { return f.graph; })) pre.push('id:mx-perf-retrieve-in-loop', 'id:mx-perf-commit-in-loop', 'id:mx-perf-delete-in-loop', 'id:mx-perf-call-in-loop', 'id:mx-perf-view-entity');
+    if (flows.length && !flows.some(function (f) { return f.graph; })) pre.push('id:mx-perf-retrieve-in-loop', 'id:mx-perf-commit-in-loop', 'id:mx-perf-delete-in-loop', 'id:mx-perf-call-in-loop', 'id:mx-perf-view-entity', 'id:mx-perf-retrieve-all', 'id:mx-shape-flow-size', 'id:mx-shape-error-handler');
     if ((model.entities || []).length && !(model.entities || []).some(function (e) { return Array.isArray(e.indexes); })) pre.push('id:mx-perf-no-index');
     if ((model.pages || []).length && !(model.pages || []).some(function (p) { return p.structure; })) pre.push('id:mx-perf-heavy-page', 'id:mx-perf-row-query', 'id:mx-perf-view-entity', 'id:mx-perf-calculated');
     return { prefixes: pre };

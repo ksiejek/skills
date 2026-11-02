@@ -229,7 +229,7 @@ const CAPS = {
   risks: { list: 2000, title: 300, detail: 3000, fix: 1000, where: 40, place: 300 },
   context: { list: 80, key: 300, text: 1000 },
   changes: { list: 100, id: 80, title: 200, asked: 2000, date: 40, summary: 2000, story: STORY_MAX, steps: 100, step: 600, flows: 60, flow: 300,
-    changes: 60, target: 300, what: 1000, roles: 30, role: 120, data: 3000, risks: 30, open: 30, question: 1000, effort: 300 },
+    changes: 400, target: 300, what: 1000, roles: 30, role: 120, data: 3000, risks: 30, open: 30, question: 1000, effort: 300 },
   tickets: { list: 200, id: 80, title: 200, reported: 8000, source: 300, date: 40, summary: 2000, story: STORY_MAX, steps: 100, step: 600, flows: 60, flow: 300,
     evidence: 60, target: 300, what: 1000, needs: 30, need: 1000, reply: 4000, risks: 30 },
   // A change's or a ticket's own risks.

@@ -51,7 +51,9 @@
  *   check(model) → { checkedOn, source, mendix: { version|null, state:
  *     'checked'|'not-recorded', matches: [MATCH] }, modules: [{ name,
  *     version|null, about|null, state: 'checked'|'no-version', matches }],
- *     widgets: [{ name, advisories: [cve], text }], matches: [MATCH],
+ *     widgets: [{ name, advisories: [cve], text, version|null, file|null,
+ *     state: 'checked'|'not-checked', matches }] (the version from the
+ *     widget's .mpk in model.widgetPackages, MXS-127), matches: [MATCH],
  *     notChecked: [{ kind, name, text }] }
  *   MATCH    = { cve, ssa, component, name, product, version, from|null,
  *     below|null, fix|null, text, fixText, note|null, link, published }
@@ -334,6 +336,16 @@
     return (model.pages || []).concat(model.snippets || []).some(function (p) { return p && walk(p.structure, 0); });
   }
 
+  // The project's package of this widget, from its widgets/ folder (mpk.js, MXS-127): the first .mpk that
+  // holds a widget of this name and gives a version, or null — the .mpr alone never says.
+  function widgetPackage(model, name) {
+    var wp = model.widgetPackages, key = String(name).replace(/\s+/g, '').toLowerCase();
+    if (!wp || !Array.isArray(wp.packages)) return null;
+    return wp.packages.filter(function (p) {
+      return p && parse(p.version) && (p.widgets || []).some(function (w) { return w && String(w.name || '').replace(/\s+/g, '').toLowerCase() === key; });
+    })[0] || null;
+  }
+
   function check(model) {
     model = model || {};
     var all = [], notChecked = [];
@@ -372,15 +384,28 @@
 
     var widgets = [];
     ADVISORIES.filter(function (a) { return a.component === 'widget'; }).forEach(function (a) {
-      if (!usesWidget(model, a.widget)) return;
+      var pkg = widgetPackage(model, a.widget);
+      if (!pkg && !usesWidget(model, a.widget)) return;
       var w = widgets.filter(function (x) { return x.name === a.widget; })[0];
       if (!w) {
-        w = { name: a.widget, advisories: [], text: '' };
+        w = { name: a.widget, advisories: [], text: '', version: null, file: null, state: 'not-checked', matches: [] };
         widgets.push(w);
       }
       w.advisories.push(a.cve);
+      // The version from the widget's .mpk, when the project folder was imported with it: checked like a module's.
+      if (pkg) {
+        w.version = pkg.version; w.file = pkg.file; w.state = 'checked';
+        var r = affecting(a, pkg.version);
+        if (r) {
+          var m = match(a, r, pkg.version, 'Widget ' + a.widget + ' is at ' + pkg.version + ' in the project’s widgets folder (' + pkg.file + ')');
+          w.matches.push(m);
+          all.push(m);
+        }
+        w.text = 'Widget ' + a.widget + ' is at ' + pkg.version + ' (' + pkg.file + '): ' + (r ? 'covered by ' + a.cve + '.' : 'not covered by ' + a.cve + '.');
+        return;
+      }
       w.text = 'A page in this model uses the ' + a.widget + ' widget. The .mpr does not record a widget’s version, so this was not checked: ' +
-        a.ranges.map(rangeText).join('; ') + ' ' + a.does + ' (' + a.cve + '). Look at the widget’s file in the project’s widgets folder.';
+        a.ranges.map(rangeText).join('; ') + ' ' + a.does + ' (' + a.cve + '). Import the whole project folder, with its widgets folder, to read the version.';
       notChecked.push({ kind: 'widget', name: a.widget, text: w.text, link: a.link });
     });
 

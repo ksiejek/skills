@@ -196,6 +196,17 @@
     if (!family.length) out.state = 'no-accounts';
 
     var adminRole = model.security && model.security.adminUserRole;
+    // The application's administrators, by what the model says rather than by a name: the role App Security names,
+    // one that may assign every role, and one that may give users its own role. That a role which administers the
+    // application reads, changes and manages accounts is what the role IS — saying it is a risk says nothing, and
+    // four of the thirty-seven risks of this check in the reviewed application were exactly that (MXS-173).
+    // Narrowly: the role App Security NAMES as the administrator, and one that may assign every role there is.
+    // A role that may assign a list of roles — even its own — administers some users, not the application, and
+    // what its rules give it on accounts is still worth saying (MXS-173, the review of 2026-11-01).
+    var appAdmin = {};
+    if (model.security && model.security.adminUserRole) appAdmin[model.security.adminUserRole] = true;
+    userRoles.forEach(function (r) { if (r.manageAllRoles) appAdmin[r.name] = true; });
+    out.appAdmins = Object.keys(appAdmin).sort();
     function manages(r) { return r.manageAllRoles ? ['every role'] : (r.manageableRoles || []).slice(); }
     function isUserManager(r) { return !!r.manageAllRoles || (r.manageableRoles || []).length > 0; }
     var sso = out.sso.length > 0;
@@ -271,7 +282,8 @@
       // User management: the System.User fields of the users it manages.
       if (isUserManager(role)) {
         out.rows.push({ userRole: role.name, entity: 'System.User', field: 'Name, Password, Active, Blocked, UserRoles', system: true,
-          access: 'rw', scope: 'managed', xpath: null, via: 'user management', moduleRoles: [], manages: manages(role), register: 'note', priority: null });
+          access: 'rw', scope: 'managed', xpath: null, via: 'user management', moduleRoles: [], manages: manages(role), register: 'note', priority: null,
+          isAdmin: !!appAdmin[role.name] });
       }
     });
 
@@ -289,6 +301,7 @@
     var p1ByRole = {};
     out.rows.forEach(function (row) {
       if (row.via !== 'rule' || row.access !== 'rw') return;
+      if (appAdmin[row.userRole]) { row.register = 'note'; row.isAdmin = true; return; }
       var role = userRoles.filter(function (r) { return r.name === row.userRole; })[0];
       var manager = isUserManager(role);
       if (row.system) {
@@ -328,7 +341,7 @@
     // FullName / Email, one line per role and entity.
     var idGroups = {};
     out.rows.forEach(function (row) {
-      if (row.system || row.via !== 'rule' || row.access !== 'rw' || !row.register) return;
+      if (row.isAdmin || row.system || row.via !== 'rule' || row.access !== 'rw' || !row.register) return;
       var key = row.userRole + '|' + row.entity + '|' + row.register + '|' + (row.priority || '') + '|' + row.scope;
       (idGroups[key] = idGroups[key] || []).push(row);
     });
@@ -357,7 +370,7 @@
     });
 
     // User management, one line per role.
-    userRoles.filter(isUserManager).forEach(function (role) {
+    userRoles.filter(isUserManager).filter(function (r) { return !appAdmin[r.name]; }).forEach(function (role) {
       var list = manages(role);
       var mine = {};
       (role.moduleRoles || []).forEach(function (mr) { mine[mr] = true; });
@@ -375,15 +388,17 @@
         fix: 'Keep User management to the roles somebody in this role has to assign.' });
     });
 
-    // Who reads other people's FullName / Email.
-    userRoles.forEach(function (role) {
-      var fields = Object.keys(readOthers).filter(function (f) { return readOthers[f].indexOf(role.name) !== -1; }).sort();
-      if (!fields.length) return;
-      add({ kind: 'read-others', register: 'note', priority: null, userRole: role.name, fields: fields,
-        title: 'Reads other people’s ' + andList(fields),
-        text: '"' + role.name + '" may read ' + andList(fields) + ' on other people’s accounts. Usually needed — a ticket shows who raised it — and it is also how a changed name reaches others.',
+    // Who reads other people's FullName / Email — ONE note with the roles in it. The same sentence repeated for
+    // eleven roles was eleven risks saying one thing (MXS-173, the review of 2026-11-01).
+    var readFields = Object.keys(readOthers).sort();
+    if (readFields.length) {
+      var readRoles = uniq([].concat.apply([], readFields.map(function (f) { return readOthers[f]; }))).filter(function (n) { return !appAdmin[n]; }).sort();
+      if (readRoles.length) add({ kind: 'read-others', register: 'note', priority: null, userRole: readRoles.join(', '), userRoles: readRoles, fields: readFields,
+        title: 'Reads other people’s ' + andList(readFields),
+        text: names(readRoles) + (readRoles.length === 1 ? ' may read ' : ' may read ') + andList(readFields) +
+          ' on other people’s accounts. Usually needed — a ticket shows who raised it — and it is also how a changed name reaches others.',
         fix: 'Nothing, if the app shows these. Administration 4.5.0 and later gives this as ReadOthersFullName and ReadOthersEmail.' });
-    });
+    }
 
     // Administration.User, the module's old all-in-one role.
     var carriers = userRoles.filter(function (r) { return (r.moduleRoles || []).indexOf('Administration.User') !== -1; }).map(function (r) { return r.name; });
@@ -436,8 +451,20 @@
         });
         return { userRole: u.userRole, entity: u.entity, attributes: rw.sort() };
       });
+      // A right on one's OWN account — the colour of the interface, dark mode, which notifications to get — is
+      // not a way in, however little uses it: the rule's XPath keeps it to [%CurrentUser%]. Nine of these risks
+      // were a person's own preferences (MXS-173). What is left is a write right on EVERYBODY's account.
+      function ownAccountOnly(userRole, entityQn, fields) {
+        var role = userRoles.filter(function (r) { return r.name === userRole; })[0] || {}, mine = {};
+        (role.moduleRoles || []).forEach(function (mr) { mine[mr] = true; });
+        var rules = ((byQn[entityQn] || {}).accessRules || []).filter(function (rule) {
+          return rule && mine[rule.moduleRole] && fields.some(function (a) { return (rule.attrAccess || {})[a] === 'rw'; });
+        });
+        return rules.length > 0 && rules.every(function (rule) { return restrictsToUser(rule.xpathConstraint || ''); });
+      }
       use.unwritten.concat(whole).forEach(function (u) {
         if (!fam[u.entity] || !(u.attributes || []).length) return;
+        if (appAdmin[u.userRole] || ownAccountOnly(u.userRole, u.entity, u.attributes)) return;
         add({ kind: 'write-unused', register: 'note', priority: null, userRole: u.userRole, entity: u.entity, fields: u.attributes.slice(), unused: true,
           title: 'Not used — remove',
           text: '"' + u.userRole + '" may change ' + andList(u.attributes.slice(0, 8)) + (u.attributes.length > 8 ? ' and ' + (u.attributes.length - 8) + ' more' : '') +

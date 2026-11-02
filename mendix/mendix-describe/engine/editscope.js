@@ -448,12 +448,18 @@
         // The page places of this entity, each with the state conditions on
         // the object it edits.
         function statesOn(place) {
-          var out2 = [];
+          var out2 = [], mine = place.attribute ? shortName(place.attribute) : null;
           place.conds.forEach(function (c) {
             c.states.forEach(function (s) {
               var ent = s.entity && !s.over ? s.entity : (s.over ? s.entity : null);
               var onObject = ent ? fam.indexOf(ent) !== -1 : !!attrOf(ix, qn, s.attribute);
               if (!onObject || !isState(ix, ent || qn, s.attribute)) return;
+              // A widget whose own condition is on the very attribute it edits — the radio that is editable
+              // while DuringSupport holds and whose only job is to turn DuringSupport off — is a one-way latch,
+              // not a state anybody protects: the condition says which way the switch may go, and the attribute
+              // is the switch. A decision in a FLOW before it changes the attribute is a real guard and stays
+              // (MXS-173, the review of 2026-11-01: two risks, one of them confirmed P1).
+              if (mine && s.attribute === mine) return;
               out2.push({ attribute: s.attribute, values: s.values, negate: !!s.negate, text: c.text });
             });
           });
@@ -494,6 +500,15 @@
         writeAttrs.forEach(function (attr) {
           if (placesOf[attr].some(function (pl) { return !pl.raw.some(function (s) { return s.attribute === attr; }); })) free[attr] = true;
         });
+        // And one the role may write on EVERY row by its own rule, while nothing it reaches changes it: it can set
+        // the value itself and then do the write, in two commits, so a condition on that value stops nothing.
+        // Five risks in the reviewed application were this (MXS-173, the review of 2026-11-01).
+        var openWrite = {};
+        rules.forEach(function (r) {
+          if (r.xpathConstraint) return;
+          Object.keys(r.attrAccess || {}).forEach(function (a) { if (r.attrAccess[a] === 'rw') openWrite[a] = true; });
+        });
+        writeAttrs.forEach(function (attr) { if (!free[attr] && openWrite[attr] && !placesOf[attr].length) free[attr] = true; });
         var su = (out.stateUse[subject.name] = out.stateUse[subject.name] || {})[qn] = {};
         writeAttrs.forEach(function (attr) {
           var at = placesOf[attr].filter(function (pl) { return free[attr] ? !pl.raw.some(function (s) { return s.attribute === attr; }) : true; })
@@ -551,7 +566,12 @@
             return { moduleRole: r.moduleRole, xpath: r.xpathConstraint || null, knows: knows };
           });
           var verdict = !conditional ? 'unconditional' : coversAll(places, attr) ? 'every-state' : ruleRows.every(function (r) { return r.knows; }) ? 'held' : 'wider';
-          out.pairs.push({ kind: kind, userRole: subject.name, entity: qn, attribute: attr, places: places, rules: ruleRows, stateAttrs: stateAttrs, verdict: verdict });
+          // Every rule that gives the write keeps the role to its OWN rows: a personal setting, a board of one's
+          // own, a team its leader runs. The rule is still wider than the pages, but nobody else's data is at
+          // stake, so it is worth knowing rather than a finding (MXS-173, the review of 2026-11-01).
+          var restricts = window.MxAccounts && window.MxAccounts.restrictsToUser;
+          var ownRows = !!restricts && grantRules.length > 0 && grantRules.every(function (r) { return r.xpathConstraint && restricts(r.xpathConstraint); });
+          out.pairs.push({ kind: kind, userRole: subject.name, entity: qn, attribute: attr, places: places, rules: ruleRows, stateAttrs: stateAttrs, verdict: verdict, ownRows: ownRows });
         }
         // Together, the places allow every value of one state attribute
         // (AllDay true on one input, false on another): no state is left out.
@@ -581,8 +601,9 @@
     var byKey = {};
     out.pairs.filter(function (p) { return p.verdict === 'wider'; }).forEach(function (p) {
       var key = p.kind + ' ' + p.entity;
-      var f = byKey[key] = byKey[key] || { kind: p.kind, priority: 'P1', entity: p.entity, userRoles: [], attributes: [], stateAttrs: [], values: {}, places: [], rules: [], pairs: [] };
+      var f = byKey[key] = byKey[key] || { kind: p.kind, priority: 'P1', entity: p.entity, userRoles: [], attributes: [], stateAttrs: [], values: {}, places: [], rules: [], pairs: [], ownRows: true };
       f.pairs.push(p);
+      if (!p.ownRows) f.ownRows = false;
       if (f.userRoles.indexOf(p.userRole) === -1) f.userRoles.push(p.userRole);
       if (p.attribute && f.attributes.indexOf(p.attribute) === -1) f.attributes.push(p.attribute);
       f.stateAttrs = uniq(f.stateAttrs.concat(p.stateAttrs));
@@ -626,6 +647,7 @@
     f.stateAttrs.forEach(function (a) {
       var d = own[a] = [], kind = stateKind(ix, f.entity, a), at = attrOf(ix, f.entity, a) || {};
       if (kind !== 'typed') d.push(a + ' is ' + (at.type ? 'a ' + at.type + ' attribute' : 'an attribute') + ' that only its name marks as a state — a hint, not a state the model shows anyone protecting.');
+
       var readOnly = [];
       f.userRoles.forEach(function (role) {
         var u = stateUse[role] && stateUse[role][f.entity] && stateUse[role][f.entity][a];
@@ -643,6 +665,10 @@
     var server = sc.doubts.map(function (x) { return x.microflow + ' ' + x.why + '.'; });
     f.confidence = solid.length && !server.length ? 'confirmed' : 'suspected';
     f.priority = f.confidence === 'confirmed' ? 'P1' : 'P2';
+    // Whose rows it reaches, said as a mitigation rather than as a level: every rule that gives the write keeps
+    // the role to its OWN, so what it reaches in a state the pages do not allow is its own object. A personal
+    // setting or a board of one's own is then a process break, not somebody else's data (MXS-173).
+    if (f.ownRows) f.mitigation = (f.mitigation ? f.mitigation + ' ' : '') + 'Every rule that gives it keeps the role to its own rows ([%CurrentUser%] in the XPath), so what it reaches in the wrong state is its own ' + shortName(f.entity) + ', not anybody else’s.';
     if (f.confidence === 'confirmed') {
       f.doubts = [];
       f.evidence = uniq(evidence.filter(function (x) { return solid.some(function (a) { return x.indexOf(a + ' ') === 0 || x.indexOf(' ' + a + ' ') !== -1; }); })
@@ -713,6 +739,7 @@
   }
 
   var VERDICT_TEXT = {
+    own: 'every rule that gives it keeps the role to its own rows',
     wider: 'the rule allows it in every state — wider than every place it is edited',
     held: 'the rule’s XPath names the same state',
     'every-state': 'the places together allow every state',
