@@ -138,8 +138,90 @@ Two shapes are shared by several kinds:
   the pack names it, a new one by the application's conventions; an attribute
   as `Module.Entity.Attribute`), `action` (`add`, `change` or `remove`) and
   `what` (one or two sentences).
+  A proposal may also carry a `design` — what is to be built, which MxScout
+  draws on the model's own screens as **Proposed** (see "A design" below).
 - **Risks** — `risks[]`: `{ "level", "title", "detail", "fix" }`, `level`
   `P1`–`P3` by `../../mendix-describe/reference/risk-levels.md`.
+
+## A design (`proposal.design`)
+
+A proposal's `design` says what is to be built in a shape MxScout can draw before
+anything is built: the plan of a new application or module (License 2.0 is one),
+or a larger change. While the item is open (`open`, `in-progress`, `waiting`),
+MxScout lays it over the model on the screens people already read: the Domain
+model draws the proposed entities and attributes dashed, marked **new**,
+**changed** or **removed**, with what differs from the model (`String → Integer`);
+Microflows and Nanoflows list the proposed flows, each opening as a workflow of
+its steps; Pages list the proposed pages, each opening its mockup with a switch
+**Mockup / Modeler view**; Modules and the Overview count them. Each is marked
+**Proposed** with the item's `id`.
+
+`design` has the shape of a story's build guide (Team edition, `write_story`),
+and a few more fields for pages:
+
+```text
+"design": {
+  "processes":  [{ "name", "state": "new|changed", "summary", "story", "steps": [], "roles": [] }],
+  "entities":   [{ "name": "Module.Entity", "state": "new|changed|removed", "note", "generalization",
+                   "attributes":   [{ "name", "type", "state", "note", "was" }],
+                   "associations": [{ "name", "to": "Module.Entity", "type": "reference|reference set", "owner": "default|both", "state", "note" }] }],
+  "microflows": [{ "name": "Module.Flow", "kind": "microflow|nanoflow", "state", "purpose",
+                   "parameters": [{ "name", "type" }], "returns", "entities": ["Module.Entity"],
+                   "steps": [{ "action", "text", "detail", "where", "state", "yes", "no" }] }],
+  "pages":      [{ "name": "Module.Page", "state", "purpose", "roles": [], "entity": "Module.Entity", "layout",
+                   "widgets": [{ "type", "name", "caption", "attribute", "source", "action", "children": [] }],
+                   "mockup": "<div class=\"card\">…</div>", "note", "changes": [{ "text", "detail", "state" }] }]
+}
+```
+
+- **Names** are qualified, `Module.Name`; a new element may name a module the
+  model does not have yet. `state` is `new` when left out.
+- **A microflow** — `purpose` (what it is for, its description until it is
+  built), its input (`parameters`; `inputs` is read the same) and output
+  (`returns`; `outputs` too), the entities it works on, and its `steps` in order.
+  A step's `action` is Studio Pro's activity (`retrieve`, `create`, `change`,
+  `commit`, `delete`, `rollback`, `decision`, `loop`, `call`, `java`, `rest`,
+  `show page`, `close page`, `message`, `validation`, `log`, `variable`,
+  `aggregate`, `list`, `return`, `other`); a `decision` has `yes` and `no`, a
+  `loop` its body in `yes`. In a changed flow `where` says after which existing
+  activity it goes, and a step with `state: "existing"` is a landmark.
+- **A page** — `purpose`, the user `roles` that open it, its main `entity`, its
+  `layout`, and two views of it:
+  - `widgets` — the **modeler view**: the widget tree as Studio Pro's page
+    editor shows it, each node a `type` (`Layout grid`, `Data grid 2`, `Combo
+    box`, `Text box`, `Button`, `Data view`, `Container` …) with an optional
+    `name`, `caption`, `attribute` it shows, `source` (a data source: XPath,
+    microflow, association), `action` (on click) and `children`. At most 600
+    nodes, 14 levels.
+  - `mockup` — the **mockup**: plain HTML of the page's body as a user will see
+    it, in the **Raben Design System** styles. Use the class names a Mendix page
+    with Atlas and Raben has: `rb-header` (the top bar), `card` with
+    `card-title`, `row` / `col-4` / `col-6`, `toolbar`, `btn btn-primary` /
+    `btn-default` / `btn-danger` / `btn-link`, `form-group` with `label` and
+    `form-control`, `form-horizontal`, `table` (`th`, `td`, `tr.selected`),
+    `pagination`, `badge badge-success` / `-danger` / `-warning`, `alert
+    alert-…`, `nav-tabs` with `.active`. MxScout draws it in a box of its own
+    with these styles; it keeps only plain elements and attributes — no script,
+    no event handler, no `<style>`, no link or picture but a `data:` image — so
+    write it as markup only. At most 200 000 characters.
+- **An entity** — on a `changed` one, each attribute's `state` says what happens
+  to it; MxScout reads the model's type and shows `was → now`, and a `removed`
+  attribute struck through. `was` names the old type when the model is not at
+  hand.
+
+**An older plan without `design`** is read from its `changes`: an `entity`
+line, `attribute` lines (`Module.Entity.Attribute`, the type from the first
+word of `what`: `String`, `Integer`, `DateTime`, `Enumeration …`), `association`
+lines whose `what` names `Module.A → Module.B`, and the `microflow`, `nanoflow`
+and `page` lines, with `what` as the purpose. A design names first; the lines
+fill in what it leaves out. MxScout keeps the first 400 lines of `changes`.
+
+**Built.** When the model has an element the design calls new, it is built:
+MxScout shows it from the model — its real flow, its description from the
+model, which `mendix-describe` brings up to date — and keeps the proposal
+beside it (**Proposal** on the flow or page, "Built from the proposal of …" on
+the entity) to compare what was built with what was proposed. Closing the item
+(`done` or `dropped`) takes the plan away.
 
 ## A ticket (`kind: "ticket"`)
 

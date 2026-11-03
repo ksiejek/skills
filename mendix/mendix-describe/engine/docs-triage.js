@@ -9,7 +9,7 @@
  * the risks that no longer count.
  *
  * Like docs-changes.js and docs-tickets.js, it is part of the reader in a file
- * of its own so the reader stays under 3,000 lines. It has no references of
+ * of its own so the reader stays smaller. It has no references of
  * its own: the reader hands it what it draws with each time. The exported file
  * carries it beside the flow drawing (docs-file.js SCRIPTS), so the file shows
  * the same labels, read-only, as MxScout does.

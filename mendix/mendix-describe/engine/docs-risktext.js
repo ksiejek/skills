@@ -22,7 +22,7 @@
  *
  * Nothing is added or reworded: what a reader copies is the text as written.
  * Like docs-triage.js it is part of the reader in a file of its own (the
- * reader stays under 3,000 lines), has no references of its own, and is
+ * reader stays smaller), has no references of its own, and is
  * carried in the exported file (docs-file.js SCRIPTS). It builds its DOM with
  * the reader's builder, text only — none of it can become markup.
  */

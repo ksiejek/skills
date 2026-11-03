@@ -2003,7 +2003,7 @@
         allMods.sort(function (a, b) { return a[0].toLowerCase().localeCompare(b[0].toLowerCase()); });
         var ownMods = allMods.filter(function (m) { return !mkt[m[0]]; }), mktMods = allMods.filter(function (m) { return mkt[m[0]]; });
         var nAssoc = (data.associations || []).length;
-        setTitle('Domain model', plural(Object.keys(data.entities).length, 'entity', 'entities') + ' in ' + plural(allMods.length, 'module', 'modules') + ', ' + plural(nAssoc, 'association', 'associations') + '. One module at a time; links to other modules sit at the foot of each entity.');
+        setTitle('Domain model', plural(Object.keys(data.entities).length, 'entity', 'entities') + ' in ' + plural(allMods.length, 'module', 'modules') + ', ' + plural(nAssoc, 'association', 'associations') + '. One module at a time; links to other modules sit at the foot of each entity, and beside the diagram for the picked one. A specialization is drawn with a triangle at the entity it inherits from, or names it at its foot when that one is in another module.');
         if (!allMods.length) { main.appendChild(h('div', { class: 'dx-note', text: 'This model has no entities.' })); return; }
         // what the address names: an entity, or a module; else the first of the chosen list
         var named = st.entity && data.entities[st.entity] ? data.entities[st.entity].module
@@ -2036,6 +2036,22 @@
         var sel = picked || (free ? null : best), anchor = sel || best;
         var view = !free && st.dview === 'list' ? 'list' : 'diagram';
         function pickEntity(n) { return { view: 'domain', entity: mod + '.' + n, dmodule: mod }; }
+        // The picked entity's links to other modules (Karol, 2026-10-31): drawn in a lane beside the diagram, each
+        // entity with its module and a line to the picked box; refers to it first, then what it refers to.
+        var away = [];
+        if (sel) {
+          var me = mod + '.' + sel, byQ = {};
+          Dm.assoc.forEach(function (a) {
+            var dir = a[1] === me && modOf(a[2]) !== mod ? 'out' : a[2] === me && modOf(a[1]) !== mod ? 'in' : null;
+            if (!dir) return;
+            var q = dir === 'out' ? a[2] : a[1], x = byQ[dir + ' ' + q] || (byQ[dir + ' ' + q] = { q: q, dir: dir, names: [] });
+            x.names.push(a[0]);
+          });
+          away = Object.keys(byQ).map(function (k) { return byQ[k]; }).sort(function (a, b) { return (a.dir === b.dir ? 0 : a.dir === 'in' ? -1 : 1) || a.q.localeCompare(b.q); });
+          // Its generalization, when that one is in another module (MDM.Account from System.User, say): first in
+          // the lane, so a specialization says so even where no box of this module can hold its parent.
+          if (E[sel] && E[sel].gen && modOf(E[sel].gen) !== mod) away.unshift({ q: E[sel].gen, dir: 'gen', names: [] });
+        }
 
         // the header: the module, and Diagram | List
         var modSel = h('select', { class: 'dx-dm-mod mono', 'aria-label': 'Module' }, mods.map(function (m) { var o = h('option', { value: m[0], text: m[0] + '  (' + m[1] + ')' }); if (m[0] === mod) o.selected = true; return o; }));
@@ -2081,7 +2097,11 @@
           });
           var o = Object.keys(out).sort(function (a, b) { return out[b] - out[a] || a.localeCompare(b); }).map(function (k) { return k + (out[k] > 1 ? ' ×' + out[k] : ''); });
           var i2 = Object.keys(inn).sort().map(function (k) { return '← ' + k + (inn[k] > 1 ? ' ×' + inn[k] : ''); });
-          return (o.length ? '↗ ' + o.join(' · ') : '') + (o.length && i2.length ? '   ' : '') + i2.join(' · ');
+          // The generalization goes to the foot when the parent is not a box on this diagram; when it is, the
+          // triangle between them says it instead.
+          var g = E[n] && E[n].gen, gp = g && !(modOf(g) === mod && shown[short(g)]) ? '▲ ' + (modOf(g) === mod ? short(g) : g) : '';
+          var rest = (o.length ? '↗ ' + o.join(' · ') : '') + (o.length && i2.length ? '   ' : '') + i2.join(' · ');
+          return gp + (gp && rest ? '   ' : '') + rest;
         }
         // Embedded in MxScout every entity of the module is drawn, the ones not
         // linked to the picked one greyed rather than left out (Karol,
@@ -2107,6 +2127,18 @@
           p.n++; p.names.push(a[0]); if (a[3]) p.many = true;
           p.each.push({ name: a[0], owner: f, many: !!a[3], plan: a[4] || null });
         });
+        // A generalization inside the module is drawn like an association's line, but it is not one: no
+        // multiplicities, and a hollow triangle at the parent, as UML and Studio Pro draw it.
+        shownNames.forEach(function (n) {
+          var g = E[n].gen;
+          if (!g || modOf(g) !== mod) return;
+          var par = short(g);
+          if (par === n || !shown[par]) return;
+          var k2 = n < par ? n + '>' + par : par + '>' + n;
+          var p2 = pm[k2] || (pm[k2] = { a: n < par ? n : par, b: n < par ? par : n, n: 0, many: false, names: [], each: [] });
+          p2.n++; p2.names.push(n + ' specialises ' + par);
+          p2.each.push({ name: n + ' specialises ' + par, owner: n, many: false, plan: null, gen: par });
+        });
         var pairs = Object.keys(pm).map(function (k) { return pm[k]; });
         function boxH(n) { var na = E[n].attrs.length; return G.head + Math.min(na, G.maxA) * G.rowH + 14 + (footOf(n, shown) ? G.foot : 0); }
         // Where the boxes sit depends on the module and which of its entities are drawn, not on which
@@ -2114,9 +2146,19 @@
         // module's layout is a search that took a second, and boxes moved between two clicks).
         var lkey = mod + '\n' + (wide ? 'w' : 'n') + '\n' + shownNames.join('\n');
         var L = domLayouts[lkey] || (domLayouts[lkey] = domainLayout(shownNames, pairs, function (n) { return { w: G.w, h: boxH(n) }; }, G));
+        // The lane of other modules sits to the right of the layout, never inside it: the boxes keep their places
+        // and only the stage grows. Eight at most; past that the last says how many more (the panel lists them all).
+        var AW = Math.round(G.w * 0.86), AH = wide ? 50 : 44, AG = 10, AX = L.W + G.gx, AMAX = 8;
+        var lane = away.length > AMAX ? away.slice(0, AMAX - 1) : away, more = away.slice(lane.length);
+        var nA = lane.length + (more.length ? 1 : 0), W = L.W, H = L.H, ay0 = 0, pb = sel ? L.pos[sel] : null;
+        if (nA && pb) {
+          var tot = nA * AH + (nA - 1) * AG;
+          ay0 = Math.max(G.pad + 24, Math.round(pb.y + G.fy - tot / 2));
+          W = AX + AW + G.pad; H = Math.max(L.H, ay0 + tot + G.pad);
+        } else nA = 0;
         var stage = h('div', { class: 'dx-dm-stage' });
-        stage.style.width = L.W + 'px'; stage.style.height = L.H + 'px';
-        var svg = s('svg', { class: 'dx-dm-svg', width: L.W, height: L.H, 'aria-hidden': 'true' });
+        stage.style.width = W + 'px'; stage.style.height = H + 'px';
+        var svg = s('svg', { class: 'dx-dm-svg', width: W, height: H, 'aria-hidden': 'true' });
         stage.appendChild(svg);
         function r1(v) { return Math.round(v * 10) / 10; }
         function pathOf(p, r) {
@@ -2130,6 +2172,13 @@
           }
           var z = p[p.length - 1];
           return d + ' L' + r1(z[0]) + ' ' + r1(z[1]);
+        }
+        // The parent's end of a generalization: a triangle pointing at it, in place of a multiplicity.
+        function genTri(p, q, on) {
+          var dx = p[0] - q[0], dy = p[1] - q[1], len = Math.sqrt(dx * dx + dy * dy) || 1; dx /= len; dy /= len;
+          var bx = p[0] - dx * 11, by = p[1] - dy * 11, nx = -dy * 6, ny = dx * 6;
+          return s('polygon', { class: 'dx-dm-gentri' + (on ? ' on' : ''),
+            points: [r1(p[0]) + ' ' + r1(p[1]), r1(bx + nx) + ' ' + r1(by + ny), r1(bx - nx) + ' ' + r1(by - ny)].join(' ') });
         }
         function endLabel(p, q, txt, on) {
           var dx = q[0] - p[0], dy = q[1] - p[1], len = Math.abs(dx) + Math.abs(dy) || 1; dx /= len; dy /= len;
@@ -2161,6 +2210,13 @@
             var fwd = as.owner === rt.p.a;
             var path = s('path', { class: 'dx-dm-edge' + (on ? ' on' : '') + (as.plan ? ' plan' : ''), d: pathOf(pts, 8) });
             var ti = s('title'); ti.textContent = as.name + (as.plan ? ' — in the plan of ' + as.plan.key : ''); path.appendChild(ti);
+            if (as.gen) {
+              path.setAttribute('class', 'dx-dm-edge gen' + (on ? ' on' : ''));
+              svg.appendChild(path);
+              var pe = rt.p.a === as.gen ? [pts[0], pts[1]] : [pts[pts.length - 1], pts[pts.length - 2]];
+              svg.appendChild(genTri(pe[0], pe[1], on));
+              return;
+            }
             svg.appendChild(path);
             // a line starts at its owner: * there, 1 at the other end — or * for a reference set
             var own = fwd ? [pts[0], pts[1]] : [pts[pts.length - 1], pts[pts.length - 2]];
@@ -2169,6 +2225,11 @@
             svg.appendChild(endLabel(oth[0], oth[1], as.many ? '*' : '1', on));
           });
         });
+        // one line from the picked box's header to each entity in the lane, sharing the way out
+        for (var ai = 0; ai < nA; ai++) {
+          var ay = ay0 + ai * (AH + AG) + AH / 2, ax = pb.x + pb.w, amid = pb.y + G.fy;
+          svg.appendChild(s('path', { class: 'dx-dm-edge on dx-dm-awayline', d: pathOf([[ax, amid], [AX - 18, amid], [AX - 18, ay], [AX, ay]], 8) }));
+        }
         function marker(e) { return h('span', { class: 'dx-dm-mk ' + (e.view ? 'view' : e.pers ? 'pers' : 'np'), 'aria-hidden': 'true' }); }
         shownNames.forEach(function (n) {
           var e = E[n], b = L.pos[n], on = n === sel, dim = !!sel && whole && !nbr[n];
@@ -2187,11 +2248,27 @@
           if (opts.entityMenu) box.addEventListener('contextmenu', function (ev) { opts.entityMenu(mod + '.' + n, ev); }); // MxScout's context (basket.js)
           stage.appendChild(box);
         });
+        if (nA) {
+          var cap = h('span', { class: 'dx-cap dx-dm-awaycap', text: 'Other modules · ' + away.length });
+          cap.style.left = AX + 'px'; cap.style.top = (ay0 - 22) + 'px';
+          stage.appendChild(cap);
+        }
+        lane.concat(more.length ? [null] : []).forEach(function (x, i) {
+          var t = x ? (x.dir === 'gen' ? mod + '.' + sel + ' specialises ' + x.q + ': it inherits its attributes and associations'
+            : (x.dir === 'in' ? x.q + ' refers to ' + mod + '.' + sel : mod + '.' + sel + ' refers to ' + x.q) + ': ' + x.names.join(', '))
+            : more.map(function (m) { return m.q; }).join(', ');
+          var kids = x ? [h('small', { text: (x.dir === 'gen' ? '▲ ' : x.dir === 'in' ? '← ' : '↗ ') + modOf(x.q) + (x.names.length > 1 ? ' · ×' + x.names.length : '') }), h('b', { class: 'mono', text: short(x.q) })]
+            : [h('b', { text: '+ ' + more.length + ' more' })];
+          var b = x && data.entities[x.q] ? ln({ view: 'domain', entity: x.q, dmodule: modOf(x.q) }, { class: 'dx-dm-away', title: t }, kids)
+            : h('div', { class: 'dx-dm-away' + (x ? '' : ' more'), title: t }, kids);
+          b.style.left = AX + 'px'; b.style.top = (ay0 + i * (AH + AG)) + 'px'; b.style.width = AW + 'px'; b.style.height = AH + 'px';
+          stage.appendChild(b);
+        });
         // a visual zoom only (spec 15 [LUKA]; Karol, 2026-10-13): the layout stays, the view scales
         var scaler = h('div', { class: 'dx-dm-scaler' }, [stage]);
         function applyZoom() {
           stage.style.transform = 'scale(' + domZoom + ')';
-          scaler.style.width = r1(L.W * domZoom) + 'px'; scaler.style.height = r1(L.H * domZoom) + 'px';
+          scaler.style.width = r1(W * domZoom) + 'px'; scaler.style.height = r1(H * domZoom) + 'px';
           zoomLabel.textContent = Math.round(domZoom * 100) + '%';
         }
         var zoomLabel = h('span', { class: 'mono dx-dm-zl' });
@@ -2200,14 +2277,15 @@
           h('button', { type: 'button', 'aria-label': 'Zoom out', text: '−', onclick: function () { domZoom = Math.max(0.5, Math.round((domZoom - 0.1) * 10) / 10); applyZoom(); } }), zoomLabel,
           h('button', { type: 'button', 'aria-label': 'Zoom in', text: '+', onclick: function () { domZoom = Math.min(2, Math.round((domZoom + 0.1) * 10) / 10); applyZoom(); } }),
           h('span', { class: 'dx-dm-zsep' }),
-          h('button', { type: 'button', class: 'fit', text: 'Fit', onclick: function () { var r = canvas.getBoundingClientRect(); domZoom = Math.max(0.5, Math.min(2, Math.floor(Math.min((r.width - 40) / L.W, (r.height - 90) / L.H) * 100) / 100)); applyZoom(); } })
+          h('button', { type: 'button', class: 'fit', text: 'Fit', onclick: function () { var r = canvas.getBoundingClientRect(); domZoom = Math.max(0.5, Math.min(2, Math.floor(Math.min((r.width - 40) / W, (r.height - 90) / H) * 100) / 100)); applyZoom(); } })
         ]);
         var legend = h('div', { class: 'dx-dm-legend' }, [
           h('span', { title: 'Stored in the database' }, [h('i', { class: 'dx-dm-mk pers' }), 'Persistable']),
           h('span', { title: 'Lives only in memory, never stored' }, [h('i', { class: 'dx-dm-mk np' }), 'Non-persistable']),
           h('span', { title: 'Its rows are what an OQL query returns, served read-only' }, [h('i', { class: 'dx-dm-mk view' }), 'View entity']),
           h('span', { title: 'An association: * at the entity that owns it, 1 at the one it points to (* at both ends for a reference set)' }, [h('b', { class: 'mono', text: '* 1' }), 'association']),
-          h('span', { title: 'An association to an entity in another module, listed at the foot of the box' }, [h('b', { text: '↗' }), 'other module'])]);
+          h('span', { title: 'An association to an entity in another module, listed at the foot of the box and, for the picked entity, drawn in a lane beside the diagram' }, [h('b', { text: '↗' }), 'other module']),
+          h('span', { title: 'A generalization: the entity inherits the attributes and associations of the one the triangle points at. A parent in another module is at the foot of the box, and in the lane for the picked entity' }, [h('b', { text: '▲' }), 'generalization'])]);
         var wrapEl = h('div', { class: 'dx-dm-wrap', 'data-keep-scroll': 'dm-wrap:' + scope + '|' + mod + '|' + (sel || '') }, [scaler]);
         // Ctrl (or ⌘) and the wheel zoom too, as in Studio Pro — a trackpad's pinch arrives the same
         // way — keeping the point under the pointer where it is.
@@ -2222,7 +2300,7 @@
           wrapEl.scrollLeft = ax * domZoom - mx; wrapEl.scrollTop = ay * domZoom - my;
         }, { passive: false });
         if (free) wrapEl.addEventListener('click', function (ev) {
-          if (sel && !(ev.target.closest && ev.target.closest('.dx-dm-box'))) go({ view: 'domain', entity: mod, dmodule: mod });
+          if (sel && !(ev.target.closest && ev.target.closest('.dx-dm-box, .dx-dm-away'))) go({ view: 'domain', entity: mod, dmodule: mod });
         });
         if (view === 'diagram') {
           applyZoom();
@@ -2328,6 +2406,9 @@
           h('div', { class: 'dx-dm-ih' }, [
             h('div', { class: 'dx-dm-meta' }, [h('span', null, ['Entity in ', h('span', { class: 'mono', text: mod })]), h('span', { 'aria-hidden': 'true', text: '·' }), h('span', { class: 'dx-dm-kind' }, [marker(e), kindOf(e)])]),
             h('h2', { class: 'mono' }, [sel, e.plan ? planTag(e.plan) : null]),
+            e.gen ? h('p', { class: 'dx-dm-gen' }, ['Specialises ', data.entities[e.gen]
+              ? ln({ view: 'domain', entity: e.gen, dmodule: modOf(e.gen) }, { class: 'mono' }, [e.gen])
+              : h('span', { class: 'mono', text: e.gen }), ' — it inherits its attributes and associations.']) : null,
             e.desc && !(e.plan && e.plan.state === 'new') ? h('p', { class: 'dx-dm-d', text: e.desc }) : null,
             e.desc && !(e.plan && e.plan.state === 'new') ? h('span', { class: 'dx-prov', text: 'Description written by an agent from the model.' }) : null, e.plan ? window.MxPlanLayer.entityNote(h, e.plan) : e.planBuilt && window.MxPlanLayer ? window.MxPlanLayer.builtNote(h, e.planBuilt) : null, // the guide's note, and that it is proposed; or, built, the proposal to compare
             h('div', { class: 'dx-dm-stats' }, [[e.attrs.length, 'attributes'], [nOwned + nRef, 'associations'], [e.access.length, 'access rules']].map(function (x) { return h('div', null, [h('span', { class: 'mono', text: String(x[0]) }), h('small', { text: x[1] })]); })),

@@ -420,7 +420,57 @@ function check(envelope, opts) {
         if (!str(c.what)) err(w + ': ' + cw + ' needs "what" — one or two sentences.');
         if (c.action !== 'add' && str(c.target) && inPack(pack, c.kind, c.target) === false) warn(w + ': ' + cw + ' ' + c.target + ' is not in the pack — name an existing one as the pack does; for something new the action is "add".');
       });
+      if (Array.isArray(p.changes) && p.changes.length > 400) warn(w + ': ' + where + '.changes has ' + p.changes.length + ' lines; MxScout keeps the first 400.');
+      if (p.design !== undefined) design(p.design, where + '.design');
       if (p.effort !== undefined && typeof p.effort !== 'string') err(w + ': ' + where + '.effort must be text.');
+    };
+    // A design (MXS-140): what is to be built, drawn on the model's own screens as Proposed — the shape of a build
+    // guide, pages with a mockup and a widget tree (reference/assist-format.md, "A design").
+    const DOC = /^[A-Za-z_][\w]*\.[A-Za-z_][\w]*$/;
+    const FLOW_ACTIONS = ['parameter', 'retrieve', 'create', 'change', 'commit', 'delete', 'rollback', 'decision', 'loop', 'call', 'java', 'rest', 'show page', 'close page', 'message', 'validation', 'log', 'variable', 'aggregate', 'list', 'return', 'other'];
+    const STATE = ['new', 'changed', 'removed'];
+    const design = (d, where) => {
+      if (!d || typeof d !== 'object' || Array.isArray(d)) { err(w + ': "' + where + '" must be an object: { processes, entities, microflows, pages }.'); return; }
+      const list = (k) => (d[k] === undefined ? [] : Array.isArray(d[k]) ? d[k] : (err(w + ': ' + where + '.' + k + ' must be a list.'), []));
+      const named = (x, xw) => {
+        if (!x || typeof x !== 'object') { err(w + ': ' + xw + ' is not an object.'); return false; }
+        if (typeof x.name !== 'string' || !DOC.test(x.name)) { err(w + ': ' + xw + ' needs "name": Module.Name — MxScout drops it.'); return false; }
+        if (x.state !== undefined && STATE.indexOf(x.state) === -1) err(w + ': ' + xw + ' "state" must be new, changed or removed.');
+        return true;
+      };
+      list('entities').forEach((e, i) => {
+        const ew = where + '.entities[' + i + ']';
+        if (!named(e, ew)) return;
+        (Array.isArray(e.attributes) ? e.attributes : []).forEach((a, j) => { if (!a || !str(a.name)) err(w + ': ' + ew + '.attributes[' + j + '] needs a "name".'); });
+        (Array.isArray(e.associations) ? e.associations : []).forEach((a, j) => { if (!a || !str(a.name) || typeof a.to !== 'string' || !DOC.test(a.to)) err(w + ': ' + ew + '.associations[' + j + '] needs "name" and "to" (Module.Entity).'); });
+      });
+      list('microflows').forEach((f, i) => {
+        const fw = where + '.microflows[' + i + ']';
+        if (!named(f, fw)) return;
+        if (!str(f.purpose)) warn(w + ': ' + fw + ' has no "purpose" — what it is for, the description shown until it is built.');
+        (Array.isArray(f.steps) ? f.steps : []).forEach((x, j) => {
+          const sw = fw + '.steps[' + j + ']';
+          if (!x || !str(x.text)) err(w + ': ' + sw + ' needs "text" — what this activity does.');
+          else if (x.action !== undefined && FLOW_ACTIONS.indexOf(x.action) === -1) warn(w + ': ' + sw + ' "action" ' + x.action + ' is not one MxScout knows; it is drawn as an activity.');
+        });
+        if (!Array.isArray(f.steps) || !f.steps.length) warn(w + ': ' + fw + ' has no "steps"; MxScout shows only its purpose.');
+      });
+      list('pages').forEach((p2, i) => {
+        const pw = where + '.pages[' + i + ']';
+        if (!named(p2, pw)) return;
+        if (!str(p2.purpose)) warn(w + ': ' + pw + ' has no "purpose" — what the page is for.');
+        if (p2.entity !== undefined && (typeof p2.entity !== 'string' || !DOC.test(p2.entity))) err(w + ': ' + pw + '.entity is Module.Entity.');
+        if (p2.mockup !== undefined && typeof p2.mockup !== 'string') err(w + ': ' + pw + '.mockup is HTML, as text.');
+        if (typeof p2.mockup === 'string' && /<script|\son[a-z]+\s*=|javascript:/i.test(p2.mockup)) warn(w + ': ' + pw + '.mockup has a script, an event handler or a javascript: link; MxScout drops them.');
+        if (typeof p2.mockup === 'string' && p2.mockup.length > 200000) warn(w + ': ' + pw + '.mockup is longer than 200 000 characters; MxScout cuts it.');
+        const tree = (xs, tw, depth) => (Array.isArray(xs) ? xs : []).forEach((x, j) => {
+          const xw = tw + '[' + j + ']';
+          if (!x || !str(x.type)) { err(w + ': ' + xw + ' needs a "type" (Data grid 2, Combo box, Button …) — MxScout drops it and what is under it.'); return; }
+          if (depth < 14) tree(x.children, xw + '.children', depth + 1);
+        });
+        tree(p2.widgets, pw + '.widgets', 1);
+        if (!p2.mockup && !(Array.isArray(p2.widgets) && p2.widgets.length)) warn(w + ': ' + pw + ' has neither a "mockup" nor "widgets"; the Mockup / Modeler view stays empty.');
+      });
     };
 
     // ----- per kind -----

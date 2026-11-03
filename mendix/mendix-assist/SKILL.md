@@ -384,6 +384,13 @@ put it in `needs` or `open`. Do not guess it.
    application's own conventions (its prefixes, how it changes a status, where
    validation lives, how it tells people). Prefer the smallest change that does
    the whole job; say what you chose not to do and why.
+   When the person will review the design before it is built — a new module,
+   an application planned from its documents — add `proposal.design`
+   (`reference/assist-format.md`, "A design"): each microflow with its purpose,
+   input, output, entities and steps as a workflow, each page with its purpose,
+   roles, main entity, widget tree and an HTML mockup in the Raben Design
+   System's classes, each entity new or changed. MxScout shows it as Proposed on
+   the Domain model, Microflows and Pages until the model has it.
 5. **What it touches and what could go wrong** — `impact` (existing flows,
    roles that gain or lose something, what happens to the data already there),
    `risks` ranked by `risk-levels.md`, `open` (the questions the model cannot
