@@ -88,3 +88,14 @@ daje własny moduł aplikacji), `Administration.AppUser`, własne dokumenty w `A
   start (Sprint Zero), nie jako decyzję do podjęcia.
 - Zasady Raben nie trafiają do `mxcraft-skills` ani na tablicę Craftsman (Karol, 2026-11-01). Nowa zasada Raben
   idzie tutaj i do LIC-16.
+
+## 8. Pokazywanie aplikacji Karolowi
+- Każdą aplikację Mendix, którą Karol ma obejrzeć (ticket, poprawki, nowa wersja), wystawiasz na jej demo
+  `*.seajack.dev` i dajesz mu ten link, nie tunel SSH (Karol, 2026-11-04). Wejście przez Cloudflare Access:
+  e-mail Karola przechodzi.
+- Demo i paczka są w rejestrze `~/Mx/demo-domains.json` (np. Intercom → `intercom-demo.seajack.dev`,
+  `~/Mx/demo/_packages/Intercom.mda`). Nową paczkę bierzesz z kopii testowej (`~/Mendix/<App>-TEST/app/*.mda`),
+  starą zostawiasz jako `.prev`, potem w `~/Projects/Tandem`: `node bin/demo-domain.js stop|start|status <host>`.
+- Sprawdzasz, że demo serwuje nową wersję (reguła lub tekst ze zmiany) i że adres publiczny kieruje do logowania
+  Access. Aplikacja bez wpisu w rejestrze dostaje go przez `demo-domain.js add` (zasady wejścia: Raben przez
+  Access, Karol bezpośrednio).
