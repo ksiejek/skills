@@ -33,6 +33,10 @@ Każdy dokument ma ten sam układ: nagłówek (nadtytuł, tytuł, zdanie wiodąc
 
 Bloki: `p`, `ul`, `ol`, `code`, `note` (`kind`: `bad` | `acc`), `table` (`head`, `rows`), `grid` (`cap`, `text`, `accent`), `cards` (`no`, `title`, `text`/`list`/`code`), `checks`, `verify` (`title`, `text`), `steps`, `flow` (`title`, `text`, `src`, `mx`). W tekście: `**pogrubienie**` i `` `kod` ``.
 
+## Układ kart (GEN-69, standard wyglądu raportów)
+
+Build wybiera układ sam, po najdłuższym tekście w grupie (`grid`, `checks`, `steps`): do ok. 12 słów po cztery w rzędzie, do ok. 40 słów po dwie, dłuższy tekst jeden pod drugim na całą szerokość (jak „Propozycje” w raporcie GEN-68). `cards` zawsze idą jedna pod drugą. Kolorowych pasków u góry ani z lewej na kartach i wywołaniach nie ma; akcent to tło, ramka cienka albo plakietka `tag`. Zasada jest też w Atlasie (strona „Standard wyglądu raportów”).
+
 ## Typy dokumentów
 
 **opis-zmian** — dla biznesu, z instrukcją testów:

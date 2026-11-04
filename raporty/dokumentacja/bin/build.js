@@ -35,6 +35,14 @@ const no2 = (i) => String(i + 1).padStart(2, '0');
 const ARROW = '<div class="link"><svg viewBox="0 0 28 16" aria-hidden="true"><path d="M2 8h20M17 3l6 5-6 5" fill="none" stroke="#AEB4BD" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>';
 
 // ---------- HTML ----------
+
+// Card density by text length (GEN-69): the longest text in a group picks the row width.
+// Up to 12 words: 4 per row (d4); up to 40 words: 2 per row (d2); longer: one full-width column (d1).
+function density(texts) {
+  const words = Math.max(0, ...texts.map((t) => String(t || '').trim().split(/\s+/).filter(Boolean).length));
+  return words <= 12 ? 'd4' : words <= 40 ? 'd2' : 'd1';
+}
+
 // Renders one block of a section as MxScout-styled HTML.
 function blockHtml(b) {
   if (b.p) return `<div class="prose"><p>${inlineHtml(b.p)}</p></div>`;
@@ -47,11 +55,11 @@ function blockHtml(b) {
     const rows = b.table.rows.map((r) => `<tr>${r.map((c, i) => `<td${i === 0 ? ' class="name"' : ''}>${inlineHtml(c)}</td>`).join('')}</tr>`).join('');
     return `<div class="table"><table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
   }
-  if (b.grid) return `<div class="grid2">${b.grid.map((g) => `<div class="card"${g.accent ? ' style="border-color:color-mix(in srgb, var(--acc) 35%, transparent);background:var(--acc-soft)"' : ''}><p class="cap">${esc(g.cap)}</p><p>${inlineHtml(g.text)}</p></div>`).join('')}</div>`;
+  if (b.grid) return `<div class="grid2 ${density(b.grid.map((g) => g.text))}">${b.grid.map((g) => `<div class="card"${g.accent ? ' style="border-color:color-mix(in srgb, var(--acc) 35%, transparent);background:var(--acc-soft)"' : ''}><p class="cap">${esc(g.cap)}</p><p>${inlineHtml(g.text)}</p></div>`).join('')}</div>`;
   if (b.cards) return b.cards.map((c) => `<div class="card"><h3>${c.no ? `<span class="no">${esc(c.no)}</span>` : ''}${esc(c.title)}</h3>${c.text ? `<p>${inlineHtml(c.text)}</p>` : ''}${c.list ? `<ul>${c.list.map((x) => `<li>${inlineHtml(x)}</li>`).join('')}</ul>` : ''}${c.code ? `<span class="req">${esc(c.code)}</span>` : ''}</div>`).join('');
-  if (b.checks) return `<ul class="checks">${b.checks.map((x) => `<li><span class="mk">✓</span><span>${inlineHtml(x)}</span></li>`).join('')}</ul>`;
+  if (b.checks) return `<ul class="checks ${density(b.checks)}">${b.checks.map((x) => `<li><span class="mk">✓</span><span>${inlineHtml(x)}</span></li>`).join('')}</ul>`;
   if (b.verify) return `<ol class="verify">${b.verify.map((x) => `<li><b>${esc(x.title)}</b><span>${inlineHtml(x.text)}</span></li>`).join('')}</ol>`;
-  if (b.steps) return `<ol class="steps">${b.steps.map((x) => `<li><b>${esc(x.title)}</b>${inlineHtml(x.text)}</li>`).join('')}</ol>`;
+  if (b.steps) return `<ol class="steps ${density(b.steps.map((x) => x.text))}">${b.steps.map((x) => `<li><b>${esc(x.title)}</b>${inlineHtml(x.text)}</li>`).join('')}</ol>`;
   if (b.flow) return `<div class="flow">${b.flow.map((x, i) => `${i ? ARROW : ''}<div class="step${x.mx ? ' mx' : ''}"><span class="num">${i + 1}</span><b>${esc(x.title)}</b><span>${inlineHtml(x.text)}</span>${x.src ? `<span class="src">${esc(x.src)}</span>` : ''}</div>`).join('')}</div>`;
   throw new Error('Unknown block: ' + JSON.stringify(Object.keys(b)));
 }
@@ -196,4 +204,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { esc, pieces, inlineHtml, plain, blockHtml, blockMd, blockDocx, css };
+module.exports = { density, esc, pieces, inlineHtml, plain, blockHtml, blockMd, blockDocx, css };
