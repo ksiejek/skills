@@ -80,7 +80,10 @@ write is kept on the server under the name of the person whose token you use.
    processes }` once the modules are written, and `c4: { context, containers,
    open }` when the person asks for the architecture.
 4. **Risks:** `write_risks`, up to 20 per call, each `{ id, level, title,
-   detail, fix, theme, where }`. Keep the `id` the same on every update.
+   detail, fix, theme, where }`. Keep the `id` the same on every update. A
+   risk written without one gets the server's next `R-nnn` (`R-012`), which
+   `write_risks` returns in `ids` and `list_risks` shows: write it again under
+   that id, so what a person decided about it outlives a reworded title.
 
 For the format of every field, `read_skill` with `part: "descriptions-format"`;
 for the two layers of the application, its processes and modules,

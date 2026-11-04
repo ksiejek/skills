@@ -929,6 +929,9 @@ On every update:
    gets a new one. MxScout matches by id — that is how it knows what the person
    decided. A line that says `(no id: give it one)` is a risk from before ids:
    report it, if it is still there, with the same level and title and a new id.
+   On a Team server every risk has one: a risk written without it gets the
+   server's next `R-nnn`, returned by `write_risks` in `ids` — write it again
+   under that id, never a new one, even when you reword its title.
 2. **Re-check every `fixed` risk against the model.** Still there: report it
    again, same id, and say in its `detail` what still shows it — MxScout
    reopens it. Gone: leave it out — MxScout marks it verified. Do this in the

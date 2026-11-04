@@ -75,6 +75,26 @@ business confirms something nobody promised, and you find out in testing.
    it is deliberately detailed: a step list that says "validate" is not a
    plan. Modules that do not exist yet are fine — that is what planning is.
 
+   **A page's `purpose` is the one line in it a business reader sees.** It is
+   the heading above the mockup in MxScout, and the "what you see" line in the
+   clickable prototype — the sentence somebody reads before they can say
+   whether the screen is right. So write it in the business's words: who comes
+   to this screen, what they see, what they can do, and the BR numbers at the
+   end. No non-persistent copies, no popups, no validation, no entity or
+   widget names — those belong in `changes` and `widgets`, which only the
+   developer reads.
+
+   > Yes: "Lokalne IT wyszukuje pracownika swoich jednostek i widzi jego
+   > licencje (BR-2)."
+   >
+   > No: "Popup zmiany limitu na niepersystentnej kopii z blokadą ponad pulę
+   > tenanta (BR-17)." — every word of it is for the person building it, and
+   > the person who has to confirm the screen cannot tell what it is.
+
+   The test: read the sentence to somebody who has never seen Mendix. If they
+   cannot say what the screen is for, it is a note to a developer, not a
+   purpose.
+
 5. **Give every page a mockup.** A page without a mockup is a page the
    business cannot judge. Draw the mockup in the design system's kit (in
    Raben: the mockup kit MxScout ships, same class names the real page will
