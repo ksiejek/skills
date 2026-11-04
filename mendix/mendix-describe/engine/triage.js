@@ -108,6 +108,8 @@
     var same = r.id && /^mx-/.test(r.id) ? byMxId(E, r.id) : null;
     if (same) return same;
     var t = window.MxDescribe.titleKey(r), hit = null;
+    // Decided while it was known by its title, then reworded under the id it has kept since (MXS-170).
+    if (r.id) Object.keys(E).forEach(function (x) { if (!hit && E[x].origin === 'ai' && E[x].risk && E[x].risk.id === r.id) hit = E[x]; });
     Object.keys(E).forEach(function (x) { if (!hit && E[x].origin !== 'person' && E[x].tkey === t) hit = E[x]; });
     return hit;
   }

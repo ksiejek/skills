@@ -18,6 +18,11 @@
 (function () {
   'use strict';
 
+  // A label kept as data and translated where it is drawn (tools/i18n-check.js finds it). This file has no
+  // dictionary of its own: it also runs in MxScout Dev and in the skill's engine, and what it works out is cached
+  // in the data and written to the Markdown copy, so its words stay English here.
+  function N_(text) { return text; }
+
   var KIND = { microflow: 'mf', nanoflow: 'nf', page: 'pg' };
   function moduleOf(qn) { return String(qn).split('.')[0]; }
   // Python's \w, for the patterns below: any letter, digit or underscore.
@@ -42,19 +47,19 @@
   // TEMPORARY in the reference too: a theme from keywords in the (Polish)
   // title, until the agent writes `theme` itself. First match wins.
   var THEMES = [
-    ['access', 'Missing access checks', ['sprawdzeni[ae] wywołującego', 'rola User', 'roli User', 'ufaj', 'ufa ', 'dowoln', 'właściciela', '[Zz]wykli użytkownicy', 'bez kontroli', 'sprawdzenia dostępu', 'uwierzytel', 'kto może', 'kto wywołuje', 'powiązania wywołującego', 'nie sprawdza, kto', 'odbiera dostęp', 'administratorem zespołu', 'Operator może']],
-    ['secrets', 'Secrets in the model', ['[Kk]lucz szyfrowania', '[Hh]asło', 'jawnym tekstem', '[Pp]oświadczenia', '[Tt]oken', 'sekret']],
-    ['schedule', 'Relies on switched-off events', ['harmonogram\\w* wyłączon', 'wyłączon\\w* w modelu', 'są wyłączone', 'wyłączonych harmonogram']],
-    ['delete', 'Deletes too much', ['usuwa', '[Uu]sunięcie', 'usuwane', 'psuje', 'usunąć']],
-    ['loops', 'Commits in loops', ['pojedynczo', '[Cc]ommit', 'w pętl', 'jednej transakcji', 'dla każdego rekordu', 'wszystkich zgłoszeniach naraz', 'rekord po rekordzie', 'wiersz po wierszu']],
-    ['silent', 'Errors that vanish', ['obsługi błędów', 'cicho', 'bez śladu', 'przepadają', 'giną', 'zawodzi', 'kończy się błędem', 'kończą się błędem', 'zatrzymuje', 'nie dociera', 'ignorowane', 'nie działa', 'ścieżki błędów']],
-    ['hardcoded', 'Values written into flows', ['zapisane w przepływach', 'wpisane w przepływ', 'na sztywno', 'na stałe', 'w wyrażeniu', '[Ss]tałe wartości', '[Ss]tałe nazwy', '[Ww]artości wpisane', 'zapisan\\w* w przepływ', 'wpisan\\w* w ogólny', '[Ww]artości zastępcze', '[Ww]artości biznesowe']],
-    ['dead', 'Unused or duplicated', ['[Nn]ieosiągaln', '[Nn]ieużywan', '[Zz]dublowan', '[Zz]duplikowan', 'bez wywołujących', 'bez widocznego', '[Pp]usty', '[Mm]artwy', '[Pp]ozostałości', '[Nn]iepodłączone', 'skopiowany', 'kopiowane', '[Nn]iedokończone', 'pozostawione w aplikacji', 'jednorazowy', '[Ww]yłączony krok']],
-    ['naming', 'Names and messages', ['[Ll]iterówk', 'komunikat', '[Nn]azwy', '[Nn]azwach']],
-    ['performance', 'Slow pages and queries', ['[Ww]ydajno', '[Ii]ndeks', 'wolno', 'zapytani\\w* na każd', 'view entit']],
-    ['privacy', 'Personal data', ['[Dd]ane osobowe', 'danych osobowych', 'RODO', 'GDPR', 'PESEL']]
+    ['access', N_('Missing access checks'), ['sprawdzeni[ae] wywołującego', 'rola User', 'roli User', 'ufaj', 'ufa ', 'dowoln', 'właściciela', '[Zz]wykli użytkownicy', 'bez kontroli', 'sprawdzenia dostępu', 'uwierzytel', 'kto może', 'kto wywołuje', 'powiązania wywołującego', 'nie sprawdza, kto', 'odbiera dostęp', 'administratorem zespołu', 'Operator może']],
+    ['secrets', N_('Secrets in the model'), ['[Kk]lucz szyfrowania', '[Hh]asło', 'jawnym tekstem', '[Pp]oświadczenia', '[Tt]oken', 'sekret']],
+    ['schedule', N_('Relies on switched-off events'), ['harmonogram\\w* wyłączon', 'wyłączon\\w* w modelu', 'są wyłączone', 'wyłączonych harmonogram']],
+    ['delete', N_('Deletes too much'), ['usuwa', '[Uu]sunięcie', 'usuwane', 'psuje', 'usunąć']],
+    ['loops', N_('Commits in loops'), ['pojedynczo', '[Cc]ommit', 'w pętl', 'jednej transakcji', 'dla każdego rekordu', 'wszystkich zgłoszeniach naraz', 'rekord po rekordzie', 'wiersz po wierszu']],
+    ['silent', N_('Errors that vanish'), ['obsługi błędów', 'cicho', 'bez śladu', 'przepadają', 'giną', 'zawodzi', 'kończy się błędem', 'kończą się błędem', 'zatrzymuje', 'nie dociera', 'ignorowane', 'nie działa', 'ścieżki błędów']],
+    ['hardcoded', N_('Values written into flows'), ['zapisane w przepływach', 'wpisane w przepływ', 'na sztywno', 'na stałe', 'w wyrażeniu', '[Ss]tałe wartości', '[Ss]tałe nazwy', '[Ww]artości wpisane', 'zapisan\\w* w przepływ', 'wpisan\\w* w ogólny', '[Ww]artości zastępcze', '[Ww]artości biznesowe']],
+    ['dead', N_('Unused or duplicated'), ['[Nn]ieosiągaln', '[Nn]ieużywan', '[Zz]dublowan', '[Zz]duplikowan', 'bez wywołujących', 'bez widocznego', '[Pp]usty', '[Mm]artwy', '[Pp]ozostałości', '[Nn]iepodłączone', 'skopiowany', 'kopiowane', '[Nn]iedokończone', 'pozostawione w aplikacji', 'jednorazowy', '[Ww]yłączony krok']],
+    ['naming', N_('Names and messages'), ['[Ll]iterówk', 'komunikat', '[Nn]azwy', '[Nn]azwach']],
+    ['performance', N_('Slow pages and queries'), ['[Ww]ydajno', '[Ii]ndeks', 'wolno', 'zapytani\\w* na każd', 'view entit']],
+    ['privacy', N_('Personal data'), ['[Dd]ane osobowe', 'danych osobowych', 'RODO', 'GDPR', 'PESEL']]
   ].map(function (t) { return [t[0], t[1], t[2].map(function (p) { return re(p); })]; });
-  var THEME_FALLBACK = ['logic', 'Logic and data errors'];
+  var THEME_FALLBACK = ['logic', N_('Logic and data errors')];
   var THEME_LABELS = {};
   THEMES.forEach(function (t) { THEME_LABELS[t[0]] = t[1]; });
   THEME_LABELS[THEME_FALLBACK[0]] = THEME_FALLBACK[1];
@@ -274,10 +279,10 @@
       if (r.pages) bits.push(r.pages + (r.pages === 1 ? ' page' : ' pages'));
       return bits.length ? bits.join(', ') : 'nothing in the module';
     }
-    return { mx: true, title: 'Marketplace module', text: k.about + (k.link ? ' Documentation: ' + k.link : ''),
+    return { mx: true, title: N_('Marketplace module'), text: k.about + (k.link ? ' Documentation: ' + k.link : ''),
       items: ['Version: ' + (k.version || 'not recorded in the model'), 'Use: ' + k.usedText,
         'Known security advisories for this version: ' + (k.advisories.length ? k.advisories.join(', ') : 'none in the built-in table')],
-      table: k.roles.length ? { columns: ['Module role', 'User roles', 'May'], rows: k.roles.map(function (r) {
+      table: k.roles.length ? { columns: [N_('Module role'), N_('User roles'), N_('May')], rows: k.roles.map(function (r) {
         return [r.moduleRole + (r.admin ? ' (admin)' : ''), r.userRoles.length ? r.userRoles.join(', ') : 'none', access(r)];
       }) } : null };
   }

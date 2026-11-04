@@ -134,7 +134,7 @@ business confirms something nobody promised, and you find out in testing.
 ## What this skill never does
 
 - It never changes a Mendix model. The plan is a proposal; building it is a
-  separate job (in a Raben project: `mxcraft-model` and the sprint board).
+  separate job (the developer builds it in Studio Pro, story by story).
 - It never invents a business rule to fill a hole. The hole becomes P-n.
 - It never promises what the documents do not say, and never quietly drops a
   requirement it finds inconvenient — a dropped requirement is a decision,

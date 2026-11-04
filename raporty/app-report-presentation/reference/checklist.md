@@ -135,6 +135,13 @@ seconds, can a reader answer:
 - [ ] The same thing has the same name in menu, headers, links and prose.
 - [ ] Labels: pages are nouns, buttons are verbs, sentence case.
 
+## 9b. Cards
+
+- [ ] Cards in one group follow the longest card: up to about 12 words up to
+      four to a row, up to about 60 at most two, longer one under the other
+      across the page; one column on a phone.
+- [ ] No card, callout or quote has a thicker or coloured edge on one side.
+
 ## 10. The file
 
 - [ ] Opens offline: no request to any server (check the browser's network

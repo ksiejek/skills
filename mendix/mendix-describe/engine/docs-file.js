@@ -73,6 +73,8 @@
   // The data rides as JSON in a block the browser never runs, with every "<"
   // escaped, so no text from the model can end that block or become markup.
   function payload(data) { return JSON.stringify(data).replace(/</g, '\\u003c'); }
+  // The names of risk patterns and levels as the app shows them (MXS-161): the file has no dictionary, so it carries them.
+  function withLabels(d) { var l = window.MxDocsView && window.MxDocsView.labels ? window.MxDocsView.labels() : null; return l ? Object.assign({}, d, { labels: l }) : d; }
   function mountScript() {
     return [
       '(function(){',
@@ -101,7 +103,7 @@
       '<style>html,body{margin:0;height:100%}#doc{height:100vh}\n' + css.replace(/<\/style/gi, '') + '</style>',
       '</head><body>',
       '<div id="doc"></div>',
-      '<script type="application/json" id="mxscout-data">' + payload(data) + CLOSE_SCRIPT,
+      '<script type="application/json" id="mxscout-data">' + payload(withLabels(data)) + CLOSE_SCRIPT,
       (scripts || []).map(function (src) { return '<script>' + src.replace(/<\/(script)/gi, '<\\/$1') + CLOSE_SCRIPT; }).join('\n'),
       '<script>window.MxDocsView=' + window.MxDocsView.source + ';' + CLOSE_SCRIPT,
       '<script>' + mountScript() + CLOSE_SCRIPT,

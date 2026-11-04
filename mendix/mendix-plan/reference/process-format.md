@@ -52,9 +52,13 @@ onError  Paragraphs: what happens when a system answers late, partly, or not
 outOfScope  Short sentences, drawn as a list: what this will not do. Each
          line is a scope decision somebody can still reverse, cheaply, now.
 open     The questions this process waits on, each its own record:
-         { id: "P-5", text: "…", proposal: "…" }
+         { id: "P-5", text: "…", proposal: "…", to: "business" }
          Drawn framed, apart from the prose, because they are the only part
-         that asks the reader for something other than a yes.
+         that asks the reader for something other than a yes. MxScout keeps
+         each as a question of the plan the business answers on its Plan page
+         (see "Planning again" in the team part): proposal is the plan's own
+         assumption until someone answers — always give one — and to says who
+         answers: business (the default), it (the company's IT), owner.
 diagram  Only when the case can go different ways. A straight sequence is
          already a numbered list; a column of boxes adds nothing to it.
 ```

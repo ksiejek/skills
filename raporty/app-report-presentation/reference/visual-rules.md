@@ -164,6 +164,27 @@ acceptable.
   things you click or compare (a check, a process row, a fact panel).
 - **No more than one level of boxes.** A card inside a card inside a panel
   is noise. Use a hairline or space instead.
+- **Cards by the amount of text** (MXS-183; the same rule in MxScout's HTML
+  exports: the description of a change, the business brief, the design
+  document and a process's steps). A card holds one thing. Count the words of
+  the longest card in a group; that card picks the layout of the whole group:
+
+  | Longest card in the group | Cards to a row |
+  |---|---|
+  | up to about 12 words (short steps, labels, one-line facts) | up to four |
+  | up to about 60 words (a few sentences) | at most two |
+  | more than that | one, full width, stacked like a list of proposals |
+
+  A group never shows more columns than it has cards, so one short card is
+  not left in a quarter of an empty row. On a phone every card is its own row,
+  and a wide row folds (four to two) before a line gets too short to read.
+  Never decide the layout per card inside one group; a ragged row of
+  different widths reads as a mistake.
+- **No accent edges.** A card, callout or quote has the same thin border on
+  all four sides (or a plain background), never a thicker or coloured stripe
+  on one side. Colour carries meaning through a tint, a tag or a status word,
+  not through a bar. A stripe on a rounded box is the look of a page made by
+  a template; the report should look made for its reader.
 - Rows in a list are the link, whole. A tiny "Open" link at the end of a row
   is a second target for the same thing; keep it only as a visual hint.
 

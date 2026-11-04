@@ -96,6 +96,46 @@ lines and nothing more:
 Do not also paste the plan into the conversation. It is in MxScout; that is
 the point.
 
+## Planning again: what the business answers, comments and accepts
+
+The plan is not finished when you hand it in; the business reads it in MxScout
+and answers there. Before you plan again, read what came back — never ask the
+person to paste it:
+
+1. `list_questions` (`status: "waiting"` first): every open question of the plan
+   with its assumption, who it is for (`business`, `it`, `owner`) and the thread
+   of answers — who wrote each and when. The questions are the `open` of your
+   processes and the brief's `open` items; `write_questions` adds one that is not
+   in either (always with the assumption). An answer is **not** a decision: when
+   the answers say enough, or the owner decided, `resolve_question` with the
+   decision in a sentence or two and who decided (`owner`, `business`,
+   `assumption` when the plan's own assumption stands). Its decision goes into the
+   plan's register.
+2. `list_comments` (`status: "open"`): what the business pinned on the screens of
+   the prototype — the screen (`Module.Page`), the place, the text, the replies.
+   Change the mockup, then say so: `reply_comment` when you need an answer first
+   or want to tell what you changed, `address_comment` with a note of what was
+   done when it is taken in. A comment on a page you rename or remove is
+   orphaned in the app, so keep a page's name when the screen stays.
+3. Write the plan again (`write_story` with the same `number`), changing only
+   what the answers and comments ask for; keep the ids of the questions you still
+   ask (P-5 stays P-5) and the numbers of the rules (BR-3 stays BR-3).
+4. `start_round` with a `summary` the business can read — what they answered, what
+   you changed because of it, in a few sentences — and `changes`: for each
+   change you made on purpose, `{ category, name, because: [{ question: "P-5" } |
+   { comment: 3 }] }`, with category `processes`, `rules`, `entities`,
+   `microflows` or `pages` and the name as the plan has it (`BR-3` for a rule).
+   Write the plan BEFORE you start the round: a round is a snapshot of what is
+   there. The server works out the diff itself; your part is the cause.
+5. `read_rounds` shows where the plan stands: the owner and the business each
+   accept the newest round in MxScout, and a plan both accepted is `ready` — the
+   time to make it into a sprint and its tickets, not before. A new round clears
+   the acceptance, so open one only when the plan really changed.
+
+Decisions made outside MxScout (a meeting, the planning ticket's notes) go in
+with `write_decisions`, each with the id it already has (D1 …), who decided and,
+if there is one, the question it settled.
+
 ## What you never do here
 
 - Never change the model. `write_story`, `write_brief`, `write_testcases` and
@@ -106,5 +146,6 @@ the point.
   belongs in the brief (`write_brief`), numbered, not only in the plan's
   prose.
 - Never write a second story for the same plan.
+- Never take an answer for a decision, resolve a question nobody answered without saying the assumption stands, or open a round to hurry an acceptance: acceptance belongs to the owner and the business, in the app.
 - Never put personal data in a story — no names, addresses, record ids from
   production. The server hides what slips through and says so.

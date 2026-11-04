@@ -29,6 +29,12 @@
 (function () {
   'use strict';
 
+  // The labels go through the interface's language where the reader has one (MxScout's own screen, docs-i18n.js); the
+  // exported file, MxScout Dev and the skill's engine have none and keep the English. A risk's own text is never translated.
+  function lang() { return typeof window !== 'undefined' && window.MxDocsI18n && window.MxI18n ? window.MxDocsI18n : null; }
+  function _(text, vars) { return lang() ? lang().t(text, vars) : vars ? String(text).replace(/\{(\w+)\}/g, function (m, k) { return vars[k] != null ? String(vars[k]) : m; }) : text; }
+  function N_(text) { return text; } // translated where it is drawn (tools/i18n-check.js finds it)
+
   var QN = /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+$/;
 
   // Sentences, split where a sentence ends outside brackets and quotes: ". " before a capital, a quote or a $.
@@ -148,9 +154,9 @@
   // places stay with the reader, which knows the triage and the links.
   function tabBar(kit, r, tab, places, to) {
     var h = kit.h, T = r.test || null;
-    return h('div', { class: 'dx-tabs dx-rk-tabs', role: 'tablist', 'aria-label': 'Finding' }, [['about', 'Description'], ['test', 'Test case', T ? (T.steps || []).length : 0],
-      ['fix', 'How to fix', (r.repair || []).filter(Boolean).length]].concat(r.guide ? [['guide', 'Fix guide', ((r.guide.reproduce || []).length + (r.guide.check || []).length) || 0]] : [])
-      .concat([['where', 'Also found in', places]]).map(function (b) {
+    return h('div', { class: 'dx-tabs dx-rk-tabs', role: 'tablist', 'aria-label': _('Finding') }, [['about', _('Description')], ['test', _('Test case'), T ? (T.steps || []).length : 0],
+      ['fix', _('How to fix'), (r.repair || []).filter(Boolean).length]].concat(r.guide ? [['guide', _('Fix guide'), ((r.guide.reproduce || []).length + (r.guide.check || []).length) || 0]] : [])
+      .concat([['where', _('Also found in'), places]]).map(function (b) {
       var on = tab === b[0];
       return h('button', { type: 'button', role: 'tab', class: on ? 'on' : '', 'aria-selected': on ? 'true' : 'false', 'data-tab': b[0], onclick: function () { to(b[0]); } }, [b[1], b[2] ? h('i', { text: String(b[2]) }) : null]);
     }));
@@ -166,44 +172,45 @@
     if (tab === 'guide') {
       var G = r.guide || {};
       return r.guide ? [
-        G.where ? sec('Where the problem is', [rt(G.where)]) : null,
-        G.expected ? sec('How it should work', [rt(G.expected)]) : null,
-        (G.reproduce || []).length ? sec('To see it happen', [h('ol', { class: 'dx-rk-steps' }, G.reproduce.map(function (s) { return stepView(h, s); }))]) : null,
-        (G.check || []).length ? sec('How to tell the fix works', [h('ol', { class: 'dx-rk-steps' }, G.check.map(function (s) { return h('li', null, [s]); }))], 'dx-rk-real') : null
-      ] : [h('div', { class: 'dx-empty pad', text: 'No fix guide for this finding. Ask the agent for one: “write the fix guide for this finding”.' })];
+        G.where ? sec(_('Where the problem is'), [rt(G.where)]) : null,
+        G.expected ? sec(_('How it should work'), [rt(G.expected)]) : null,
+        (G.reproduce || []).length ? sec(_('To see it happen'), [h('ol', { class: 'dx-rk-steps' }, G.reproduce.map(function (s) { return stepView(h, s); }))]) : null,
+        (G.check || []).length ? sec(_('How to tell the fix works'), [h('ol', { class: 'dx-rk-steps' }, G.check.map(function (s) { return h('li', null, [s]); }))], 'dx-rk-real') : null
+      ] : [h('div', { class: 'dx-empty pad', text: _('No fix guide for this finding. Ask the agent for one: “write the fix guide for this finding”.') })];
     }
     if (tab === 'test') return T ? [
-      T.who ? sec('Who', [h('p', { class: 'dx-rk-p', text: T.who })]) : null,
-      T.given ? sec('Before you start', [rt(T.given)]) : null,
-      (T.steps || []).length ? sec('Steps', [h('ol', { class: 'dx-rk-steps' }, T.steps.map(function (s) { return stepView(h, s); }))]) : null,
-      T.real ? sec('It is a real risk if', [rt(T.real)], 'dx-rk-real') : null,
-      T.safe ? sec('It is safe if', [rt(T.safe)]) : null
-    ] : [h('div', { class: 'dx-empty pad', text: 'No test case for this finding: ' + (kit.own ? 'its check does not write one.' : 'it was not written with one. MxScout’s security check writes one for each of its risks.') })];
+      T.who ? sec(_('Who'), [h('p', { class: 'dx-rk-p', text: T.who })]) : null,
+      T.given ? sec(_('Before you start'), [rt(T.given)]) : null,
+      (T.steps || []).length ? sec(_('Steps'), [h('ol', { class: 'dx-rk-steps' }, T.steps.map(function (s) { return stepView(h, s); }))]) : null,
+      T.real ? sec(_('It is a real risk if'), [rt(T.real)], 'dx-rk-real') : null,
+      T.safe ? sec(_('It is safe if'), [rt(T.safe)]) : null
+    ] : [h('div', { class: 'dx-empty pad', text: kit.own ? _('No test case for this finding: its check does not write one.') : _('No test case for this finding: it was not written with one. MxScout’s security check writes one for each of its risks.') })];
     return [
-      r.fix ? h('section', { class: 'dx-rk-fix' }, [h('h3', { class: 'dx-cap acc' }, [kit.navIcon('quality', 14), 'What to do']), rt(r.fix)]) : null,
+      r.fix ? h('section', { class: 'dx-rk-fix' }, [h('h3', { class: 'dx-cap acc' }, [kit.navIcon('quality', 14), _('What to do')]), rt(r.fix)]) : null,
       // A view entity proposal (perfrisks.js): its OQL, as code to copy into Studio Pro.
-      r.oql ? sec('View entity · OQL', [h('code', { class: 'dx-rk-code mono', text: r.oql })]) : null,
+      r.oql ? sec(_('View entity · OQL'), [h('code', { class: 'dx-rk-code mono', text: r.oql })]) : null,
       // A numbered or dashed line keeps its mark beside it: as text through rt(), "1." would be a sentence of its own.
-      R.length ? sec('Step by step', [h('ul', { class: 'dx-rk-steps plain' }, R.map(function (l) {
+      R.length ? sec(_('Step by step'), [h('ul', { class: 'dx-rk-steps plain' }, R.map(function (l) {
         var m = /^(\d+\.|-) (.*)$/.exec(l);
         return h('li', null, m ? [h('span', { class: 'dx-rk-n mono', text: m[1] === '-' ? '· ' : m[1] + ' ' }), rt(m[2])] : [rt(l)]);
       }))]) : null,
-      !r.fix && !R.length && !r.oql ? h('div', { class: 'dx-empty pad', text: 'No fix was written for this finding.' }) : null
+      !r.fix && !R.length && !r.oql ? h('div', { class: 'dx-empty pad', text: _('No fix was written for this finding.') }) : null
     ];
   }
 
   // A logic finding: the business brief's rule it is about, what kind of gap, what the brief expects — and the
   // solution story it is worked in, when there is one. Nothing for any other finding.
-  var LOGIC_KIND = { 'not-built': 'A rule the model does not build', wrong: 'Built differently from the rule', missing: 'An element the brief needs is missing' };
+  // English in the Markdown copy; on screen through _().
+  var LOGIC_KIND = { 'not-built': N_('A rule the model does not build'), wrong: N_('Built differently from the rule'), missing: N_('An element the brief needs is missing') };
   function logicBlock(kit, r) {
     var h = kit.h, L = r.logic, S = r.story;
     if (!L && !S) return null;
     return h('section', { class: 'dx-rk-sec dx-rk-logic' }, [
-      h('h3', { class: 'dx-cap', text: L ? 'Against the business brief' : 'Solution story' }),
-      L ? h('p', { class: 'dx-rk-p' }, [h('b', { text: LOGIC_KIND[L.kind] || L.kind }), L.rule ? ' · ' + L.rule : '', L.source ? ' · ' + L.source : '']) : null,
+      h('h3', { class: 'dx-cap', text: L ? _('Against the business brief') : _('Solution story') }),
+      L ? h('p', { class: 'dx-rk-p' }, [h('b', { text: LOGIC_KIND[L.kind] ? _(LOGIC_KIND[L.kind]) : L.kind }), L.rule ? ' · ' + L.rule : '', L.source ? ' · ' + L.source : '']) : null,
       L && L.expected ? kit.rt(L.expected) : null,
-      S ? h('p', { class: 'dx-rk-note', text: 'Worked in solution story ' + [S.number ? '#' + S.number : null, S.external].filter(Boolean).join(' · ') + '.' +
-        (S.built ? ' Built in commit ' + S.built.slice(0, 10) + ' — the next check against the model verifies it.' : '') }) : null
+      S ? h('p', { class: 'dx-rk-note', text: _('Worked in solution story {0}.', [[S.number ? '#' + S.number : null, S.external].filter(Boolean).join(' · ')]) +
+        (S.built ? ' ' + _('Built in commit {0} — the next check against the model verifies it.', [S.built.slice(0, 10)]) : '') }) : null
     ]);
   }
 

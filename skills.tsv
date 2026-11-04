@@ -11,6 +11,7 @@ mendix-describe	active	Skills/mendix/mendix-describe	engine/ is generated from M
 mendix-brief	active	Skills/mendix/mendix-brief
 mendix-change-proposal	active	Skills/mendix/mendix-change-proposal
 mendix-testcases	active	Skills/mendix/mendix-testcases
+mendix-nightly	active	Skills/mendix/mendix-nightly	the nightly job of a Team server, read with read_skill name nightly
 mxscout-project	active	Skills/mendix/mxscout-project
 mendix-docs	active	Skills/mendix/mendix-docs	packed from Skills/mendix/mendix-docs-source by sync.sh
 mxcraft-model	active	mxcraft-skills/skills/mxcraft-model	shared repo ksiejek/mxcraft-skills (CRAFT-16); edit there, on a skill/<topic> branch
@@ -27,6 +28,7 @@ mendix-describe	copy	MxScout/skills/mendix-describe	MxScout ships it (/api/skill
 mendix-brief	copy	MxScout/skills/mendix-brief	MxScout ships it (skills/install.sh)
 mendix-change-proposal	copy	MxScout/skills/mendix-change-proposal	MxScout ships it (skills/install.sh)
 mendix-testcases	copy	MxScout/skills/mendix-testcases	MxScout ships it (skills/install.sh)
+mendix-nightly	copy	MxScout/skills/mendix-nightly	MxScout serves it to a Team server's agents (read_skill nightly); not in skills/install.sh
 mxscout-project	copy	MxScout/skills/mxscout-project	MxScout ships it (skills/install.sh)
 mxcraft-model	copy	Tandem/skills/mendix/mxcraft-model	Tandem's code and MCP server read it
 mxcraft-workflow	copy	Tandem/skills/mendix/mxcraft-workflow	Tandem's code and MCP server read it

@@ -59,7 +59,15 @@
     function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
     // The labels in MxScout's language (docs-i18n.js); the exported file has no language and keeps the English, and so does the Markdown copy (plural).
     function L() { return typeof window !== 'undefined' && window.MxDocsI18n && window.MxI18n ? window.MxDocsI18n : null; } function local() { return !!(L() && L().local()); }
-    function _(text, vars) { return L() ? L().t(text, vars) : vars ? String(text).replace(/\{(\w+)\}/g, function (m, k) { return vars[k] != null ? String(vars[k]) : m; }) : text; }
+    // The exported file has no MxI18n; it carries the names of patterns and levels as they were shown when it was made (data.labels, labels() below), and takes them from there.
+    var LBL = null;
+    function _(text, vars) { if (L()) return L().t(text, vars); if (LBL && typeof LBL[text] === 'string') text = LBL[text]; return vars ? String(text).replace(/\{(\w+)\}/g, function (m, k) { return vars[k] != null ? String(vars[k]) : m; }) : text; }
+    function N_(text) { return text; } // a text kept in a table and translated where it is drawn
+    // A count of a noun docs-i18n.js does not know, in the forms the language needs (Polish: one; 2–4 but not 12–14; other).
+    function countOf(n, en, pl, de) { var M = L() && window.MxI18n; return M && M.plural ? M.plural(n, { en: en, pl: pl, de: de }) : (n === 1 ? en[0] : en[1]).replace('{0}', String(n)); }
+    function findings(n) { return countOf(n, ['{0} finding', '{0} findings'], ['{0} znalezisko', '{0} znaleziska', '{0} znalezisk'], ['{0} Befund', '{0} Befunde']); }
+    function inModules(n) { return countOf(n, ['{0} module', '{0} modules'], ['{0} module', '{0} modułach', '{0} modułach'], ['{0} Modul', '{0} Modulen']); } // after "in": "w 3 modułach"
+    function places(n) { return countOf(n, ['{0} place', '{0} places'], ['{0} miejsce', '{0} miejsca', '{0} miejsc'], ['{0} Stelle', '{0} Stellen']); }
     function count(n, one, many) { return L() ? L().count(n, one, many) : plural(n, one, many); } function every(text) { return L() ? L().every(text) : text || ''; }
     function capCount(n, one, many) { return local() ? count(n, one, many) : cap(numWord(n)) + ' ' + (n === 1 ? one : many); } // "Four groups of people"; elsewhere "4 grupy osób"
 
@@ -102,7 +110,7 @@
     // Every sentence an AI agent wrote carries this mark. The rest of the
     // documentation is read from the model and says so; these are not, and a
     // reader must be able to tell the two apart at a glance.
-    function aiMark() { return h('span', { class: 'dx-ai', title: 'Written by an AI agent from this model, not read from it', text: '✦ AI' }); }
+    function aiMark() { return h('span', { class: 'dx-ai', title: _('Written by an AI agent from this model, not read from it'), text: '✦ AI' }); }
     function planTag(p, mini) { return window.MxPlanLayer ? window.MxPlanLayer.tag(h, p, mini) : null; } // data.plan: the plan over the model, drawn by planlayer.js in MxScout only, never in the exported file
 
     function paragraphs(text) {
@@ -120,6 +128,13 @@
     function numWord(n) { return local() ? String(n) : WORDS[n] || String(n); } // words in English only
     function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
     function pad2(n) { return n < 10 ? '0' + n : String(n); }
+    // Cards by the amount of text (the rule of the reference report; the same numbers as docs-assist.js and forbusiness.js):
+    // the longest text of a group picks the layout of all of it. Up to 12 words d4 (up to four to a row), up to 60 d2 (two), longer d1 (one).
+    function cardDensity(texts) {
+      var most = 0;
+      texts.forEach(function (t) { most = Math.max(most, String(t == null ? '' : t).trim().split(/\s+/).filter(Boolean).length); });
+      return most <= 12 ? 'd4' : most <= 60 ? 'd2' : 'd1';
+    }
     function requestFrame(fn) { if (window.requestAnimationFrame) window.requestAnimationFrame(fn); else fn(); }
     // A node brought into view by scrolling its own box only. scrollIntoView
     // scrolls every box around it too — the page, the app around an embedded
@@ -195,25 +210,41 @@
 
     // ---------- words the pages and the Markdown copy share ----------
     // The Risks page's levels and patterns (spec 17).
-    var LV = { P1: ['Security and data', 'Before the next release'], P2: ['Functional errors', 'In one of the next releases'], P3: ['Maintenance', 'When you next work on it'] };
-    var PAT = { access: 'Missing access checks', secrets: 'Secrets in the model', logic: 'Logic and data errors', silent: 'Errors that vanish',
-      'delete': 'Deletes too much', loops: 'Commits in loops', schedule: 'Relies on switched-off events', dead: 'Unused or duplicated',
-      hardcoded: 'Values written into flows', naming: 'Names and messages', performance: 'Slow pages and queries', privacy: 'Personal data', brief: 'Not as the business brief says' }; // brief: logic findings, theme "logic" in the data
+    var LV = { P1: [N_('Security and data'), N_('Before the next release')], P2: [N_('Functional errors'), N_('In one of the next releases')], P3: [N_('Maintenance'), N_('When you next work on it')] };
+    var PAT = { access: N_('Missing access checks'), secrets: N_('Secrets in the model'), logic: N_('Logic and data errors'), silent: N_('Errors that vanish'),
+      'delete': N_('Deletes too much'), loops: N_('Commits in loops'), schedule: N_('Relies on switched-off events'), dead: N_('Unused or duplicated'),
+      hardcoded: N_('Values written into flows'), naming: N_('Names and messages'), performance: N_('Slow pages and queries'), privacy: N_('Personal data'), brief: N_('Not as the business brief says') }; // brief: logic findings, theme "logic" in the data
     var PAT_ORDER = ['access', 'privacy', 'secrets', 'brief', 'logic', 'silent', 'delete', 'loops', 'performance', 'schedule', 'dead', 'hardcoded', 'naming'];
     // One sentence per pattern, shown beside the conclusion on a wide screen (Karol, 2026-10-13).
-    var PAT_NOTE = { brief: 'Rules of the business brief the model does not build, builds differently, or lacks an element for.',
-      access: 'Flows that act on any record without checking who calls them.', privacy: 'Personal data open to more people than need it, or written to the log (the Personal data page).',
-      secrets: 'Keys, passwords and tokens written into the model, where anyone with the model can read them.',
-      logic: 'Conditions and calculations that give the wrong answer in some cases.',
-      silent: 'Failures that are caught and dropped, so nobody learns something went wrong.',
-      'delete': 'Deletes that reach further than the record they were meant for.',
-      loops: 'Commits made one object at a time inside a loop: slow, and half done when one fails.',
-      schedule: 'Work that depends on scheduled events switched off in the model.',
-      dead: 'Flows and pages nothing uses, or the same logic kept in more than one place.',
-      hardcoded: 'Values written into flows that belong in configuration or constants.',
-      naming: 'Names and messages that mislead whoever reads them.', performance: 'Queries per item or per row, filters with no index, values worked out on every read: slow once the data grows.'
+    var PAT_NOTE = { brief: N_('Rules of the business brief the model does not build, builds differently, or lacks an element for.'),
+      access: N_('Flows that act on any record without checking who calls them.'), privacy: N_('Personal data open to more people than need it, or written to the log (the Personal data page).'),
+      secrets: N_('Keys, passwords and tokens written into the model, where anyone with the model can read them.'),
+      logic: N_('Conditions and calculations that give the wrong answer in some cases.'),
+      silent: N_('Failures that are caught and dropped, so nobody learns something went wrong.'),
+      'delete': N_('Deletes that reach further than the record they were meant for.'),
+      loops: N_('Commits made one object at a time inside a loop: slow, and half done when one fails.'),
+      schedule: N_('Work that depends on scheduled events switched off in the model.'),
+      dead: N_('Flows and pages nothing uses, or the same logic kept in more than one place.'),
+      hardcoded: N_('Values written into flows that belong in configuration or constants.'),
+      naming: N_('Names and messages that mislead whoever reads them.'), performance: N_('Queries per item or per row, filters with no index, values worked out on every read: slow once the data grows.')
     };
-    var WHERE_KIND = { mf: ['MF', 'Open flow', 'microflow'], nf: ['NF', 'Open flow', 'nanoflow'], pg: ['PG', 'Open page', 'page'], en: ['EN', 'Open entity', null], dm: ['EN', 'Open entity', null] };
+    // The names drawn in the reader's language; the Markdown copy keeps LV and PAT as they are, in English.
+    function levelName(l) { return LV[l] ? _(LV[l][0]) : l; }
+    function levelWhen(l) { return LV[l] ? _(LV[l][1]) : ''; }
+    function patName(k) { return PAT[k] ? _(PAT[k]) : k; }
+    function patNote(k) { return PAT_NOTE[k] ? _(PAT_NOTE[k]) : ''; }
+    function lower1(t) { return t.charAt(0).toLowerCase() + t.slice(1); }
+    // The names above as MxScout shows them now, for the exported file to carry (data.labels): it has no language of its own.
+    function labels() {
+      if (!local()) return null;
+      var out = {};
+      function put(t) { out[t] = _(t); }
+      Object.keys(LV).forEach(function (l) { put(LV[l][0]); put(LV[l][1]); });
+      Object.keys(PAT).forEach(function (k) { put(PAT[k]); });
+      Object.keys(PAT_NOTE).forEach(function (k) { put(PAT_NOTE[k]); });
+      return out;
+    }
+    var WHERE_KIND = { mf: ['MF', N_('Open flow'), 'microflow'], nf: ['NF', N_('Open flow'), 'nanoflow'], pg: ['PG', N_('Open page'), 'page'], en: ['EN', N_('Open entity'), null], dm: ['EN', N_('Open entity'), null] };
     var LVO = { P1: 0, P2: 1, P3: 2 };
     // Where a risk stands (the risk triage (Developer tools), triage.js), drawn by docs-triage.js: only open and
     // reopened ones count as risks; the rest are kept on the Risks page under their own filter.
@@ -406,11 +437,11 @@
     }
     // The Mendix guidelines Model quality measures against, quoted (spec 18); a check Mendix has none for has none.
     var GUIDE = {
-      unreached: ['Unused and excluded documents should be removed from the model when they are no longer needed. Make sure that items that appear unused are not called from a Java action before removing them.', 'Mendix docs · General best practices'],
-      sched: ['The scheduled event and its microflow should share the same name, prefixed SCE_.', 'Mendix docs · Naming conventions'],
-      large: ['The size of a microflow should not exceed 25 elements. Split larger ones, for example by moving part of the logic into a sub-microflow. Validation and data-copying flows are the usual exceptions.', 'Mendix docs · General best practices'],
-      names: ['If a microflow does not comply with any of the patterns, it should not have a prefix. Event flows use BCO_, BDE_ and similar; scheduled events use SCE_.', 'Mendix docs · Naming conventions'],
-      access: ['By default entity access is not applied. Enable Apply entity access if you want to perform actions that respect the access rights of the current user. Allowed roles are only checked when the microflow is executed from the client.', 'Mendix docs · Microflow properties']
+      unreached: [N_('Unused and excluded documents should be removed from the model when they are no longer needed. Make sure that items that appear unused are not called from a Java action before removing them.'), 'Mendix docs · General best practices'],
+      sched: [N_('The scheduled event and its microflow should share the same name, prefixed SCE_.'), 'Mendix docs · Naming conventions'],
+      large: [N_('The size of a microflow should not exceed 25 elements. Split larger ones, for example by moving part of the logic into a sub-microflow. Validation and data-copying flows are the usual exceptions.'), 'Mendix docs · General best practices'],
+      names: [N_('If a microflow does not comply with any of the patterns, it should not have a prefix. Event flows use BCO_, BDE_ and similar; scheduled events use SCE_.'), 'Mendix docs · Naming conventions'],
+      access: [N_('By default entity access is not applied. Enable Apply entity access if you want to perform actions that respect the access rights of the current user. Allowed roles are only checked when the microflow is executed from the client.'), 'Mendix docs · Microflow properties']
     };
 
     // The role a name's prefix gives a flow (spec 13 §3).
@@ -465,7 +496,7 @@
         ['Model read', modelRead(data)],
         ['Modules', k.modules + (k.marketplace ? ' · +' + k.marketplace + ' Marketplace' : ' · all own')], ['Microflows', k.microflows], ['Nanoflows', k.nanoflows], ['Pages', k.pages],
         ['Entities', k.entities], ['User roles', k.roles], ['Scheduled events', k.scheduled + (k.scheduled ? ' · ' + k.scheduledOn + ' on' : '')],
-        ['Published services', k.services + (kinds.length ? ' · ' + kinds.join(' · ') : '')], risks.length ? ['Risks', risks.length + ' · ' + lvCount('P1') + ' P1'] : null
+        ['Published services', k.services + (kinds.length ? ' · ' + kinds.join(' · ') : '')], risks.length ? ['Findings', risks.length + ' · ' + TRI.split(TRI.tally(ai), true) + ' · ' + lvCount('P1') + ' P1'] : null
       ].filter(Boolean).map(function (r) { return [r[0], String(r[1])]; }));
       if (app && ((app.users && app.users.length) || app.audience)) {
         w('### Who uses it'); w();
@@ -706,7 +737,7 @@
       if (risks.length) {
         var themes = (D && D.risks) || [];
         w('## Risks'); w();
-        w(plural(risks.length, 'finding', 'findings') + ': ' + lvCount('P1') + ' P1, ' + lvCount('P2') + ' P2, ' + lvCount('P3') + ' P3. An agent read them from the model, so check each one before you act on it.'); w();
+        w(TRI.tallyLabel(TRI.tally(ai), true) + '; ' + lvCount('P1') + ' P1, ' + lvCount('P2') + ' P2, ' + lvCount('P3') + ' P3. A risk from the agent was read from the model by an AI agent, so check each one before you act on it; a finding from the model was worked out from the model itself, the same every time it is read.'); w();
         ['P1', 'P2', 'P3'].forEach(function (l) {
           var list = []; risks.forEach(function (r, i) { if (r.level === l) list.push([r, i]); });
           if (!list.length) return;
@@ -946,6 +977,7 @@
     // ================================================================ mount
     function mount(data, host, opts) {
       opts = opts || {};
+      LBL = data && data.labels && typeof data.labels === 'object' ? data.labels : null;
       var st = { view: 'start', module: null, seg: 'microflow', key: null, entity: null, q: '' };
       if (opts.state) Object.keys(opts.state).forEach(function (k) { st[k] = opts.state[k]; });
       var theme = opts.theme || 'auto';
@@ -959,12 +991,12 @@
       // mark is the project's first letter, and no tool is named anywhere.
       var titleEl = h('h1'), subEl = h('p', { class: 'dx-sub' });
       // The field in the sidebar opens the search dialog (see openSearch); typing into it starts the search there.
-      var searchBtn = h('button', { type: 'button', class: 'dx-searchbox', 'aria-haspopup': 'dialog', 'aria-label': 'Search everything', onclick: function () { openSearch(); } },
-        [navIcon('search', 15), h('span', { class: 'dx-search', text: 'Search modules, flows, pages, entities…' }), h('kbd', { text: 'Ctrl K' })]);
+      var searchBtn = h('button', { type: 'button', class: 'dx-searchbox', 'aria-haspopup': 'dialog', 'aria-label': _('Search everything'), onclick: function () { openSearch(); } },
+        [navIcon('search', 15), h('span', { class: 'dx-search', text: _('Search modules, flows, pages, entities…') }), h('kbd', { text: 'Ctrl K' })]);
       searchBtn.addEventListener('keydown', function (e) { if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); openSearch(e.key); } });
       var themeBtns = {};
-      var themeBox = h('div', { class: 'dx-theme', role: 'group', 'aria-label': 'Theme' }, [['light', 'sun', 'Light'], ['dark', 'moon', 'Dark'], ['auto', 'monitor', 'Auto']].map(function (t) {
-        themeBtns[t[0]] = h('button', { type: 'button', title: t[2] === 'Auto' ? 'Follow the system' : t[2] + ' theme', 'aria-label': t[2] === 'Auto' ? 'Follow the system' : t[2] + ' theme', onclick: function () { setTheme(t[0]); } }, [navIcon(t[1], 14), h('span', { text: t[2] })]);
+      var themeBox = h('div', { class: 'dx-theme', role: 'group', 'aria-label': _('Theme') }, [['light', 'sun', _('Light'), _('Light theme')], ['dark', 'moon', _('Dark'), _('Dark theme')], ['auto', 'monitor', _('Auto'), _('Follow the system')]].map(function (t) {
+        themeBtns[t[0]] = h('button', { type: 'button', title: t[3], 'aria-label': t[3], onclick: function () { setTheme(t[0]); } }, [navIcon(t[1], 14), h('span', { text: t[2] })]);
         return themeBtns[t[0]];
       }));
       // The same documentation as one Markdown file (spec 20), made here from this file's own data and
@@ -1004,7 +1036,7 @@
         quality: data.quality.unreached.length, risks: risks.length, security: sec ? sec.counts.finding : 0, dev: devCount, cases: cases ? (cases.items() || []).length : 0 };
       var navBtns = {};
       var initial = String(data.project || '?').charAt(0).toUpperCase();
-      var side = h('nav', { class: 'dx-side', 'aria-label': 'Documentation' }, [
+      var side = h('nav', { class: 'dx-side', 'aria-label': _('Documentation') }, [
         // the project, as MxScout's switcher shows it: its letter, its name, the model it was read from
         h('div', { class: 'dx-brand' }, [h('span', { class: 'dx-brand-tile', 'aria-hidden': 'true', text: initial }), h('div', { class: 'dx-brand-text' }, [h('b', { text: data.project }),
           h('small', { text: (data.mendix ? 'Mendix ' + data.mendix + ' · ' : '') + modelRead(data, true) })])]),
@@ -1229,7 +1261,7 @@
         var KG = { microflow: ['Microflows', 'MF'], nanoflow: ['Nanoflows', 'NF'], page: ['Pages', 'PG'] };
         Object.keys(data.flows).forEach(function (k) { var f = data.flows[k], g = KG[f.kind]; if (g) name(g[0], f.name, f.module, g[1], { view: 'refs', module: f.module, seg: f.kind, key: k }, f.qn); });
         Object.keys(data.entities).forEach(function (q) { var e = data.entities[q]; name('Entities', e.name, e.module, 'EN', { view: 'domain', entity: q, dmodule: e.module }, q); });
-        risks.forEach(function (r, i) { name('Risks', r.title, riskId(i) + ' · ' + LV[r.level][0], r.level, { view: 'risks', sub: riskId(i) }); });
+        risks.forEach(function (r, i) { name('Risks', r.title, riskId(i) + ' · ' + levelName(r.level), r.level, { view: 'risks', sub: riskId(i) }); });
         // what an agent wrote
         var app2 = data.ai && data.ai.app;
         if (app2) { text('The application', 'description', [app2.summary, app2.story].filter(Boolean).join(' '), { view: 'processes', proc: 0 }); }
@@ -1248,7 +1280,7 @@
         }
         return { names: names, texts: texts };
       }
-      var GROUPS = ['Modules', 'Processes', 'Changes', 'Microflows', 'Nanoflows', 'Pages', 'Entities', 'Risks', 'Tickets'];
+      var GROUPS = [N_('Modules'), N_('Processes'), N_('Changes'), N_('Microflows'), N_('Nanoflows'), N_('Pages'), N_('Entities'), N_('Risks'), N_('Tickets')];
       var searchUi = null;
       function marked(str, at, len) {
         if (at < 0) return [str];
@@ -1258,12 +1290,12 @@
         if (opts.preview) return;
         if (!searchIndex) searchIndex = buildIndex();
         if (searchUi) { searchUi.input.focus(); return; }
-        var input = h('input', { type: 'text', class: 'dx-sd-q', placeholder: 'Search names and text', 'aria-label': 'Search the documentation', role: 'combobox', 'aria-expanded': 'true', 'aria-controls': 'dx-sd-list', 'aria-autocomplete': 'list', autocomplete: 'off', spellcheck: 'false' });
-        var listEl = h('div', { class: 'dx-sd-list', id: 'dx-sd-list', role: 'listbox', 'aria-label': 'Results' });
+        var input = h('input', { type: 'text', class: 'dx-sd-q', placeholder: _('Search names and text'), 'aria-label': _('Search the documentation'), role: 'combobox', 'aria-expanded': 'true', 'aria-controls': 'dx-sd-list', 'aria-autocomplete': 'list', autocomplete: 'off', spellcheck: 'false' });
+        var listEl = h('div', { class: 'dx-sd-list', id: 'dx-sd-list', role: 'listbox', 'aria-label': _('Results') });
         var open = {}, rows = [], active = 0;
-        var dialog = h('div', { class: 'dx-sd', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Search everything' }, [
+        var dialog = h('div', { class: 'dx-sd', role: 'dialog', 'aria-modal': 'true', 'aria-label': _('Search everything') }, [
           h('div', { class: 'dx-sd-head' }, [navIcon('search', 16), input, h('kbd', { text: 'Esc' })]), listEl,
-          h('div', { class: 'dx-sd-foot' }, [h('span', null, [h('kbd', { text: '↑' }), h('kbd', { text: '↓' }), ' to move']), h('span', null, [h('kbd', { text: 'Enter' }), ' to open']), h('span', { class: 'dx-sd-n' })])
+          h('div', { class: 'dx-sd-foot' }, [h('span', null, [h('kbd', { text: '↑' }), h('kbd', { text: '↓' }), ' ' + _('to move')]), h('span', null, [h('kbd', { text: 'Enter' }), ' ' + _('to open')]), h('span', { class: 'dx-sd-n' })])
         ]);
         var scrim = h('div', { class: 'dx-sd-scrim', onclick: function (e) { if (e.target === scrim) close(); } }, [dialog]);
         function close() { if (!searchUi) return; scrim.remove(); searchUi = null; searchBtn.focus(); }
@@ -1288,7 +1320,7 @@
           var q = input.value.trim(), fq = fold(q);
           clear(listEl); rows = []; active = 0;
           var counter = dialog.querySelector('.dx-sd-n');
-          if (!fq) { listEl.appendChild(h('p', { class: 'dx-sd-empty', text: 'Type a name — a module, a flow, a page, an entity, a risk — or any word from the descriptions.' })); counter.textContent = ''; return; }
+          if (!fq) { listEl.appendChild(h('p', { class: 'dx-sd-empty', text: _('Type a name — a module, a flow, a page, an entity, a risk — or any word from the descriptions.') })); counter.textContent = ''; return; }
           var total = 0;
           GROUPS.forEach(function (g) {
             var hits = searchIndex.names.filter(function (x) { return x.group === g && (x.f.indexOf(fq) !== -1 || x.f2.indexOf(fq) !== -1); });
@@ -1296,27 +1328,27 @@
             total += hits.length;
             hits.sort(function (a, b) { var pa = a.f.indexOf(fq) === 0 ? 0 : a.f.indexOf(fq) !== -1 ? 1 : 2, pb = b.f.indexOf(fq) === 0 ? 0 : b.f.indexOf(fq) !== -1 ? 1 : 2; return pa - pb || a.label.length - b.label.length || a.label.localeCompare(b.label); });
             var shown = open[g] ? hits : hits.slice(0, 6);
-            listEl.appendChild(h('div', { class: 'dx-sd-g', role: 'presentation' }, [h('span', { class: 'dx-cap', text: g }), h('span', { class: 'mono dx-fc-n', text: String(hits.length) })]));
+            listEl.appendChild(h('div', { class: 'dx-sd-g', role: 'presentation' }, [h('span', { class: 'dx-cap', text: _(g) }), h('span', { class: 'mono dx-fc-n', text: String(hits.length) })]));
             shown.forEach(function (x) {
               listEl.appendChild(row(x, [h('span', { class: 'dx-sd-b' + (/^P[123]$/.test(x.badge) ? ' dx-lv ' + x.badge.toLowerCase() : ' dx-kind' + (x.badge === 'MF' ? ' mf' : x.badge === 'NF' ? ' nf' : '')), text: x.badge }),
                 h('span', { class: 'dx-sd-t' + (g === 'Risks' || g === 'Processes' || g === 'Changes' || g === 'Tickets' ? '' : ' mono') }, marked(x.label, x.f.indexOf(fq), fq.length)), h('small', { text: x.sub })]));
             });
-            if (hits.length > shown.length) listEl.appendChild(h('button', { type: 'button', class: 'dx-sd-more', text: 'Show all ' + hits.length, onclick: function () { open[g] = true; run(); input.focus(); } }));
+            if (hits.length > shown.length) listEl.appendChild(h('button', { type: 'button', class: 'dx-sd-more', text: _('Show all {0}', [hits.length]), onclick: function () { open[g] = true; run(); input.focus(); } }));
           });
           var th = searchIndex.texts.filter(function (x) { return x.f.indexOf(fq) !== -1; });
           if (th.length) {
             total += th.length;
             var shownT = open.text ? th : th.slice(0, 8);
-            listEl.appendChild(h('div', { class: 'dx-sd-g', role: 'presentation' }, [h('span', { class: 'dx-cap', text: 'In the text an agent wrote' }), h('span', { class: 'mono dx-fc-n', text: String(th.length) })]));
+            listEl.appendChild(h('div', { class: 'dx-sd-g', role: 'presentation' }, [h('span', { class: 'dx-cap', text: _('In the text an agent wrote') }), h('span', { class: 'mono dx-fc-n', text: String(th.length) })]));
             shownT.forEach(function (x) {
               var at = x.f.indexOf(fq), from = Math.max(0, at - 50), to = Math.min(x.body.length, at + fq.length + 70);
               var snip = (from ? '…' : '') + x.body.slice(from, to) + (to < x.body.length ? '…' : '');
               listEl.appendChild(row(x, [h('span', { class: 'dx-sd-b dx-kind', text: '¶' }),
                 h('span', { class: 'dx-sd-tt' }, [h('b', { text: x.where }), h('small', { text: ' · ' + x.kind }), h('span', { class: 'dx-sd-snip' }, marked(snip, at - from + (from ? 1 : 0), fq.length))])]));
             });
-            if (th.length > shownT.length) listEl.appendChild(h('button', { type: 'button', class: 'dx-sd-more', text: 'Show all ' + th.length, onclick: function () { open.text = true; run(); input.focus(); } }));
+            if (th.length > shownT.length) listEl.appendChild(h('button', { type: 'button', class: 'dx-sd-more', text: _('Show all {0}', [th.length]), onclick: function () { open.text = true; run(); input.focus(); } }));
           }
-          if (!total) listEl.appendChild(h('p', { class: 'dx-sd-empty', text: 'Nothing matches “' + q + '”.' }));
+          if (!total) listEl.appendChild(h('p', { class: 'dx-sd-empty', text: _('Nothing matches “{0}”.', [q]) }));
           counter.textContent = total ? plural(total, 'result', 'results') : '';
           setActive(0);
         }
@@ -1344,7 +1376,7 @@
 
       // ---------- drawing ----------
       // A page this data has no drawing for — an address of the Tickets or Changes pages there were — is the Overview.
-      var DRAW = { start: drawStart, processes: drawProcesses, assist: drawAssist, cases: drawCases, modules: drawModules, refs: drawRefs, domain: drawDomain, quality: drawQuality, risks: drawRisks, dev: drawDev, arch: drawArch, security: function () { window.MxDocsSecurity.draw({ h: h, ln: ln, main: main, setTitle: setTitle, plural: plural, data: data, sec: sec, st: st, flowKey: flowKey, modelRead: modelRead, fmtDate: fmtDate }); } };
+      var DRAW = { start: drawStart, processes: drawProcesses, assist: drawAssist, cases: drawCases, modules: drawModules, refs: drawRefs, domain: drawDomain, quality: drawQuality, risks: drawRisks, dev: drawDev, arch: drawArch, security: function () { window.MxDocsSecurity.draw({ h: h, ln: ln, main: main, setTitle: setTitle, plural: plural, _: _, countOf: countOf, statusLabel: TRI.label || null, data: data, sec: sec, st: st, flowKey: flowKey, modelRead: modelRead, fmtDate: fmtDate }); } };
       function draw() {
         Object.keys(navBtns).forEach(function (k) { navBtns[k].classList.toggle('on', k === st.view || (st.view === 'refs' && k === 'refs:' + (st.seg === 'nanoflow' || st.seg === 'page' ? st.seg : 'microflow'))); });
         var kept = scrollsOf(root);
@@ -1412,7 +1444,7 @@
           [_('User roles'), k.roles, null, { view: 'arch', sec: 'roles' }],
           [_('Scheduled events'), k.scheduled, k.scheduled ? _('{0} on', [k.scheduledOn]) : null, { view: 'quality', sub: 'sched' }],
           [_('Published services'), k.services, kinds.join(' · ') || null, { view: 'arch', sec: 'runtime' }],
-          risks.length ? [_('Risks'), risks.length, levelCount('P1') + ' P1', { view: 'risks' }, 'p1'] : null,
+          risks.length ? [_('Findings'), risks.length, TRI.split(TRI.tally(data.ai)) + ' · ' + levelCount('P1') + ' P1', { view: 'risks' }, 'p1'] : null,
           assist ? [_('Assist'), _('{0} open', [assistOpen()]), null, { view: 'assist' }] : null
         ].filter(Boolean);
         var hero = h('header', { class: 'dx-ov-hero', 'data-sec': 'about' }, [
@@ -1424,8 +1456,10 @@
               : h('p', { class: 'dx-ov-rest', text: _('Every module, microflow, nanoflow, page and entity: what each flow takes and returns, every step it runs and the data it sets, who may start it, what calls what, and where the model looks unfinished.') }),
             h('div', { class: 'dx-ov-cta' }, [
               procPage ? ln({ view: 'processes', proc: 0 }, { class: 'dx-cta' }, [_('Read the full description'), navIcon('arrow', 14)]) : null,
-              h('span', { class: 'dx-ov-prov', text: data.ai && data.ai.agent !== false
-                ? _('Numbers and structure are read from the model. The texts were written from it by an agent{0} and can be wrong where the model is ambiguous.', [data.ai.by ? ' (' + data.ai.by + ')' : ''])
+              // The writer by the name on the Team server's users list, the login in the tooltip.
+              h('span', { class: 'dx-ov-prov', title: data.ai && data.ai.by || null, text: data.ai && data.ai.agent !== false
+                ? (data.ai.by ? _('Numbers and structure are read from the model. The texts were written from it by {0} and can be wrong where the model is ambiguous.', [data.ai.byName || data.ai.by])
+                  : _('Numbers and structure are read from the model. The texts were written from it by an agent{0} and can be wrong where the model is ambiguous.', ['']))
                 : _('Everything here is read from the model. Nothing in it was written by hand.') })
             ])
           ]),
@@ -1472,7 +1506,7 @@
         risks.forEach(function (r, i) { if (r.level === 'P1') p1.push([r, i]); });
         var health = section('health', _('What needs attention'), _('What needs attention'),
           risks.length ? (risks.some(function (r) { return r.origin === 'person'; }) ? _('Risks an agent found in the model or a person raised, and what the model shows directly.') : _('Risks an agent found in the model, and what the model shows directly.')) : _('What the model shows directly.'),
-          risks.length ? more({ view: 'risks' }, _('All {0} risks', [risks.length])) : null,
+          risks.length ? more({ view: 'risks' }, TRI.tallyLabel(TRI.tally(data.ai))) : null,
           h('div', { class: 'dx-health' + (risks.length ? '' : ' one') }, [
             h('div', { class: 'dx-health-l' }, [
               risks.length ? h('div', { class: 'dx-lv3' }, [['P1', _('fix first')], ['P2', _('plan a fix')], ['P3', _('worth knowing')]].map(function (l) {
@@ -1495,6 +1529,10 @@
 
         // 6. where next, by what the reader came to do
         var flowsN = k.microflows + k.nanoflows + k.pages;
+        // 4b. the newest test instructions of a project opened from a Team server: MxScout hands the node
+        // (opts.overviewCard, public/teampackages.js), hidden while there are none; never in the exported file.
+        var tests = opts.overviewCard ? opts.overviewCard() : null;
+        if (tests && !tests.hidden) secs.push({ id: 'tests', label: _('Test instructions'), node: tests });
         var next = section('start', _('Where to go next'), _('Where to go next'), null, null, h('div', { class: 'dx-next' }, [
           [_('Understand the application'), _('What each part is for and how the parts fit together.'),
             [[{ view: 'modules' }, _('Modules'), k.modules], [{ view: 'arch' }, _('Architecture'), ''], procs.length ? [{ view: 'processes', proc: 0 }, _('Main processes'), procs.length] : null]],
@@ -1519,7 +1557,7 @@
           }))),
           opts.only ? null : h('div', { class: 'dx-toc-file' }, [h('b', { text: _('This file') }), h('span', { text: _('One HTML file. It opens in any browser, offline, with no password. A Markdown copy with the same content reads well in AI tools.') }), opts.preview ? null : mdButton()])
         ]);
-        main.appendChild(h('div', { class: 'dx-ov' }, [h('article', { class: 'dx-ov-doc' }, [hero, pair, does, health, next, noDrawings]), toc]));
+        main.appendChild(h('div', { class: 'dx-ov' }, [h('article', { class: 'dx-ov-doc' }, [hero, pair, does, health, tests, next, noDrawings]), toc]));
         onScroll = function () {
           var top = main.getBoundingClientRect().top + 120, cur = secs[0].id;
           secs.forEach(function (x) { if (x.node.getBoundingClientRect().top <= top) cur = x.id; });
@@ -1617,14 +1655,58 @@
         }));
       }
 
+      // The parts of a process a business reader reads one by one. A label written inside a text field
+      // ("Why it exists.") is no heading, so the parts are their own fields and each is drawn as what it is —
+      // paragraphs under a caption, the rules as a numbered list to tick, the open questions framed apart from the
+      // prose, because they are the only part that asks the reader for something other than a yes. A process
+      // written as one text (story) has none of them and reads exactly as it did.
+      function proseSec(cap, text) {
+        var paras = paragraphs(text);
+        return paras.length ? h('section', { class: 'dx-pd-sec' }, [h('h3', { class: 'dx-cap', text: cap }),
+          paras.map(function (x) { return h('p', { class: 'dx-pd-para', text: x }); })]) : null;
+      }
+      // One rule per line, its number as a badge; the rule the whole application rests on is framed.
+      function rulesSec(rules) {
+        if (!(rules || []).length) return null;
+        return h('section', { class: 'dx-pd-sec' }, [h('h3', { class: 'dx-cap', text: _('Rules the business approves') + ' · ' + rules.length }),
+          h('ol', { class: 'dx-pd-rules' }, rules.map(function (r, i) {
+            return h('li', { class: r.key ? 'key' : null }, [h('span', { class: 'dx-br', text: r.id || String(i + 1) }),
+              h('span', null, [h('span', { text: r.text }), r.key ? h('b', { class: 'dx-br-key', text: _('The whole application rests on this rule.') }) : null])]);
+          }))]);
+      }
+      function scopeSec(lines) {
+        if (!(lines || []).length) return null;
+        return h('section', { class: 'dx-pd-sec' }, [h('h3', { class: 'dx-cap', text: _('Not in this process') }),
+          h('ul', { class: 'dx-pd-scope' }, lines.map(function (x) { return h('li', { text: x }); }))]);
+      }
+      function openSec(open) {
+        if (!(open || []).length) return null;
+        return h('section', { class: 'dx-pd-sec dx-pd-open' }, [h('h3', { class: 'dx-cap acc', text: _('Open questions') + ' · ' + open.length }),
+          h('ol', { class: 'dx-pd-rules' }, open.map(function (q, i) {
+            return h('li', null, [h('span', { class: 'dx-br', text: q.id || String(i + 1) }),
+              h('span', null, [h('span', { text: q.text }), q.proposal ? h('p', { class: 'dx-pd-prop' }, [h('b', { text: _('What we propose.') }), ' ' + q.proposal]) : null])]);
+          }))]);
+      }
+      // The parts in reading order around the steps: why it exists comes before them, the rest after.
+      function processParts(x, where) {
+        return where === 'why' ? [proseSec(_('Why it exists'), x.why)]
+          : [proseSec(_('How it goes'), x.how), rulesSec(x.rules), proseSec(_('When something goes wrong'), x.onError), scopeSec(x.outOfScope), openSec(x.open)];
+      }
+      function addParts(into, x, where) { processParts(x, where).forEach(function (s) { if (s) into.appendChild(s); }); }
       function drawProcesses() {
         var app = data.ai.app;
         var n = Math.min(Math.max(0, st.proc || 0), procs.length);
-        setTitle(_('Processes'), procs.length === 1 ? _('What {0} does, told as one business process. An agent wrote it from the model; it lists the flows that carry it.', [data.project]) : _('What {0} does, told as {1} business processes. An agent wrote them from the model; each one lists the flows that carry it.', [data.project, numWord(procs.length)]));
+        // How many numbered rules the whole page holds: the reader is here to confirm them, so the
+        // header says how many there are before they start.
+        var ruleCount = procs.reduce(function (k, p) { return k + (p.rules || []).length; }, 0);
+        // The header is one line and is cut when it runs long, so it says what the page is and its numbers, and
+        // leaves who wrote it to the provenance line at the foot of the page, where it was already said.
+        setTitle(_('Processes'), (procs.length === 1 ? _('What {0} does, told as one business process.', [data.project]) : _('What {0} does, told as {1}.', [data.project, local() ? count(procs.length, 'business process', 'business processes') : numWord(procs.length) + ' business processes'])) +
+          (ruleCount ? ' ' + _('{0} to confirm, one at a time.', [count(ruleCount, 'rule', 'rules')]) : ''));
         var paras = paragraphs(app.story);
         var rows = [{ no: '—', name: _('The application'), meta: paras.length ? _('Full description · {0}', [count(paras.length, 'paragraph', 'paragraphs')]) : _('Summary') }].concat(procs.map(function (p, i) {
           var r = processRisks(p).length;
-          return { no: pad2(i + 1), name: p.name, plan: p.plan || null, meta: count(p.steps.length, 'step', 'steps') + (p.plan && p.plan.state === 'new' ? ' · ' + _('in the plan of {0}', [p.plan.key]) : ' · ' + count(p.flows.length, 'flow', 'flows')) + (r ? ' · ' + count(r, 'risk', 'risks') : '') };
+          return { no: pad2(i + 1), name: p.name, plan: p.plan || null, meta: count(p.steps.length, 'step', 'steps') + ((p.rules || []).length ? ' · ' + count(p.rules.length, 'rule', 'rules') : '') + (p.plan && p.plan.state === 'new' ? ' · ' + _('in the plan of {0}', [p.plan.key]) : ' · ' + count(p.flows.length, 'flow', 'flows')) + (r ? ' · ' + count(r, 'risk', 'risks') : '') };
         }));
         list.appendChild(h('div', { class: 'dx-pl', role: 'list' }, rows.map(function (r, i) {
           var a = ln({ view: 'processes', proc: i }, { class: 'dx-pl-item' + (i === n ? ' on' : ''), 'aria-current': i === n ? 'page' : null }, [
@@ -1653,15 +1735,17 @@
           ]));
         } else {
           var p = procs[n - 1], touched = processRisks(p), planned = p.plan && p.plan.state === 'new';
-          var steps = h('ol', { class: 'dx-pd-steps' }, p.steps.map(function (x, i) { return h('li', null, [h('span', { class: 'dx-pd-sn', text: String(i + 1) }), h('span', { text: x })]); }));
+          var steps = h('ol', { class: 'dx-pd-steps ' + cardDensity(p.steps) }, p.steps.map(function (x, i) { return h('li', null, [h('span', { class: 'dx-pd-sn', text: String(i + 1) }), h('span', { text: x })]); }));
           wrap.appendChild(h('div', { class: 'dx-pd-head' }, [
             h('span', { class: 'dx-pd-eye', text: _('Process {0} of {1}', [pad2(n), procs.length]) + (planned ? ' · ' + _('planned') : '') }),
             h('h2', null, [p.name, p.plan ? planTag(p.plan) : null]),
             p.summary ? h('p', { class: 'dx-pd-lead', text: p.summary }) : null
           ]));
-          if (p.steps.length) wrap.appendChild(h('section', { class: 'dx-pd-sec' }, [h('h3', { class: 'dx-cap', text: _('Steps') }), steps])); if (p.plan && p.plan.state === 'changed') wrap.appendChild(window.MxPlanLayer.processChange(h, p, paragraphs));
+          addParts(wrap, p, 'why');
+          if (p.steps.length) wrap.appendChild(h('section', { class: 'dx-pd-sec' }, [h('h3', { class: 'dx-cap', text: _('Steps') }), steps])); if (p.plan && p.plan.state === 'changed') wrap.appendChild(window.MxPlanLayer.processChange(h, p, paragraphs, processParts));
           var drawn = processDiagram(p.diagram);
           if (drawn) wrap.appendChild(drawn);
+          addParts(wrap, p, 'rest');
           var story2 = paragraphs(p.story);
           wrap.appendChild(h('div', { class: 'dx-pd-grid' }, [
             story2.length ? h('section', { class: 'dx-pd-story' }, [h('h3', { class: 'dx-cap', text: _('How it works') }), story2.map(function (x) { return h('p', { text: x }); })]) : null,
@@ -1692,13 +1776,13 @@
       // not be of a Mendix app. A context with no application in it is laid out as the runtime is. → the parts.
       function assistArch(a, name) {
         var out = [], cx = a.context ? contextGroups(a.context) : null;
-        if (a.context) out.push(h('div', { class: 'dx-as-arch-part', 'data-arch': 'context' }, [h('h4', { class: 'dx-cap', text: 'Context' }), cx ? contextDiagram(cx, true, 'Application') : runtimeDiagram(a.context, name, 'Runtime')]));
-        if (a.containers) out.push(h('div', { class: 'dx-as-arch-part', 'data-arch': 'containers' }, [h('h4', { class: 'dx-cap', text: 'Containers' }), runtimeDiagram(a.containers, name, 'Runtime')]));
-        if (a.open && a.open.length) out.push(h('div', { class: 'dx-as-arch-part', 'data-arch': 'open' }, [h('h4', { class: 'dx-cap', text: 'Open questions · ' + a.open.length }), h('ol', { class: 'dx-ch-open' }, a.open.map(function (x) { return h('li', { text: x }); }))]));
+        if (a.context) out.push(h('div', { class: 'dx-as-arch-part', 'data-arch': 'context' }, [h('h4', { class: 'dx-cap', text: _('Context') }), cx ? contextDiagram(cx, true, 'Application') : runtimeDiagram(a.context, name, 'Runtime')]));
+        if (a.containers) out.push(h('div', { class: 'dx-as-arch-part', 'data-arch': 'containers' }, [h('h4', { class: 'dx-cap', text: _('Containers') }), runtimeDiagram(a.containers, name, 'Runtime')]));
+        if (a.open && a.open.length) out.push(h('div', { class: 'dx-as-arch-part', 'data-arch': 'open' }, [h('h4', { class: 'dx-cap', text: _('Open questions · {0}', [a.open.length]) }), h('ol', { class: 'dx-ch-open' }, a.open.map(function (x) { return h('li', { text: x }); }))]));
         return out;
       }
       function drawAssist() {
-        if (!window.MxDocsAssist) { main.appendChild(h('div', { class: 'dx-note', text: 'This copy cannot draw the Assist page.' })); return; }
+        if (!window.MxDocsAssist) { main.appendChild(h('div', { class: 'dx-note', text: _('This copy cannot draw the Assist page.') })); return; }
         window.MxDocsAssist.draw({ h: h, ln: ln, go: go, list: list, main: main, setTitle: setTitle, project: data.project, st: st, assist: assist, cases: cases, risk: riskAt,
           importFile: opts.importAssist || null, removeItem: opts.deleteAssist || null,
           keep: function (p) { Object.keys(p).forEach(function (k) { st[k] = p[k]; }); if (opts.onState) opts.onState(st); },
@@ -1707,7 +1791,7 @@
       }
       // The solved cases (knowledge.js), drawn by docs-knowledge.js — in MxScout, and in an export that was asked for them.
       function drawCases() {
-        if (!window.MxDocsKnowledge) { main.appendChild(h('div', { class: 'dx-note', text: 'This copy cannot draw the solved cases.' })); return; }
+        if (!window.MxDocsKnowledge) { main.appendChild(h('div', { class: 'dx-note', text: _('This copy cannot draw the solved cases.') })); return; }
         window.MxDocsKnowledge.draw({ h: h, ln: ln, list: list, main: main, setTitle: setTitle, project: data.project, st: st, cases: cases, data: data, plural: plural,
           keep: function (p) { Object.keys(p).forEach(function (k) { st[k] = p[k]; }); if (opts.onState) opts.onState(st); }, flow: function (qn) { var k = flowKey(qn); return k ? { key: k, f: data.flows[k] } : null; } });
       }
@@ -1929,7 +2013,7 @@
         return flowSrc;
       }
       function drawRefs() {
-        if (!window.MxFlowView) { main.appendChild(h('div', { class: 'dx-note', text: 'This copy of the reader has no flow screen.' })); return; }
+        if (!window.MxFlowView) { main.appendChild(h('div', { class: 'dx-note', text: _('This copy of the reader has no flow screen.') })); return; }
         var S = flowSource();
         var seg = st.seg === 'all' || st.seg === 'nanoflow' || st.seg === 'page' ? st.seg : 'microflow';
         var items = seg === 'all' ? S.all : S.all.filter(function (f) { return f.kind === seg; });
@@ -1969,14 +2053,14 @@
       // Copy link (spec 10 §5): the address of what is on screen. The button
       // says it was copied (Karol, 2026-10-13: no toast).
       function copyLink() {
-        var label = h('span', { text: 'Copy link' });
-        var b = h('button', { type: 'button', class: 'mf-btn', title: 'Copy a link to this in this file' }, [navIcon('link', 14), label]);
+        var label = h('span', { text: _('Copy link') });
+        var b = h('button', { type: 'button', class: 'mf-btn', title: _('Copy a link to this in this file') }, [navIcon('link', 14), label]);
         b.addEventListener('click', function () {
           if (!navigator.clipboard || !navigator.clipboard.writeText) return;
           navigator.clipboard.writeText(location.href).then(function () {
-            label.textContent = 'Link copied';
+            label.textContent = _('Link copied');
             b.classList.add('done');
-            setTimeout(function () { label.textContent = 'Copy link'; b.classList.remove('done'); }, 2000);
+            setTimeout(function () { label.textContent = _('Copy link'); b.classList.remove('done'); }, 2000);
           }, function () { /* the browser said no */ });
         });
         return b;
@@ -2455,27 +2539,27 @@
       // and the elements it found. Nothing here is an agent's.
       var QKIND = { mf: 'MF', nf: 'NF', pg: 'PG' };
       function drawQuality() {
-        setTitle('Model quality', 'Six checks read straight from the model and measured against Mendix’s own guidelines. Nothing on this page was written by an agent.');
+        setTitle(_('Model quality'), _('Six checks read straight from the model and measured against Mendix’s own guidelines. Nothing on this page was written by an agent.'));
         var D = derived(), Q = D && D.quality;
-        if (!Q) { main.appendChild(h('div', { class: 'dx-note', text: 'This copy of the reader has no checks.' })); return; }
+        if (!Q) { main.appendChild(h('div', { class: 'dx-note', text: _('This copy of the reader has no checks.') })); return; }
         var schedOff = Q.sched.filter(function (x) { return !x[2]; }).length;
         var allFlows = Object.keys(data.flows).map(function (k) { return data.flows[k]; }).filter(function (f) { return f.kind !== 'page'; });
         var over50 = allFlows.filter(function (f) { return (f.steps || 0) > 50; }).length;
         var offN = (Q.offAll || []).length;
         var CH = [
-          { id: 'unreached', group: 'Unused', v: Q.unr.length, label: 'Nothing reaches these', sub: 'No caller, no page, no menu, no role', warn: true },
-          { id: 'off', group: 'Unused', v: offN, label: offN === 1 ? 'Switched-off step' : 'Switched-off steps', sub: 'A step disabled inside a flow', warn: true },
-          { id: 'sched', group: 'Background', v: schedOff, of: Q.sched.length, label: 'Scheduled events switched off', sub: 'Off in the model; production may differ', warn: true },
-          { id: 'large', group: 'Size', v: Q.over, of: Q.flowsN, label: 'Flows over 25 elements', sub: Q.large.length ? 'Longest has ' + plural(Q.large[0][2], 'step', 'steps') : 'None', warn: true },
-          { id: 'names', group: 'Naming', v: Q.prefN, label: 'Prefixes outside the convention', sub: Q.pref.length ? plural(Q.pref.length, 'prefix', 'prefixes') + ', e.g. ' + Q.pref.slice(0, 3).map(function (p) { return p[0] + '_'; }).join(', ') : 'None', warn: false },
-          { id: 'access', group: 'Security', v: Q.eaApplied, of: Q.eaTotal, label: 'Microflows that apply entity access', sub: 'The rest skip the access rules', warn: false }
+          { id: 'unreached', group: _('Unused'), v: Q.unr.length, label: _('Nothing reaches these'), sub: _('No caller, no page, no menu, no role'), warn: true },
+          { id: 'off', group: _('Unused'), v: offN, label: offN === 1 ? _('Switched-off step') : _('Switched-off steps'), sub: _('A step disabled inside a flow'), warn: true },
+          { id: 'sched', group: _('Background'), v: schedOff, of: Q.sched.length, label: _('Scheduled events switched off'), sub: _('Off in the model; production may differ'), warn: true },
+          { id: 'large', group: _('Size'), v: Q.over, of: Q.flowsN, label: _('Flows over 25 elements'), sub: Q.large.length ? _('Longest has {0}', [count(Q.large[0][2], 'step', 'steps')]) : _('None'), warn: true },
+          { id: 'names', group: _('Naming'), v: Q.prefN, label: _('Prefixes outside the convention'), sub: Q.pref.length ? _('{0}, e.g. {1}', [countOf(Q.pref.length, ['{0} prefix', '{0} prefixes'], ['{0} prefiks', '{0} prefiksy', '{0} prefiksów'], ['{0} Präfix', '{0} Präfixe']), Q.pref.slice(0, 3).map(function (p) { return p[0] + '_'; }).join(', ')]) : _('None'), warn: false },
+          { id: 'access', group: _('Security'), v: Q.eaApplied, of: Q.eaTotal, label: _('Microflows that apply entity access'), sub: _('The rest skip the access rules'), warn: false }
         ];
         var chk = CH.some(function (c) { return c.id === st.sub; }) ? st.sub : 'unreached';
-        var cards = h('div', { class: 'dx-q-cards', role: 'tablist', 'aria-label': 'Checks' }, CH.map(function (c) {
+        var cards = h('div', { class: 'dx-q-cards', role: 'tablist', 'aria-label': _('Checks') }, CH.map(function (c) {
           var on = c.id === chk;
           return ln({ view: 'quality', sub: c.id }, { class: 'dx-q-card' + (on ? ' on' : ''), role: 'tab', 'aria-selected': on ? 'true' : 'false' }, [
             h('span', { class: 'dx-q-g' }, [h('span', { text: c.group }), h('span', { class: 'dx-q-dot' + (c.warn ? ' warn' : '') })]),
-            h('span', { class: 'dx-q-v' }, [h('span', { class: 'mono', text: String(c.v) }), c.of !== undefined ? h('small', { class: 'mono', text: 'of ' + c.of }) : null]),
+            h('span', { class: 'dx-q-v' }, [h('span', { class: 'mono', text: String(c.v) }), c.of !== undefined ? h('small', { class: 'mono', text: _('of {0}', [c.of]) }) : null]),
             h('b', { text: c.label }), h('small', { text: c.sub })
           ]);
         }));
@@ -2490,44 +2574,45 @@
         function modLink(mod, kids) { return data.modules.some(function (m) { return m.name === mod; }) ? ln({ view: 'modules', module: mod }, { class: 'dx-q-row' }, kids) : h('div', { class: 'dx-q-row' }, kids); }
         var cur;
         if (chk === 'unreached') {
-          cur = { title: 'Nothing reaches these', cols: ['', 'Element', 'Steps', 'Folder'], grid: 'unr',
-            why: 'No microflow, page, menu, scheduled event, published service, App Settings or button in the model refers to ' + (Q.unr.length === 1 ? 'this element' : 'these ' + Q.unr.length + ' elements') + ', and no role may start ' + (Q.unr.length === 1 ? 'it' : 'them') + ' directly. They are candidates for removal, or a reference was forgotten. Java actions are not read, so a flow only Java code calls shows up here too. Marketplace modules are left out.',
+          cur = { title: _('Nothing reaches these'), cols: ['', _('Element'), _('Steps'), _('Folder')], grid: 'unr',
+            why: (Q.unr.length === 1 ? _('No microflow, page, menu, scheduled event, published service, App Settings or button in the model refers to this element, and no role may start it directly.')
+              : _('No microflow, page, menu, scheduled event, published service, App Settings or button in the model refers to these {0} elements, and no role may start them directly.', [Q.unr.length])) + ' ' + _('They are candidates for removal, or a reference was forgotten. Java actions are not read, so a flow only Java code calls shows up here too. Marketplace modules are left out.'),
             rule: GUIDE.unreached[0], src: GUIDE.unreached[1],
             rows: Q.unr.map(function (u) { return flowLink(u[0], u[1], [kindTag(QKIND[u[0]] || '··'), qn(u[1]), h('span', { class: 'mono dx-q-num', text: u[0] === 'pg' ? '' : String(u[2]) }), h('span', { class: 'dx-q-muted', text: u[3] || '—' })]); }) };
         } else if (chk === 'off') {
-          cur = { title: offN === 1 ? 'A step switched off inside a flow' : 'Steps switched off inside flows', cols: ['', 'Flow', 'Step', 'Switched-off action'], grid: 'off',
-            why: offN ? (offN === 1 ? 'One step in the model is switched off. Its flow still runs, but skips it, so whatever that step did no longer happens.'
-              : offN + ' steps in the model are switched off. Their flows still run, but skip them, so whatever those steps did no longer happens.') : 'No step in the model is switched off.',
+          cur = { title: offN === 1 ? _('A step switched off inside a flow') : _('Steps switched off inside flows'), cols: ['', _('Flow'), _('Step'), _('Switched-off action')], grid: 'off',
+            why: offN ? (offN === 1 ? _('One step in the model is switched off. Its flow still runs, but skips it, so whatever that step did no longer happens.')
+              : _('{0} steps in the model are switched off. Their flows still run, but skip them, so whatever those steps did no longer happens.', [offN])) : _('No step in the model is switched off.'),
             rule: '', src: '',
-            rows: (Q.offAll || []).map(function (o) { return flowLink(null, o.flow, [kindTag('MF'), qn(o.flow), h('span', { class: 'mono dx-q-num', text: String(o.no) }), h('span', { class: 'mono dx-q-qn' }, [h('span', { class: 'dx-mod', text: (o.kick || 'Step') + ' · ' }), o.title || ''])], o.no); }) };
+            rows: (Q.offAll || []).map(function (o) { return flowLink(null, o.flow, [kindTag('MF'), qn(o.flow), h('span', { class: 'mono dx-q-num', text: String(o.no) }), h('span', { class: 'mono dx-q-qn' }, [h('span', { class: 'dx-mod', text: (o.kick || _('Step')) + ' · ' }), o.title || ''])], o.no); }) };
         } else if (chk === 'sched') {
-          cur = { title: 'Scheduled events switched off', cols: ['', 'Event', 'Runs', 'State'], grid: 'sched',
-            why: schedOff + ' of ' + plural(Q.sched.length, 'scheduled event is', 'scheduled events are') + ' off in the model. Whatever depends on them does not run unless an environment switches them on, and the model cannot show whether one does.',
+          cur = { title: _('Scheduled events switched off'), cols: ['', _('Event'), _('Runs'), _('State')], grid: 'sched',
+            why: (Q.sched.length === 1 ? _('{0} of 1 scheduled event is off in the model.', [schedOff]) : _('{0} of {1} scheduled events are off in the model.', [schedOff, Q.sched.length])) + ' ' + _('Whatever depends on them does not run unless an environment switches them on, and the model cannot show whether one does.'),
             rule: GUIDE.sched[0], src: GUIDE.sched[1],
             rows: Q.sched.slice().sort(function (a, b) { return (b[2] ? 1 : 0) - (a[2] ? 1 : 0) || a[0].localeCompare(b[0]); }).map(function (x) {
-              return modLink(x[0].split('.')[0], [h('span', { class: 'dx-q-state' + (x[2] ? ' on' : '') }), qn(x[0]), h('span', { class: 'dx-q-muted', text: x[1] || '' }), h('span', { class: 'dx-q-onoff' + (x[2] ? ' on' : ''), text: x[2] ? 'on' : 'off' })]);
+              return modLink(x[0].split('.')[0], [h('span', { class: 'dx-q-state' + (x[2] ? ' on' : '') }), qn(x[0]), h('span', { class: 'dx-q-muted', text: every(x[1] || '') }), h('span', { class: 'dx-q-onoff' + (x[2] ? ' on' : ''), text: x[2] ? _('on') : _('off') })]);
             }) };
         } else if (chk === 'large') {
           var maxS = Q.large.length ? Q.large[0][2] : 1;
-          cur = { title: 'Flows over 25 elements', cols: ['', 'Flow', 'Steps', ''], grid: 'large',
-            why: plural(Q.over, 'flow has', 'flows have') + ' more than 25 steps; ' + over50 + ' of them more than 50. Long flows are hard to read and to test. The list shows the ' + Q.large.length + ' longest. A step is what the drawing numbers: the start, each activity, decision and loop, and each end.',
+          cur = { title: _('Flows over 25 elements'), cols: ['', _('Flow'), _('Steps'), ''], grid: 'large',
+            why: (Q.over === 1 ? _('1 flow has more than 25 steps; {0} of them more than 50.', [over50]) : _('{0} flows have more than 25 steps; {1} of them more than 50.', [Q.over, over50])) + ' ' + _('Long flows are hard to read and to test. The list shows the {0} longest. A step is what the drawing numbers: the start, each activity, decision and loop, and each end.', [Q.large.length]),
             rule: GUIDE.large[0], src: GUIDE.large[1],
-            chips: ['Where they are', Q.overMod.slice(0, 10)],
-            foot: Q.over > Q.large.length ? '+ ' + (Q.over - Q.large.length) + ' more over 25 elements' : null,
+            chips: [_('Where they are'), Q.overMod.slice(0, 10)],
+            foot: Q.over > Q.large.length ? _('+ {0} more over 25 elements', [Q.over - Q.large.length]) : null,
             rows: Q.large.map(function (f) {
               var bar = h('span', { class: 'dx-q-bar' }, [h('span', { class: f[2] > 50 ? 'full' : '' })]); bar.firstChild.style.width = Math.round(f[2] / maxS * 100) + '%';
               return flowLink(f[0], f[1], [kindTag(QKIND[f[0]] || '··'), qn(f[1]), bar, h('span', { class: 'mono dx-q-num', text: String(f[2]) })]);
             }) };
         } else if (chk === 'names') {
-          cur = { title: 'Prefixes outside the naming convention', cols: ['Prefix', 'Flows', 'Mendix convention', 'For example'], grid: 'names',
-            why: plural(Q.prefN, 'flow starts', 'flows start') + ' with a prefix the Mendix convention does not define, or with a known one in different letter case. Most are harmless, but they hide what starts the flow.',
+          cur = { title: _('Prefixes outside the naming convention'), cols: [_('Prefix'), _('Flows'), _('Mendix convention'), _('For example')], grid: 'names',
+            why: (Q.prefN === 1 ? _('1 flow starts with a prefix the Mendix convention does not define, or with a known one in different letter case.') : _('{0} flows start with a prefix the Mendix convention does not define, or with a known one in different letter case.', [Q.prefN])) + ' ' + _('Most are harmless, but they hide what starts the flow.'),
             rule: GUIDE.names[0], src: GUIDE.names[1],
             rows: Q.pref.map(function (p) { return flowLink(null, p[3][0], [h('span', { class: 'mono dx-q-pref', text: p[0] + '_' }), h('span', { class: 'mono', text: String(p[1]) }), h('span', { class: 'dx-q-muted ink', text: p[2] || '—' }), qn(p[3][0])]); }) };
         } else {
           var eaRows = Q.ea.filter(function (r) { return r[1]; }).sort(function (a, b) { return b[2] - a[2]; });
           var maxE = eaRows.length ? Math.max.apply(null, eaRows.map(function (r) { return r[1]; })) : 1;
-          cur = { title: 'Microflows that apply entity access', cols: ['Module', 'Microflows', 'A role can start', 'Apply entity access'], grid: 'access',
-            why: 'Only ' + Q.eaApplied + ' of ' + plural(Q.eaTotal, 'microflow applies', 'microflows apply') + ' entity access. ' + Q.eaRoleNo + ' of the ' + Q.eaRole + ' that a role may start do not, so they read and write past the access rules and must check the caller themselves. This is the Mendix default, not an error.',
+          cur = { title: _('Microflows that apply entity access'), cols: [_('Module'), _('Microflows'), _('A role can start'), _('Apply entity access')], grid: 'access',
+            why: (Q.eaTotal === 1 ? _('Only {0} of 1 microflow applies entity access.', [Q.eaApplied]) : _('Only {0} of {1} microflows apply entity access.', [Q.eaApplied, Q.eaTotal])) + ' ' + _('{0} of the {1} that a role may start do not, so they read and write past the access rules and must check the caller themselves. This is the Mendix default, not an error.', [Q.eaRoleNo, Q.eaRole]),
             rule: GUIDE.access[0], src: GUIDE.access[1],
             rows: eaRows.map(function (r) {
               var bar = h('span', { class: 'dx-q-bar acc' }, [h('span')]); bar.firstChild.style.width = Math.max(2, Math.round(r[2] / maxE * 100)) + '%';
@@ -2537,13 +2622,13 @@
         var left = h('div', { class: 'dx-q-left' }, [
           h('h2', { text: cur.title }),
           h('p', { class: 'dx-q-why', text: cur.why }),
-          cur.rule ? h('blockquote', { class: 'dx-q-rule' }, [h('span', { class: 'dx-cap acc', text: 'Mendix guideline' }), h('span', { class: 'dx-q-quote', text: cur.rule }), h('cite', { text: cur.src })]) : null,
+          cur.rule ? h('blockquote', { class: 'dx-q-rule' }, [h('span', { class: 'dx-cap acc', text: _('Mendix guideline') }), h('span', { class: 'dx-q-quote', text: _(cur.rule) }), h('cite', { text: cur.src })]) : null,
           cur.chips && cur.chips[1].length ? h('div', { class: 'dx-q-chips' }, [h('span', { class: 'dx-cap', text: cur.chips[0] }), h('div', null, cur.chips[1].map(function (m) {
             return ln({ view: 'modules', module: m[0] }, { class: 'dx-q-chip' }, [h('span', { class: 'mono', text: m[0] }), h('span', { class: 'mono dx-q-muted', text: String(m[1]) })]);
           }))]) : null
         ]);
         var table = h('div', { class: 'dx-q-table g-' + cur.grid }, [h('div', { class: 'dx-q-head' }, cur.cols.map(function (c) { return h('span', { class: 'dx-cap', text: c }); }))]
-          .concat(cur.rows.length ? cur.rows : [h('p', { class: 'dx-empty', text: 'None.' })])
+          .concat(cur.rows.length ? cur.rows : [h('p', { class: 'dx-empty', text: _('None.') })])
           .concat(cur.foot ? [h('span', { class: 'dx-q-foot', text: cur.foot })] : []));
         main.appendChild(h('div', { class: 'dx-q' }, [cards, h('section', { class: 'dx-q-detail' }, [left, table])]));
       }
@@ -2740,6 +2825,8 @@
       // what happens, what to do, where, and the same pattern elsewhere. A
       // facet's counts leave out its own filter (SonarQube's rule), so they
       // say how many a click on another value would bring.
+      var RISK_OTHER = N_('Other'); // the module of a finding that names no place: a key of the filter too, translated where drawn
+      function modLabel(m) { return m === RISK_OTHER ? _(RISK_OTHER) : m; }
       function riskData() {
         if (riskRows) return riskRows;
         var D = derived();
@@ -2754,7 +2841,7 @@
           var th = r.theme || (D && D.risks && D.risks[i] && D.risks[i][1]) || 'logic';
           // A risk past the counted ones takes its pattern from the file's own list of them (reportdata.js).
           if (!r.theme && i >= risks.length && D && D.triaged && D.triaged[i - risks.length]) th = D.triaged[i - risks.length];
-          return { i: i, r: r, lv: r.level, th: r.logic ? 'brief' : PAT[th] ? th : 'logic', mod: where.length ? where[0].qn.split('.')[0] : 'Other', where: where,
+          return { i: i, r: r, lv: r.level, th: r.logic ? 'brief' : PAT[th] ? th : 'logic', mod: where.length ? where[0].qn.split('.')[0] : RISK_OTHER, where: where,
             s: RS[r.status] ? r.status : 'open', or: r.origin === 'person' ? 'person' : r.origin === 'model' || /^mx-/.test(r.id || '') ? 'model' : 'ai',
             text: [r.title, r.detail, r.fix, r.note, r.by].concat(r.where || []).join(' ').toLowerCase() };
         });
@@ -2781,9 +2868,9 @@
         all.forEach(function (x) { mods[x.mod] = true; });
         var people = everything.some(function (x) { return x.or === 'person'; }), agents = everything.some(function (x) { return x.or === 'ai'; }), fromModel = everything.some(function (x) { return x.or === 'model'; });
         var nOpen = everything.filter(function (x) { return RS_GROUP[x.s] === 'open'; }).length;
-        setTitle('Risks', (rf.st && rf.st !== 'open' ? plural(all.length, 'finding', 'findings') + ' under ' + RS_FILTERS.filter(function (f) { return f[0] === rf.st; })[0][1] + ', ' + plural(nOpen, 'open risk', 'open risks') + ' in all'
-          : plural(all.length, 'finding', 'findings') + ' in ' + plural(Object.keys(mods).length, 'module', 'modules')) +
-          (people && agents ? '. An agent read most of them from the model, people raised the rest; check each one before you act on it.' : people ? '. People raised them while reading the model.' : agents ? '. An agent read them from the model, so check each one before you act on it.' : '.') + (fromModel ? ' The ones marked “found by MxScout” it works out from the model itself, the same on every load.' : ''));
+        setTitle(_('Risks'), (rf.st && rf.st !== 'open' ? _('{0} under {1}, {2} in all', [findings(all.length), (function (f) { return TRI.filterLabel ? TRI.filterLabel(f) : _(f[1]); })(RS_FILTERS.filter(function (f) { return f[0] === rf.st; })[0]), countOf(nOpen, ['{0} open risk', '{0} open risks'], ['{0} otwarte ryzyko', '{0} otwarte ryzyka', '{0} otwartych ryzyk'], ['{0} offenes Risiko', '{0} offene Risiken'])])
+          : rf.or ? _('{0} in {1}', [findings(all.length), inModules(Object.keys(mods).length)]) : _('{0}, in {1}', [TRI.tallyLabel(TRI.tally(data.ai)), inModules(Object.keys(mods).length)])) +
+          (people && agents ? _('. An agent read most of them from the model, people raised the rest; check each one before you act on it.') : people ? _('. People raised them while reading the model.') : agents ? _('. An agent read them from the model, so check each one before you act on it.') : '.') + (fromModel ? _(' The ones marked “found by MxScout” it works out from the model itself, the same on every load.') : ''));
         var q = String(rf.q || '').trim().toLowerCase();
         function match(x, skip) {
           if (skip !== 'lv' && rf.lv && x.lv !== rf.lv) return false;
@@ -2800,24 +2887,26 @@
         // ---- the facets ----
         function sevFacet(wide) {
           var counts = ['P1', 'P2', 'P3'].map(function (l) { return all.filter(function (x) { return x.lv === l && match(x, 'lv'); }).length; });
-          return h('section', { class: 'dx-fc', 'aria-label': 'Severity' }, [
-            facetHead('Severity', rf.lv, function () { setF({ lv: null }); }),
+          return h('section', { class: 'dx-fc', 'aria-label': _('Severity') }, [
+            facetHead(_('Severity'), rf.lv, function () { setF({ lv: null }); }),
             h('div', { class: 'dx-sevbar', 'aria-hidden': 'true' }, ['P1', 'P2', 'P3'].map(function (l, k) {
               var s = h('span', { class: 'b-' + l.toLowerCase() + (rf.lv && rf.lv !== l ? ' dim' : '') }); s.style.flexGrow = String(counts[k]); s.style.minWidth = counts[k] ? '4px' : '0'; return s;
             })),
             h('div', { class: 'dx-fc-rows' }, ['P1', 'P2', 'P3'].map(function (l, k) {
               var on = rf.lv === l;
               return h('button', { type: 'button', class: 'dx-fc-sev' + (wide ? ' wide' : '') + (on ? ' on ' + l.toLowerCase() : '') + (rf.lv && !on ? ' dim' : ''), 'aria-pressed': on ? 'true' : 'false', onclick: function () { setF({ lv: on ? null : l }); } },
-                wide ? [h('span', { class: 'dx-lv ' + l.toLowerCase(), text: l }), h('span', { class: 'dx-fc-t' }, [h('b', { text: LV[l][0] }), h('small', { text: LV[l][1] })]), h('span', { class: 'dx-fc-n', text: String(counts[k]) })]
-                  : [h('span', { class: 'dx-lv ' + l.toLowerCase(), text: l }), h('b', { text: LV[l][0] }), h('small', { text: LV[l][1] }), h('span', { class: 'dx-fc-n', text: String(counts[k]) })]);
+                wide ? [h('span', { class: 'dx-lv ' + l.toLowerCase(), text: l }), h('span', { class: 'dx-fc-t' }, [h('b', { text: levelName(l) }), h('small', { text: levelWhen(l) })]), h('span', { class: 'dx-fc-n', text: String(counts[k]) })]
+                  : [h('span', { class: 'dx-lv ' + l.toLowerCase(), text: l }), h('b', { text: levelName(l) }), h('small', { text: levelWhen(l) }), h('span', { class: 'dx-fc-n', text: String(counts[k]) })]);
             }))
           ]);
         }
         // The conclusion: one pattern holding most of the P1 findings, said in a sentence; otherwise nothing (Karol, 2026-10-13).
         var p1 = all.filter(function (x) { return x.lv === 'P1'; }), top = null;
         PAT_ORDER.forEach(function (k) { var n = p1.filter(function (x) { return x.th === k; }).length; if (n * 2 > p1.length && (!top || n > top[1])) top = [k, n]; });
-        var insight = top ? (top[1] === p1.length && p1.length > 1 ? 'All ' + p1.length : top[1] + ' of the ' + p1.length) + ' P1 findings ' + (top[1] === 1 && p1.length === 1 ? 'is' : 'are') + ' ' + PAT[top[0]].charAt(0).toLowerCase() + PAT[top[0]].slice(1) + '.' : null;
-        if (top && top[1] === 1 && p1.length === 1) insight = 'The one P1 finding is ' + PAT[top[0]].charAt(0).toLowerCase() + PAT[top[0]].slice(1) + '.';
+        // In English the pattern's name runs on in the sentence ("… are missing access checks."); in another language it is named as it is.
+        var insight = !top ? null : !local() ? (top[1] === p1.length && p1.length > 1 ? 'All ' + p1.length : top[1] + ' of the ' + p1.length) + ' P1 findings ' + (top[1] === 1 && p1.length === 1 ? 'is' : 'are') + ' ' + lower1(patName(top[0])) + '.'
+          : top[1] === p1.length && p1.length > 1 ? _('All {0} P1 findings: {1}.', [p1.length, patName(top[0])]) : _('{0} of the {1} P1 findings: {2}.', [top[1], p1.length, patName(top[0])]);
+        if (top && top[1] === 1 && p1.length === 1) insight = local() ? _('The one P1 finding: {0}.', [patName(top[0])]) : 'The one P1 finding is ' + lower1(patName(top[0])) + '.';
         function patFacet(wide) {
           var pats = PAT_ORDER.map(function (k) {
             var n = all.filter(function (x) { return x.th === k && match(x, 'th'); }).length;
@@ -2825,17 +2914,17 @@
             return { k: k, n: n, p1: pp };
           }).filter(function (p) { return p.k !== 'brief' || p.n || rf.th === 'brief'; });
           var max = Math.max.apply(null, pats.map(function (p) { return p.n; }).concat([1]));
-          return h('section', { class: 'dx-fc', 'aria-label': 'Patterns' }, [
-            facetHead('Patterns', rf.th, function () { setF({ th: null }); }),
-            insight ? h('p', { class: 'dx-insight' }, [h('b', { text: insight }), ' ' + PAT_NOTE[top[0]]]) : null,
+          return h('section', { class: 'dx-fc', 'aria-label': _('Patterns') }, [
+            facetHead(_('Patterns'), rf.th, function () { setF({ th: null }); }),
+            insight ? h('p', { class: 'dx-insight' }, [h('b', { text: insight }), ' ' + patNote(top[0])]) : null,
             h('div', { class: wide ? 'dx-fc-rows' : 'dx-pats' }, pats.map(function (p) {
               var on = rf.th === p.k;
               var cls = (wide ? 'dx-fc-pat' : 'dx-pat') + (on ? ' on' : '') + ((rf.th && !on) || !p.n ? ' dim' : '');
               if (!wide) return h('button', { type: 'button', class: cls, 'aria-pressed': on ? 'true' : 'false', onclick: function () { setF({ th: on ? null : p.k }); } },
-                [p.p1 ? h('span', { class: 'dx-p1dot', 'aria-label': 'has P1' }) : null, PAT[p.k], h('span', { class: 'dx-fc-n', text: String(p.n) })]);
+                [p.p1 ? h('span', { class: 'dx-p1dot', 'aria-label': _('has P1') }) : null, patName(p.k), h('span', { class: 'dx-fc-n', text: String(p.n) })]);
               var bar = h('span', { class: 'dx-fc-bar' }, [h('span')]); bar.firstChild.style.width = Math.round(p.n / max * 100) + '%';
               return h('button', { type: 'button', class: cls, 'aria-pressed': on ? 'true' : 'false', onclick: function () { setF({ th: on ? null : p.k }); } },
-                [h('span', { class: 'dx-fc-t row' }, [h('span', { text: PAT[p.k] }), p.p1 ? h('span', { class: 'dx-fc-p1', text: p.p1 + ' P1' }) : null]), h('span', { class: 'dx-fc-n', text: String(p.n) }), bar]);
+                [h('span', { class: 'dx-fc-t row' }, [h('span', { text: patName(p.k) }), p.p1 ? h('span', { class: 'dx-fc-p1', text: p.p1 + ' P1' }) : null]), h('span', { class: 'dx-fc-n', text: String(p.n) }), bar]);
             }))
           ]);
         }
@@ -2848,19 +2937,19 @@
           // Every module, in one order that a pick does not change (Karol, 2026-10-14: the picked
           // one jumped to the top); the strip scrolls when there are many.
           var shown = list2, rest = [];
-          return h('section', { class: 'dx-fc', 'aria-label': 'Modules' }, [
-            facetHead(wide ? 'Modules' : 'Where they gather', rf.mod, function () { setF({ mod: null }); }),
+          return h('section', { class: 'dx-fc', 'aria-label': _('Modules') }, [
+            facetHead(wide ? _('Modules') : _('Where they gather'), rf.mod, function () { setF({ mod: null }); }),
             h('div', { class: 'dx-fc-rows tight' + (wide ? '' : ' dx-fc-scroll') }, shown.map(function (m) {
               var on = rf.mod === m.name;
               var bars = h('span', { class: 'dx-modbar', 'aria-hidden': 'true' }, ['P1', 'P2', 'P3'].map(function (l) { var s = h('span', { class: 'b-' + l.toLowerCase() }); s.style.width = (m[l] / max * 100).toFixed(1) + '%'; return s; }));
               return h('button', { type: 'button', class: 'dx-fc-mod' + (on ? ' on' : ''), 'aria-pressed': on ? 'true' : 'false', onclick: function () { setF({ mod: on ? null : m.name }); } },
-                [h('span', { class: 'mono', text: m.name }), bars, h('span', { class: 'dx-fc-n', text: String(m.n) })]);
+                [h('span', { class: 'mono', text: modLabel(m.name) }), bars, h('span', { class: 'dx-fc-n', text: String(m.n) })]);
             })),
-            !wide && rest.length ? h('span', { class: 'dx-fc-rest', text: '+ ' + plural(rest.length, 'more module', 'more modules') + ', ' + plural(rest.reduce(function (s2, m) { return s2 + m.n; }, 0), 'finding', 'findings') }) : null
+            !wide && rest.length ? h('span', { class: 'dx-fc-rest', text: '+ ' + countOf(rest.length, ['{0} more module', '{0} more modules'], ['{0} moduł więcej', '{0} moduły więcej', '{0} modułów więcej'], ['{0} weiteres Modul', '{0} weitere Module']) + ', ' + findings(rest.reduce(function (s2, m) { return s2 + m.n; }, 0)) }) : null
           ]);
         }
         function facetHead(label, active, clearFn) {
-          return h('div', { class: 'dx-fc-h' }, [h('span', { class: 'dx-cap', text: label }), active ? h('button', { type: 'button', class: 'dx-fc-clear', text: 'Show all', onclick: clearFn }) : null]);
+          return h('div', { class: 'dx-fc-h' }, [h('span', { class: 'dx-cap', text: label }), active ? h('button', { type: 'button', class: 'dx-fc-clear', text: _('Show all'), onclick: clearFn }) : null]);
         }
 
         function brk(s) { return window.MxRiskText ? window.MxRiskText.breaks(h, s) : [s]; } // ---- the list ---- (a long title or name wraps after its dots and underscores: docs-risktext.js)
@@ -2872,9 +2961,9 @@
         var want = riskIndexOf(st.sub), cur = shown.filter(function (x) { return x.i === want; })[0] || shown[0] || null;
         var anyF = !!(rf.lv || rf.th || rf.mod || q);
         var chips = [];
-        if (rf.lv) chips.push([rf.lv + ' · ' + LV[rf.lv][0], { lv: null }]);
-        if (rf.th) chips.push([PAT[rf.th], { th: null }]);
-        if (rf.mod) chips.push([rf.mod, { mod: null }]);
+        if (rf.lv) chips.push([rf.lv + ' · ' + levelName(rf.lv), { lv: null }]);
+        if (rf.th) chips.push([patName(rf.th), { th: null }]);
+        if (rf.mod) chips.push([modLabel(rf.mod), { mod: null }]);
         if (q) chips.push(['“' + rf.q.trim() + '”', { q: '' }]);
         var groupN = {};
         shown.forEach(function (x) { var g = byMod ? x.mod : x.lv; groupN[g] = (groupN[g] || 0) + 1; });
@@ -2883,41 +2972,41 @@
           var g = byMod ? x.mod : x.lv;
           if (g !== lastG) {
             lastG = g;
-            rows.push(h('div', { class: 'dx-rk-g' + (byMod ? ' mono' : '') }, byMod ? [h('b', { text: g }), h('span', { class: 'dx-fc-n', text: String(groupN[g]) })]
-              : [h('span', { class: 'dx-lv ' + g.toLowerCase(), text: g }), h('b', { text: LV[g][0] }), h('small', { text: LV[g][1] }), h('span', { class: 'dx-fc-n', text: String(groupN[g]) })]));
+            rows.push(h('div', { class: 'dx-rk-g' + (byMod ? ' mono' : '') }, byMod ? [h('b', { text: modLabel(g) }), h('span', { class: 'dx-fc-n', text: String(groupN[g]) })]
+              : [h('span', { class: 'dx-lv ' + g.toLowerCase(), text: g }), h('b', { text: levelName(g) }), h('small', { text: levelWhen(g) }), h('span', { class: 'dx-fc-n', text: String(groupN[g]) })]));
           }
           var on = cur && x.i === cur.i;
           rows.push(ln({ view: 'risks', sub: riskId(x.i) }, { class: 'dx-rk-row' + (on ? ' on' : ''), 'aria-current': on ? 'true' : 'false' }, [
             h('span', { class: 'dx-lv ' + x.lv.toLowerCase(), text: x.lv }),
-            h('span', { class: 'dx-rk-t' }, [h('b', null, brk(x.r.title)), h('small', { text: x.mod + ' · ' + PAT[x.th] + ' · ' + plural(x.where.length, 'place', 'places') + (x.or === 'person' ? ' · raised by ' + (x.r.by || 'a person') : '') }),
+            h('span', { class: 'dx-rk-t' }, [h('b', null, brk(x.r.title)), h('small', { text: modLabel(x.mod) + ' · ' + patName(x.th) + ' · ' + places(x.where.length) + (x.or === 'person' ? ' · ' + _('raised by {0}', [x.r.by || _('a person')]) : '') }),
               statusMark(x.s)])
           ], function () { go({ view: 'risks', sub: riskId(x.i)}); }));
         });
         // The status filter (risk triage) and whose a risk is: docs-triage.js — also while a filter other than Open is on.
         var statusBar = TRI.statusBar({ h: h, everything: everything, inOrigin: inOrigin, rf: rf, setF: setF, shown: triaged.length || people || (rf.st && rf.st !== 'open'), people: people, agents: agents });
-        var listCol = h('section', { class: 'dx-rk-list', 'aria-label': 'Findings', 'data-keep-scroll': 'rk-list' }, [
+        var listCol = h('section', { class: 'dx-rk-list', 'aria-label': _('Findings'), 'data-keep-scroll': 'rk-list' }, [
           statusBar,
           h('div', { class: 'dx-rk-lh' }, [
-            h('div', { class: 'dx-rk-lh-row' }, [h('b', { text: anyF ? shown.length + ' of ' + plural(all.length, 'finding', 'findings') : plural(all.length, 'finding', 'findings') }),
-              h('div', { class: 'dx-seg2', role: 'group', 'aria-label': 'Group by' }, [h('span', { text: 'Group' })].concat([['sev', 'Severity'], ['mod', 'Module']].map(function (g) {
+            h('div', { class: 'dx-rk-lh-row' }, [h('b', { text: anyF ? _('{0} of {1}', [shown.length, findings(all.length)]) : findings(all.length) }),
+              h('div', { class: 'dx-seg2', role: 'group', 'aria-label': _('Group by') }, [h('span', { text: _('Group') })].concat([['sev', _('Severity')], ['mod', _('Module')]].map(function (g) {
                 var on = (rf.group || 'sev') === g[0];
                 return h('button', { type: 'button', class: on ? 'on' : '', 'aria-pressed': on ? 'true' : 'false', text: g[1], onclick: function () { setF({ group: g[0] }); } });
               })))]),
             chips.length ? h('div', { class: 'dx-rk-chips' }, chips.map(function (c) {
-              return h('button', { type: 'button', class: 'dx-rk-chip', 'aria-label': 'Remove filter ' + c[0], onclick: function () { setF(c[1]); } }, [c[0], h('span', { 'aria-hidden': 'true', text: '×' })]);
+              return h('button', { type: 'button', class: 'dx-rk-chip', 'aria-label': _('Remove filter {0}', [c[0]]), onclick: function () { setF(c[1]); } }, [c[0], h('span', { 'aria-hidden': 'true', text: '×' })]);
             })) : null
           ]),
-          shown.length ? null : h('div', { class: 'dx-empty pad', text: (rf.st || 'open') === 'open' && !anyF && !rf.or ? 'No open risks — every one is marked fixed, a false positive, an accepted risk or no longer reported. See the other filters above.' : 'No finding matches these filters.' })
+          shown.length ? null : h('div', { class: 'dx-empty pad', text: (rf.st || 'open') === 'open' && !anyF && !rf.or ? _('No open risks — every one is marked fixed, a false positive, an accepted risk or no longer reported. See the other filters above.') : _('No finding matches these filters.') })
         ].concat(rows));
 
         // ---- the finding ----
-        var detail = h('article', { class: 'dx-rk-detail', 'aria-label': 'Finding', 'data-keep-scroll': 'rk-detail:' + (cur ? riskId(cur.i) : '') });
+        var detail = h('article', { class: 'dx-rk-detail', 'aria-label': _('Finding'), 'data-keep-scroll': 'rk-detail:' + (cur ? riskId(cur.i) : '') });
         if (cur) {
           var idx = shown.indexOf(cur), gKey = byMod ? cur.mod : cur.lv;
           var inG = shown.filter(function (x) { return (byMod ? x.mod : x.lv) === gKey; });
           function rt(s) { return window.MxRiskText ? window.MxRiskText.block({ h: h, link: function (qn, kids) { var k = flowKey(qn); return k ? ln({ view: 'refs', module: data.flows[k].module, seg: data.flows[k].kind, key: k }, { class: 'dx-rt-ln mono' }, kids) : data.entities[qn] ? ln({ view: 'domain', entity: qn }, { class: 'dx-rt-ln mono' }, kids) : null; } }, s) : h('p', { class: 'dx-rk-p', text: s }); } // a risk's text laid out to be read: docs-risktext.js
           function sib(x) {
-            return ln({ view: 'risks', sub: riskId(x.i) }, { class: 'dx-rk-sib' }, [h('span', { class: 'dx-lv ' + x.lv.toLowerCase(), text: x.lv }), h('span', null, brk(x.r.title)), h('span', { class: 'mono', text: x.mod, title: x.mod })],
+            return ln({ view: 'risks', sub: riskId(x.i) }, { class: 'dx-rk-sib' }, [h('span', { class: 'dx-lv ' + x.lv.toLowerCase(), text: x.lv }), h('span', null, brk(x.r.title)), h('span', { class: 'mono', text: modLabel(x.mod), title: modLabel(x.mod) })],
               function () { go({ view: 'risks', sub: riskId(x.i)}); });
           }
           var byLv = function (a, b) { return LVO[a.lv] - LVO[b.lv] || a.i - b.i; };
@@ -2934,43 +3023,43 @@
           var lvC = { P1: 0, P2: 0, P3: 0 }; all.forEach(function (x) { if (x.mod === cur.mod) lvC[x.lv]++; });
           var rkTabBody = tab === 'test' || tab === 'fix' || tab === 'guide' ? window.MxRiskText.panel(kitT, cur.r, tab)
             : tab === 'where' ? [
-              h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: 'Where · ' + plural(cur.where.length, 'place', 'places') }),
+              h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: _('Where · {0}', [places(cur.where.length)]) }),
                 h('div', { class: 'dx-pd-rows' }, cur.where.map(function (w) {
                   var K = WHERE_KIND[w.kind] || ['··', null, null], dot = w.qn.indexOf('.'), key = K[2] ? flowKey(w.qn, { microflow: 'mf', nanoflow: 'nf', page: 'pg' }[K[2]]) : null, ent = !K[2] && w.kind && data.entities[w.qn];
                   var kids = [kindTag(K[0]), h('span', { class: 'dx-pd-qn mono' }, [h('span', { class: 'dx-mod', text: w.qn.slice(0, dot + 1) }), h('wbr')].concat(brk(w.qn.slice(dot + 1)))),
-                    key || ent ? h('span', { class: 'dx-rk-open' }, [K[1], navIcon('arrow', 12)]) : null];
+                    key || ent ? h('span', { class: 'dx-rk-open' }, [_(K[1]), navIcon('arrow', 12)]) : null];
                   if (key) return ln({ view: 'refs', module: data.flows[key].module, seg: data.flows[key].kind, key: key }, { class: 'dx-rk-where' }, kids);
                   return ent ? ln({ view: 'domain', entity: w.qn }, { class: 'dx-rk-where' }, kids) : h('div', { class: 'dx-rk-where' }, kids);
                 }))]),
-              sameP.length ? h('section', { class: 'dx-rk-sec dx-rk-same' }, [h('h3', { class: 'dx-cap', text: 'Same pattern elsewhere' }),
-                h('p', { class: 'dx-rk-note', text: plural(sameP.length, 'more finding', 'more findings') + ' in ' + plural(Object.keys(patMods).length, 'module', 'modules') + ' share this pattern.' }),
-                h('div', { class: 'dx-pd-rows' }, sameP.slice(0, 6).map(sib)), h('button', { type: 'button', class: 'dx-more-link', text: 'All ' + (sameP.length + 1) + ' with this pattern', onclick: function () { setF({ th: cur.th }); } })]) : null,
-              sameM.length ? h('section', { class: 'dx-rk-sec dx-rk-also' }, [h('h3', { class: 'dx-cap', text: 'Also in ' + cur.mod }),
+              sameP.length ? h('section', { class: 'dx-rk-sec dx-rk-same' }, [h('h3', { class: 'dx-cap', text: _('Same pattern elsewhere') }),
+                h('p', { class: 'dx-rk-note', text: _('{0} in {1} share this pattern.', [countOf(sameP.length, ['{0} more finding', '{0} more findings'], ['{0} ustalenie więcej', '{0} ustalenia więcej', '{0} ustaleń więcej'], ['{0} weiterer Befund', '{0} weitere Befunde']), inModules(Object.keys(patMods).length)]) }),
+                h('div', { class: 'dx-pd-rows' }, sameP.slice(0, 6).map(sib)), h('button', { type: 'button', class: 'dx-more-link', text: _('All {0} with this pattern', [sameP.length + 1]), onclick: function () { setF({ th: cur.th }); } })]) : null,
+              sameM.length ? h('section', { class: 'dx-rk-sec dx-rk-also' }, [h('h3', { class: 'dx-cap', text: _('Also in {0}', [modLabel(cur.mod)]) }),
                 h('div', { class: 'dx-rk-lvs' }, ['P1', 'P2', 'P3'].filter(function (l) { return lvC[l]; }).map(function (l) { return h('span', { class: 'dx-lv wide ' + l.toLowerCase(), text: lvC[l] + ' ' + l }); })),
-                h('div', { class: 'dx-pd-rows' }, sameM.slice(0, 5).map(sib)), h('button', { type: 'button', class: 'dx-more-link', text: 'All ' + (sameM.length + 1) + ' in ' + cur.mod, onclick: function () { setF({ mod: cur.mod }); } })]) : null
+                h('div', { class: 'dx-pd-rows' }, sameM.slice(0, 5).map(sib)), h('button', { type: 'button', class: 'dx-more-link', text: _('All {0} in {1}', [sameM.length + 1, modLabel(cur.mod)]), onclick: function () { setF({ mod: cur.mod }); } })]) : null
             ]
             : [
               triageBlock(cur), window.MxRiskText.logicBlock(kitT, cur.r),
               assist && window.MxDocsTickets ? window.MxDocsTickets.forRisk({ h: h, ln: ln }, assist.items(), [cur.r.id, cur.r.pid]) : null,
-              cur.r.detail ? h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: 'What happens' }), rt(cur.r.detail)]) : null,
+              cur.r.detail ? h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: _('What happens') }), rt(cur.r.detail)]) : null,
               h('p', { class: 'dx-rk-foot' }, [navIcon('info', 14), cur.or === 'person'
-                ? 'Raised by ' + (cur.r.by || 'a person') + (cur.r.raisedAt ? ' on ' + fmtDate(cur.r.raisedAt) : '') + ', in a comment written while reading the model. A person’s finding, not an agent’s.'
-                : cur.or === 'model' ? 'MxScout worked this out from the model itself, the same on every load — not an agent’s finding. It never shows a constant’s value; it does not have one.' : 'An agent read the model and wrote this finding. It sees only the model, not the data or the configuration in production.'])
+                ? (cur.r.raisedAt ? _('Raised by {0} on {1}, in a comment written while reading the model. A person’s finding, not an agent’s.', [cur.r.by || _('a person'), fmtDate(cur.r.raisedAt)]) : _('Raised by {0}, in a comment written while reading the model. A person’s finding, not an agent’s.', [cur.r.by || _('a person')]))
+                : cur.or === 'model' ? _('MxScout worked this out from the model itself, the same on every load — not an agent’s finding. It never shows a constant’s value; it does not have one.') : _('An agent read the model and wrote this finding. It sees only the model, not the data or the configuration in production.')])
             ];
           var main2 = h('div', { class: 'dx-rk-main' }, [
-            h('div', { class: 'dx-rk-top' }, [h('div', { class: 'dx-rk-navs' }, [nav2(-1, 'Previous finding', 'up'), nav2(1, 'Next finding', 'down'), h('span', { text: gKey + ' · ' + (inG.indexOf(cur) + 1) + ' of ' + inG.length })]),
+            h('div', { class: 'dx-rk-top' }, [h('div', { class: 'dx-rk-navs' }, [nav2(-1, _('Previous finding'), 'up'), nav2(1, _('Next finding'), 'down'), h('span', { text: modLabel(gKey) + ' · ' + _('{0} of {1}', [inG.indexOf(cur) + 1, inG.length]) })]),
               h('span', { class: 'mono dx-rk-id', text: riskId(cur.i) })]),
             h('div', { class: 'dx-rk-head' }, [
               h('div', { class: 'dx-rk-pills' }, [
-                h('span', { class: 'dx-rk-sev ' + cur.lv.toLowerCase() }, [h('b', { class: 'mono', text: cur.lv }), LV[cur.lv][0]]),
-                h('button', { type: 'button', class: 'dx-rk-pill', text: PAT[cur.th], title: 'Show only ' + PAT[cur.th].toLowerCase(), onclick: function () { setF({ th: cur.th }); } }),
-                h('button', { type: 'button', class: 'dx-rk-pill mono', text: cur.mod, title: 'Show only ' + cur.mod, onclick: function () { setF({ mod: cur.mod }); } }),
+                h('span', { class: 'dx-rk-sev ' + cur.lv.toLowerCase() }, [h('b', { class: 'mono', text: cur.lv }), levelName(cur.lv)]),
+                h('button', { type: 'button', class: 'dx-rk-pill', text: patName(cur.th), title: _('Show only {0}', [patName(cur.th).toLowerCase()]), onclick: function () { setF({ th: cur.th }); } }),
+                h('button', { type: 'button', class: 'dx-rk-pill mono', text: modLabel(cur.mod), title: _('Show only {0}', [modLabel(cur.mod)]), onclick: function () { setF({ mod: cur.mod }); } }),
                 // Whose it is, when some are a person's or MxScout's own: every risk is an agent's otherwise, as the foot says.
                 people || fromModel ? h('span', { class: 'dx-rk-pill dx-rk-origin' }, [originMark(cur.r)]) : null,
                 statusMark(cur.s)
               ]),
               h('h2', null, brk(cur.r.title)),
-              h('span', { class: 'dx-rk-when', text: RS_GROUP[cur.s] === 'open' ? 'Fix ' + LV[cur.lv][1].charAt(0).toLowerCase() + LV[cur.lv][1].slice(1) + '.' : 'Not counted as a risk: ' + RS[cur.s].toLowerCase() + '.' }),
+              h('span', { class: 'dx-rk-when', text: RS_GROUP[cur.s] === 'open' ? _('Fix {0}.', [lower1(levelWhen(cur.lv))]) : _('Not counted as a risk: {0}.', [(TRI.label ? TRI.label(cur.s) : _(RS[cur.s])).toLowerCase()]) }),
               opts.riskActions ? h('div', { class: 'dx-rk-acts' }, opts.riskActions(cur.r)) : null
             ]),
             tabBar
@@ -2979,7 +3068,7 @@
         }
         main.appendChild(h('div', { class: 'dx-rk' }, [
           h('div', { class: 'dx-rk-strip' }, [modFacet(false), sevFacet(false), patFacet(false)]),
-          h('div', { class: 'dx-rk-body' }, [h('aside', { class: 'dx-rk-facets', 'aria-label': 'Filters', 'data-keep-scroll': 'rk-facets' }, [sevFacet(true), patFacet(true), modFacet(true)]), listCol, detail])
+          h('div', { class: 'dx-rk-body' }, [h('aside', { class: 'dx-rk-facets', 'aria-label': _('Filters'), 'data-keep-scroll': 'rk-facets' }, [sevFacet(true), patFacet(true), modFacet(true)]), listCol, detail])
         ]));
         // The list where it was; the chosen row in view only if it is not, scrolling the list alone.
         listCol.addEventListener('scroll', function () { rkY = listCol.scrollTop; });
@@ -2995,19 +3084,19 @@
       // (questions a newcomer asks), the naming (a reference table), and what
       // breaks easily. A filter over the text, and the modules each item
       // names as a facet; both narrow the list and the facet's counts.
-      var DEV_ALL = 'Across the app';
+      var DEV_ALL = N_('Across the app'); // a key of the state too: translated where it is drawn
       function drawDev() {
         var D = derived(), X = D && D.dev;
-        setTitle('For developers', 'What to know before you change this model. An agent read the model and wrote it; names in code font are real elements.');
-        if (!X) { main.appendChild(h('div', { class: 'dx-note', text: 'This copy of the reader has no notes for developers.' })); return; }
+        setTitle(_('For developers'), _('What to know before you change this model. An agent read the model and wrote it; names in code font are real elements.'));
+        if (!X) { main.appendChild(h('div', { class: 'dx-note', text: _('This copy of the reader has no notes for developers.') })); return; }
         var tab = st.sub === 'conv' || st.sub === 'pit' ? st.sub : 'where';
         var q = String(st.dq || '').trim().toLowerCase();
-        var search = h('input', { type: 'text', class: 'dx-rk-q', placeholder: 'Filter, e.g. a word, ACT_, a module', value: st.dq || '', 'aria-label': 'Filter' });
+        var search = h('input', { type: 'text', class: 'dx-rk-q dx-dv-q', placeholder: _('Filter, e.g. a word, ACT_, a module'), value: st.dq || '', 'aria-label': _('Filter') });
         search.addEventListener('input', function () {
           st.dq = search.value; var at = search.selectionStart;
           if (opts.hash) history.replaceState(null, '', hashOf(st));
           draw();
-          var again = root.querySelector('.dx-rk-q[aria-label="Filter"]'); if (again) { again.focus(); try { again.setSelectionRange(at, at); } catch (e) { /* fine */ } }
+          var again = root.querySelector('.dx-dv-q'); if (again) { again.focus(); try { again.setSelectionRange(at, at); } catch (e) { /* fine */ } }
         });
         tools(h('label', { class: 'dx-rk-search wide' }, [navIcon('search', 15), search]), function (n) { main.appendChild(h('div', { class: 'dx-page-tools' }, [n])); });
         var items;
@@ -3021,23 +3110,23 @@
         var shown = items.filter(function (it) { return matchQ(it) && (!mod || (mod === DEV_ALL ? !it.mods.length : it.mods.indexOf(mod) !== -1)); });
         function setD(patch) { Object.keys(patch).forEach(function (k) { st[k] = patch[k]; }); if (opts.hash) history.replaceState(null, '', hashOf(st)); draw(); }
 
-        var tabsBar = h('div', { class: 'dx-dv-tabs', role: 'tablist' }, [['where', 'Where things are', X.where.length, 'Questions a newcomer asks'], ['conv', 'Naming', X.conv.length, 'How names are built here'], ['pit', 'Before you change', X.pit.length, 'What breaks easily']].map(function (b) {
+        var tabsBar = h('div', { class: 'dx-dv-tabs', role: 'tablist' }, [['where', _('Where things are'), X.where.length, _('Questions a newcomer asks')], ['conv', _('Naming'), X.conv.length, _('How names are built here')], ['pit', _('Before you change'), X.pit.length, _('What breaks easily')]].map(function (b) {
           var on = tab === b[0];
           // Another tab starts with no module picked (spec 19 §4).
           return ln({ view: 'dev', sub: b[0] }, { class: 'dx-dv-tab' + (on ? ' on' : ''), role: 'tab', 'aria-selected': on ? 'true' : 'false' }, [h('span', null, [b[1], h('span', { class: 'mono', text: String(b[2]) })]), h('small', { text: b[3] })],
             function () { st.dmod = null; go({ view: 'dev', sub: b[0] }); });
         }));
-        var facet = h('aside', { class: 'dx-dv-facet', 'aria-label': 'Modules', 'data-keep-scroll': 'dv-facet:' + tab }, [
-          h('div', { class: 'dx-fc-h' }, [h('span', { class: 'dx-cap', text: 'Modules' }), mod ? h('button', { type: 'button', class: 'dx-fc-clear', text: 'Show all', onclick: function () { setD({ dmod: null }); } }) : null])
+        var facet = h('aside', { class: 'dx-dv-facet', 'aria-label': _('Modules'), 'data-keep-scroll': 'dv-facet:' + tab }, [
+          h('div', { class: 'dx-fc-h' }, [h('span', { class: 'dx-cap', text: _('Modules') }), mod ? h('button', { type: 'button', class: 'dx-fc-clear', text: _('Show all'), onclick: function () { setD({ dmod: null }); } }) : null])
         ].concat(Object.keys(counts).sort(function (a, b) { if (a === DEV_ALL) return -1; if (b === DEV_ALL) return 1; return counts[b] - counts[a] || a.localeCompare(b); }).map(function (m) {
           var on = mod === m;
           return h('button', { type: 'button', class: 'dx-dv-mod' + (on ? ' on' : '') + (m === DEV_ALL ? '' : ' mono'), 'aria-pressed': on ? 'true' : 'false', onclick: function () { setD({ dmod: on ? null : m }); } },
-            [h('span', { text: m }), h('span', { class: 'dx-fc-n', text: String(counts[m]) })]);
+            [h('span', { text: m === DEV_ALL ? _(DEV_ALL) : m }), h('span', { class: 'dx-fc-n', text: String(counts[m]) })]);
         })));
         var body = h('div', { class: 'dx-dv-list' });
-        if (!shown.length) body.appendChild(h('p', { class: 'dx-empty', text: 'Nothing matches.' }));
+        if (!shown.length) body.appendChild(h('p', { class: 'dx-empty', text: _('Nothing matches.') }));
         else if (tab === 'conv') {
-          body.appendChild(h('div', { class: 'dx-dv-conv' }, [h('div', { class: 'dx-dv-cr head' }, [h('span', { text: 'Pattern' }), h('span', { text: 'What it means here' }), h('span', { text: 'Names' })])].concat(shown.map(function (c) {
+          body.appendChild(h('div', { class: 'dx-dv-conv' }, [h('div', { class: 'dx-dv-cr head' }, [h('span', { text: _('Pattern') }), h('span', { text: _('What it means here') }), h('span', { text: _('Names') })])].concat(shown.map(function (c) {
             return h('div', { class: 'dx-dv-cr' }, [h('span', { class: 'mono dx-dv-pat', text: c.p }), h('span', null, richText(c.m)), h('span', { class: 'mono dx-dv-n' + (c.n ? '' : ' none'), text: c.n ? String(c.n) : '—' })]);
           }))));
         } else {
@@ -3045,7 +3134,7 @@
           shown.forEach(function (it) { var k = mod || (it.mods.length ? it.mods[0] : DEV_ALL); if (!gm[k]) { gm[k] = []; order.push(k); } gm[k].push(it); });
           order.sort(function (a, b) { if (a === DEV_ALL) return -1; if (b === DEV_ALL) return 1; return gm[b].length - gm[a].length || a.localeCompare(b); });
           order.forEach(function (k) {
-            body.appendChild(h('section', { class: 'dx-dv-g' }, [h('div', { class: 'dx-dv-gh' }, [h('b', { class: k === DEV_ALL ? '' : 'mono', text: k }), h('span', { class: 'mono dx-fc-n', text: String(gm[k].length) })]),
+            body.appendChild(h('section', { class: 'dx-dv-g' }, [h('div', { class: 'dx-dv-gh' }, [h('b', { class: k === DEV_ALL ? '' : 'mono', text: k === DEV_ALL ? _(DEV_ALL) : k }), h('span', { class: 'mono dx-fc-n', text: String(gm[k].length) })]),
               tab === 'where' ? h('div', { class: 'dx-pd-rows' }, gm[k].map(function (it) { return h('div', { class: 'dx-dv-where' }, [h('b', { text: it.q }), h('span', null, richText(it.a))]); }))
                 : h('ol', { class: 'dx-dv-pits' }, gm[k].map(function (it) { return h('li', null, [h('span', { class: 'mono', text: it.no }), h('span', null, richText(it.a))]); }))]));
           });
@@ -3071,7 +3160,7 @@
       return p(d.getDate()) + '.' + p(d.getMonth() + 1) + '.' + d.getFullYear() + ', ' + p(d.getHours()) + ':' + p(d.getMinutes());
     }
 
-    return { mount: mount, layout: domainLayout, markdown: markdown, markdownName: markdownName, contextGroups: contextGroups, runtimeLayout: runtimeLayout };
+    return { mount: mount, labels: labels, layout: domainLayout, markdown: markdown, markdownName: markdownName, contextGroups: contextGroups, runtimeLayout: runtimeLayout };
   }
 
   window.MxDocsView = factory();

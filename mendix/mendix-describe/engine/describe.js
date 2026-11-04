@@ -667,6 +667,8 @@
       project: str(raw.project, 200), language: str(raw.language, 20), by: str(raw.by, 200), written: str(raw.written, 40),
       app: null, modules: {}, microflows: {}, nanoflows: {}, pages: {}, entities: {}
     };
+    // The Team server sends the writer's name beside the login (by); kept only when it comes.
+    if (str(raw.byName, 200)) out.byName = str(raw.byName, 200);
     // "add": true — this file adds to what is kept rather than replacing it (see merge below).
     if (raw.add === true) out.add = true;
     // "describedAt": the version of the model the descriptions were saved against — MxScout writes it
@@ -874,6 +876,7 @@
       if (at < 0) out.tickets.push(t); else out.tickets[at] = t;
     });
     ['project', 'language', 'by'].forEach(function (k) { if (!out[k] && more[k]) out[k] = more[k]; });
+    if (more.byName && out.by === more.by) out.byName = more.byName;
     if (more.written) out.written = more.written;
     return out;
   }
@@ -934,7 +937,7 @@
     });
     Object.keys(data.entities).forEach(function (q) { if (d.entities[q]) data.entities[q].desc = d.entities[q].text; });
     data.ai = {
-      app: d.app, by: d.by, written: d.written, language: d.language,
+      app: d.app, by: d.by, byName: d.byName || null, written: d.written, language: d.language,
       // Which language the reader gets, when localize() made them: { language, wanted, from, translated, untranslated }.
       shown: d.shown || null,
       // The model version the descriptions were saved against (parse: describedAt), or null.

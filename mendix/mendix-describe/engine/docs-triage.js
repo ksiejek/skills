@@ -20,20 +20,55 @@
 (function () {
   'use strict';
 
+  // The labels go through the interface's language where the reader has one (MxScout's own screen, docs-i18n.js); the
+  // exported file, MxScout Dev and the skill's engine have none and keep the English. The Markdown copy stays English.
+  function lang() { return typeof window !== 'undefined' && window.MxDocsI18n && window.MxI18n ? window.MxDocsI18n : null; }
+  function _(text, vars) { return lang() ? lang().t(text, vars) : vars ? String(text).replace(/\{(\w+)\}/g, function (m, k) { return vars[k] != null ? String(vars[k]) : m; }) : text; }
+  function N_(text) { return text; } // translated where it is drawn (tools/i18n-check.js finds it)
+
   // Where a risk stands: only open, confirmed and reopened ones count as risks; the rest are kept on the Risks page
   // under their own filter, with what was decided.
-  var RS = { open: 'Open', confirmed: 'Confirmed', reopened: 'Reopened', fixed: 'Fixed — to verify', verified: 'Verified', 'false-positive': 'False positive', accepted: 'Accepted risk', gone: 'No longer reported' };
+  var RS = { open: N_('Open'), confirmed: N_('Confirmed'), reopened: N_('Reopened'), fixed: N_('Fixed — to verify'), verified: N_('Verified'), 'false-positive': N_('False positive'), accepted: N_('Accepted risk'), gone: N_('No longer reported') };
   var RS_GROUP = { open: 'open', confirmed: 'open', reopened: 'open', fixed: 'fixed', verified: 'verified', 'false-positive': 'fp', accepted: 'accepted', gone: 'gone' };
-  var RS_FILTERS = [['open', 'Open'], ['fixed', 'Fixed — to verify'], ['verified', 'Verified'], ['fp', 'False positive'], ['accepted', 'Accepted risk'], ['gone', 'No longer reported'], ['all', 'All']];
+  var RS_FILTERS = [['open', N_('Open')], ['fixed', N_('Fixed — to verify')], ['verified', N_('Verified')], ['fp', N_('False positive')], ['accepted', N_('Accepted risk')], ['gone', N_('No longer reported')], ['all', N_('All')]];
+  // A status (RS's key) and a filter (RS_FILTERS' row) as drawn: "Open" as a status has a key of its own, since the
+  // dictionary's "Open" is the verb on a button.
+  function label(st) { return st === 'open' && lang() && lang().local() ? _('Open (risk status)') : RS[st] ? _(RS[st]) : st; }
+  function filterLabel(f) { return f[0] === 'open' ? label('open') : _(f[1]); }
+
+  // One count of the risks for every screen and the exported file: Overview, the Documentation header, Risks, the Dashboard.
+  // Counted are the risks that count after what was decided — data.ai.risks once triage.js apply ran: open, confirmed
+  // and reopened. A false positive, an accepted risk, one fixed, verified or no longer reported is decided
+  // (data.ai.triaged): kept on the Risks page under its own filter, counted nowhere. Each counted one is a finding
+  // from the model (MxScout worked it out: origin 'model', or an id "mx-" from its security check), a risk a person
+  // raised, or a risk from the agent. { agent, model, people, total, open, decided }; open is total.
+  function fromModel(r) { return r.origin === 'model' || /^mx-/.test(r.id || ''); }
+  function tally(ai) {
+    var risks = (ai && ai.risks) || [], t = { agent: 0, model: 0, people: 0, total: risks.length, open: risks.length, decided: ((ai && ai.triaged) || []).length };
+    risks.forEach(function (r) { if (fromModel(r)) t.model++; else if (r.origin === 'person') t.people++; else t.agent++; });
+    return t;
+  }
+  // "25 findings: 9 from the agent, 16 from the model" in the interface's language; english: true for the Markdown copy.
+  // split() is the part after the colon, for a tile that shows the total as its number.
+  function split(t, english) {
+    var tr = english ? function (x, v) { return String(x).replace(/\{(\w+)\}/g, function (m, k) { return v[k] != null ? String(v[k]) : m; }); } : _;
+    return t.people ? tr('{0} from the agent, {1} from the model, {2} raised by people', [t.agent, t.model, t.people]) : tr('{0} from the agent, {1} from the model', [t.agent, t.model]);
+  }
+  function tallyLabel(t, english) {
+    var M = !english && lang() && window.MxI18n;
+    var all = M ? M.plural(t.total, { en: ['{0} finding', '{0} findings'], pl: ['{0} znalezisko', '{0} znaleziska', '{0} znalezisk'], de: ['{0} Befund', '{0} Befunde'] }) : t.total + (t.total === 1 ? ' finding' : ' findings');
+    return all + ': ' + split(t, english);
+  }
 
   // A risk's status as a label beside it; nothing for an open one.
-  function statusMark(h, st0) { return st0 && st0 !== 'open' ? h('span', { class: 'dx-rs dx-rs-' + st0, text: RS[st0] }) : null; }
+  function statusMark(h, st0) { return st0 && st0 !== 'open' ? h('span', { class: 'dx-rs dx-rs-' + st0, text: label(st0) }) : null; }
 
   // Who wrote a risk: an agent (the reader's ✦ AI mark), a person, in a comment, or MxScout from the model.
   function originMark(kit, r) {
     // MxScout's security check (secrisks.js, check-security.js) gives its risks ids beginning "mx-": its own, like the constants'.
-    if (r.origin === 'model' || /^mx-/.test(r.id || '')) return kit.h('span', { class: 'dx-rk-by dx-rk-model', title: 'Worked out by MxScout from the model, the same on every load — not written by an AI agent', text: 'found by MxScout' });
-    return r.origin === 'person' ? kit.h('span', { class: 'dx-rk-by', title: 'Raised by a person, in a comment' + (r.raisedAt ? ' on ' + kit.fmtDate(r.raisedAt) : ''), text: 'raised by ' + (r.by || 'a person') }) : kit.aiMark();
+    if (r.origin === 'model' || /^mx-/.test(r.id || '')) return kit.h('span', { class: 'dx-rk-by dx-rk-model', title: _('Worked out by MxScout from the model, the same on every load — not written by an AI agent'), text: _('found by MxScout') });
+    return r.origin === 'person' ? kit.h('span', { class: 'dx-rk-by', title: r.raisedAt ? _('Raised by a person, in a comment on {0}', [kit.fmtDate(r.raisedAt)]) : _('Raised by a person, in a comment'),
+      text: r.by ? _('raised by {0}', [r.by]) : _('raised by a person') }) : kit.aiMark();
   }
 
   // What was decided about a risk: the reason or note, who and when, and its history, newest first.
@@ -42,11 +77,11 @@
     var h = kit.h, r = x.r, hist = (r.history || []).slice().reverse();
     if (!r.note && !hist.length) return null;
     return h('section', { class: 'dx-rk-sec dx-rk-tri' }, [
-      h('h3', { class: 'dx-cap', text: x.s === 'false-positive' ? 'Why it is not a risk' : x.s === 'accepted' ? 'Why the risk is accepted' : x.s === 'fixed' || x.s === 'verified' ? 'The fix' : 'Status' }),
+      h('h3', { class: 'dx-cap', text: x.s === 'false-positive' ? _('Why it is not a risk') : x.s === 'accepted' ? _('Why the risk is accepted') : x.s === 'fixed' || x.s === 'verified' ? _('The fix') : _('Status') }),
       r.note ? h('p', { class: 'dx-rk-p', text: r.note }) : null,
-      r.decidedAt ? h('p', { class: 'dx-rk-tri-who', text: RS[x.s] + (r.decidedBy ? ' · ' + r.decidedBy : '') + ' · ' + kit.fmtDate(r.decidedAt) }) : null,
-      hist.length ? h('details', { class: 'dx-rk-hist' }, [h('summary', { text: 'History · ' + hist.length }), h('ol', null, hist.map(function (e) {
-        return h('li', null, [h('span', { class: 'mono', text: kit.fmtDate(e.at) }), h('span', { text: (RS[e.from] || e.from) + ' → ' + (RS[e.to] || e.to) + (e.by ? ' · ' + e.by : e.auto ? ' · on an update' : '') + (e.note ? ' — ' + e.note : '') })]);
+      r.decidedAt ? h('p', { class: 'dx-rk-tri-who', text: label(x.s) + (r.decidedBy ? ' · ' + r.decidedBy : '') + ' · ' + kit.fmtDate(r.decidedAt) }) : null,
+      hist.length ? h('details', { class: 'dx-rk-hist' }, [h('summary', { text: _('History · {0}', [hist.length]) }), h('ol', null, hist.map(function (e) {
+        return h('li', null, [h('span', { class: 'mono', text: kit.fmtDate(e.at) }), h('span', { text: label(e.from) + ' → ' + label(e.to) + (e.by ? ' · ' + e.by : e.auto ? ' · ' + _('on an update') : '') + (e.note ? ' — ' + e.note : '') })]);
       }))]) : null
     ]);
   }
@@ -59,13 +94,13 @@
     var h = kit.h, rf = kit.rf, stCount = {};
     if (!kit.shown) return null;
     kit.everything.forEach(function (x) { if (kit.inOrigin(x)) { var g = RS_GROUP[x.s]; stCount[g] = (stCount[g] || 0) + 1; stCount.all = (stCount.all || 0) + 1; } });
-    return h('div', { class: 'dx-rk-status', role: 'group', 'aria-label': 'Status' }, RS_FILTERS.filter(function (f) {
+    return h('div', { class: 'dx-rk-status', role: 'group', 'aria-label': _('Status') }, RS_FILTERS.filter(function (f) {
       return f[0] === 'open' || f[0] === 'all' || stCount[f[0]] || (rf.st || 'open') === f[0];
     }).map(function (f) {
       var on = (rf.st || 'open') === f[0];
       return h('button', { type: 'button', class: 'dx-rk-st' + (on ? ' on' : ''), 'aria-pressed': on ? 'true' : 'false', onclick: function () { kit.setF({ st: f[0] === 'open' ? null : f[0] }); } },
-        [f[1], h('span', { class: 'dx-fc-n', text: String(stCount[f[0]] || 0) })]);
-    }).concat(kit.people && kit.agents ? [h('span', { class: 'dx-rk-st-gap' })].concat([[null, 'Everyone'], ['ai', '✦ AI'], ['person', 'People']].map(function (o) {
+        [filterLabel(f), h('span', { class: 'dx-fc-n', text: String(stCount[f[0]] || 0) })]);
+    }).concat(kit.people && kit.agents ? [h('span', { class: 'dx-rk-st-gap' })].concat([[null, _('Everyone')], ['ai', '✦ AI'], ['person', _('People')]].map(function (o) {
       var on = rf.or === o[0];
       return h('button', { type: 'button', class: 'dx-rk-st or' + (on ? ' on' : ''), 'aria-pressed': on ? 'true' : 'false', text: o[1], onclick: function () { kit.setF({ or: o[0] }); } });
     })) : []));
@@ -86,5 +121,5 @@
     w();
   }
 
-  window.MxDocsTriage = { RS: RS, RS_GROUP: RS_GROUP, RS_FILTERS: RS_FILTERS, statusMark: statusMark, originMark: originMark, block: block, statusBar: statusBar, markdown: markdown };
+  window.MxDocsTriage = { RS: RS, RS_GROUP: RS_GROUP, RS_FILTERS: RS_FILTERS, label: label, filterLabel: filterLabel, statusMark: statusMark, originMark: originMark, block: block, statusBar: statusBar, markdown: markdown, tally: tally, tallyLabel: tallyLabel, split: split, fromModel: fromModel };
 })();

@@ -1,8 +1,8 @@
-# Fixing a finding: the recipe, three ways, and the check after
+# Fixing a finding: the recipe, two ways, and the check after
 
 A security risk from `check-security.js` is not the end. Each one carries a
 **recipe**: the change that removes it, in Mendix's words. This file says how
-to read the recipe, which of three ways may make the change, what guards each
+to read the recipe, which of two ways may make the change, what guards each
 way, and how to prove afterwards that the risk is gone. SKILL.md's "Fixing a
 finding" is the short form; this is the whole of it.
 
@@ -54,7 +54,7 @@ expression on the flow's own parameter), `setting` and `value`. `do` is one of
 `set`, `remove`, `take-off`, `add-xpath`, `add-decision`, `give`, `update`,
 `decide` (a person's choice, not a change).
 
-## 2. The three ways, in this order
+## 2. The two ways, in this order
 
 `--fix` ends with "Ways to make it": which are open for this risk, and why one
 is closed. Offer the open ones in this order and let the person choose.
@@ -107,25 +107,6 @@ Marketplace module, or when the recipe says "Only by a person".
 4. **The person saves** in Studio Pro — the check after reads the model from
    disk.
 5. The check after (section 3).
-
-### (b) MxCraft's engine — when it has an op for the recipe
-
-MxCraft (Karol's tool, `~/Projects/MxCraft`, or `$MXCRAFT_DIR`) writes the
-`.mpr`'s documents directly. `--fix` says (b) is open only when all hold:
-
-- the model is a Mendix project's `.mpr` with `mprcontents/` beside it (not a
-  project folder's `model.json`, not the old single-file layout);
-- there is no `<app>.mpr.lock` — Studio Pro has the project closed;
-- MxCraft's engine has an op that applies a recipe (`engine/ops/fix.js`).
-  **Today it has none**: it moves, renames and creates documents (MXC-16,
-  MXC-24), it does not change an existing access rule, a retrieve or a flow —
-  so (b) is closed, and says so;
-- not "Read only", not a Marketplace module, not "Only by a person".
-
-When it is open, MxCraft's own safety holds, as in its `mxcraft-run.js`
-(MXC-16): a copy under `~/Mendix/_backups` and a git tag before the write,
-`mx check` on the `.mpr` after it, and **a stop on the first error with the
-copy put back**. Then the check after.
 
 ## 3. The check after — and MxScout marking it fixed
 

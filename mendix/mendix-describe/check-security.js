@@ -31,14 +31,13 @@
  *   --fix <id>          the recipe for one risk, in Mendix's words — the module, the entity, the access rule (by its
  *                       module role), the user role, what to take off or add, the decision to put in a flow — and
  *                       which ways may make it: (c) a person, always; (a) Studio Pro's MCP server, when its tools are
- *                       in the agent's session; (b) MxCraft's engine, when it has an op for it and Studio Pro is
- *                       closed. Never for a Marketplace module, never with --read-only. --json gives it as JSON.
+ *                       in the agent's session. Never for a Marketplace module, never with --read-only. --json gives it as JSON.
  *   --fixed <id>[,<id>] --note "what was changed"
  *                       after the change: reads the model again. Each id still found → said, exit code 1. Each id
  *                       gone (and known to MxScout: in triage.json or the descriptions) → the part with a verify
  *                       entry { "id", "still": false, "why", "fixed": "<note>" }; sent (agent.js send), MxScout
  *                       marks the risk verified, with the note.
- *   --read-only         Tandem's "Read only" is on: the recipe only, ways (a) and (b) closed.
+ *   --read-only         Tandem's "Read only" is on: the recipe only, way (a) closed.
  *
  * Without a path it looks where it runs, and above: a project folder (project.json), mxscout/ in a Mendix
  * project, or a Mendix project's .mpr. Exit code 0 whatever it finds; 1 when the model cannot be read.
@@ -162,22 +161,12 @@ function markdown(res, part, at, decided) {
 }
 let E_idOf = () => null;
 
-// Which ways may make a recipe's change (reference/fixing.md). (c) is always open; (a) and (b) change the model, so
+// Which ways may make a recipe's change (reference/fixing.md). (c) is always open; (a) changes the model, so
 // never for a Marketplace module, never what only a person may do, never with Tandem's "Read only".
-function waysFor(rx, at, readOnly) {
+function waysFor(rx, readOnly) {
   const shut = readOnly ? 'Read only is on (Tandem): the recipe only.' : rx.marketplace ? 'The change is in a Marketplace module, which is never changed here.' : rx.manual ? rx.manual : null;
   const ways = { c: { open: true, how: 'A person makes it in Studio Pro, step by step, from the recipe.' } };
   ways.a = shut ? { open: false, why: shut } : { open: true, needs: 'Studio Pro 11.10 or later with its MCP server on (Preferences › AI › MCP Server › Enable MCP Server) and its tools in this agent’s session; a backup copy and a git tag first; the person’s yes before each change.' };
-  if (shut) ways.b = { open: false, why: shut };
-  else if (!at.mpr) ways.b = { open: false, why: 'This is a project folder’s model.json, not the Mendix project: MxCraft writes the .mpr.' };
-  else if (fs.existsSync(at.mpr + '.lock')) ways.b = { open: false, why: path.basename(at.mpr) + '.lock is there: Studio Pro has the project open. Close it first.' };
-  else if (!fs.existsSync(path.join(path.dirname(at.mpr), 'mprcontents'))) ways.b = { open: false, why: 'The .mpr keeps its documents inside (Mendix 9 and older layout); MxCraft writes only mprcontents/.' };
-  else {
-    const dir = process.env.MXCRAFT_DIR || path.join(process.env.HOME || '', 'Projects', 'MxCraft');
-    const op = path.join(dir, 'engine', 'ops', 'fix.js');
-    ways.b = fs.existsSync(op) ? { open: true, engine: dir, needs: 'A backup copy under ~/Mendix/_backups and a git tag first; mx check after the write, and a stop with the copy put back on any error.' }
-      : { open: false, why: 'MxCraft’s engine has no op that applies a recipe (looked for ' + op + '): it moves, renames and creates documents, it does not change an access rule or a flow.' };
-  }
   return ways;
 }
 
@@ -192,7 +181,6 @@ function recipeMarkdown(E, r, ways) {
   L.push('');
   L.push('- (c) by hand — open. ' + ways.c.how);
   L.push('- (a) Studio Pro MCP — ' + (ways.a.open ? 'open when ' + ways.a.needs : 'closed: ' + ways.a.why));
-  L.push('- (b) MxCraft — ' + (ways.b.open ? 'open (' + ways.b.engine + '). ' + ways.b.needs : 'closed: ' + ways.b.why));
   L.push('');
   L.push('After the change: node check-security.js --fixed ' + r.id + ' --note "what was changed" — then send what it prints (agent.js send).');
   L.push('');
@@ -243,7 +231,7 @@ function recipeMarkdown(E, r, ways) {
   if (fixId !== null) {
     const r = res.risks.find((x) => x.id === fixId);
     if (!r) fail('No risk ' + fixId + ' in this model' + (decided || kept ? ' — if it was there before, it is gone: node check-security.js --fixed ' + fixId + ' --note "what was changed".' : '.'));
-    const ways = waysFor(r.recipe, at, readOnly);
+    const ways = waysFor(r.recipe, readOnly);
     text = asJson ? JSON.stringify({ id: r.id, level: r.level, title: r.title, detail: r.detail, fix: r.fix, where: r.where, recipe: r.recipe, ways }, null, 2) + '\n' : recipeMarkdown(E, r, ways);
   } else text = asJson || fixed ? JSON.stringify(part, null, 2) + '\n' : markdown(res, part, at, decided);
   if (!out) { process.stdout.write(text); return; }
