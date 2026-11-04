@@ -45,3 +45,5 @@ mxcraft-model	retired	Skills/retired/budowa/mxcraft-model	the source before the 
 mxcraft-workflow	retired	Skills/retired/budowa/mxcraft-workflow	the source before the shared repo, retired 2026-10-26 (CRAFT-16)
 mxcraft-theme-scss	retired	Skills/retired/budowa/mxcraft-theme-scss	the source before the shared repo, retired 2026-10-26 (CRAFT-16)
 raben-app	active	Skills/raben/raben-app	Raben app conventions (MDM_Generic + MDM, MxAdmin, Queues, RabenDesign); never in mxcraft-skills
+mendix-plan	active	Skills/mendix/mendix-plan	plan an app before it is built: processes for the business, model, prototype, sprints
+mendix-plan	copy	MxScout/skills/mendix-plan	MxScout ships it (/api/skills, skills/install.sh)
