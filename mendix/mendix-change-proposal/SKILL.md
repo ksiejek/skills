@@ -178,3 +178,7 @@ hand to that format.
 The file never leaves the browser on its own — it is a download, and MxScout
 opens no connection to produce it. Everything in it is already in the person's
 project; it carries no credentials and no runtime data.
+
+## Page mockups
+
+A proposed page is shown as an HTML mockup in the Raben design. Write it with the kit in `reference/raben-design-kit.md` (class names, snippets, version, how to update it); without a mockup MxScout sketches one from the page's widget tree.
