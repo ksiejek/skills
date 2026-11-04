@@ -70,10 +70,18 @@ daje własny moduł aplikacji), `Administration.AppUser`, własne dokumenty w `A
    `$use-css-variables: true;` i `raben-grid.js` w `theme/web/index.html` (kroki w README).
 3. Starsze aplikacje mają własny moduł `Theme`; nowa aplikacja bierze RabenDesign. Zmiany CSS motywu: skill
    `mxcraft-theme-scss`.
-4. Makiety stron w MxScout Team: zestaw Raben to `reference/design-kit.json` (z modułu RabenDesign, c8db48a,
-   2026-10-28). Admin importuje go w Team settings → Design kit albo na serwerze
-   `npm run design-kit -- import design-kit.json`; bez niego MxScout rysuje neutralnie. Zestaw nie trafia do repo
-   MxScout. Gdy RabenDesign się zmieni: popraw tokeny i klasy w tym pliku, podnieś `version`, zaimportuj ponownie.
+4. Makiety stron w MxScout Team: zestaw Raben to `reference/design-kit.json`, wersja 2.0.0 (2026-11-04): pełny CSS
+   Raben Design System z artefaktu (bez fontów), ikony jako klasy `rb-i-<nazwa>` z modułu RabenDesign i układ strony
+   z prototypu License 2.0; reguły v1 zostały na początku dla starszych makiet. Makietę piszesz markupem RDS (Data
+   grid 2, `pageheader`, `card`, `rb-kv`, `rb-tag-*`, `alert-*`, `modal-dialog`), ikony `<i class="rb-icon rb-i-x">`
+   (SVG MxScout wycina), strona to `<div class="lp-page">`, popup to `<div class="lp-modal-mock">`. Wzór i generator:
+   `~/Mendix/RabenLicense-main/prototype/` (`build.py` prototyp HTML, `mxscout_export.py` makiety planu i ten zestaw).
+   Import na serwerze: `docker cp` pliku do `mxscout-team-mxscout-1`, potem w kontenerze ustaw `MXSCOUT_DATABASE_URL`
+   z `/proc/1/environ` i `node server/cli.js design-kit import <plik>` (albo Team settings → Design kit); bez tej
+   zmiennej CLI zapisuje do pliku `/data/design-kit.json`, którego serwer nie czyta. CSS zestawu ma `max-age` 4 h,
+   więc po imporcie Ctrl+F5. Bez zestawu MxScout rysuje neutralnie. Barlow się nie ładuje (font w shadow
+   root nie działa, a 200 KB limitu nie mieści fontów), makiety idą fontem systemowym. Zestaw nie trafia do repo
+   MxScout. Gdy RabenDesign się zmieni: uruchom `mxscout_export.py --write`, podnieś `version`, zaimportuj ponownie.
 
 ## 6. Znane pułapki
 
