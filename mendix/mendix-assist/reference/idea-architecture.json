@@ -43,7 +43,7 @@
             { "id": "runapp", "name": "The running app", "note": "localhost:8080, admin port 8090 (Developer tools)", "kind": "system", "group": "The person's machine" },
             { "id": "teamgit", "name": "The app's git server", "note": "the company's: carries mxscout/ to the team", "kind": "store", "group": "Servers" },
             { "id": "github", "name": "GitHub ksiejek", "note": "public: mxscout, skills; the rest private", "kind": "store", "group": "Servers" },
-            { "id": "craft", "name": "MxCraft and Tandem", "note": "build and run sprints; Karol's machine only", "kind": "system", "group": "Karol's machine" },
+            { "id": "craft", "name": "Tandem", "note": "build and run sprints; Karol's machine only", "kind": "system", "group": "Karol's machine" },
             { "id": "bridge", "name": "advisor-bridge", "note": "this repository: state, architecture, plans", "kind": "store", "group": "Karol's machine" }
           ],
           "links": [

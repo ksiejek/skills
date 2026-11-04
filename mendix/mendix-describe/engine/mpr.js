@@ -39,11 +39,7 @@
  * little-endian, last two left as-is). Both are handled by the ONE walk
  * below; only how `readContents` fetches a unit's bytes differs.
  *
- * WHAT IS KNOWN about the format — the lessons in the comments below, and
- * what MxCraft (the private sibling that WRITES .mpr files) learned the other
- * way round — is kept in one place: MxCraft's docs/MPR-NOTES.md. A new lesson
- * learned here gets an entry there, with one sentence on whether MxCraft
- * needs it; a lesson from the writing side arrives here the same way. This
+ * WHAT IS KNOWN about the format is in the lessons in the comments below. This
  * file stays read-only, as bson.js says in its own header.
  *
  * Runs in a Worker (see mprWorker.js) — no DOM, no globals beyond what

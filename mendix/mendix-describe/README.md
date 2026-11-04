@@ -108,12 +108,11 @@ model.
 `node check-security.js <MendixProject> --fix <id>` — the change that removes
 it in Mendix's words: the module, the entity, the access rule by its module
 role, the user role, what to take off or add, the decision to put in a flow
-with its condition, and where each is in Studio Pro. The agent offers three
+with its condition, and where each is in Studio Pro. The agent offers two
 ways to make it, in this order: (c) the person by hand, always; (a) Studio
 Pro's own MCP server (Studio Pro 11.10+, on the developer's machine), only when
 its tools are in the agent's session — a backup and a git tag first, then one
-change at a time, each after the person's yes; (b) MxCraft's engine, only when
-it has an op for the recipe and Studio Pro is closed — today it has none. A
+change at a time, each after the person's yes. A
 Marketplace module is never changed, and Tandem's "Read only" leaves the recipe
 only. Afterwards `--fixed <id> --note "what was changed"` reads the model
 again: still there, it says so; gone, the part it writes makes MxScout mark the
@@ -128,8 +127,8 @@ so it is not (entity, access rule, XPath, module role, microflow), how to fix a
 model that has it, Mendix's code where Mendix has one (MXS003–MXS010), and the
 source. Two more parts, marked "no check", hold what an agent judges by
 `reference/risk-levels.md` and Mendix's naming conventions (ACT_, SUB_,
-_Overview…). MxCraft reads the same catalogue: refining a story that changes
-the model, it names the standards the story touches by id. A new check in
+_Overview…). A team can name the standards a story touches by id when it
+refines a story that changes the model. A new check in
 MxScout without an entry fails MxScout's tests (`test/29-standards.test.js`).
 
 **Every module, Marketplace ones too.** The documentation describes all of the
