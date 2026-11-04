@@ -194,8 +194,11 @@ and a few more fields for pages:
     microflow, association), `action` (on click) and `children`. At most 600
     nodes, 14 levels.
   - `mockup` — the **mockup**: plain HTML of the page's body as a user will see
-    it, in the **Raben Design System** styles. Use the class names a Mendix page
-    with Atlas and Raben has: `rb-header` (the top bar), `card` with
+    it, in the styles of the **design kit** MxScout draws with: on a Team
+    server, the company's kit its admin imported (`read_skill` assist, part
+    `design-kit`, names its class names and snippets); elsewhere MxScout's
+    neutral kit, whose class names are a Mendix page's with Atlas:
+    `mk-header` (the top bar, with `mk-brand`), `card` with
     `card-title`, `row` / `col-4` / `col-6`, `toolbar`, `btn btn-primary` /
     `btn-default` / `btn-danger` / `btn-link`, `form-group` with `label` and
     `form-control`, `form-horizontal`, `table` (`th`, `td`, `tr.selected`),

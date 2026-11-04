@@ -181,4 +181,4 @@ project; it carries no credentials and no runtime data.
 
 ## Page mockups
 
-A proposed page is shown as an HTML mockup in the Raben design. Write it with the kit in `reference/raben-design-kit.md` (class names, snippets, version, how to update it); without a mockup MxScout sketches one from the page's widget tree.
+A proposed page is shown as an HTML mockup in the design kit MxScout draws with. Write it as `reference/design-kit.md` says (the class names, and where a company's own kit comes from); without a mockup MxScout sketches one from the page's widget tree.

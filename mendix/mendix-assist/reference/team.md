@@ -72,6 +72,8 @@ first: they say what matters; the model wins where they disagree.
    each by its qualified name, by the application's own conventions. A record
    created or edited from a page goes through a non-persistent copy. The
    smallest change that does the whole job; say what you chose not to do.
+   A proposed page's mockup is written with this server's design kit:
+   `read_skill` assist, part `design-kit`, gives its class names and snippets.
 5. Impact, risks (P1–P3), open questions, effort in words.
 
 ## Keeping it: the solution story

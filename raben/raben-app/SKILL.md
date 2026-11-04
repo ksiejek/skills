@@ -70,6 +70,10 @@ daje własny moduł aplikacji), `Administration.AppUser`, własne dokumenty w `A
    `$use-css-variables: true;` i `raben-grid.js` w `theme/web/index.html` (kroki w README).
 3. Starsze aplikacje mają własny moduł `Theme`; nowa aplikacja bierze RabenDesign. Zmiany CSS motywu: skill
    `mxcraft-theme-scss`.
+4. Makiety stron w MxScout Team: zestaw Raben to `reference/design-kit.json` (z modułu RabenDesign, c8db48a,
+   2026-10-28). Admin importuje go w Team settings → Design kit albo na serwerze
+   `npm run design-kit -- import design-kit.json`; bez niego MxScout rysuje neutralnie. Zestaw nie trafia do repo
+   MxScout. Gdy RabenDesign się zmieni: popraw tokeny i klasy w tym pliku, podnieś `version`, zaimportuj ponownie.
 
 ## 6. Znane pułapki
 

@@ -388,8 +388,8 @@ put it in `needs` or `open`. Do not guess it.
    an application planned from its documents — add `proposal.design`
    (`reference/assist-format.md`, "A design"): each microflow with its purpose,
    input, output, entities and steps as a workflow, each page with its purpose,
-   roles, main entity, widget tree and an HTML mockup in the Raben Design
-   System's classes, each entity new or changed. MxScout shows it as Proposed on
+   roles, main entity, widget tree and an HTML mockup in the design kit's
+   classes, each entity new or changed. MxScout shows it as Proposed on
    the Domain model, Microflows and Pages until the model has it.
 5. **What it touches and what could go wrong** — `impact` (existing flows,
    roles that gain or lose something, what happens to the data already there),
