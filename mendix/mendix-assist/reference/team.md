@@ -81,11 +81,20 @@ first: they say what matters; the model wins where they disagree.
 ## Keeping it: the solution story
 
 When the person wants it kept — or the case is solved — `write_story`:
-`summary` (what was asked and found, with the verdict), `solution` (the
-proposal or the fix), `touched` (the documents, each in the model), `external`
-(the Jira or Service Desk key), `shared` when the person wants everyone to see
-it. When the conversation worked out how to build something, add `guide` —
-only what has to be built or changed (the tool's description gives its shape).
+`summary` (one to three sentences: what is wrong and what changes, with the
+verdict — the story opens on them), `guide` (what to change), `reply` (a short
+answer to whoever reported it, a few sentences they can be sent as they are),
+`touched` (the documents, each in the model), `external` (the Jira or Service
+Desk key), `shared` when the person wants everyone to see it.
+
+The guide is the proposal: MxScout draws it in place, a build diagram per
+microflow (the activities already there as landmarks, the new and changed ones
+marked), a card per entity with its attributes and associations to add, change
+or remove, and each page's changes. So put the fix in the guide — only what has
+to be built or changed (the tool's description gives its shape) — and keep
+`solution` short or leave it out: it is shown only under **Details**. Without a
+guide (a case that changes nothing in the model: data, configuration, as
+designed) `solution` says what to do, as before.
 A story that fixes a finding takes `finding: <its id>`. `close_story` when the
 work is done; `export_story` hands it on as Markdown or HTML.
 
