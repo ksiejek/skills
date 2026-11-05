@@ -63,13 +63,23 @@ daje własny moduł aplikacji), `Administration.AppUser`, własne dokumenty w `A
 
 ## 5. Wygląd: Raben Design System
 
-1. Moduł `RabenDesign` (`~/Projects/RabenDesignSystem/dist/RabenDesign.mpk`, opis w jego README): Atlas_Core 4.5,
-   layouty `RabenDesign_Sidebar`, `RabenDesign_TopBar`, `RabenDesign_PopUp`, building blocki i szablony stron
-   „Raben · …”. Strony aplikacji stoją na `RabenDesign_Sidebar` albo `RabenDesign_TopBar`, nie na `Atlas_Default`.
-2. Po imporcie: `@import` zmiennych RabenDesign w `theme/web/custom-variables.scss` przed
-   `$use-css-variables: true;` i `raben-grid.js` w `theme/web/index.html` (kroki w README).
-3. Starsze aplikacje mają własny moduł `Theme`; nowa aplikacja bierze RabenDesign. Zmiany CSS motywu: skill
-   `mxcraft-theme-scss`.
+1. Moduł `RabenDesign` 1.2.0 (`~/Projects/RabenDesignSystem/dist/RabenDesign.mpk`, opis w jego README, aktualizacja z
+   1.1.x w `dist/RabenDesign-1.2.0-UPGRADE.md`): Atlas_Core 4.5, layouty `RabenDesign_Sidebar`,
+   `RabenDesign_SidebarSecondMenu`, `RabenDesign_TopBar`, `RabenDesign_Anonymous` (niezalogowani), okna
+   `RabenDesign_PopUp` i `RabenDesign_PopUpRight` (z wariantami Header/Footer/HeaderFooter), szablon strony `Login`
+   (+ `AnonymousRedirect`), snippety `PageHeader` i `UserMenu`, building blocki i szablony „Raben · …” (bez
+   przedrostków `BB_`/`PT_`), akcje `ACT_ShowToast`, `ACT_CopyToClipboard`, `ACT_Enlarge`, Design properties w kategorii
+   „Raben”. Strony aplikacji stoją na layoutach RabenDesign, nie na `Atlas_Default`.
+2. Każda aplikacja Raben ma moduł `CustomTheme` (UI resources, w *App Settings → Theme* po RabenDesign) tylko z
+   nadpisaniami i stylami własnych ekranów. Zasada: wszystko, co przydałoby się drugiej aplikacji Raben, idzie do
+   RabenDesign jako ticket RDS, nie do `CustomTheme`; bez własnych layoutów logowania i okien, kopii akcji toastu i
+   skryptów ani `!important` dopisywanych, żeby przebić RabenDesign (zmień zmienną Atlasa albo `--rb-*`).
+3. `theme/web` aplikacji to trzy krótkie pliki: `custom-variables.scss` (własne wartości, `@import` zmiennych
+   RabenDesign przed `$use-css-variables: true;`, import Atlasa), `exclusion-variables.scss` (import presetu
+   `../../themesource/rabendesign/web/exclusion-variables`) i `index.html` ze skryptami `raben-grid.js`,
+   `toasts.js`, `grid-min-width.js`, `side-menu.js` (`login.html` z `resources/raben/login.html` przy logowaniu OIDC).
+   Starsze aplikacje mają jeszcze własny moduł `Theme` (Intercom przejdzie na `CustomTheme`); nowa aplikacja bierze
+   RabenDesign i `CustomTheme`. Zmiany CSS motywu: skill `mxcraft-theme-scss`.
 4. Makiety stron w MxScout Team: zestaw Raben to `reference/design-kit.json`, wersja 2.0.0 (2026-11-04): pełny CSS
    Raben Design System z artefaktu (bez fontów), ikony jako klasy `rb-i-<nazwa>` z modułu RabenDesign i układ strony
    z prototypu License 2.0; reguły v1 zostały na początku dla starszych makiet. Makietę piszesz markupem RDS (Data
@@ -82,6 +92,9 @@ daje własny moduł aplikacji), `Administration.AppUser`, własne dokumenty w `A
    więc po imporcie Ctrl+F5. Bez zestawu MxScout rysuje neutralnie. Barlow się nie ładuje (font w shadow
    root nie działa, a 200 KB limitu nie mieści fontów), makiety idą fontem systemowym. Zestaw nie trafia do repo
    MxScout. Gdy RabenDesign się zmieni: uruchom `mxscout_export.py --write`, podnieś `version`, zaimportuj ponownie.
+5. Ikony w tabelach (Data grid 2): kolumna z ikonami na końcu wiersza (ołówek, kosz, oko) pływa razem z przypiętą
+   kolumną MSN: zostaje przy prawej krawędzi, gdy tabela przewija się w bok, i zajmuje tyle miejsca, ile mają same ikony,
+   a nie całą szerokość kolumny (Karol, INT-37, 2026-11-04). W Intercom: `themesource/theme/web/intercom/_grid.scss`.
 
 ## 6. Znane pułapki
 
