@@ -5,7 +5,9 @@ tools (the MCP server `mxscout`). The server hands it out with `read_skill`,
 so it is always the copy the server runs. On a Team server there are no files:
 no `agent.js`, no `assist/`, no `inbox/`, no `mxscout/knowledge/`. You read the
 model with MCP tools and keep what a conversation worked out as a **solution
-story** (`write_story`), which the whole team sees on Solved cases.
+story** (`write_story`), which the team sees on the project's **Assist** page:
+**In progress** while it is open, **Finished** once it is closed. A closed story
+stays on Assist; **Solved cases** never lists a story.
 
 How to read the model, write in the project's language and cite it is the
 describe skill's: `read_skill` with `name: "describe"` when you have not read
@@ -86,6 +88,15 @@ it. When the conversation worked out how to build something, add `guide` —
 only what has to be built or changed (the tool's description gives its shape).
 A story that fixes a finding takes `finding: <its id>`. `close_story` when the
 work is done; `export_story` hands it on as Markdown or HTML.
+
+Where it shows: the project's **Assist** page lists every story the person may
+see as an item — a Service Desk key as a ticket, any other `PROJECT-123` key as
+a Jira issue, no key as an idea — **In progress** while open and **Finished**
+once `close_story` closed it. A story whose `external` key an Assist item already
+has is drawn on that item, once, with its build guide. So one case is one
+story: when you work on it again, write it with its `number` (`list_stories`
+with `external` finds it), never a second story with the same key. There is no
+other place to write it: no tool writes Assist items, and none is needed.
 
 A note the person asks you to write down ("note that this flow…") is
 `add_note` on the module or document, not a story.
