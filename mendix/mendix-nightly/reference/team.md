@@ -110,6 +110,9 @@ module.
       `tokensIn` (every token read, cache reads included) and `tokensOut` of the
       work on this project. If you have no counts, call it without tokens - the
       task then shows as no data, never as zero.
+      Nobody reads this run as it happens, so there is no cost line to say (that
+      rule is for a conversation); the cost reaches the server through
+      `report_usage` and the run's `job_report`.
 6. **Stop rules.** Stop starting new work, finish the call you are in, and go
    to the report when any of these is true:
    - **2 hours** have passed since you started, or less than 10 minutes are

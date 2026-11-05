@@ -91,4 +91,7 @@ A note the person asks you to write down ("note that this flow…") is
 `add_note` on the module or document, not a story.
 
 Before a large piece of work, `estimate_task` and tell the person; `start_task`
-before it and `report_usage` after it.
+before it and `report_usage` after it. When it is done, say what it cost in one
+line: `report_usage` answers `tell` and `status`, and the rules for saying it
+(a missing price or missing counts is never written as 0) are in
+`mendix-describe`, `reference/team.md`, "After a task: tell what it cost".
