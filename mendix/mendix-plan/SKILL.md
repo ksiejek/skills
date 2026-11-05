@@ -33,6 +33,9 @@ It is one artefact, not four documents, so it cannot drift apart.
   tools alone — read `reference/team.md`, and no files are involved. With a
   local MxScout you write story files and let the sync send them; the project
   README or `mendix-describe` says which.
+- **Say what it cost.** A plan written through MCP ends with one line on the
+  tokens and cost of the work, as `report_usage` answers it
+  (`mendix-describe`, `reference/team.md`, "After a task: tell what it cost").
 - **In a Raben application, load `raben-app` first.** The starting modules,
   `MDM_Generic` + `MDM`, `MDM.Account`, OIDC, the Raben Design System and the
   Queues module are Sprint Zero, not a decision to make.

@@ -49,7 +49,38 @@ write is kept on the server under the name of the person whose token you use.
    overwrite what is right.
 4. Before a large task (the whole application, a translation), `estimate_task`
    and tell the person what it will cost; `start_task` before the work, and
-   `report_usage` with your model and real token counts after it.
+   `report_usage` with your model and real token counts after it. Then tell
+   the person what it cost (next section).
+
+## After a task: tell what it cost
+
+Every task you run through MCP (documentation, translation, comparison, a
+guide, a story, a brief, a plan) ends with **one line to the person saying
+what it used and what it cost**. It is the last thing you say about the task,
+not an option and not only for the large ones.
+
+1. `report_usage` answers with `status` and `tell`. Say `tell` in the
+   person's language, with its numbers exactly as given.
+2. What `status` means:
+   - `priced`: the tokens in and out, the model and the cost by the price
+     list, and the project's budget for the month when it has a limit.
+   - `local`: a model on the team's own machine; say the tokens and that the
+     cost is 0.
+   - `no-price`: the tokens, and that the model has no price in the price list
+     so there is no cost to give; an admin adds it in Team settings → AI price
+     list. Do not work out a cost from prices you know, and never write 0.
+   - `no-model`: the tokens, and that no model was named, so there is no
+     price. Name your model's id in `start_task` and `report_usage`.
+   - `no-data`: the cost is unknown because no token counts were reported.
+     Never write 0. Take the counts from your own session when you can see
+     them; call `report_usage` without tokens only when you cannot.
+3. A budget warning (80%) or a used-up budget in `tell` or in what
+   `start_task` answered goes in the same line. A refused `start_task` is said
+   before any work: no task, no cost line.
+4. Several tasks in one conversation: one line each. Add them up only when
+   every one of them is `priced`.
+5. When `report_usage` itself fails, say that the cost could not be recorded
+   and why. Do not leave the line out.
 
 ## Answering a question about the app
 
