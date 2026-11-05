@@ -31,9 +31,37 @@ it in this conversation.
 
 ## Before you work an item: search
 
-`list_stories` with a word of the case, or `external` with the ticket's key
-(`new_tickets` with several keys, when the server offers it). A known case:
-`read_story` and check it against the model now; do not work it out again.
+**A question first goes to the answer memory.** Before you spend tokens on a
+question about how the application works ("how does parking work in Service
+Desk?", "who may delete an account?"), `memory_search` with the person's
+question in their words. The memory is the project's, shared by everyone on
+it: what agents worked out before, with the documents each answer rests on.
+
+- `answer` — an entry at or above the threshold: tell the person that answer
+  as it is, say it comes **z pamięci, 0 nowych tokenów** (from memory, 0 new
+  tokens) and name the documents it rests on. Do not work it out again. If the
+  person says it is wrong, `memory_mark` it `wrong` with their reason.
+- `verify` — an entry that would answer, but a document it rests on changed
+  since (`staleSources`): `read_document` those documents now, then
+  `memory_mark` `verified` (it still holds) with the `usage` number,
+  `memory_save` with its `id` and the corrected answer, or `memory_mark`
+  `retire` (no longer true).
+- nothing — work it out (`search`, `read_document`, `dependencies`). Then
+  report your real token counts with `memory_tokens` (the `usage` number the
+  search gave), and **offer the person to keep the answer**: "Zapisać tę
+  odpowiedź w pamięci projektu?" On yes, `memory_save` with the question, the
+  answer as you told it, the documents it rests on (`kind Module.Name`), the
+  `usage` number and your token counts — instead of `memory_tokens`.
+
+The server takes names, e-mails, phone numbers and ticket keys out of the
+question before it compares or keeps it, and keeps only numbers about the
+question for the admin's usage dashboard — never its text. Still keep personal
+data out of the answer you save.
+
+A ticket or a Jira issue: `list_stories` with a word of the case, or
+`external` with the ticket's key (`new_tickets` with several keys, when the
+server offers it). A known case: `read_story` and check it against the model
+now; do not work it out again.
 
 ## Tracing
 

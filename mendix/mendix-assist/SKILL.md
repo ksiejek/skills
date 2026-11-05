@@ -534,6 +534,12 @@ Where `knowledge/` is:
 
 ### Before you work a new item: search
 
+On an MxScout Team server a question about how the application works goes to
+the project's **answer memory** first (`memory_search`), and a solved one is
+offered for keeping (`memory_save`): search memory first, offer to save after
+solving — `reference/team.md`, "Before you work an item: search". Locally the
+solved cases below are that memory.
+
 Do this before tracing anything, for every kind:
 
 1. List and search: `node check-assist.js cases <MendixProject> --find
