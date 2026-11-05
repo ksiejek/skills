@@ -25,6 +25,17 @@ calling `write_story` again with the same `number` — never a second story.
 1. `list_projects`, then `read_index` for the project. A project planned
    before it exists has almost no model — that is normal; the guide's modules
    may be ones nobody has built yet.
+   - **No project for the new application yet?** Offer to open one with
+     `create_project` (`name`, and `id` if the person wants a particular one).
+     Before you call it, **ask the person: private (only they, the people they
+     add and admins see it) or for everyone (everyone who sees all
+     projects)?** Never pick one for them. They become its owner; it shows as
+     *planned — no model yet*, and `read_index` says so until they push the
+     model with `npm run push` (only the owner or an admin may).
+   - **Colleagues.** Someone who sees only selected projects does not see the
+     new one, even for everyone, until the owner adds them: `share_project`
+     with `add: [logins]` (`remove`, and `visibility` to switch private / for
+     everyone, the same way). Ask before removing anyone or changing who sees it.
 2. `list_stories` for the project. If a plan story is already there,
    `read_story` it and change that one.
 3. `read_descriptions` for what is already written, and the project's
