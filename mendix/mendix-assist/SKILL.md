@@ -536,9 +536,11 @@ Where `knowledge/` is:
 
 On an MxScout Team server a question about how the application works goes to
 the project's **answer memory** first (`memory_search`), and a solved one is
-offered for keeping (`memory_save`): search memory first, offer to save after
-solving — `reference/team.md`, "Before you work an item: search". Locally the
-solved cases below are that memory.
+kept only when the person says so — ask "Zapisać do Wiedzy?" and whether only
+they or the whole team should see it (`memory_save` with a title and content in
+your words, never the person's question or wording) — `reference/team.md`,
+"Before you work an item: search". Locally the solved cases below are that
+memory.
 
 Do this before tracing anything, for every kind:
 

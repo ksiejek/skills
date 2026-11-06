@@ -33,30 +33,44 @@ it in this conversation.
 
 **A question first goes to the answer memory.** Before you spend tokens on a
 question about how the application works ("how does parking work in Service
-Desk?", "who may delete an account?"), `memory_search` with the person's
-question in their words. The memory is the project's, shared by everyone on
-it: what agents worked out before, with the documents each answer rests on.
+Desk?", "who may delete an account?"), `memory_search` with a `query`: a few
+words of your own saying what is looked for. The query is compared and
+dropped — nothing of it is kept. The memory holds what agents worked out
+before and people chose to keep: the team's entries and the person's own
+private ones, each a title and its content with the documents it rests on.
 
 - `answer` — an entry at or above the threshold: tell the person that answer
   as it is, say it comes **z pamięci, 0 nowych tokenów** (from memory, 0 new
   tokens) and name the documents it rests on. Do not work it out again. If the
-  person says it is wrong, `memory_mark` it `wrong` with their reason.
+  person says it is wrong, `memory_mark` it `wrong` with their reason: it is
+  never used again until saved anew.
 - `verify` — an entry that would answer, but a document it rests on changed
   since (`staleSources`): `read_document` those documents now, then
   `memory_mark` `verified` (it still holds) with the `usage` number,
-  `memory_save` with its `id` and the corrected answer, or `memory_mark`
-  `retire` (no longer true).
+  `memory_save` with its `id` and the corrected content, or `memory_mark`
+  `retire` (no longer true). Never tell a stale entry as it is.
 - nothing — work it out (`search`, `read_document`, `dependencies`). Then
   report your real token counts with `memory_tokens` (the `usage` number the
-  search gave), and **offer the person to keep the answer**: "Zapisać tę
-  odpowiedź w pamięci projektu?" On yes, `memory_save` with the question, the
-  answer as you told it, the documents it rests on (`kind Module.Name`), the
-  `usage` number and your token counts — instead of `memory_tokens`.
+  search gave).
 
-The server takes names, e-mails, phone numbers and ticket keys out of the
-question before it compares or keeps it, and keeps only numbers about the
-question for the admin's usage dashboard — never its text. Still keep personal
-data out of the answer you save.
+**Saving is the person's choice, never automatic.** Once the question is
+solved, ask **"Zapisać do Wiedzy?"** and who should see it: **tylko ja**
+(`visibility: "private"`) or **cały zespół** (`"team"`). Propose "tylko ja"; there
+is no default on the server, so pass what they chose. On yes, `memory_save`
+with:
+
+- `title` — a short title in your own words ("Jak działa parkowanie zgłoszeń"),
+- `content` — the answer and its cause as you worked them out,
+- `touches` — the documents it rests on (`kind Module.Name`, at least one),
+- `visibility`, the `usage` number and your token counts (instead of
+  `memory_tokens`).
+
+**Never keep the person's wording**: not their question, not a quote of their
+message, no name, e-mail or ticket key — the title and the content are yours.
+The server filters personal data out of what is kept anyway, and keeps only
+numbers about each question for the admin's usage dashboard — never its text.
+The memory is reached only through these tools: the app shows no page of it
+(the Wiedza area will).
 
 A ticket or a Jira issue: `list_stories` with a word of the case, or
 `external` with the ticket's key (`new_tickets` with several keys, when the
