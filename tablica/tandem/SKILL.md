@@ -6,7 +6,7 @@ argument-hint: [next | status | <KLUCZ>]
 
 # Tandem: historyjka od wzięcia do Done, z tokenami
 
-Wersja 0.15 · 2026-11-06 (TAN-193: bez kolumny Planowanie i „Buduj bez planowania”; ticket planistyczny idzie To do → Running → Done z planem w MxScout, bez budowy i testów; ticket budowy buduje z planu albo bez niego. 0.14 · 2026-11-01: scalone dwie linie tego skilla: TAN-121: „Jak pisać do Karola”: podsumowanie dla Karola i summaryTech, krok jako czasownik, wpis historii ludzki i techniczny, „do sprawdzenia” jako akcja, zatrzymanie: co się stało, prod, co zrobić; ML-38: nauka Qwen, praca równoległa w nowych projektach. TAN-85: mniej wywołań w budowie: raport razem z innym narzędziem, polecenia w jednym Bash, duże odczyty przez subagenta, zwijanie przy ok. 150 tys. 0.11.5: TAN-55: gałąź w innym repo zgłaszasz w `result.repos`; bez scalenia w main tego repo ticket czeka w Automated Testing. 0.11.4: TAN-28: historyjka w wydaniu na prod jest zablokowana (przeniesienie i edycja), odmowę czytasz w odpowiedzi narzędzia. 0.11.3: TAN-19: bez ekranu Skille, Pauza zamiast „Tylko odczyt”, „Równolegle agenci” w ustawieniach aplikacji. 0.11.2: TAN-13: konektor zmienia ustawienia projektu po zgodzie Karola. 0.11.1: TAN-12: reguła kolumny w story_next. 0.11: GEN-42: kontekst projektu czytany przed pracą. 0.10: GEN-26: bez testu człowieka; skrypty z folderu Tandem: `$TANDEM_DIR`, GEN-19. 0.9: praca równoległa w osobnym worktree, TRIO-68)
+Wersja 0.16 · 2026-11-06 (TAN-195: szybka pętla sprintu Mendix: po historyjce tylko mx check i commit „KLUCZ: …”, pełne testy raz na koniec sprintu, winna historyjka po błędzie i commitach albo bisect, poprawka commitem „KLUCZ: fixup …”. 0.15: TAN-193: bez kolumny Planowanie i „Buduj bez planowania”; ticket planistyczny idzie To do → Running → Done z planem w MxScout, bez budowy i testów; ticket budowy buduje z planu albo bez niego. 0.14 · 2026-11-01: scalone dwie linie tego skilla: TAN-121: „Jak pisać do Karola”: podsumowanie dla Karola i summaryTech, krok jako czasownik, wpis historii ludzki i techniczny, „do sprawdzenia” jako akcja, zatrzymanie: co się stało, prod, co zrobić; ML-38: nauka Qwen, praca równoległa w nowych projektach. TAN-85: mniej wywołań w budowie: raport razem z innym narzędziem, polecenia w jednym Bash, duże odczyty przez subagenta, zwijanie przy ok. 150 tys. 0.11.5: TAN-55: gałąź w innym repo zgłaszasz w `result.repos`; bez scalenia w main tego repo ticket czeka w Automated Testing. 0.11.4: TAN-28: historyjka w wydaniu na prod jest zablokowana (przeniesienie i edycja), odmowę czytasz w odpowiedzi narzędzia. 0.11.3: TAN-19: bez ekranu Skille, Pauza zamiast „Tylko odczyt”, „Równolegle agenci” w ustawieniach aplikacji. 0.11.2: TAN-13: konektor zmienia ustawienia projektu po zgodzie Karola. 0.11.1: TAN-12: reguła kolumny w story_next. 0.11: GEN-42: kontekst projektu czytany przed pracą. 0.10: GEN-26: bez testu człowieka; skrypty z folderu Tandem: `$TANDEM_DIR`, GEN-19. 0.9: praca równoległa w osobnym worktree, TRIO-68)
 
 Karol patrzy na postęp w Tandem (http://127.0.0.1:4291/), nie w czacie. Twoja praca
 ma być tam widoczna krok po kroku: co robisz, ile to trwa i ile kosztuje w tokenach.
@@ -172,6 +172,22 @@ odpowiada na uwagi w `replies` i zapisuje nową wersję.
 
 **Ticket budowy** po prostu buduje: z planem (`story.modelPlan`, zwykle z ticketu planistycznego) według niego,
 a odstępstwo zapisujesz w `story_comment` z `decision`; bez planu buduje bez etapu planowania.
+
+**Szybka pętla sprintu (TAN-195, projekt Mendix w trybie wsadowym, `pipeline.tests` „batch”, domyślnie).** Ticket budowy
+kończy się bez testów: budujesz przez JSON / tools/mpr, krok Model check robi jeden `mx check` (pełny mxbuild tylko przy
+zmianie Java albo widgetów, TAN-103). Błąd z `mx check` poprawiasz od razu na tym tickecie, zanim weźmiesz następny.
+Po Done Tandem sam robi jeden commit historyjki w folderze aplikacji („KLUCZ: tytuł”, tylko jej pliki i model; Ty go nie
+robisz i nie mieszasz dwóch kluczy w jednym commicie). Następną historyjkę bierze nowa sesja od razu, bez czekania na
+testy. Gdy w sprincie nic nie zostało w To do ani Running, idzie raz pełna partia testów (TAN-191). Gdy pada, Tandem
+wskazuje winną historyjkę: po elementach z błędu (Moduł.Nazwa, pliki) i po commitach historyjek, a gdy to niejasne,
+bisect (tylko padający test na kolejnych commitach, polecenie `pipeline.mendix.bisectTest`). Winna wraca do Do zrobienia
+z `fixes` (znaleziska partii) i `batchTests.state` „fixing”: poprawiasz tylko ją, a Tandem sprawdza `mx check`
+i tylko padające przypadki, commituje „KLUCZ: fixup after test batch N” i puszcza całą partię jeszcze raz. Po drugiej
+nieudanej poprawce tej samej historyjki, albo gdy winnej nie widać, partia staje u Karola z kandydatami. Sam możesz
+sprawdzić winną: `node "$TANDEM_DIR/modules/mendix/bin/sprint-culprit.js" culprit --dir <folder> --keys A,B
+--finding "<błąd>" [--bisect "<polecenie testu>"]`; czas sprintu i porównanie z bazowym: `… sprint-culprit.js time
+<projekt> <sprint> [--baseline <sprint>]`. Raport partii pokazuje czas budowy i mx check każdej historyjki, wynik
+testów, poprawiane historyjki i porównanie z bazowym sprintem.
 
 ## Blokada wydania (TAN-28)
 
