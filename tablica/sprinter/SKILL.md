@@ -5,7 +5,7 @@ description: Zasady Sprintera, wspólnego rdzenia MxCraft i Tandem – tygodniow
 
 # Sprinter: jak pracuje zespół Karol + Claude
 
-Wersja 0.14 · 2026-11-01 (TAN-121: „Jak pisać do Karola”, pięć reguł z przykładami; serwer MCP odrzuca podsumowanie bez części dla Karola. 0.13: TAN-118: polskie nazwy kolumn, zakładek, kroków i stanów na ekranie, id bez zmian. 0.12: TAN-65: bez tagu „kto”; kto ma ticket, mówi tylko przypisanie (Karol / Claude), zmieniane z nagłówka ticketu razem ze statusem. 0.11: TAN-28: blokada historyjek w wydaniu na prod, „Anuluj wydanie”. 0.10: TAN-14: bez punktów i ról, tylko imiona; opis dla Karola krótki i jasny, polecenie dla Claude zawsze szczegółowe; TAN-19: Pauza zamiast „Tylko odczyt”. 0.9: GEN-33: tag „kto” na tickecie: kto robi, blokada przed przypadkowym startem. 0.8: GEN-26: bez testu człowieka – kolumny Testing i Human Testing, testy dla Karola i Done na jego commit znikają; koniec historyjki to Done albo Automated Testing. 0.7: Pomysły: miejsce przed historyjkami, zamiana tylko po pytaniu Draft czy To do. 0.6: tablica projektu z pipeline: Draft → On Prod, kto co przesuwa; Automated Testing i Draft po nieudanym przebiegu też są „jednym jobem”. 0.5: kryteria ocenia Claude w raporcie końcowym; rozmiar do czytania przez konektor: najwyżej 24 KB, sekcje, podsumowanie na górze)
+Wersja 0.16 · 2026-11-06 (TAN-193: bez kolumny Planowanie; ticket planistyczny z planem do MxScout prosto do Done, ticket budowy buduje z planu albo bez. 0.15 · 2026-11-05: TAN-191: testy partiami – w projekcie z `pipeline.tests` = batch, domyślnie Mendix, ticket idzie do Done po buildzie, mx check i samoocenie kryteriów, a Security, Database, Migracje i UI test biegną raz na partię; partia nie trzyma kolejki buildów. 0.14 · 2026-11-01: TAN-121: „Jak pisać do Karola”, pięć reguł z przykładami; serwer MCP odrzuca podsumowanie bez części dla Karola. 0.13: TAN-118: polskie nazwy kolumn, zakładek, kroków i stanów na ekranie, id bez zmian. 0.12: TAN-65: bez tagu „kto”; kto ma ticket, mówi tylko przypisanie (Karol / Claude), zmieniane z nagłówka ticketu razem ze statusem. 0.11: TAN-28: blokada historyjek w wydaniu na prod, „Anuluj wydanie”. 0.10: TAN-14: bez punktów i ról, tylko imiona; opis dla Karola krótki i jasny, polecenie dla Claude zawsze szczegółowe; TAN-19: Pauza zamiast „Tylko odczyt”. 0.9: GEN-33: tag „kto” na tickecie: kto robi, blokada przed przypadkowym startem. 0.8: GEN-26: bez testu człowieka – kolumny Testing i Human Testing, testy dla Karola i Done na jego commit znikają; koniec historyjki to Done albo Automated Testing. 0.7: Pomysły: miejsce przed historyjkami, zamiana tylko po pytaniu Draft czy To do. 0.6: tablica projektu z pipeline: Draft → On Prod, kto co przesuwa; Automated Testing i Draft po nieudanym przebiegu też są „jednym jobem”. 0.5: kryteria ocenia Claude w raporcie końcowym; rozmiar do czytania przez konektor: najwyżej 24 KB, sekcje, podsumowanie na górze)
 
 Ten plik mieszka w Tandem (`skills/sprinter/SKILL.md`, od GEN-19). Kopia w repo MxCraft
 zostaje tylko do jego wyłączenia (GEN-20); nie zmieniaj jej. `$TANDEM_DIR` to folder repo Tandem.
@@ -46,7 +46,6 @@ polskie nazwy z jednego słownika (`shared/labels.js`). W tym skillu i w polecen
 | id | dawna nazwa | na ekranie |
 |---|---|---|
 | `draft` | Draft | Szkic |
-| `plan` | Planowanie | Planowanie (tylko Mendix) |
 | `todo` | To do | Do zrobienia |
 | `running` | Running | Claude buduje |
 | `autotest` | Automated Testing | Testy |
@@ -63,16 +62,15 @@ Sprawdzenie modelu (`modelCheck`), Bezpieczeństwo (`security`), Testy (`unitTes
 ## Tablica z pipeline
 
 Projekt z włączonym pipeline (Ustawienia → Pipeline, `project.pipeline.enabled`) ma
-sześć kolumn (projekt Mendix siedem: z Planowaniem przed To do, TAN-22; `sprint_read.planning`) (Human Testing tylko z `pipeline.humanTesting`, GEN-29); `sprint_read` zwraca je w `columns`, a historyjki w `draft`, `autotest`
+sześć kolumn (także projekt Mendix: kolumny Planowanie nie ma od TAN-193; otwarte tickety planistyczne są w `sprint_read.planning`) (Human Testing tylko z `pipeline.humanTesting`, GEN-29); `sprint_read` zwraca je w `columns`, a historyjki w `draft`, `autotest`
 i `prod` obok `queue`, `running`, `done` (i `testing`, gdy projekt ma Human Testing).
 
 | Kolumna | Status | Kto przesuwa dalej |
 |---|---|---|
 | Draft | `draft` | Karol do To do, gdy historyjka gotowa. Pipeline nigdy nie cofa tu historyjki sam; trafia tu tylko, gdy Karol przeniesie zatrzymaną (`failedRun`, powód w `fixes`). |
-| Planowanie | `plan` | Tylko projekt Mendix, domyślnie (TAN-22; Karol może ją usunąć w Ustawieniach → Kolumny). Claude planuje całą kolumnę razem (`plan_read`, `plan_save`: kolejność, zależności, elementy modelu do aktywności i decyzji, new/chg/del, i widok biznesowy z diagramem procesu, TAN-71) i niczego nie zmienia w modelu; historyjka dostaje „Plan gotowy”, a w projekcie połączonym z MxScout Team plan sam trafia do MxScout jako historia z kluczem ticketu (TAN-68). Do To do przenosi Karol: to akceptacja planu. |
 | To do | `todo` | Claude (`story_next`) albo pipeline sam startuje sesję; To do znaczy „buduj”. |
-| Running | `running` | Claude: oceniasz kryteria i `story_move` do `autotest` (dawne `testing` serwer też przyjmie jako koniec budowy, ale pisz `autotest`). |
-| Automated Testing | `autotest` | Pipeline: kroki testów automatycznych. Krok, który czeka na Claude, zgłaszasz przez `step_report` (`pipeline_status` pokazuje który). Fail → historyjka zostaje tu zatrzymana (`halt`, czerwona ramka, jedno zdanie), wszystko zaliczone → pipeline sam przenosi do Done (GEN-29: bez Human Testing) i zapisuje to w historii. Bez testów od razu do Done idą: ticket z samymi dokumentami (GEN-38) i ticket z wynikiem w załączniku (TAN-76: plik dołączony przez `story_attach` w tym przebiegu i zmiany tylko w plikach paczki – `dist/` albo lista `pipeline.deliverablePaths`, `.gitignore`, dokumenty; bez załącznika oznacz go `pipeline.deliverable: true`); jego gałąź i tak scala się z main. Zmiana kodu, modelu albo bazy obok paczki = testy jak zawsze. |
+| Running | `running` | Claude: oceniasz kryteria i `story_move` do `autotest` (dawne `testing` serwer też przyjmie jako koniec budowy, ale pisz `autotest`). Ticket planistyczny (TAN-193) idzie stąd prosto do Done. |
+| Automated Testing | `autotest` | Pipeline: kroki testów automatycznych. Krok, który czeka na Claude, zgłaszasz przez `step_report` (`pipeline_status` pokazuje który). Fail → historyjka zostaje tu zatrzymana (`halt`, czerwona ramka, jedno zdanie), wszystko zaliczone → pipeline sam przenosi do Done (GEN-29: bez Human Testing) i zapisuje to w historii. **Testy partiami** (TAN-191, ustawienie Testy = partiami, domyślne dla Mendix): tu biegnie tylko build ticketu (Model check z mx check i odczytem zmienionych dokumentów; w stosie Code check i Unit tests), potem samoocena kryteriów (każde ocenione przez Ciebie, inaczej zatrzymanie) i Done; Security, Database, Migracje i UI test robi raz karta „Partia testów N” (`PARTIA-N`) dla wszystkich ticketów od ostatniej partii, a znaleziska wracają do ticketów (`batchTests`). Partii nie bierzesz i nie przesuwasz; rusza sama przy pustym To do albo przyciskiem Karola. Bez testów od razu do Done idą: ticket z samymi dokumentami (GEN-38) i ticket z wynikiem w załączniku (TAN-76: plik dołączony przez `story_attach` w tym przebiegu i zmiany tylko w plikach paczki – `dist/` albo lista `pipeline.deliverablePaths`, `.gitignore`, dokumenty; bez załącznika oznacz go `pipeline.deliverable: true`); jego gałąź i tak scala się z main. Zmiana kodu, modelu albo bazy obok paczki = testy jak zawsze. |
 | Done | `done` | Z `gitFlow` w profilu: skrypt commituje historyjkę na gałęzi test (temat „KLUCZ: …”, tylko jej pliki i zmienione pliki modelu MPR v2, nigdy dwie historyjki w jednym commicie). Bez `gitFlow`: commit, push i wdrożenie z profilu projektu (bez polecenia wdrożenia historyjka zostaje w Done). |
 | Acceptance | `prod` | Karol przenosi tu, co ma iść na akceptację; skrypt przenosi (cherry-pick) commity tych historyjek z test na ACCP i dopisuje wynik w tickecie. Konflikt: ticket zatrzymany w Acceptance z plikami w powodzie – wtedy, i tylko wtedy, wkracza Claude. Bez `gitFlow` tu kończy wdrożenie. Claude nie przesuwa tu narzędziem. Kiedy wdrożenie rusza, mówi tryb wdrożenia projektu (profil, `deployMode`): `manual` (domyślny) – Karol klika „Release na prod” nad tablicą i jeden job wdraża całe Done; `each` – po każdym Done; `off` – nigdy. Zamknięcie sprintu niczego nie wdraża. |
 
@@ -86,7 +84,15 @@ pipeline (z jednym zdaniem, dlaczego pominięty) i model budowania (Haiku, Sonne
 uruchomiono” z powodem i znika z zakładek. Kroków ani modelu nie zmieniasz sam: robi to
 Karol na tickecie do startu budowy.
 
-**Jeden job na projekt** obejmuje tu Running i Automated Testing (i Human Testing, gdzie jest; Done nigdy nie blokuje):
+**Dwie drogi w projekcie Mendix (TAN-193).** Ticket **planistyczny** (Karol zaznacza „Ticket planistyczny” przy
+zakładaniu, w aplikacji albo konektorem `planning`; na karcie znaczek „Planistyczny”) idzie To do → Running → Done:
+Claude pisze plan do MxScout (architektura, moduły, encje, mikroflowy, strony, decyzje i pytania; `plan_read`,
+`plan_save`, szczegóły w skillu tandem), nie zmienia modelu ani kodu i nie uruchamia budowy aplikacji, mx check ani
+testów; z pytaniem czeka na Karola (`run_wait`), bez pytań przechodzi prosto do Done. Plan akceptuje Karol w MxScout
+(TAN-111), uwagi biznesu do planu (TAN-112) wracają ticket do To do na nową wersję. Ticket **budowy** buduje: z planem
+(`modelPlan`, także z ticketu planistycznego) według niego, bez planu bez etapu planowania.
+
+**Jeden job na projekt** obejmuje tu Running i Automated Testing (i Human Testing, gdzie jest; Done nigdy nie blokuje; karta „Partia testów” nigdy nie blokuje, TAN-191):
 `story_next` nic nie bierze, gdy historyjka jest w `autotest` („czeka na testy
 automatyczne”), a `tandem-watch` nie startuje sesji także wtedy, gdy historyjka jest
 zatrzymana (MXC-137): nieudany krok albo wdrożenie nie cofają jej do Draft,
@@ -141,7 +147,7 @@ wdrożenia w toku nie przerywa.
    sam zmienia oznaczenie na stronie historyjki (`by: 'karol'`) albo odsyła z uwagami.
 7. **Done.** Przenieś historyjkę do Done (`story_move` do `done`; z pipeline do `autotest`,
    a po zielonych testach automatycznych pipeline sam przeniesie ją do Done i zapisze to
-   w historii). Dawne `story_move` do `testing` serwer też przyjmie jako koniec budowy,
+   w historii; w trybie partiami po buildzie, mx check i Twojej ocenie kryteriów, testy idą potem w partii). Dawne `story_move` do `testing` serwer też przyjmie jako koniec budowy,
    ale pisz `done` / `autotest`. Zapisz podsumowanie, wynik i przebieg zmian dla Karola
    (`run_report` z `summary`, `result` i `walk`; kształt `walk` niżej, „Przebieg zmian”).
    Done nie czeka na Karola ani na jego commit; ustawiasz je Ty albo pipeline.

@@ -6,7 +6,7 @@ argument-hint: [next | status | <KLUCZ>]
 
 # Tandem: historyjka od wzięcia do Done, z tokenami
 
-Wersja 0.14 · 2026-11-01 (scalone dwie linie tego skilla: TAN-121: „Jak pisać do Karola”: podsumowanie dla Karola i summaryTech, krok jako czasownik, wpis historii ludzki i techniczny, „do sprawdzenia” jako akcja, zatrzymanie: co się stało, prod, co zrobić; ML-38: nauka Qwen, praca równoległa w nowych projektach. TAN-85: mniej wywołań w budowie: raport razem z innym narzędziem, polecenia w jednym Bash, duże odczyty przez subagenta, zwijanie przy ok. 150 tys. 0.11.5: TAN-55: gałąź w innym repo zgłaszasz w `result.repos`; bez scalenia w main tego repo ticket czeka w Automated Testing. 0.11.4: TAN-28: historyjka w wydaniu na prod jest zablokowana (przeniesienie i edycja), odmowę czytasz w odpowiedzi narzędzia. 0.11.3: TAN-19: bez ekranu Skille, Pauza zamiast „Tylko odczyt”, „Równolegle agenci” w ustawieniach aplikacji. 0.11.2: TAN-13: konektor zmienia ustawienia projektu po zgodzie Karola. 0.11.1: TAN-12: reguła kolumny w story_next. 0.11: GEN-42: kontekst projektu czytany przed pracą. 0.10: GEN-26: bez testu człowieka; skrypty z folderu Tandem: `$TANDEM_DIR`, GEN-19. 0.9: praca równoległa w osobnym worktree, TRIO-68)
+Wersja 0.15 · 2026-11-06 (TAN-193: bez kolumny Planowanie i „Buduj bez planowania”; ticket planistyczny idzie To do → Running → Done z planem w MxScout, bez budowy i testów; ticket budowy buduje z planu albo bez niego. 0.14 · 2026-11-01: scalone dwie linie tego skilla: TAN-121: „Jak pisać do Karola”: podsumowanie dla Karola i summaryTech, krok jako czasownik, wpis historii ludzki i techniczny, „do sprawdzenia” jako akcja, zatrzymanie: co się stało, prod, co zrobić; ML-38: nauka Qwen, praca równoległa w nowych projektach. TAN-85: mniej wywołań w budowie: raport razem z innym narzędziem, polecenia w jednym Bash, duże odczyty przez subagenta, zwijanie przy ok. 150 tys. 0.11.5: TAN-55: gałąź w innym repo zgłaszasz w `result.repos`; bez scalenia w main tego repo ticket czeka w Automated Testing. 0.11.4: TAN-28: historyjka w wydaniu na prod jest zablokowana (przeniesienie i edycja), odmowę czytasz w odpowiedzi narzędzia. 0.11.3: TAN-19: bez ekranu Skille, Pauza zamiast „Tylko odczyt”, „Równolegle agenci” w ustawieniach aplikacji. 0.11.2: TAN-13: konektor zmienia ustawienia projektu po zgodzie Karola. 0.11.1: TAN-12: reguła kolumny w story_next. 0.11: GEN-42: kontekst projektu czytany przed pracą. 0.10: GEN-26: bez testu człowieka; skrypty z folderu Tandem: `$TANDEM_DIR`, GEN-19. 0.9: praca równoległa w osobnym worktree, TRIO-68)
 
 Karol patrzy na postęp w Tandem (http://127.0.0.1:4291/), nie w czacie. Twoja praca
 ma być tam widoczna krok po kroku: co robisz, ile to trwa i ile kosztuje w tokenach.
@@ -54,8 +54,6 @@ nie czeka na Karola ani na jego commit.
 - `/tandem` albo `/tandem next`: `sprint_read`, potem `story_next`. Jeśli zwróci
   `paused`, `sessionDone` albo pustą kolejkę, powiedz to jednym zdaniem i stop.
   `alreadyRunning` znaczy: dokończ tę, która jest w Running.
-- `/tandem plan`: kolumna Planowanie projektu Mendix (TAN-22, niżej „Planowanie”). Nie bierzesz historyjki przez
-  `story_next`; planujesz całą kolumnę i kończysz turę.
 - `/tandem status`: `sprint_read` i trzy zdania: co w Running (w pipeline też Automated Testing), na co Karol ma odpowiedzieć (`run_wait`, `run_ask`),
   ile tokenów w sprincie. Niczego nie zmieniaj.
 - `/tandem SD-15`: `story_next` z `key`; to Twoja jedyna historyjka w tej sesji.
@@ -85,6 +83,13 @@ testowych, nie Ty. Sam kontekstu nie zmieniasz: zmienia go właściciel w Tandem
 konektor (`get_project_context`, wszystkie ustawienia: `get_project_settings`), a zmienia
 `update_project_settings` (TAN-13): najpierw podgląd bez `confirm`, zapis z `confirm=true` dopiero po
 „tak” Karola; każda zmiana jest w Ustawienia → Historia zmian.
+
+**Zrzuty z ticketu (TAN-165).** Jeśli odpowiedź `story_next` ma `images` (obrazy z Plików ticketu, np. zrzut z komentarza
+testera `zrzut-<id>.png`, każdy ze ścieżką `path`), **przed krokiem 1 i przed każdym pytaniem** odczytaj je narzędziem
+Read (Claude Code czyta obrazy) i przeczytaj, skąd zgłoszenie (`story.source`: strona, rola, tester). Potem zgłoś to w
+`run_report` z `viewedImages: ["nazwa.png", …]`: Tandem zapisuje w historii „Obejrzałem zrzut(y) z ticketu: …”. Pytasz
+Karola (`run_wait`, `run_ask`) tylko wtedy, gdy zrzut naprawdę nie wystarcza; `run_wait` odmawia („najpierw obejrzyj
+zrzuty”), dopóki ich nie obejrzałeś. Ticket ze zrzutem albo z komentarza testera nie idzie na Haiku (minimum Sonnet).
 
 **Logowania na starcie (TAN-105).** `story_next` (z wzięciem historyjki) sprawdza za Ciebie, jakie logowania i tokeny
 będą potrzebne (lista `credentials` w Ustawienia → Pipeline, plus narzędzia wymienione w poleceniu: op, gh z zakresami,
@@ -130,38 +135,43 @@ zdaniu linię ze skryptu (kto trzyma port i „Użyj wolnych portów X/Y”) i d
 sprawdzenia przez Ciebie”. Portów sam nie zmieniaj: Karol ustawia je w Ustawieniach projektu →
 Narzędzia Mendix (formularz podpowiada tę samą parę). Projekt bez Mendix: pomiń ten krok.
 
-## Planowanie (projekt Mendix, TAN-22)
+## Dwie drogi w projekcie Mendix: ticket planistyczny i ticket budowy (TAN-193)
 
-Projekt Mendix ma domyślnie kolumnę **Planowanie** (status `plan`) między Draft a To do. Karol wrzuca tam historyjki
-(jedną albo partią); runner Mendix po 20 s ciszy w kolumnie startuje jedną sesję planowania (tryb `spawn`), a w trybie
-`external` robisz to Ty po `/tandem plan`. `sprint_read.planning` pokazuje, co tam jest i co ma już plan (`planReady`).
+Kolumny Planowanie już nie ma (TAN-193 zastąpił TAN-22/TAN-110), a przełącznika „Buduj bez planowania” też nie.
+Rodzaj ticketu mówi `story.planning` w odpowiedzi `story_next` (Karol zaznacza „Ticket planistyczny” przy zakładaniu
+w Tandem albo w konektorze: `create_ticket` / `update_ticket` z `planning`; na karcie znaczek „Planistyczny”).
 
-1. `plan_read`: wszystkie historyjki kolumny (polecenie, intencja, kryteria, `claudeNotes` od Karola: uwzględnij i potwierdź w `acks`) i plany tych, które są już w To do i dalej.
-2. `model_read` dla modułów, których dotykają (albo `mx-model.js`); model tylko czytasz.
-3. Planujesz **całą kolumnę razem**: kolejność (`order`) i zależności (`dependsOn`), potem dla każdej historyjki
-   `summary` dla Karola i `elements`: procesy biznesowe (`process`: `qn` to nazwa procesu, `steps`, `description`),
-   moduły, encje z atrybutami, asocjacje (`from` = właściciel, `to`, `type` reference albo reference set), mikroflowy
-   i nanoflowy rozpisane do pojedynczych aktywności i decyzji (`activities: { no, type, text, why }`, decyzja z
-   `branches`: pierwsza tak, druga nie; `to` to numer aktywności albo „koniec”, `next` mówi, dokąd idzie ostatnia
-   aktywność gałęzi), strony (`widgets`); każdy element `state` new, chg albo del i `why`.
+**Ticket planistyczny** (np. „zaplanuj moduł w License 2.0”): wynikiem jest plan w MxScout, nie zmiana.
+1. `plan_read` z `key`: polecenie, kryteria, `claudeNotes` (uwzględnij i potwierdź w `acks`), uwagi do planu
+   (`planNotes`), dotychczasowy plan, tickety budowy, które plan może objąć (`candidates`: backlog, Szkic, Do zrobienia)
+   i plany już przyjęte (`ahead`).
+2. `model_read` dla modułów, których dotyczy (albo `mx-model.js`); model tylko czytasz.
+3. Plan: kolejność (`order`) i zależności (`dependsOn`), dla ticketu (i każdego ticketu budowy, który obejmuje)
+   `summary` dla Karola (architektura, decyzje, pytania) i `elements`: procesy biznesowe (`process`: `qn` to nazwa
+   procesu, `steps`, `description`), moduły, encje z atrybutami, asocjacje (`from` = właściciel, `to`, `type` reference
+   albo reference set), mikroflowy i nanoflowy rozpisane do pojedynczych aktywności i decyzji (`activities: { no, type,
+   text, why }`, decyzja z `branches`: pierwsza tak, druga nie; `to` to numer aktywności albo „koniec”, `next` mówi,
+   dokąd idzie ostatnia aktywność gałęzi), strony (`widgets`); każdy element `state` new, chg albo del i `why`.
    Do tego **widok biznesowy** (TAN-71) `business`: `summary` prostym językiem, bez nazw z modelu, co zmieni się dla
    użytkownika i w procesie, i `process { actors, steps: [{ actor, text, branches, next }] }` – kto co robi, po kolei,
-   gdzie proces się rozgałęzia. Z niego powstaje diagram procesu, a z `activities` diagram każdego nowego i zmienionego
-   mikroflowa; Karol przełącza w tickecie „Biznesowy · Techniczny”.
-4. Jeden `plan_save` dla całej kolumny. Serwer odrzuca plan bez jakiejś historyjki, kolejność wbrew zależnościom,
-   mikroflow bez aktywności, decyzję z jedną gałęzią, aktywność bez uzasadnienia, plan bez widoku biznesowego
-   (bez `summary`, proces krótszy niż dwa kroki, krok bez `actor`), nazwę z modelu w widoku biznesowym i gałąź do
-   kroku, którego nie ma. Po zapisie historyjki mają
-   „Plan gotowy”, a Karol dostaje powiadomienie.
-5. Gotowy plan sam trafia do MxScout (TAN-68), gdy projekt jest wysyłany do MxScout Team (`~/Mx/mxscout-sync.json`,
-   po `scoutProjectId` z linku albo po folderze Mendix): Tandem zapisuje `mxscout/stories/KLUCZ.json` w tym folderze,
-   a mxscout-sync w ciągu 5 minut wysyła go jako historię z kluczem ticketu (ponowne planowanie zmienia tę samą).
-   Ty nic nie robisz; `plan_save` zwraca to w `scout`. Projekt bez MxScout planuje jak dotąd.
+   gdzie proces się rozgałęzia. Z niego powstaje diagram procesu, a z `activities` diagram każdego mikroflowa.
+4. Jeden `plan_save` z `key` ticketu planistycznego. Serwer odrzuca plan bez samego ticketu, ticket budowy już w pracy
+   albo zbudowany, kolejność wbrew zależnościom, mikroflow bez aktywności, decyzję z jedną gałęzią, aktywność bez
+   uzasadnienia, plan bez widoku biznesowego i nazwę z modelu w widoku biznesowym. Ticket budowy objęty planem dostaje
+   go z `modelPlan.from` = klucz ticketu planistycznego. Gotowy plan sam trafia do MxScout (TAN-68, `scout` w odpowiedzi)
+   i do makiety dla biznesu (TAN-32).
+5. Pytanie, bez którego plan nie powstanie: `run_wait` (ticket czeka na Karola). Bez pytań: oceń kryteria i
+   `story_move` do `done` – prosto do Gotowe, bez Automated Testing (serwer zamienia `autotest` na `done`, a bez
+   zapisanego planu odmawia).
 
-Planowanie niczego nie zmienia w modelu i niczego nie przesuwa: `story_next` nie bierze historyjki z Planowania,
-a `story_move` z Planowania do To do odmówi – to akceptacja planu, robi ją Karol. Gdy historyjka z planem trafi do
-To do, `story_next` zwraca go w `story.modelPlan`; budujesz według niego, a odstępstwo zapisujesz w `story_comment`
-z `decision`. Historyjka cofnięta do Draft traci plan i w Planowaniu dostanie nowy.
+Ticket planistyczny niczego nie zmienia: bez zmian w modelu i kodzie, bez budowy aplikacji, mx check i testów
+(`run_report` odmawia `result.model`, sesja z runnera i z `tandem-watch` nie ma Edit ani Write). Plan akceptuje Karol
+w MxScout (TAN-111; ticket zostaje w Gotowe, ticket budowy ze Szkicu przechodzi do Do zrobienia). Uwagi biznesu
+(TAN-112, „Popraw plan”) i „Planuj ponownie” na tickecie zwracają ticket planistyczny do Do zrobienia; następna sesja
+odpowiada na uwagi w `replies` i zapisuje nową wersję.
+
+**Ticket budowy** po prostu buduje: z planem (`story.modelPlan`, zwykle z ticketu planistycznego) według niego,
+a odstępstwo zapisujesz w `story_comment` z `decision`; bez planu buduje bez etapu planowania.
 
 ## Blokada wydania (TAN-28)
 
