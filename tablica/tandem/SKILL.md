@@ -6,7 +6,7 @@ argument-hint: [next | status | <KLUCZ>]
 
 # Tandem: historyjka od wzięcia do Done, z tokenami
 
-Wersja 0.16 · 2026-11-06 (TAN-195: szybka pętla sprintu Mendix: po historyjce tylko mx check i commit „KLUCZ: …”, pełne testy raz na koniec sprintu, winna historyjka po błędzie i commitach albo bisect, poprawka commitem „KLUCZ: fixup …”. 0.15: TAN-193: bez kolumny Planowanie i „Buduj bez planowania”; ticket planistyczny idzie To do → Running → Done z planem w MxScout, bez budowy i testów; ticket budowy buduje z planu albo bez niego. 0.14 · 2026-11-01: scalone dwie linie tego skilla: TAN-121: „Jak pisać do Karola”: podsumowanie dla Karola i summaryTech, krok jako czasownik, wpis historii ludzki i techniczny, „do sprawdzenia” jako akcja, zatrzymanie: co się stało, prod, co zrobić; ML-38: nauka Qwen, praca równoległa w nowych projektach. TAN-85: mniej wywołań w budowie: raport razem z innym narzędziem, polecenia w jednym Bash, duże odczyty przez subagenta, zwijanie przy ok. 150 tys. 0.11.5: TAN-55: gałąź w innym repo zgłaszasz w `result.repos`; bez scalenia w main tego repo ticket czeka w Automated Testing. 0.11.4: TAN-28: historyjka w wydaniu na prod jest zablokowana (przeniesienie i edycja), odmowę czytasz w odpowiedzi narzędzia. 0.11.3: TAN-19: bez ekranu Skille, Pauza zamiast „Tylko odczyt”, „Równolegle agenci” w ustawieniach aplikacji. 0.11.2: TAN-13: konektor zmienia ustawienia projektu po zgodzie Karola. 0.11.1: TAN-12: reguła kolumny w story_next. 0.11: GEN-42: kontekst projektu czytany przed pracą. 0.10: GEN-26: bez testu człowieka; skrypty z folderu Tandem: `$TANDEM_DIR`, GEN-19. 0.9: praca równoległa w osobnym worktree, TRIO-68)
+Wersja 0.17 · 2026-11-08 (GEN-77: tablica rodzinna: `selfCheck` w `run_report` przed `story_move` do `done`. 0.16 · 2026-11-06 (TAN-195: szybka pętla sprintu Mendix: po historyjce tylko mx check i commit „KLUCZ: …”, pełne testy raz na koniec sprintu, winna historyjka po błędzie i commitach albo bisect, poprawka commitem „KLUCZ: fixup …”. 0.15: TAN-193: bez kolumny Planowanie i „Buduj bez planowania”; ticket planistyczny idzie To do → Running → Done z planem w MxScout, bez budowy i testów; ticket budowy buduje z planu albo bez niego. 0.14 · 2026-11-01: scalone dwie linie tego skilla: TAN-121: „Jak pisać do Karola”: podsumowanie dla Karola i summaryTech, krok jako czasownik, wpis historii ludzki i techniczny, „do sprawdzenia” jako akcja, zatrzymanie: co się stało, prod, co zrobić; ML-38: nauka Qwen, praca równoległa w nowych projektach. TAN-85: mniej wywołań w budowie: raport razem z innym narzędziem, polecenia w jednym Bash, duże odczyty przez subagenta, zwijanie przy ok. 150 tys. 0.11.5: TAN-55: gałąź w innym repo zgłaszasz w `result.repos`; bez scalenia w main tego repo ticket czeka w Automated Testing. 0.11.4: TAN-28: historyjka w wydaniu na prod jest zablokowana (przeniesienie i edycja), odmowę czytasz w odpowiedzi narzędzia. 0.11.3: TAN-19: bez ekranu Skille, Pauza zamiast „Tylko odczyt”, „Równolegle agenci” w ustawieniach aplikacji. 0.11.2: TAN-13: konektor zmienia ustawienia projektu po zgodzie Karola. 0.11.1: TAN-12: reguła kolumny w story_next. 0.11: GEN-42: kontekst projektu czytany przed pracą. 0.10: GEN-26: bez testu człowieka; skrypty z folderu Tandem: `$TANDEM_DIR`, GEN-19. 0.9: praca równoległa w osobnym worktree, TRIO-68)
 
 Karol patrzy na postęp w Tandem (http://127.0.0.1:4291/), nie w czacie. Twoja praca
 ma być tam widoczna krok po kroku: co robisz, ile to trwa i ile kosztuje w tokenach.
@@ -339,6 +339,15 @@ około dziesięć razy (Karol, 2026-10-18).
 - Nie zaokrąglaj do zera. Krok bez tokenów to krok, którego nie było.
 
 ## Koniec historyjki
+
+0. **Tablica rodzinna (GEN-77).** Gdy `sprint_read.columns` ma tylko `todo`, `running` i `done` w projekcie z pipeline (projekt
+   dziecka, ustawienie `columns.preset` = `family`), nie ma kolumny Testy: budowa sprawdza się sama. Przed `story_move` uruchom
+   albo otwórz to, co zbudowałeś (strona: otwórz w przeglądarce i sprawdź, że się rysuje i że przyciski działają; aplikacja albo
+   gra: uruchom i przejdź jedną rundę, przy logice mały skrypt testowy; prezentacja: otwórz i sprawdź, że slajdy się
+   wyświetlają; dokument: otwórz PDF) i zapisz wynik w `run_report` z `selfCheck: [{ what, result, evidence }]`: `what` co
+   uruchomiłeś albo otworzyłeś, `result` pass, fail albo skipped, `evidence` linia wyniku, otwarta strona albo ścieżka zrzutu.
+   Bez zapisu z tej rundy `story_move` do `done` odmawia, z czerwonym sprawdzeniem też. Popraw i sprawdź jeszcze raz. Do Gotowe
+   idzie rzecz, która się uruchomiła. Dziecko czyta prosty polski; nazwy kroków pipeline'u zostają dla Ciebie.
 
 1. **Sprawdź sam** całość (testy jednostkowe, przeglądarka, kopia projektu) i opisz wynik
    w `story_comment`. Testu dla Karola nie zakładasz: w Tandem nie ma testu człowieka.
