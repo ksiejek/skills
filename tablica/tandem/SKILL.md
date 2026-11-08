@@ -6,7 +6,7 @@ argument-hint: [next | status | <KLUCZ>]
 
 # Tandem: historyjka od wzięcia do Done, z tokenami
 
-Wersja 0.17 · 2026-11-08 (GEN-77: tablica rodzinna: `selfCheck` w `run_report` przed `story_move` do `done`. 0.16 · 2026-11-06 (TAN-195: szybka pętla sprintu Mendix: po historyjce tylko mx check i commit „KLUCZ: …”, pełne testy raz na koniec sprintu, winna historyjka po błędzie i commitach albo bisect, poprawka commitem „KLUCZ: fixup …”. 0.15: TAN-193: bez kolumny Planowanie i „Buduj bez planowania”; ticket planistyczny idzie To do → Running → Done z planem w MxScout, bez budowy i testów; ticket budowy buduje z planu albo bez niego. 0.14 · 2026-11-01: scalone dwie linie tego skilla: TAN-121: „Jak pisać do Karola”: podsumowanie dla Karola i summaryTech, krok jako czasownik, wpis historii ludzki i techniczny, „do sprawdzenia” jako akcja, zatrzymanie: co się stało, prod, co zrobić; ML-38: nauka Qwen, praca równoległa w nowych projektach. TAN-85: mniej wywołań w budowie: raport razem z innym narzędziem, polecenia w jednym Bash, duże odczyty przez subagenta, zwijanie przy ok. 150 tys. 0.11.5: TAN-55: gałąź w innym repo zgłaszasz w `result.repos`; bez scalenia w main tego repo ticket czeka w Automated Testing. 0.11.4: TAN-28: historyjka w wydaniu na prod jest zablokowana (przeniesienie i edycja), odmowę czytasz w odpowiedzi narzędzia. 0.11.3: TAN-19: bez ekranu Skille, Pauza zamiast „Tylko odczyt”, „Równolegle agenci” w ustawieniach aplikacji. 0.11.2: TAN-13: konektor zmienia ustawienia projektu po zgodzie Karola. 0.11.1: TAN-12: reguła kolumny w story_next. 0.11: GEN-42: kontekst projektu czytany przed pracą. 0.10: GEN-26: bez testu człowieka; skrypty z folderu Tandem: `$TANDEM_DIR`, GEN-19. 0.9: praca równoległa w osobnym worktree, TRIO-68)
+Wersja 0.18 · 2026-11-08 (TAN-208: drugi pas Mendix w kopii folderu, „Limit bez postępu” i praca sesji zamiast samych raportów w „bez sygnału”. 0.17 · 2026-11-08 (GEN-77: tablica rodzinna: `selfCheck` w `run_report` przed `story_move` do `done`. 0.16 · 2026-11-06 (TAN-195: szybka pętla sprintu Mendix: po historyjce tylko mx check i commit „KLUCZ: …”, pełne testy raz na koniec sprintu, winna historyjka po błędzie i commitach albo bisect, poprawka commitem „KLUCZ: fixup …”. 0.15: TAN-193: bez kolumny Planowanie i „Buduj bez planowania”; ticket planistyczny idzie To do → Running → Done z planem w MxScout, bez budowy i testów; ticket budowy buduje z planu albo bez niego. 0.14 · 2026-11-01: scalone dwie linie tego skilla: TAN-121: „Jak pisać do Karola”: podsumowanie dla Karola i summaryTech, krok jako czasownik, wpis historii ludzki i techniczny, „do sprawdzenia” jako akcja, zatrzymanie: co się stało, prod, co zrobić; ML-38: nauka Qwen, praca równoległa w nowych projektach. TAN-85: mniej wywołań w budowie: raport razem z innym narzędziem, polecenia w jednym Bash, duże odczyty przez subagenta, zwijanie przy ok. 150 tys. 0.11.5: TAN-55: gałąź w innym repo zgłaszasz w `result.repos`; bez scalenia w main tego repo ticket czeka w Automated Testing. 0.11.4: TAN-28: historyjka w wydaniu na prod jest zablokowana (przeniesienie i edycja), odmowę czytasz w odpowiedzi narzędzia. 0.11.3: TAN-19: bez ekranu Skille, Pauza zamiast „Tylko odczyt”, „Równolegle agenci” w ustawieniach aplikacji. 0.11.2: TAN-13: konektor zmienia ustawienia projektu po zgodzie Karola. 0.11.1: TAN-12: reguła kolumny w story_next. 0.11: GEN-42: kontekst projektu czytany przed pracą. 0.10: GEN-26: bez testu człowieka; skrypty z folderu Tandem: `$TANDEM_DIR`, GEN-19. 0.9: praca równoległa w osobnym worktree, TRIO-68)
 
 Karol patrzy na postęp w Tandem (http://127.0.0.1:4291/), nie w czacie. Twoja praca
 ma być tam widoczna krok po kroku: co robisz, ile to trwa i ile kosztuje w tokenach.
@@ -49,6 +49,14 @@ przesuwa: skill sprinter, „Tablica z pipeline”. Done ustawiasz Ty (`story_mo
 `done`) albo, w projekcie z pipeline, sam pipeline po zielonych testach automatycznych;
 nie czeka na Karola ani na jego commit.
 
+**Drugi pas Mendix (TAN-208).** Gdy w projekcie Mendix buduje się jedna historyjka z modelem, `tandem-watch` może
+uruchomić obok jedną małą (ocena orkiestratora: trywialna albo błąd, który nie jest złożony), gdy oceny obszaru obu nie
+mają wspólnego pliku ani dokumentu modelu (`Moduł.Dokument`, `Moduł.*`). Taka sesja dostaje w prompcie systemowym kopię
+folderu `<folder>-wt/<KLUCZ>` z gałęzi testowej: model zmieniasz i mx check uruchamiasz tylko tam, aplikacji testowej
+nie uruchamiasz, commitujesz na gałęzi `tandem/<klucz>` (temat „KLUCZ: …”), w `result.branch` podajesz tę gałąź. Po
+Done Tandem przenosi Twoje commity na gałąź testową w głównym folderze i usuwa kopię. `story_next` z kluczem odmówi
+(`waiting`), gdy obszary się pokrywają albo pas jest zajęty: powiedz to jednym zdaniem i stop.
+
 ## Start
 
 - `/tandem` albo `/tandem next`: `sprint_read`, potem `story_next`. Jeśli zwróci
@@ -65,9 +73,11 @@ i `session` (pierwsze 8 znaków id tej sesji Claude Code, czyli nazwy pliku
 Serwer zajmuje historyjkę atomowo i zapisuje Cię w `run.by`; Karol widzi komputer i sesję
 na karcie, w pasku „Claude pracuje” i na Teraz. Dwie sesje nigdy nie dostaną tej samej
 historyjki. `runningElsewhere` znaczy: historyjkę prowadzi inna sesja – niczego nie bierz,
-powiedz to jednym zdaniem i stop. Po 30 min bez `run_report` historyjka ma „bez sygnału”
-i Karol może ją zwolnić w Tandem; gdy `run_report` odpowie, że Karol ją zwolnił, zakończ
-turę bez dalszej pracy.
+powiedz to jednym zdaniem i stop. Po 30 min bez `run_report` i bez pracy sesji (zapis jej transkryptu) historyjka ma
+„bez sygnału” i Karol może ją zwolnić w Tandem; gdy `run_report` odpowie, że Karol ją zwolnił, zakończ
+turę bez dalszej pracy. Po „Limicie bez postępu” projektu (domyślnie 30 min, TAN-208) bez kroku, raportu, tokenów, wpisu
+w historii i pracy sesji Tandem zatrzymuje historyjkę (`halt`, źródło `stall`) i przypisuje ją Karolowi; sesji nie zamyka.
+Długie polecenie bez raportu nie jest zawieszeniem, dopóki sesja pracuje, ale krok i tak zgłaszaj przed nim.
 
 Historyjki przypisane do Karola mogą stać w To do, ale ich sam nie bierzesz: kolejka
 (`sprint_read.queue`) i `story_next` bez `key` je pomijają (są w `forKarol`), bierzesz

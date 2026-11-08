@@ -5,7 +5,7 @@ description: Zasady Sprintera, wspólnego rdzenia MxCraft i Tandem – tygodniow
 
 # Sprinter: jak pracuje zespół Karol + Claude
 
-Wersja 0.17 · 2026-11-08 (GEN-77: układ rodzinny tablicy dziecka, trzy kolumny i zapis „Sprawdzone” przed Gotowe. 0.16 · 2026-11-06 (TAN-193: bez kolumny Planowanie; ticket planistyczny z planem do MxScout prosto do Done, ticket budowy buduje z planu albo bez. 0.15 · 2026-11-05: TAN-191: testy partiami – w projekcie z `pipeline.tests` = batch, domyślnie Mendix, ticket idzie do Done po buildzie, mx check i samoocenie kryteriów, a Security, Database, Migracje i UI test biegną raz na partię; partia nie trzyma kolejki buildów. 0.14 · 2026-11-01: TAN-121: „Jak pisać do Karola”, pięć reguł z przykładami; serwer MCP odrzuca podsumowanie bez części dla Karola. 0.13: TAN-118: polskie nazwy kolumn, zakładek, kroków i stanów na ekranie, id bez zmian. 0.12: TAN-65: bez tagu „kto”; kto ma ticket, mówi tylko przypisanie (Karol / Claude), zmieniane z nagłówka ticketu razem ze statusem. 0.11: TAN-28: blokada historyjek w wydaniu na prod, „Anuluj wydanie”. 0.10: TAN-14: bez punktów i ról, tylko imiona; opis dla Karola krótki i jasny, polecenie dla Claude zawsze szczegółowe; TAN-19: Pauza zamiast „Tylko odczyt”. 0.9: GEN-33: tag „kto” na tickecie: kto robi, blokada przed przypadkowym startem. 0.8: GEN-26: bez testu człowieka – kolumny Testing i Human Testing, testy dla Karola i Done na jego commit znikają; koniec historyjki to Done albo Automated Testing. 0.7: Pomysły: miejsce przed historyjkami, zamiana tylko po pytaniu Draft czy To do. 0.6: tablica projektu z pipeline: Draft → On Prod, kto co przesuwa; Automated Testing i Draft po nieudanym przebiegu też są „jednym jobem”. 0.5: kryteria ocenia Claude w raporcie końcowym; rozmiar do czytania przez konektor: najwyżej 24 KB, sekcje, podsumowanie na górze)
+Wersja 0.18 · 2026-11-08 (TAN-208: mały błąd przed większymi historyjkami bez ręcznej kolejności Karola; drugi pas Mendix w kopii folderu; zatrzymanie buildu bez postępu. 0.17 · 2026-11-08 (GEN-77: układ rodzinny tablicy dziecka, trzy kolumny i zapis „Sprawdzone” przed Gotowe. 0.16 · 2026-11-06 (TAN-193: bez kolumny Planowanie; ticket planistyczny z planem do MxScout prosto do Done, ticket budowy buduje z planu albo bez. 0.15 · 2026-11-05: TAN-191: testy partiami – w projekcie z `pipeline.tests` = batch, domyślnie Mendix, ticket idzie do Done po buildzie, mx check i samoocenie kryteriów, a Security, Database, Migracje i UI test biegną raz na partię; partia nie trzyma kolejki buildów. 0.14 · 2026-11-01: TAN-121: „Jak pisać do Karola”, pięć reguł z przykładami; serwer MCP odrzuca podsumowanie bez części dla Karola. 0.13: TAN-118: polskie nazwy kolumn, zakładek, kroków i stanów na ekranie, id bez zmian. 0.12: TAN-65: bez tagu „kto”; kto ma ticket, mówi tylko przypisanie (Karol / Claude), zmieniane z nagłówka ticketu razem ze statusem. 0.11: TAN-28: blokada historyjek w wydaniu na prod, „Anuluj wydanie”. 0.10: TAN-14: bez punktów i ról, tylko imiona; opis dla Karola krótki i jasny, polecenie dla Claude zawsze szczegółowe; TAN-19: Pauza zamiast „Tylko odczyt”. 0.9: GEN-33: tag „kto” na tickecie: kto robi, blokada przed przypadkowym startem. 0.8: GEN-26: bez testu człowieka – kolumny Testing i Human Testing, testy dla Karola i Done na jego commit znikają; koniec historyjki to Done albo Automated Testing. 0.7: Pomysły: miejsce przed historyjkami, zamiana tylko po pytaniu Draft czy To do. 0.6: tablica projektu z pipeline: Draft → On Prod, kto co przesuwa; Automated Testing i Draft po nieudanym przebiegu też są „jednym jobem”. 0.5: kryteria ocenia Claude w raporcie końcowym; rozmiar do czytania przez konektor: najwyżej 24 KB, sekcje, podsumowanie na górze)
 
 Ten plik mieszka w Tandem (`skills/sprinter/SKILL.md`, od GEN-19). Kopia w repo MxCraft
 zostaje tylko do jego wyłączenia (GEN-20); nie zmieniaj jej. `$TANDEM_DIR` to folder repo Tandem.
@@ -32,7 +32,9 @@ Na tickecie widać tylko imiona: Claude, Karol. Ról (tester, deweloper) ani pun
 - Sprinty są tygodniowe. Aktywny jest tylko jeden. Historyjki spoza aktywnego sprintu
   są w backlogu („Do refinementu” → „Gotowe do sprintu” → „Następny sprint”).
 - Kolumny: **To do · Running · Done** (Backlog jest poza tablicą). Kolejność w To do ustala Karol
-  w Tandem („Następne w sprincie”): mniejsze `order` idzie pierwsze, potem numer.
+  w Tandem („Następne w sprincie”): mniejsze `order` idzie pierwsze, potem numer. Mały błąd (ocena orkiestratora:
+  trywialny albo nie złożony) idzie przed resztą, chyba że Karol sam ustawił kolejność (przeciągnięcie albo pozycja
+  z konektora zapisuje `orderManual`; TAN-208).
 - Historyjka ma: `key`, `title`, `type` (story, bug, task, refinement), `points`
   (1 2 3 5 8 13), `prompt` (polecenie, które Claude pisze dla siebie), `intent`, `acceptance` (kryteria),
   `questions`, `decisions`, `changes` (zmiany w modelu), `assignee` (karol | claude),
@@ -102,12 +104,12 @@ testów; z pytaniem czeka na Karola (`run_wait`), bez pytań przechodzi prosto d
 (TAN-111), uwagi biznesu do planu (TAN-112) wracają ticket do To do na nową wersję. Ticket **budowy** buduje: z planem
 (`modelPlan`, także z ticketu planistycznego) według niego, bez planu bez etapu planowania.
 
-**Jeden job na projekt** obejmuje tu Running i Automated Testing (i Human Testing, gdzie jest; Done nigdy nie blokuje; karta „Partia testów” nigdy nie blokuje, TAN-191):
+**Jeden job na projekt** obejmuje tu Running i Automated Testing (i Human Testing, gdzie jest; Done nigdy nie blokuje; karta „Partia testów” nigdy nie blokuje, TAN-191; w Mendix obok jednej historyjki z modelem może iść jedna mała w kopii folderu, gdy ich pliki i dokumenty modelu się nie pokrywają, TAN-208, skill tandem):
 `story_next` nic nie bierze, gdy historyjka jest w `autotest` („czeka na testy
 automatyczne”), a `tandem-watch` nie startuje sesji także wtedy, gdy historyjka jest
 zatrzymana (MXC-137): nieudany krok albo wdrożenie nie cofają jej do Draft,
 tylko zostawiają w jej kolumnie z polem `halt` (`sprint_read.halted`: kolumna, krok,
-jedno zdanie powodu), czerwoną ramką i przypisaniem do Karola. Karol decyduje: „Wznów”
+jedno zdanie powodu), czerwoną ramką i przypisaniem do Karola. Tak samo build bez postępu przez „Limit bez postępu” projektu (domyślnie 30 min; TAN-208, źródło `stall`): bez kroku, raportu, tokenów, wpisu w historii i pracy sesji Claude. Karol decyduje: „Wznów”
 (krok od nowa, z tego samego miejsca), „Pomiń krok” albo sam przenosi ją do Draft lub
 To do – wtedy powód trafia do `fixes`, a Ty bierzesz ją jak każdą inną i zaczynasz od
 `fixes`. Zatrzymanej historyjki nie przesuwasz sam.
