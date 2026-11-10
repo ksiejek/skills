@@ -68,7 +68,12 @@
   // validation rules, which the pack lists under it (accessLines, validationLines). A description of
   // an entity says what it holds; a role gaining write access does not make that out of date, and
   // adding those lines to the pack did not mark every entity's description out of date.
-  function entityHash(e, assoc) { return fnv(JSON.stringify([e.attributes, e.generalization, assoc])); }
+  // Each attribute as its name and type, exactly as they were hashed before an enumeration attribute carried
+  // its values (docs-data.js): the values are for the screen, and adding them did not move a fingerprint.
+  function entityHash(e, assoc) {
+    var attrs = (e.attributes || []).map(function (a) { return { name: a.name, type: a.type }; });
+    return fnv(JSON.stringify([attrs, e.generalization, assoc]));
+  }
 
   // ---------- the pack ----------
   function cut(v, max) {

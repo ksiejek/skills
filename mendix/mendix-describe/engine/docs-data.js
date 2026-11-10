@@ -86,7 +86,7 @@
     if (n.caption && n.caption !== n.title) rows.push(['Caption', n.caption]);
     if (ctx.errorFrom[n.id]) rows.push(['On error', 'continues on its own error path']);
     if (n.disabled) rows.push(['State', 'disabled — Studio Pro skips this step']);
-    return {
+    var out = {
       fam: fam,
       kick: (n.kicker || KIND_NAME[n.kind] || n.kind) + (other && callKind ? ' · ' + other : ''),
       title: rest ? (rest.method ? rest.method + ' ' : '') + rest.name : n.title || n.caption || n.kicker || KIND_NAME[n.kind] || n.kind,
@@ -111,6 +111,10 @@
       // A list made empty is no object created (mpr.js).
       creates: n.action === 'CreateChangeAction'
     };
+    // A planned step's state in a proposal (proposed.js flowModel): new, changed, removed or existing. Only set there, so
+    // a model's own flow keeps the exact shape it had (describe.js fingerprints it).
+    if (n.mark) out.mark = n.mark;
+    return out;
   }
 
   // ---------- the drawing as Studio Pro has it ----------
@@ -252,6 +256,7 @@
           var dec = { t: 'split', no: no, kind: n.kind, title: n.title || n.caption || (n.kind === 'decision' ? 'Decision' : 'Which type?'),
             cond: n.expression || (n.rule ? 'rule ' + n.rule : null) || (n.variable ? '$' + n.variable : null), doc: n.documentation || null,
             branches: normal.map(function (e) { return { label: label(e), body: e.to === join ? [] : seq(e.to, join, c, id) }; }) };
+          if (n.mark) dec.mark = n.mark;
           dec.branches.forEach(function (b) { b.ends = ends(b.body); });
           var going = dec.branches.filter(function (b) { return !b.ends; });
           list.push(dec);
@@ -477,12 +482,24 @@
     (model.pages || []).forEach(function (p) { var e = pageEntry(p, model); flows[e.key] = e; mod(p.module).pages.push(e.key); });
 
     var entities = {};
+    // The values an enumeration attribute can hold, as [name] or [name, caption] when the caption differs:
+    // the name is what comes back in the data, the caption what a person sees. Read from the model's
+    // enumerations; an attribute of an enumeration this model does not carry gets none.
+    var enumValues = Object.create(null);
+    (model.enumerations || []).forEach(function (e) {
+      if (e && e.qualifiedName) enumValues[e.qualifiedName] = (e.values || []).map(function (v) { return v.caption && v.caption !== v.name ? [v.name, v.caption] : [v.name]; });
+    });
     (model.entities || []).forEach(function (en) {
       var rules = en.accessRules || [];
       entities[en.qualifiedName] = {
         qn: en.qualifiedName, module: en.module, name: en.name, persistable: en.persistable !== false, builtin: !!en.builtin,
         generalization: en.generalization || null, view: !!en.viewEntity, doc: en.documentation || null,
-        attributes: (en.attributes || []).map(function (a) { return { name: a.name, type: a.enumerationQualifiedName ? 'Enumeration ' + a.enumerationQualifiedName : a.type + (a.length ? '(' + a.length + ')' : '') }; }),
+        attributes: (en.attributes || []).map(function (a) {
+          var out = { name: a.name, type: a.enumerationQualifiedName ? 'Enumeration ' + a.enumerationQualifiedName : a.type + (a.length ? '(' + a.length + ')' : '') };
+          var vals = a.enumerationQualifiedName && enumValues[a.enumerationQualifiedName];
+          if (vals && vals.length) out.values = vals;
+          return out;
+        }),
         roles: rules.map(function (r) { return r.moduleRole; }).filter(function (v, i, all) { return v && all.indexOf(v) === i; }),
         rules: rules.length,
         // What refuses a save (mpr.js readValidationRules), for the AI pack; most entities have none.

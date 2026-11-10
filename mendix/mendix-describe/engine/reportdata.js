@@ -346,6 +346,10 @@
         access: e.access.map(function (ac) { return [ac.role.slice(ac.role.indexOf('.') + 1), ac.userRoles, ac.read, ac.write, ac.create, ac.del, prettyXpath(ac.xpath)].concat(ac.members ? [ac.members] : []); })
       };
       if (e.plan) ents[e.name].plan = e.plan;
+      // An enumeration attribute's values, by attribute name (docs-data.js), for the entity's panel to open.
+      var vals = {};
+      e.attributes.forEach(function (a) { if (a.values && a.values.length) vals[a.name] = a.values; });
+      if (Object.keys(vals).length) ents[e.name].vals = vals;
     });
     var assoc = (d.associations || []).filter(function (a) { return a.from.indexOf(module + '.') === 0 || a.to.indexOf(module + '.') === 0; })
       .map(function (a) { return [a.name, a.from, a.to, a.many].concat(a.plan ? [a.plan] : []); });

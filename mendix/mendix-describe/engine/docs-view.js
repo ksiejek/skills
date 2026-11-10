@@ -111,6 +111,8 @@
     // documentation is read from the model and says so; these are not, and a
     // reader must be able to tell the two apart at a glance.
     function aiMark() { return h('span', { class: 'dx-ai', title: _('Written by an AI agent from this model, not read from it'), text: '✦ AI' }); }
+    // Whether a person checked a description (public/trust.js) — only in a project opened from a Team server.
+    function trustMark(kind, name) { return window.MxTrust ? window.MxTrust.mark(kind, name) : null; }
     function planTag(p, mini) { return window.MxPlanLayer ? window.MxPlanLayer.tag(h, p, mini) : null; } // data.plan: the plan over the model, drawn by planlayer.js in MxScout only, never in the exported file
 
     function paragraphs(text) {
@@ -1532,6 +1534,9 @@
         // 4b. the newest test instructions of a project opened from a Team server: MxScout hands the node
         // (opts.overviewCard, public/teampackages.js), hidden while there are none; never in the exported file.
         var tests = opts.overviewCard ? opts.overviewCard() : null;
+        // How much of the documentation a person checked, and the golden questions' score (public/trust.js).
+        var trustCard = opts.trustCard ? opts.trustCard() : null;
+        if (trustCard) secs.splice(Math.min(1, secs.length), 0, { id: 'trust', label: _('Verification'), node: trustCard });
         if (tests && !tests.hidden) secs.push({ id: 'tests', label: _('Test instructions'), node: tests });
         var next = section('start', _('Where to go next'), _('Where to go next'), null, null, h('div', { class: 'dx-next' }, [
           [_('Understand the application'), _('What each part is for and how the parts fit together.'),
@@ -1557,7 +1562,7 @@
           }))),
           opts.only ? null : h('div', { class: 'dx-toc-file' }, [h('b', { text: _('This file') }), h('span', { text: _('One HTML file. It opens in any browser, offline, with no password. A Markdown copy with the same content reads well in AI tools.') }), opts.preview ? null : mdButton()])
         ]);
-        main.appendChild(h('div', { class: 'dx-ov' }, [h('article', { class: 'dx-ov-doc' }, [hero, pair, does, health, tests, next, noDrawings]), toc]));
+        main.appendChild(h('div', { class: 'dx-ov' }, [h('article', { class: 'dx-ov-doc' }, [hero, trustCard, pair, does, health, tests, next, noDrawings]), toc]));
         onScroll = function () {
           var top = main.getBoundingClientRect().top + 120, cur = secs[0].id;
           secs.forEach(function (x) { if (x.node.getBoundingClientRect().top <= top) cur = x.id; });
@@ -1739,7 +1744,8 @@
           wrap.appendChild(h('div', { class: 'dx-pd-head' }, [
             h('span', { class: 'dx-pd-eye', text: _('Process {0} of {1}', [pad2(n), procs.length]) + (planned ? ' · ' + _('planned') : '') }),
             h('h2', null, [p.name, p.plan ? planTag(p.plan) : null]),
-            p.summary ? h('p', { class: 'dx-pd-lead', text: p.summary }) : null
+            p.summary ? h('p', { class: 'dx-pd-lead', text: p.summary }) : null,
+            trustMark('process', p.name)
           ]));
           addParts(wrap, p, 'why');
           if (p.steps.length) wrap.appendChild(h('section', { class: 'dx-pd-sec' }, [h('h3', { class: 'dx-cap', text: _('Steps') }), steps])); if (p.plan && p.plan.state === 'changed') wrap.appendChild(window.MxPlanLayer.processChange(h, p, paragraphs, processParts));
@@ -1888,7 +1894,7 @@
         ]);
         if (tab === 'about') {
           wrap.appendChild(hasAbout ? h('div', { class: 'dx-md-about' }, [
-            h('section', { class: 'dx-pd-story' }, story2.length ? [h('h3', { class: 'dx-cap', text: _('What it does') })].concat(story2.map(function (p) { return h('p', { text: p }); }), [h('span', { class: 'dx-prov', text: _('Written by an agent from the model.') })])
+            h('section', { class: 'dx-pd-story' }, story2.length ? [h('h3', { class: 'dx-cap', text: _('What it does') }), trustMark('module', m.n)].concat(story2.map(function (p) { return h('p', { text: p }); }), [h('span', { class: 'dx-prov', text: _('Written by an agent from the model.') })])
               : [h('h3', { class: 'dx-cap', text: _('What it does') }), h('p', { class: 'dx-empty', text: _('An agent wrote no description of this module.') })]),
             notes.length ? h('div', { class: 'dx-md-notes' }, notes.map(function (n) {
               var cols = n.table ? n.table.columns : [];
@@ -2486,6 +2492,20 @@
         var note = null;
         if (!e.pers) note = sel + ' is not stored in the database. Its access rules still apply on the client.';
         else if (e.access.length && e.access.every(function (r) { return !r[4] && !r[5]; })) note = 'No module role can create or delete ' + sel + ' from the client.';
+        // An enumeration attribute's type opens the values it can hold, under the row (Karol, 2026-11-10): the
+        // name is what comes back in the data, the caption beside it what a person sees. Opened in place, no
+        // render, so the panel keeps its scroll.
+        function enumToggle(type, vals) {
+          var list = h('ul', { class: 'dx-dm-enum', hidden: true }, vals.map(function (v) {
+            return h('li', null, [h('span', { class: 'mono', text: v[0] }), v[1] ? h('small', { text: v[1] }) : null]);
+          }));
+          var btn = h('button', { type: 'button', class: 'dx-dm-enumbtn', 'aria-expanded': 'false', title: _('Show the {0} values', [vals.length]), onclick: function () {
+            var open = btn.getAttribute('aria-expanded') !== 'true';
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            list.hidden = !open;
+          } }, [type + ' · ' + vals.length, h('span', { class: 'dx-dm-enumcaret', 'aria-hidden': 'true', text: '▾' })]);
+          return [btn, list];
+        }
         var insp = h('aside', { class: 'dx-dm-insp', 'aria-label': 'Entity', 'data-keep-scroll': 'dm-insp:' + scope + '|' + mod + '|' + sel }, [
           h('div', { class: 'dx-dm-ih' }, [
             h('div', { class: 'dx-dm-meta' }, [h('span', null, ['Entity in ', h('span', { class: 'mono', text: mod })]), h('span', { 'aria-hidden': 'true', text: '·' }), h('span', { class: 'dx-dm-kind' }, [marker(e), kindOf(e)])]),
@@ -2494,6 +2514,7 @@
               ? ln({ view: 'domain', entity: e.gen, dmodule: modOf(e.gen) }, { class: 'mono' }, [e.gen])
               : h('span', { class: 'mono', text: e.gen }), ' — it inherits its attributes and associations.']) : null,
             e.desc && !(e.plan && e.plan.state === 'new') ? h('p', { class: 'dx-dm-d', text: e.desc }) : null,
+            e.desc && !(e.plan && e.plan.state === 'new') ? trustMark('entity', mod + '.' + sel) : null,
             e.desc && !(e.plan && e.plan.state === 'new') ? h('span', { class: 'dx-prov', text: 'Description written by an agent from the model.' }) : null, e.plan ? window.MxPlanLayer.entityNote(h, e.plan) : e.planBuilt && window.MxPlanLayer ? window.MxPlanLayer.builtNote(h, e.planBuilt) : null, // the guide's note, and that it is proposed; or, built, the proposal to compare
             h('div', { class: 'dx-dm-stats' }, [[e.attrs.length, 'attributes'], [nOwned + nRef, 'associations'], [e.access.length, 'access rules']].map(function (x) { return h('div', null, [h('span', { class: 'mono', text: String(x[0]) }), h('small', { text: x[1] })]); })),
             note ? h('p', { class: 'dx-ar-note' }, [navIcon('info', 14), h('span', null, [h('b', { text: 'Read from the model. ' }), note])]) : null,
@@ -2502,7 +2523,8 @@
           ]),
           opts.entitySection ? opts.entitySection(mod + '.' + sel) : null,
           h('section', { class: 'dx-dm-sec' }, [h('h3', { class: 'dx-cap', text: 'Attributes · ' + e.attrs.length }), h('div', { class: 'dx-pd-rows' }, e.attrs.length ? e.attrs.map(function (a) {
-            return h('div', { class: 'dx-dm-attrrow' + (a[3] ? ' plan plan-' + a[3].state : '') }, [h('span', { class: 'mono', text: a[0] }), h('small', { text: a[3] && a[3].was ? a[3].was + ' → ' + a[2] : a[2] }), a[3] && !(e.plan && e.plan.state === 'new') ? planTag({ state: a[3].state, key: e.plan ? e.plan.key : '' }) : null, a[3] && a[3].note ? h('small', { class: 'dx-dm-pn', text: a[3].note }) : null]);
+            var vals = !a[3] && e.vals && e.vals[a[0]];
+            return h('div', { class: 'dx-dm-attrrow' + (a[3] ? ' plan plan-' + a[3].state : '') }, [h('span', { class: 'mono', text: a[0] }), vals ? enumToggle(a[2], vals) : h('small', { text: a[3] && a[3].was ? a[3].was + ' → ' + a[2] : a[2] }), a[3] && !(e.plan && e.plan.state === 'new') ? planTag({ state: a[3].state, key: e.plan ? e.plan.key : '' }) : null, a[3] && a[3].note ? h('small', { class: 'dx-dm-pn', text: a[3].note }) : null]);
           }) : [h('span', { class: 'dx-empty', text: 'None of its own' + (e.gen ? ' — it inherits those of ' + short(e.gen) + '.' : '.') })])]),
           h('section', { class: 'dx-dm-sec' }, [h('h3', { class: 'dx-cap', text: 'Associations · ' + (nOwned + nRef) })].concat(
             ownedL.length ? [h('span', { class: 'dx-dm-gt', text: 'It refers to · ' + nOwned }), h('div', { class: 'dx-pd-rows' }, ownedL.map(function (g) { return assocRow(g, true); }))] : [],
@@ -2848,7 +2870,7 @@
         return riskRows;
       }
       // What was decided about a risk, who raised it, where it stands: docs-triage.js.
-      var triKit = { h: h, fmtDate: fmtDate, aiMark: aiMark };
+      var triKit = { h: h, fmtDate: fmtDate, aiMark: aiMark, trustMark: trustMark };
       function triageBlock(x) { return TRI.block(triKit, x); }
       function derived() {
         if (data.derived) return data.derived;

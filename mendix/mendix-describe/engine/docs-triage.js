@@ -68,7 +68,7 @@
     // MxScout's security check (secrisks.js, check-security.js) gives its risks ids beginning "mx-": its own, like the constants'.
     if (r.origin === 'model' || /^mx-/.test(r.id || '')) return kit.h('span', { class: 'dx-rk-by dx-rk-model', title: _('Worked out by MxScout from the model, the same on every load — not written by an AI agent'), text: _('found by MxScout') });
     return r.origin === 'person' ? kit.h('span', { class: 'dx-rk-by', title: r.raisedAt ? _('Raised by a person, in a comment on {0}', [kit.fmtDate(r.raisedAt)]) : _('Raised by a person, in a comment'),
-      text: r.by ? _('raised by {0}', [r.by]) : _('raised by a person') }) : kit.aiMark();
+      text: r.by ? _('raised by {0}', [r.by]) : _('raised by a person') }) : kit.h('span', null, [kit.aiMark(), kit.trustMark ? kit.trustMark('risk', r.id) : null]);
   }
 
   // What was decided about a risk: the reason or note, who and when, and its history, newest first.
