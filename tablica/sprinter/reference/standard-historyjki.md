@@ -72,8 +72,44 @@ mikroprzepływ, stronę albo encję z modelu projektu.
 tyle, żeby nowa sesja z pustym kontekstem zrobiła historyjkę bez pytań: kontekst (repozytorium, od czego zależy), pliki, kroki, ograniczenia
 (czego nie ruszać), testy, jak raportować. Wolno używać nazw plików, funkcji, pól
 i skrótów. Claude pisze polecenie od razu przy zakładaniu historyjki, nie czeka na Karola.
+
+Po kontekście polecenie ma zawsze trzy części, w tej kolejności (TAN-227), każdą jako akapit
+zaczynający się od jej nazwy:
+
+- `Where:` pliki i funkcje do zmiany, z jednym istniejącym wzorem do naśladowania
+  („follow the hint of humanHint in lib/story-standard.js”). To lista dla sesji budowy:
+  zaczyna od tych miejsc, zamiast szukać.
+- `Check:` dokładne polecenie i oczekiwany wynik (`node --test test/x.test.js` → all pass;
+  `npm test` → 0 failures).
+- `Out of scope:` czego nie ruszać (inne moduły, historyjki w To do i dalej, pliki wspólne).
+
+Sesja planująca (refinement, `idea_to_stories`, zakładanie kilku historyjek z rozmowy)
+czyta kod raz i wpisuje te trzy części do każdej historyjki, którą zakłada. Sesja budowy
+dostaje wtedy wskazówki, a nie zadanie szukania.
 Gdy coś musi zrobić Karol (token, klik na GitHubie), polecenie mówi, kiedy o to
 poprosić przez `run_ask` i jaką dokładnie ścieżkę kliknięć mu podać.
+
+### Podział: jedna historyjka, jedna widoczna rzecz (TAN-227)
+
+Pomiar z 14 dni: historyjka wymienia średnio 10 plików (co czwarta 14 i więcej); trudna
+zużywa 4,7 mln tokenów wejścia, zwykła 1,4 mln; co piąta sesja rośnie ponad 150 tys.
+kontekstu, przy którym model gorzej pamięta początek pracy. Mniejsze historyjki trzymają
+kontekst mały i każdą sprawdza się osobno.
+
+- **Górna granica**: jedna historyjka daje jedną rzecz, którą Karol zobaczy; najwyżej
+  6 kryteriów i około 7 zmienianych plików (testy, CHANGELOG i dokumenty idą za zmianą
+  i się nie liczą).
+- **Większa praca** to kilka historyjek połączonych `dependsOn`, w kolejności, w jakiej
+  muszą wejść (najpierw podstawa, potem to, co z niej korzysta). Każda ma własne kryteria
+  i własne Where, Check, Out of scope.
+- **Dolna granica**: każda historyjka płaci stały start (ok. 34 tys. tokenów kontekstu
+  i swoje kroki pipeline). Drobne zmiany w tym samym miejscu zostają w jednej historyjce;
+  poniżej ok. 3 plików nie dzielisz, chyba że części są od siebie niezależne.
+- Tandem pokazuje na karcie w Szkicu podpowiedź „Za duża”, gdy historyjka ma ponad
+  6 kryteriów albo ponad 8 plików do zmiany (ślad plików albo pliki wymienione w poleceniu
+  przed `Out of scope:`); tę samą podpowiedź zwracają `story_add`, `story_edit`
+  i w konektorze `create_ticket`, `update_ticket`. Liczy kryteria i pliki, nigdy długości
+  polecenia (TAN-226).
 
 ### Forma
 

@@ -90,7 +90,7 @@ Wszystko w tickecie czyta Karol. Pięć reguł (przykłady „dziś → tak”: 
 4. „Do sprawdzenia przez Ciebie” to jedna akcja z rodzajem (Kliknij, Zdecyduj, Sprawdź), z miejscem i tym, co zrobić.
 5. Zatrzymanie mówi po kolei: co się stało, czy coś poszło na prod, co masz zrobić; pytanie to jedno pełne zdanie z założeniem.
 
-Historyjkę, którą zakładasz albo zmieniasz (`story_add`, `story_edit`), piszesz według standardu ze skilla `sprinter` (Dla Ciebie: Dziś / Po zrobieniu / Kto + kryteria; Dla Claude: szczegółowe polecenie). Historyjki w Running, Automated Testing i Done tylko komentujesz.
+Historyjkę, którą zakładasz albo zmieniasz (`story_add`, `story_edit`), piszesz według standardu ze skilla `sprinter` (Dla Ciebie: Dziś / Po zrobieniu / Kto + kryteria; Dla Claude: szczegółowe polecenie z częściami Where, Check, Out of scope; większą pracę dzielisz na kilka historyjek, „Podział”). Historyjki w Running, Automated Testing i Done tylko komentujesz.
 
 ## Pliki pomocnicze (`reference/`, obok tego pliku)
 
