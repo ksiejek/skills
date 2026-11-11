@@ -34,7 +34,7 @@ historyjce zatrzymanej przez pipeline (`halted` w `sprint_read`: zostaje w swoje
 kolumnie z czerwoną ramką, nigdy nie wraca sama do Draft, MXC-137) – kolumny i kto co
 przesuwa: skill sprinter, „Tablica z pipeline”. Done ustawiasz Ty (`story_move` do
 `done`) albo, w projekcie z pipeline, sam pipeline po zielonych testach automatycznych;
-nie czeka na Karola ani na jego commit.
+nie czeka na Karola ani na commit (commit robi Tandem przy Done).
 
 
 **Kto prowadzi.** Przy każdym `story_next` podaj `host` (nazwa komputera: na Macu

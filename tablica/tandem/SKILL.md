@@ -1,11 +1,12 @@
 ---
 name: tandem
 description: Prowadzenie jednej historyjki ze sprintu w Tandem – Claude bierze dokładnie jedną historyjkę z To do (następną albo wskazaną kluczem), raportuje kroki z czasem i tokenami wejścia i wyjścia (miara zużycia; orientacyjny koszt w dolarach liczy bin/tokens.js), ostrzeżenia i ostatni komunikat, dopisuje pytania do „do sprawdzenia przez Ciebie” zamiast pytać w czacie, ocenia kryteria, przenosi do Done (z pipeline: do Automated Testing) i zapisuje podsumowanie z wynikiem (zmiany w modelu, w Sprinterze, w plikach) i kończy turę: następną historyjkę bierze nowa sesja z pustym kontekstem (pętla bin/tandem-loop.js). Używaj, gdy Karol pisze "/tandem", "weź następną historyjkę", "pracuj ze sprintu", "co jest w sprincie", "zrób kolejkę", albo gdy sesja ma wykonywać historyjki z MxCraft/Tandem bez rozmowy o każdym kroku. Wymaga skilla sprinter (zasady) i serwera MCP tandem albo plików projektu.
-argument-hint: [next | status | <KLUCZ>]
+argument-hint: "[next | status | <KLUCZ>]"
+---
 
 # Tandem: historyjka od wzięcia do Done, z tokenami
 
-Wersja 0.21 · 2026-11-11 (TAN-225: krótki rdzeń; historia wersji w `reference/historia-decyzji.md`.)
+Wersja 0.22 · 2026-11-11 (GEN-86: commit przy Done robi Tandem, nagłówek skilla się czyta; historia wersji w `reference/historia-decyzji.md`.)
 
 Karol patrzy na postęp w Tandem (http://127.0.0.1:4291/), nie w czacie: każdy krok widoczny, z czasem i tokenami. Kontekst trzymaj mały (skill `lean-context`). Rdzeń dla sesji budowy: potrzebne zasady ze skilla `sprinter` są niżej („Tablica i kto co robi”), sprintera czytasz tylko
 przy planowaniu, refinemencie i zakładaniu historyjek. Pliki `reference/*.md`
@@ -78,7 +79,7 @@ Miara zużycia: prawdziwe tokeny z zapisu sesji (`~/.claude/projects/<folder>/<i
    - `model`: `["ServiceDesk.SE_Ticket_Escalate · nowe zdarzenie co 60 min"]`; `sprinter`: `["SD-15 · Running → Done"]` (z pipeline `→ Automated Testing`);
    - `files`: ścieżki od korzenia repo przed „ · ”, każdy zmieniony plik (wdrożenie commituje tylko te; bez listy przy cudzych zmianach staje);
    - `branch`: gałąź z kodem, gdy pracowałeś w worktree; `repos`: każda gałąź w innym repo niż projekt (`[{ repo, branch, commit }]`), taki ticket czeka w Automated Testing na scalenie w main tego repo (TAN-55), do main obcego repo nie scalasz sam.
-6. Commit robi Karol (model Mendix w Studio Pro): treść po angielsku (temat do 72 znaków z kluczem, pusta linia, 3–8 punktów „- ”, numer zlecenia), zapisz ją `story_attach` jako `commit-message.txt` i pokaż w czacie w bloku kodu.
+6. **Commit robi Tandem przy Done**, nie Ty i nie Karol: Mendix jeden commit „KLUCZ: tytuł” w folderze aplikacji (tylko pliki historyjki i model, `modules/mendix/lib/pipeline/sprint-loop.js`), kod: wdrożenie z `result.files`. W worktree commitujesz sam na gałęzi (pkt 6 „Przebieg”), scala wdrożenie. Tylko gdy nikt nie commituje za Ciebie (Mendix z `pipeline.mendix.commitPerStory: false`): treść po angielsku w `commit-message.txt` (`reference/przebieg-i-koniec.md`, pkt 6).
 7. W czacie dwa zdania i koniec tury: „SD-15 w Done; 412k tokenów, 11:27. Następną weźmie nowa sesja.” (z pipeline „w Automated Testing”). Nie wołasz `story_next`.
 
 ## Jak pisać do Karola (TAN-121)

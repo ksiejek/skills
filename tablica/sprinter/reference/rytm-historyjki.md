@@ -41,12 +41,12 @@ Plik pomocniczy skilla sprinter (tekst przeniesiony bez zmian, TAN-225). Rdzeń 
    w historii; w trybie partiami po buildzie, mx check i Twojej ocenie kryteriów, testy idą potem w partii). Dawne `story_move` do `testing` serwer też przyjmie jako koniec budowy,
    ale pisz `done` / `autotest`. Zapisz podsumowanie, wynik i przebieg zmian dla Karola
    (`run_report` z `summary`, `result` i `walk`; kształt `walk` niżej, „Przebieg zmian”).
-   Done nie czeka na Karola ani na jego commit; ustawiasz je Ty albo pipeline.
+   Done nie czeka na Karola ani na commit; ustawiasz je Ty albo pipeline, a commit historyjki robi
+   Tandem przy Done (skill tandem, „Koniec historyjki”).
 8. **Uwagi Karola.** Karol może odesłać historyjkę z Done („Popraw z uwagami”): wraca do
    To do jako następna, z jego uwagami w `fixes` (`story_next` je zwraca); weź ją jak każdą
    inną i zacznij od uwag. Gdy Tandem czegoś odmówi, powiedz to jednym zdaniem; nie omijaj
-   go zapisem w plikach. Gdy Karol sam commituje (np. model Mendix), commit nie zmienia
-   statusu historyjki.
+   go zapisem w plikach. Commit nie zmienia statusu historyjki.
 9. **Następna w nowej sesji.** Rytm jest zawsze ten sam: jedna historyjka pracuje, kończy
    w Done (z pipeline: w Automated Testing), dopiero wtedy rusza kolejna. Po Done nie
    bierzesz następnej; zrobi to nowa sesja, gdy w projekcie nic nie jest w Running ani
