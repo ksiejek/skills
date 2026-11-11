@@ -10,7 +10,7 @@ The bill is calls × context. Every tool call re-sends the whole window; a file 
 ## 1. One task per session
 - One story, ticket or "krok" per session. When it reaches Testing (or the step is reported), end the turn; the next piece starts in a fresh session (Tandem loop does this by itself).
 - Never continue a session from a previous day. `/clear` beats `/compact` on an old session.
-- If the context passes ~150k mid-task: finish the current step, write the state down (story comment, run_report, or a note file), then recommend a new session. Headless Tandem sessions (`tandem-watch`) compact by themselves at 75% of the window, about 150k (`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`, TAN-85); keep the acceptance criteria, the plan and the finished steps on the ticket before that, so the compacted session picks them up from `story_next`.
+- If the context passes ~150k mid-task: finish the current step, write the state down (story comment, run_report, or a note file), then recommend a new session. Headless Tandem sessions (every `claude -p` Tandem starts: `tandem-watch`, `tandem-loop`, the step, fix and merge sessions) have the window pinned to 200k (`CLAUDE_CODE_AUTO_COMPACT_WINDOW`, TAN-224) and compact by themselves at 75% of it, about 150k (`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`, TAN-85); without the pinned window the 1M models would compact only at about 750k, and a value set in the Mac's env wins; keep the acceptance criteria, the plan and the finished steps on the ticket before that, so the compacted session picks them up from `story_next`.
 
 ## 2. Read narrowly
 - Locate first: `grep -n`, `rg -n`, `ls`, `wc -l`. Then read only the lines you need: `sed -n 'A,Bp'` with B−A ≤ 120, or Read with offset/limit.
