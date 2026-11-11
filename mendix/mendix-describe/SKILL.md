@@ -431,7 +431,9 @@ The pack is large (a real app is ~1.7 MB, ~470k tokens). Never read it whole.
    its `summary` from the story. Then the module's `notes` for a developer
    (`reference/module-notes.md`). Pages and entities are
    optional: describe the ones a business reader would look up (main screens,
-   main records), skip technical ones. While you are in the module, also note
+   main records), skip technical ones. An entity marked `[external OData: …]`
+   in the pack is data read from that other system, not a table of this app:
+   describe it so, and name the service it comes from. While you are in the module, also note
    in the same part what you will not see again: its `risks`, ranked by
    `reference/risk-levels.md`, and its `context` — where things are that
    their names hide, the naming it follows, and what breaks easily.

@@ -288,13 +288,24 @@
     return blocks;
   }
 
+  // An external entity (MXS-208): its rows come from another system through a consumed service, and it is no
+  // table of this app — an agent writing XPath or a retrieve over it has to know. Said after the fingerprint,
+  // which does not change: the entity holds the same members, and every other entity's line stays as it was.
+  function externalTag(e) {
+    var x = e.external;
+    if (!x) return '';
+    var can = [['create', x.create], ['update', x.update], ['delete', x.del]].filter(function (c) { return c[1] === true; }).map(function (c) { return c[0]; });
+    return ' [external ' + (x.source || 'external') + (x.service ? ': ' + x.service : '') + (x.set ? ', set ' + x.set : '') +
+      (can.length ? ', can ' + can.join('/') : '') + ']';
+  }
+
   function entityLine(e, data) {
     var refs = [];
     data.associations.forEach(function (a) {
       if (a.from === e.qn) refs.push('→ ' + a.to + (a.many ? ' (*-*)' : ' (*-1)') + ' via ' + a.name);
       else if (a.to === e.qn) refs.push('← ' + a.from + (a.many ? ' (*-*)' : ' (*-1)') + ' via ' + a.name);
     });
-    var parts = ['E ' + e.name + ' #' + entityHash(e, refs) + (e.persistable ? '' : ' (not persistable)') + (e.generalization ? ' extends ' + e.generalization : '')];
+    var parts = ['E ' + e.name + ' #' + entityHash(e, refs) + externalTag(e) + (e.persistable ? '' : ' (not persistable)') + (e.generalization ? ' extends ' + e.generalization : '')];
     if (e.attributes.length) parts.push('attrs: ' + e.attributes.map(function (a) { return a.name + ':' + a.type; }).join(', '));
     if (refs.length) parts.push('refs: ' + refs.join(', '));
     if (e.doc) parts.push('doc: ' + cut(e.doc));

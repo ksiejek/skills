@@ -113,6 +113,11 @@ E OrderImport #9f8e7d6c | attrs: FileName:String(200)
 ```
 
 - `E Name #hash` — an entity; `(not persistable)`, `extends X` when so.
+  `[external OData: Module.Service, set Tickets]` — an external entity: its
+  rows are read from another system through that consumed service (entity
+  set `Tickets`), not stored in this app's database, so no XPath or retrieve
+  reaches a table of its own; `, can create/update/delete` when the service
+  allows it. The fingerprint does not include the tag.
 - `attrs:` name:type. `refs:` `→` this entity owns an association to the
   other; `←` the other owns one to this. `(*-1)` a reference, `(*-*)` a set.
 - `doc:` the entity's Documentation field in the model, when it has one.

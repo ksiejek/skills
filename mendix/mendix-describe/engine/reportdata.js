@@ -346,6 +346,8 @@
         access: e.access.map(function (ac) { return [ac.role.slice(ac.role.indexOf('.') + 1), ac.userRoles, ac.read, ac.write, ac.create, ac.del, prettyXpath(ac.xpath)].concat(ac.members ? [ac.members] : []); })
       };
       if (e.plan) ents[e.name].plan = e.plan;
+      // An external entity (docs-data.js): its service and entity set; only on one.
+      if (e.external) ents[e.name].ext = e.external;
       // An enumeration attribute's values, by attribute name (docs-data.js), for the entity's panel to open.
       var vals = {};
       e.attributes.forEach(function (a) { if (a.values && a.values.length) vals[a.name] = a.values; });

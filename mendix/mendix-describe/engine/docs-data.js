@@ -523,6 +523,13 @@
           };
         })
       };
+      // An external entity (MXS-208): its rows are read through a consumed service, not stored here. Set only on
+      // one, so every other entity's record stays exactly as it was.
+      var ext = en.externalEntity;
+      if (ext) {
+        entities[en.qualifiedName].external = { source: ext.source || 'external', service: ext.service || null, set: ext.entitySet || null,
+          remote: ext.remoteName || null, create: ext.creatable, update: ext.updatable, del: ext.deletable };
+      }
       mod(en.module).entities.push(en.qualifiedName);
     });
     var associations = (model.associations || []).map(function (a) {

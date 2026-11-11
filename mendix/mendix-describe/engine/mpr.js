@@ -326,6 +326,32 @@
     if (!src || typeof src !== 'object' || !/ViewEntitySource/.test(String(src['$Type'] || ''))) return null;
     return { sourceDocument: str(src, 'SourceDocument'), oql: oqlOf(src) };
   }
+  // An external entity is one whose rows live in another system and are read
+  // through a consumed service at run time, never stored in this app's
+  // database (MXS-208). Studio Pro still writes it as an EntityImpl with
+  // Persistable true, so without this it read as an ordinary table.
+  //
+  // The shape is from a real project (AIDataConnector, Mendix 11.3): 41 of
+  // its entities carry `Source: { $Type: 'Rest$ODataRemoteEntitySource',
+  // SourceDocument: '<Module.ConsumedService>', EntitySet, RemoteName,
+  // Creatable, Deletable, Countable, … }`; Updatable was not written there.
+  // The match is on "RemoteEntitySource" so a REST or renamed variant is
+  // still told apart from a table. A capability the model does not write
+  // stays null rather than read as false.
+  function externalEntitySourceOf(raw) {
+    var src = raw && raw.Source;
+    var type = src && typeof src === 'object' ? String(src['$Type'] || '') : '';
+    if (!/RemoteEntitySource/.test(type)) return null;
+    return {
+      source: /OData/i.test(type) ? 'OData' : /Rest/i.test(type) ? 'REST' : 'external',
+      service: str(src, 'SourceDocument'),
+      entitySet: str(src, 'EntitySet'),
+      remoteName: str(src, 'RemoteName'),
+      creatable: bool(src, 'Creatable', null),
+      updatable: bool(src, 'Updatable', null),
+      deletable: bool(src, 'Deletable', null)
+    };
+  }
   function oqlOf(doc) {
     var direct = str(doc, 'Oql');
     if (direct) return direct;
@@ -2421,6 +2447,8 @@
             };
             var view = viewEntitySourceOf(raw);
             if (view) entity.viewEntity = view;
+            var external = externalEntitySourceOf(raw);
+            if (external) entity.externalEntity = external;
             result.entities.push(entity);
             entityById.set(idHex(raw['$ID']), { qn: qn, entity: entity });
           });
@@ -2915,7 +2943,7 @@
     return sortModel(result);
   }
 
-  root.MxMpr = { blobToGuid: blobToGuid, payload: payload, idHex: idHex, buildModel: buildModel, collectReferences: collectReferences,
+  root.MxMpr = { externalEntitySource: externalEntitySourceOf, blobToGuid: blobToGuid, payload: payload, idHex: idHex, buildModel: buildModel, collectReferences: collectReferences,
     applyAssociationDefaults: applyAssociationDefaults, activityKicker: activityKicker, constantVerdict: constantVerdict, readConstant: readConstant,
     readPageData: readPageData };
 })(typeof self !== 'undefined' ? self : this);
