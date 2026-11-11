@@ -138,7 +138,7 @@ business confirms something nobody promised, and you find out in testing.
 
 - It never changes a Mendix model. The plan is a proposal; building it is a
   separate job: Claude builds it from the plan, story by story, through the
-  Tandem board, writing the model from files (skill mxcraft-model), never in
+  Tandem board, writing the model from files (the model skill), never in
   Studio Pro.
 - It never invents a business rule to fill a hole. The hole becomes P-n.
 - It never promises what the documents do not say, and never quietly drops a
