@@ -5,7 +5,7 @@ description: Zasady Sprintera, wspólnego rdzenia MxCraft i Tandem – tygodniow
 
 # Sprinter: jak pracuje zespół Karol + Claude
 
-Wersja 0.22 · 2026-11-11 (TAN-227: historyjki dzielone na mniejsze, polecenie z częściami Gdzie, Sprawdzenie, Poza zakresem; historia wersji w skillu tandem, `reference/historia-decyzji.md`.)
+Wersja 0.23 · 2026-11-11 (GEN-86: commit historyjki robi Tandem przy Done; historia wersji w skillu tandem, `reference/historia-decyzji.md`.)
 
 Sprinter to wspólny rdzeń MxCraft i Tandem: sprinty, historyjki i tablica.
 Ten plik mieszka w Tandem (`skills/sprinter/SKILL.md`); `$TANDEM_DIR` to folder repo Tandem. Sesja budowy ma potrzebne zasady w skillu `tandem`; ten czytasz przy planowaniu, refinemencie i zakładaniu historyjek. Pliki `reference/*.md` czytasz na żądanie (spis na końcu).
@@ -34,7 +34,7 @@ Na tickecie widać tylko imiona: Claude, Karol (ról ani punktów nie ma).
 5. Sprawdź sam, wynik w komentarzu; Karola nie pytaj po każdej historyjce, najwyżej raz po partii zmian.
 6. Oceń kryteria (`run_report.criteria`: `index`, `done`, `evidence`); Karol czyta ocenę i ewentualnie sam ją zmienia.
 7. `story_move` do `done` (z pipeline `autotest`), potem `run_report` z `summary`, `result` i `walk`. Done nie czeka na Karola.
-8. Uwagi Karola wracają historyjkę do To do z `fixes`: zaczynasz od nich. Commit Karola nie zmienia statusu.
+8. Uwagi Karola wracają historyjkę do To do z `fixes`: zaczynasz od nich. Commit robi Tandem przy Done (skill tandem, „Koniec historyjki”); żaden commit nie zmienia statusu.
 9. Po Done nie bierzesz następnej; zrobi to nowa sesja.
 
 ## Jak pisać historyjkę (skrót; pełny standard `reference/standard-historyjki.md`, wzór `reference/przyklad-ab3.md`)

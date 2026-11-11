@@ -144,15 +144,18 @@ około dziesięć razy (Karol, 2026-10-18).
      nie leży w `~/Projects/<repo>`). Taki ticket nigdy nie jest „dokumentem”: „Scalenie z main” sprawdza,
      czy commit jest w main tego repo, inaczej wypycha gałąź, otwiera PR (`gh`) i ticket czeka w Automated
      Testing („czeka na scalenie …”). Do main obcego repo nie scalasz sam (TAN-55).
-6. **Treść commitu po angielsku**, gdy commit robi Karol (model Mendix w Studio Pro,
-   repo, którego nie commitujesz sam): pierwsza linia do 72 znaków z kluczem
+6. **Commit robi Tandem przy Done** (Mendix w trybie partiami: jeden commit „KLUCZ: tytuł” w folderze aplikacji,
+   tylko pliki historyjki i model, `modules/mendix/lib/pipeline/sprint-loop.js`; kod: wdrożenie z `result.files`;
+   worktree: Twoje commity na gałęzi, scala wdrożenie). W folderze projektu sam nie commitujesz.
+   **Treść commitu po angielsku** piszesz tylko, gdy nikt nie commituje za Ciebie (Mendix z
+   `pipeline.mendix.commitPerStory: false`, wtedy commit robi Karol): pierwsza linia do 72 znaków z kluczem
    („SD-22: Let accounting raise myConnect tickets from SD”), pusta linia, potem 3–8
    punktów „- ” z tym, co zmieniłeś (nazwy dokumentów z modelu, nowe atrybuty,
    gałęzie), i na końcu numer zlecenia, jeśli jest (US#…). Zapisz ją w tickecie przez
    `story_attach` jako `commit-message.txt` i pokaż w czacie w bloku kodu. Po
-   każdej poprawce po odrzuceniu nowa treść tylko o tej poprawce. Commit Karola
-   nie zmienia statusu historyjki; Done nie czeka na niego.
-7. W czacie dwa zdania (plus blok z commitem) i koniec tury: „SD-15 w Done; 412k
+   każdej poprawce po odrzuceniu nowa treść tylko o tej poprawce. Commit nie zmienia
+   statusu historyjki; Done nie czeka na niego.
+7. W czacie dwa zdania (plus blok z treścią commitu, gdy ją pisałeś) i koniec tury: „SD-15 w Done; 412k
    tokenów, 11:27. Następną weźmie nowa sesja.” (z pipeline: „SD-15 w Automated Testing; …”) Nie wołasz `story_next`.
    (Tylko gdy `settings.oneStoryPerSession` jest `false`: `story_next` – następna,
    chyba że `paused`.)
