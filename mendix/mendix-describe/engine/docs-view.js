@@ -685,7 +685,7 @@
           w('### ' + code(m.name)); w();
           Object.keys(Dm.ents).sort().forEach(function (n) {
             var e = Dm.ents[n], q = m.name + '.' + n;
-            w('#### ' + code(q) + ' — ' + (e.view ? 'view entity' : e.pers ? 'persistable' : 'non-persistable')); w();
+            w('#### ' + code(q) + ' — ' + (e.ext ? 'external entity (' + (e.ext.source || 'external') + (e.ext.service ? ', ' + e.ext.service : '') + ')' : e.view ? 'view entity' : e.pers ? 'persistable' : 'non-persistable')); w();
             if (e.desc) { agent(); w(esc(e.desc)); w(); }
             if (e.gen) { w('Generalization: ' + code(e.gen)); w(); }
             table(['Attribute', 'Type'], e.attrs.map(function (a) { return [raw(code(a[0])), a[2]]; }));
@@ -2092,14 +2092,20 @@
         data.modules.forEach(function (m) { if (m.entities.length) { allMods.push([m.name, m.entities.length]); if (m.marketplace) mkt[m.name] = true; } });
         allMods.sort(function (a, b) { return a[0].toLowerCase().localeCompare(b[0].toLowerCase()); });
         var ownMods = allMods.filter(function (m) { return !mkt[m[0]]; }), mktMods = allMods.filter(function (m) { return mkt[m[0]]; });
+        // External entities: the modules holding entities read through a consumed service, each with
+        // how many, as a third list beside Own and Marketplace (Karol, 2026-11-11: "a filter of its own").
+        var extCount = {};
+        Object.keys(data.entities).forEach(function (q) { var en = data.entities[q]; if (en.external) extCount[en.module] = (extCount[en.module] || 0) + 1; });
+        var extMods = allMods.filter(function (m) { return extCount[m[0]]; }).map(function (m) { return [m[0], extCount[m[0]]]; });
         var nAssoc = (data.associations || []).length;
         setTitle('Domain model', plural(Object.keys(data.entities).length, 'entity', 'entities') + ' in ' + plural(allMods.length, 'module', 'modules') + ', ' + plural(nAssoc, 'association', 'associations') + '. One module at a time; links to other modules sit at the foot of each entity, and beside the diagram for the picked one. A specialization is drawn with a triangle at the entity it inherits from, or names it at its foot when that one is in another module.');
         if (!allMods.length) { main.appendChild(h('div', { class: 'dx-note', text: 'This model has no entities.' })); return; }
         // what the address names: an entity, or a module; else the first of the chosen list
         var named = st.entity && data.entities[st.entity] ? data.entities[st.entity].module
           : allMods.some(function (m) { return m[0] === st.entity; }) ? st.entity : (st.dmodule && allMods.some(function (m) { return m[0] === st.dmodule; }) ? st.dmodule : null);
-        var scope = named ? (mkt[named] ? 'marketplace' : 'own') : (st.dscope === 'marketplace' && mktMods.length ? 'marketplace' : (ownMods.length ? 'own' : 'marketplace'));
-        var mods = scope === 'marketplace' ? mktMods : ownMods;
+        var scope = st.dscope === 'external' && extMods.length && (!named || extCount[named]) ? 'external'
+          : named ? (mkt[named] ? 'marketplace' : 'own') : (st.dscope === 'marketplace' && mktMods.length ? 'marketplace' : (ownMods.length ? 'own' : 'marketplace'));
+        var mods = scope === 'external' ? extMods : scope === 'marketplace' ? mktMods : ownMods;
         var mod = named || mods[0][0];
         var Dm = domainOf(mod);
         if (!Dm) { main.appendChild(h('div', { class: 'dx-note', text: 'This copy of the reader cannot draw the domain model.' })); return; }
@@ -2167,7 +2173,8 @@
           return h('button', { type: 'button', class: on ? 'on' : '', 'aria-pressed': on ? 'true' : 'false', disabled: list.length ? null : 'disabled',
             onclick: function () { if (!on && list.length) go({ view: 'domain', dscope: key, entity: list[0][0], dmodule: list[0][0] }); } }, [label, h('span', { class: 'dx-fc-n', text: String(list.length) })]);
         }
-        var scopeBar = mktMods.length ? h('div', { class: 'dx-seg2 dx-dm-scope', role: 'group', 'aria-label': 'Which modules' }, [scopeBtn('own', 'Own', ownMods), scopeBtn('marketplace', 'Marketplace', mktMods)]) : null;
+        var scopeBar = mktMods.length || extMods.length ? h('div', { class: 'dx-seg2 dx-dm-scope', role: 'group', 'aria-label': 'Which modules' }, [scopeBtn('own', 'Own', ownMods),
+          mktMods.length ? scopeBtn('marketplace', 'Marketplace', mktMods) : null, extMods.length ? scopeBtn('external', _('External'), extMods) : null]) : null;
         var modList = h('aside', { class: 'dx-dm-mods', 'aria-label': 'Modules', 'data-keep-scroll': 'dm-mods:' + scope }, [h('label', { class: 'dx-rk-search' }, [navIcon('search', 14), find]), found, scopeBar,
           h('span', { class: 'dx-cap', text: 'Modules · ' + mods.length })].concat(mods.map(function (m) { var pm3 = data.plan && data.plan.modules[m[0]]; return ln({ view: 'domain', entity: m[0], dmodule: m[0] }, { class: 'dx-dm-mrow mono' + (m[0] === mod ? ' on' : '') }, [h('span', null, [m[0], pm3 && pm3.state === 'new' ? planTag({ state: 'new', key: pm3.from.key }) : null]), h('span', { class: 'dx-fc-n', text: String(m[1]) })]);
         })));
@@ -2320,16 +2327,18 @@
           var ay = ay0 + ai * (AH + AG) + AH / 2, ax = pb.x + pb.w, amid = pb.y + G.fy;
           svg.appendChild(s('path', { class: 'dx-dm-edge on dx-dm-awayline', d: pathOf([[ax, amid], [AX - 18, amid], [AX - 18, ay], [AX, ay]], 8) }));
         }
-        function marker(e) { return h('span', { class: 'dx-dm-mk ' + (e.view ? 'view' : e.pers ? 'pers' : 'np'), 'aria-hidden': 'true' }); }
+        function marker(e) { return h('span', { class: 'dx-dm-mk ' + (e.ext ? 'ext' : e.view ? 'view' : e.pers ? 'pers' : 'np'), 'aria-hidden': 'true' }); }
+        // An external entity's header carries where it comes from, OData or REST.
+        function extBadge(e) { return e.ext ? h('span', { class: 'dx-dm-xb', title: _('External entity: its rows are read from {0}, not stored in this app', [e.ext.service || _('another system')]), text: e.ext.source || 'OData' }) : null; }
         shownNames.forEach(function (n) {
-          var e = E[n], b = L.pos[n], on = n === sel, dim = !!sel && whole && !nbr[n];
+          var e = E[n], b = L.pos[n], on = n === sel, dim = (!!sel && whole && !nbr[n]) || (scope === 'external' && !e.ext);
           var na = e.attrs.length, list2 = na > G.maxA ? e.attrs.slice(0, G.maxA - 1) : e.attrs;
           var foot = footOf(n, shown);
-          var box = ln(pickEntity(n), { class: 'dx-dm-box' + (e.pers ? '' : ' np') + (e.view ? ' view' : '') + (e.plan ? ' plan plan-' + e.plan.state : '') + (on ? ' on' : '') + (dim ? ' dim' : ''), 'aria-pressed': on ? 'true' : 'false', title: mod + '.' + n + (e.plan ? ' — in the plan of ' + e.plan.key : '') }, [
+          var box = ln(pickEntity(n), { class: 'dx-dm-box' + (e.pers ? '' : ' np') + (e.view ? ' view' : '') + (e.ext ? ' ext' : '') + (e.plan ? ' plan plan-' + e.plan.state : '') + (on ? ' on' : '') + (dim ? ' dim' : ''), 'aria-pressed': on ? 'true' : 'false', title: mod + '.' + n + (e.plan ? ' — in the plan of ' + e.plan.key : '') }, [
             // The kind, told two ways (Karol, 2026-10-13: "persistable, not and view must differ more"):
             // the header's colour and the outline (solid, dashed, dotted); the legend names them. The
             // word under the name went (2026-10-14: "not needed").
-            h('span', { class: 'dx-dm-bh' }, [marker(e), h('b', { class: 'mono', text: n }), e.plan && e.plan.state === 'new' ? planTag(e.plan, true) : null, h('small', { class: 'mono', text: String(na) })]),
+            h('span', { class: 'dx-dm-bh' }, [marker(e), h('b', { class: 'mono', text: n }), extBadge(e), e.plan && e.plan.state === 'new' ? planTag(e.plan, true) : null, h('small', { class: 'mono', text: String(na) })]),
             h('span', { class: 'dx-dm-attrs' }, list2.map(function (a) { return h('span', { class: 'dx-dm-attr mono' + (a[3] ? ' plan plan-' + a[3].state : ''), title: a[3] ? 'Proposed: ' + a[3].state + (a[3].was ? ' (was ' + a[3].was + ')' : '') + (a[3].note ? ' — ' + a[3].note : '') : null }, [h('span', { text: a[0] }), h('small', { text: a[3] && e.plan && e.plan.state === 'changed' ? a[3].state : a[1] })]); })
               .concat(na > G.maxA ? [h('span', { class: 'dx-dm-attr more', text: '+ ' + (na - G.maxA + 1) + ' more' })] : [])),
             foot ? h('span', { class: 'dx-dm-foot mono', title: foot, text: foot }) : null
@@ -2373,6 +2382,7 @@
           h('span', { title: 'Stored in the database' }, [h('i', { class: 'dx-dm-mk pers' }), 'Persistable']),
           h('span', { title: 'Lives only in memory, never stored' }, [h('i', { class: 'dx-dm-mk np' }), 'Non-persistable']),
           h('span', { title: 'Its rows are what an OQL query returns, served read-only' }, [h('i', { class: 'dx-dm-mk view' }), 'View entity']),
+          extMods.length ? h('span', { title: _('Its rows are read from another system through a consumed service (OData), not stored in this app') }, [h('i', { class: 'dx-dm-mk ext' }), _('External entity')]) : null,
           h('span', { title: 'An association: * at the entity that owns it, 1 at the one it points to (* at both ends for a reference set)' }, [h('b', { class: 'mono', text: '* 1' }), 'association']),
           h('span', { title: 'An association to an entity in another module, listed at the foot of the box and, for the picked entity, drawn in a lane beside the diagram' }, [h('b', { text: '↗' }), 'other module']),
           h('span', { title: 'A generalization: the entity inherits the attributes and associations of the one the triangle points at. A parent in another module is at the foot of the box, and in the lane for the picked entity' }, [h('b', { text: '▲' }), 'generalization'])]);
@@ -2408,7 +2418,7 @@
                 h('span', { class: 'mono num', text: String(e.attrs.length) }), h('span', { class: 'mono num', text: String(cnt(n)) }), h('span', { class: 'mono num', text: String(e.access.length) }), h('span', { class: 'dx-dm-desc', text: e.desc || '—' })]);
             }))));
         }
-        function kindOf(e) { return e.view ? 'View entity' : e.pers ? 'Persistable' : 'Non-persistable'; }
+        function kindOf(e) { return e.ext ? _('External entity ({0})', [e.ext.source || 'OData']) : e.view ? 'View entity' : e.pers ? 'Persistable' : 'Non-persistable'; }
 
         // ---- the inspector ----
         if (!sel) {
@@ -2490,7 +2500,9 @@
           closeBtn.focus();
         }
         var note = null;
-        if (!e.pers) note = sel + ' is not stored in the database. Its access rules still apply on the client.';
+        if (e.ext) note = _('{0} is not stored in this app: its rows are read from {1} when they are asked for.', [sel, e.ext.service || _('another system')]) +
+          ([['create', e.ext.create], ['update', e.ext.update], ['delete', e.ext.del]].some(function (c) { return c[1] === true; }) ? '' : ' ' + _('This app cannot create, change or delete them.'));
+        else if (!e.pers) note = sel + ' is not stored in the database. Its access rules still apply on the client.';
         else if (e.access.length && e.access.every(function (r) { return !r[4] && !r[5]; })) note = 'No module role can create or delete ' + sel + ' from the client.';
         // An enumeration attribute's type opens the values it can hold, under the row (Karol, 2026-11-10): the
         // name is what comes back in the data, the caption beside it what a person sees. Opened in place, no
@@ -2510,6 +2522,9 @@
           h('div', { class: 'dx-dm-ih' }, [
             h('div', { class: 'dx-dm-meta' }, [h('span', null, ['Entity in ', h('span', { class: 'mono', text: mod })]), h('span', { 'aria-hidden': 'true', text: '·' }), h('span', { class: 'dx-dm-kind' }, [marker(e), kindOf(e)])]),
             h('h2', { class: 'mono' }, [sel, e.plan ? planTag(e.plan) : null]),
+            e.ext ? h('p', { class: 'dx-dm-ext' }, [h('span', { class: 'dx-dm-xb' }, [_('{0} · external', [e.ext.source || 'OData'])]),
+              e.ext.service ? h('span', null, [_('From'), ' ', h('span', { class: 'mono', title: _('The consumed service document in the model'), text: e.ext.service })]) : null,
+              e.ext.set ? h('span', null, [_('entity set'), ' ', h('span', { class: 'mono', text: e.ext.set })]) : null]) : null,
             e.gen ? h('p', { class: 'dx-dm-gen' }, ['Specialises ', data.entities[e.gen]
               ? ln({ view: 'domain', entity: e.gen, dmodule: modOf(e.gen) }, { class: 'mono' }, [e.gen])
               : h('span', { class: 'mono', text: e.gen }), ' — it inherits its attributes and associations.']) : null,
