@@ -27,6 +27,7 @@ turę zdaniem „Następną weźmie nowa sesja.” Nie wołasz `story_next` drug
   (pierwsze 8 znaków id sesji, nazwy pliku `~/.claude/projects/<folder>/<id>.jsonl`). Brak kroku i raportu przez 30 min =
   „bez sygnału”; gdy `run_report` odpowie, że Karol zwolnił historyjkę, kończysz bez dalszej pracy.
 - Historyjki przypisane do Karola (`forKarol`) bierzesz tylko, gdy poda ich klucz.
+- Za dużą historyjkę z To do (ponad 6 kryteriów, 8 plików albo 12 dokumentów modelu Mendix) Tandem dzieli przy pobraniu (TAN-251): `story_next` oddaje część 1, Ty budujesz tylko ją; oryginał czeka w Backlogu. Gdy podział się nie uda, budujesz całość.
 
 ## Co czytasz po `story_next`
 
