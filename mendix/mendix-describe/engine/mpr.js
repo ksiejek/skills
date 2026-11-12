@@ -1010,6 +1010,9 @@
 
   function readPageTree(widgetLists) {
     var count = 0, truncated = false;
+    // The element's own $ID, as hex, kept on its node as `id` so two versions of a page can be matched element by element
+    // (the page comparison, compare.js). It is not part of a page's fingerprint (describe.js hashOf) and not in any description.
+    function ident(n, raw) { var i = raw && typeof raw === 'object' ? idHex(raw['$ID']) : null; if (i) n.id = i; return n; }
     function list(arr, depth) {
       return payload(arr).map(function (w) { return widget(w, depth + 1); }).filter(Boolean);
     }
@@ -1092,7 +1095,7 @@
             if (!sub.binding && !sub.actions.length && !sub.slots.length && !sub.source) return;
             if (count >= PAGE_TREE_MAX_NODES) { truncated = true; return; }
             count++;
-            var item = { kind: 'item', type: def.key };
+            var item = ident({ kind: 'item', type: def.key }, o);
             if (sub.caption) item.caption = sub.caption;
             if (sub.binding && sub.binding.attribute) item.attribute = sub.binding.attribute;
             if (sub.binding && sub.binding.path) item.path = sub.binding.path;
@@ -1113,7 +1116,7 @@
       if (depth > PAGE_TREE_MAX_DEPTH || count >= PAGE_TREE_MAX_NODES) { truncated = true; return null; }
       count++;
       var type = w['$Type'];
-      var n = { kind: 'other', type: type.replace(/^.*\$/, '') };
+      var n = ident({ kind: 'other', type: type.replace(/^.*\$/, '') }, w);
       if (typeof w.Name === 'string' && w.Name) n.name = w.Name;
       var caption = pageTemplateOf(w.LabelTemplate) || pageTemplateOf(w.CaptionTemplate) || pageTemplateOf(w.Caption);
       if (caption) n.caption = caption;
@@ -1140,7 +1143,7 @@
         payload(w.Columns).forEach(function (c) {
           if (!c || count >= PAGE_TREE_MAX_NODES) return;
           count++;
-          var col = { kind: 'item', type: 'column' };
+          var col = ident({ kind: 'item', type: 'column' }, c);
           var cap = pageTextOf(c.Caption);
           if (cap) col.caption = cap;
           binding(col, c.AttributeRef);
@@ -1152,10 +1155,10 @@
       } else if (type === 'Forms$LayoutGrid') {
         n.kind = 'grid';
         n.widgets = payload(w.Rows).map(function (r) {
-          var row = { kind: 'row', widgets: payload(r && r.Columns).map(function (c) {
-            var col = { kind: 'col', weight: typeof (c && c.Weight) === 'number' ? c.Weight : -1, widgets: list(c && c.Widgets, depth + 1) };
+          var row = ident({ kind: 'row', widgets: payload(r && r.Columns).map(function (c) {
+            var col = ident({ kind: 'col', weight: typeof (c && c.Weight) === 'number' ? c.Weight : -1, widgets: list(c && c.Widgets, depth + 1) }, c);
             return col;
-          }) };
+          }) }, r);
           var rv = pageConditionOf(r && r.ConditionalVisibilitySettings);
           if (rv) row.visible = rv;
           return row;
@@ -1165,7 +1168,7 @@
         n.kind = 'grid';
         var widths = payload(w.ColumnWidths).map(function (c) { return c && typeof c.Value === 'number' ? c.Value : 1; });
         var rows = payload(w.Rows).map(function (r) {
-          var row = { kind: 'row', widgets: [] };
+          var row = ident({ kind: 'row', widgets: [] }, r);
           var rv = pageConditionOf(r && r.ConditionalVisibilitySettings);
           if (rv) row.visible = rv;
           return row;
@@ -1173,13 +1176,13 @@
         payload(w.Cells).forEach(function (c) {
           if (!c) return;
           var r = rows[c.TopRowIndex || 0] || (rows[c.TopRowIndex || 0] = { kind: 'row', widgets: [] });
-          r.widgets.push({ kind: 'col', weight: widths[c.LeftColumnIndex || 0] || 1, widgets: list(c.Widgets, depth + 1) });
+          r.widgets.push(ident({ kind: 'col', weight: widths[c.LeftColumnIndex || 0] || 1, widgets: list(c.Widgets, depth + 1) }, c));
         });
         n.widgets = rows.filter(Boolean);
       } else if (type === 'Forms$TabControl') {
         n.kind = 'tabs';
         n.widgets = payload(w.TabPages).map(function (tp) {
-          var tab = { kind: 'tab', caption: pageTextOf(tp && tp.Caption) || (tp && tp.Name) || 'Tab', widgets: list(tp && tp.Widgets, depth + 1) };
+          var tab = ident({ kind: 'tab', caption: pageTextOf(tp && tp.Caption) || (tp && tp.Name) || 'Tab', widgets: list(tp && tp.Widgets, depth + 1) }, tp);
           var tv = pageConditionOf(tp && tp.ConditionalVisibilitySettings);
           if (tv) tab.visible = tv;
           return tab;
@@ -2945,5 +2948,5 @@
 
   root.MxMpr = { externalEntitySource: externalEntitySourceOf, blobToGuid: blobToGuid, payload: payload, idHex: idHex, buildModel: buildModel, collectReferences: collectReferences,
     applyAssociationDefaults: applyAssociationDefaults, activityKicker: activityKicker, constantVerdict: constantVerdict, readConstant: readConstant,
-    readPageData: readPageData };
+    readPageData: readPageData, readPageStructure: readPageStructure };
 })(typeof self !== 'undefined' ? self : this);
