@@ -107,6 +107,14 @@ daje własny moduł aplikacji), `Administration.AppUser`, własne dokumenty w `A
 5. Ikony w tabelach (Data grid 2): kolumna z ikonami na końcu wiersza (ołówek, kosz, oko) pływa razem z przypiętą
    kolumną MSN: zostaje przy prawej krawędzi, gdy tabela przewija się w bok, i zajmuje tyle miejsca, ile mają same ikony,
    a nie całą szerokość kolumny (Karol, INT-37, 2026-11-04). W Intercom: `themesource/customstyling/web/_shipment.scss` i `_pending.scss`.
+6. Strony Raben budujesz jak w Atlasie (Karol, 2026-11-12): RabenDesign nadpisuje klasy i selektory Atlasa, więc
+   strona nie dostaje klas, żeby wyglądać jak artefakt. Wartość to pole z etykietą, *Editable* Never i *Read-only style*
+   Content only (nie dwa Texty, nie szare pole `Control`); układ to layout grid (col-md-N), kontener i Text z *Render
+   mode*, nie `rb-grid-*` ani flex na kontenerze. Klasy na stronie: Atlasa (`card`, `pageheader`, `text-detail`,
+   `datagrid-bordered`, spacing) i RabenDesign tylko tam, gdzie Atlas nie ma odpowiednika (`rb-tag-*`, `rb-kpi`,
+   przypięcie kolumny `rb-pin-actions` / `rb-row-actions`). Data grid 2 nie dostaje klas „włącz wygląd” (`rb-show-sort`,
+   `rb-selectable`, `rb-grid-flush`), a przyciski pagera klas ikon (`rb-pg-*`): to domyślny wygląd RabenDesign.
+   Ogólne lekcje: `mxcraft-template/reference/lessons.md` 26-30.
 
 ## 6. Znane pułapki
 
