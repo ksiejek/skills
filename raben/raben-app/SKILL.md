@@ -5,7 +5,7 @@ description: Jak wygląda aplikacja Mendix grupy Raben (HeadQuarters, Intercom, 
 
 # raben-app – jak wygląda aplikacja Raben
 
-Ogólne skille (mxcraft-plan, mxcraft-model, mxcraft-workflow) nie znają Raben i tak ma zostać. Ten skill dokłada
+Ogólne skille (mendix-plan, mxcraft-model, mxcraft-workflow) nie znają Raben i tak ma zostać. Ten skill dokłada
 to, co jest wspólne dla aplikacji Raben. Gdy coś się tu nie zgadza z ogólnym skillem, w aplikacji Raben wygrywa ten.
 Zbiór zasad rośnie w tickecie LIC-16 („Raben Starting Point”); zmiany zasad zapisuj tutaj.
 
@@ -117,7 +117,7 @@ daje własny moduł aplikacji), `Administration.AppUser`, własne dokumenty w `A
 - `MDM_Generic.CreateUpdateAccountEntraID` zakłada tylko użytkowników aplikacji, nie wszystkich pracowników.
 
 ## 7. Plan i budowa
-- Plan aplikacji Raben robisz skillem `mxcraft-plan`, a moduły z pkt 1 i encje z pkt 2 wpisujesz od razu jako
+- Plan aplikacji Raben robisz skillem `mendix-plan`, a moduły z pkt 1 i encje z pkt 2 wpisujesz od razu jako
   start (Sprint Zero), nie jako decyzję do podjęcia.
 - Zasady Raben nie trafiają do `mxcraft-skills` ani na tablicę Craftsman (Karol, 2026-11-01). Nowa zasada Raben
   idzie tutaj i do LIC-16.
