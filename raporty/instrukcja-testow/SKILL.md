@@ -108,6 +108,13 @@ kończy się „Wynik testu”: OK / NIE OK, data (dziś), inicjały, uwagi, zap
 8. **Oddaj:** w tickecie `story_attach` trzy pliki (albo ZIP paczki), `walkthrough.md` i zrzut każdego scenariusza;
    w czacie ścieżki i jedno zdanie. Ticket przechodzi do Done tylko po zielonym przejściu całości.
 
+## Publikacja do bramki (TAN-231)
+
+Po zielonym przejściu dołącz do ticketu także `instrukcja.json` i `walkthrough.json` (`story_attach`) i opublikuj instrukcję
+do bramki projektu: `test_instruction_publish` z kluczem ticketu (albo przycisk „Opublikuj w bramce” w zakładce Odbiór).
+Niezweryfikowanej bramka nie przyjmie. Testerom podaj link `https://<domena demo>/_gate/instruction` (po logowaniu przez
+bramkę); wyniki OK / NIE OK czytasz w zakładce Odbiór albo `test_results_list`. Plik HTML i ZIP działają jak dotąd.
+
 ## Zasady instrukcji
 
 - Po polsku, z perspektywy użytkownika: „kliknij **New message**”, „zobaczysz…”. Napisy z aplikacji cytujesz dokładnie,
