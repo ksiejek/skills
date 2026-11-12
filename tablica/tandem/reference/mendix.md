@@ -34,7 +34,9 @@ Kolumny Planowanie już nie ma (TAN-193 zastąpił TAN-22/TAN-110), a przełącz
 Rodzaj ticketu mówi `story.planning` w odpowiedzi `story_next` (Karol zaznacza „Ticket planistyczny” przy zakładaniu
 w Tandem albo w konektorze: `create_ticket` / `update_ticket` z `planning`; na karcie znaczek „Planistyczny”).
 
-**Ticket planistyczny** (np. „zaplanuj moduł w License 2.0”): wynikiem jest plan w MxScout, nie zmiana.
+**Ticket planistyczny** (np. „zaplanuj moduł w License 2.0”): wynikiem jest plan w MxScout, nie zmiana. To opakowanie
+Tandem dla planu skilla `mendix-plan`; jak z przyjętego planu powstają tickety sprintu (z `rules` i `dependsOn`), w jakiej
+kolejności się buduje i co ma sprint startowy: skill sprinter, `reference/od-planu-do-sprintu.md`.
 1. `plan_read` z `key`: polecenie, kryteria, `claudeNotes` (uwzględnij i potwierdź w `acks`), uwagi do planu
    (`planNotes`), dotychczasowy plan, tickety budowy, które plan może objąć (`candidates`: backlog, Szkic, Do zrobienia)
    i plany już przyjęte (`ahead`).

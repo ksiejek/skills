@@ -6,7 +6,7 @@ argument-hint: "[next | status | <KLUCZ>]"
 
 # Tandem: historyjka od wzięcia do Done, z tokenami
 
-Wersja 0.22 · 2026-11-11 (GEN-86: commit przy Done robi Tandem, nagłówek skilla się czyta; historia wersji w `reference/historia-decyzji.md`.)
+Wersja 0.23 · 2026-11-12 (GEN-89: przypadek testowy pipeline na każde kryterium, ticket planistyczny odsyła do „od planu do sprintu” w skillu sprinter; historia wersji w `reference/historia-decyzji.md`.)
 
 Karol patrzy na postęp w Tandem (http://127.0.0.1:4291/), nie w czacie: każdy krok widoczny, z czasem i tokenami. Kontekst trzymaj mały (skill `lean-context`). Rdzeń dla sesji budowy: potrzebne zasady ze skilla `sprinter` są niżej („Tablica i kto co robi”), sprintera czytasz tylko
 przy planowaniu, refinemencie i zakładaniu historyjek. Pliki `reference/*.md`
@@ -71,7 +71,7 @@ Miara zużycia: prawdziwe tokeny z zapisu sesji (`~/.claude/projects/<folder>/<i
 
 ## Koniec historyjki
 
-1. **Sprawdź sam** całość (testy, przeglądarka, kopia projektu) i opisz wynik w `story_comment`. Testu dla Karola nie zakładasz; w pipeline możesz podać przypadki dla kroku testu UI (`test_cases_set`). Tablica rodzinna: `selfCheck` w `run_report` przed `story_move` (`reference/przebieg-i-koniec.md`).
+1. **Sprawdź sam** całość (testy, przeglądarka, kopia projektu) i opisz wynik w `story_comment`. Testu dla Karola nie zakładasz; w pipeline każde kryterium dostaje przypadek dla kroku testu UI (`test_cases_set` z `criterion`) albo zapisany powód, dlaczego nie da się go zautomatyzować. Tablica rodzinna: `selfCheck` w `run_report` przed `story_move` (`reference/przebieg-i-koniec.md`).
 2. **Oceń kryteria**: `run_report` z `criteria: [{ index (od 0), done, evidence }]` dla każdego; `evidence` to jedno zdanie, skąd wiesz; niespełnione `done: false` z powodem. Karol niczego nie odhacza.
 3. `run_ask` „Chcesz coś sprawdzić sam przed wydaniem?” najwyżej po partii zmian (kilka historyjek jednej funkcjonalności, koniec sprintu), nie po każdej.
 4. **`story_move`** do `done`; w projekcie z pipeline do `autotest` (po zielonych testach pipeline sam daje Done; Mendix w trybie wsadowym: build, `mx check` i Twoja ocena kryteriów, pełne testy raz na partię, szczegóły `reference/mendix.md`). Pisz `done` / `autotest`, nie `testing`. Ticket planistyczny: prosto do `done`.

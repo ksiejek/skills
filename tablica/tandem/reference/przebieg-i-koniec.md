@@ -111,8 +111,10 @@ około dziesięć razy (Karol, 2026-10-18).
 
 1. **Sprawdź sam** całość (testy jednostkowe, przeglądarka, kopia projektu) i opisz wynik
    w `story_comment`. Testu dla Karola nie zakładasz: w Tandem nie ma testu człowieka.
-   W projekcie z pipeline możesz podać przypadki dla automatycznego kroku testu UI
-   (`test_cases_set`); to scenariusze dla pipeline'u, nie dla Karola. Historyjek dla
+   W projekcie z pipeline każde kryterium dostaje przypadek dla automatycznego kroku testu UI
+   (`test_cases_set` z `criterion`, przy regule też `rule`) albo zapisany powód, dlaczego nie da się go
+   zautomatyzować (`reference/od-planu-do-sprintu.md` w skillu sprinter, „Zrobione”); to scenariusze
+   dla pipeline'u, nie dla Karola. Historyjek dla
    środowiska testowego nie zakładaj bez polecenia Karola.
 2. **Oceń kryteria** przed `story_move`: `run_report` z `criteria: [{ index, done, evidence }]`
    dla każdego kryterium (`index` od 0, jak w `acceptance` ze `story_next`). `evidence`
