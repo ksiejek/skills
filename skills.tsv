@@ -18,6 +18,9 @@ mendix-docs	active	Skills/mendix/mendix-docs	packed from Skills/mendix/mendix-do
 mxcraft-model	active	mxcraft-skills/skills/mxcraft-model	shared repo ksiejek/mxcraft-skills (CRAFT-16); edit there, on a skill/<topic> branch
 mxcraft-workflow	active	mxcraft-skills/skills/mxcraft-workflow	shared repo ksiejek/mxcraft-skills (CRAFT-16); edit there, on a skill/<topic> branch
 mxcraft-theme-scss	active	mxcraft-skills/skills/mxcraft-theme-scss	shared repo ksiejek/mxcraft-skills (CRAFT-16); edit there, on a skill/<topic> branch
+mxcraft-template	active	mxcraft-skills/skills/mxcraft-template	shared repo ksiejek/mxcraft-skills (CRAFT-16); edit there, on a skill/<topic> branch
+mxcraft-theme	active	mxcraft-skills/skills/mxcraft-theme	shared repo ksiejek/mxcraft-skills (CRAFT-16); edit there, on a skill/<topic> branch
+mendix-design-system	active	mxcraft-skills/skills/mendix-design-system	shared repo ksiejek/mxcraft-skills (CRAFT-16); edit there, on a skill/<topic> branch
 tandem	active	Skills/tablica/tandem
 sprinter	active	Skills/tablica/sprinter
 lean-context	active	Skills/tablica/lean-context
@@ -51,3 +54,6 @@ mxcraft-theme-scss	retired	Skills/retired/budowa/mxcraft-theme-scss	the source b
 raben-app	active	Skills/raben/raben-app	Raben app conventions (MDM_Generic + MDM, MxAdmin, Queues, RabenDesign); never in mxcraft-skills
 mendix-plan	active	Skills/mendix/mendix-plan	plan an app before it is built: processes for the business, model, prototype, sprints
 mendix-plan	copy	MxScout/skills/mendix-plan	MxScout ships it (/api/skills, skills/install.sh)
+mxcraft-plan	retired	mxcraft-skills/skills/mxcraft-plan	pointer only, retired 2026-11-12 (GEN-87): replaced by mendix-plan and the planning ticket
+qa	retired	mxcraft-skills/skills/qa	pointer only, retired 2026-11-12 (GEN-87): replaced by the pipeline's test cases and the regression suite (TAN-234)
+mxcraft-training	retired	mxcraft-skills/skills/mxcraft-training	pointer only, retired 2026-11-12 (GEN-87): replaced by nothing

@@ -1,11 +1,11 @@
 {
   "MxScout/skills/mendix-assist": "e558620e60465fceaecdbcefef3542d4dd6725a694de93c50d309995079df688",
-  "MxScout/skills/mendix-describe": "02411784d6dc5bcfc91ab619c8ce93635c5df6f1431ddf19d11c7c36666419a8",
+  "MxScout/skills/mendix-describe": "cd6b4478fb858d094dec14a428d737ac594f1ab987203170259b71e3bb35af57",
   "MxScout/skills/mendix-brief": "0c8a1c11676b78eb3ad9311e447e744045285f122579a542941a85cb0088bc2b",
   "MxScout/skills/mendix-change-proposal": "e438355c8e0ab3075844099b5085b7a4123076c8db833b77a6279063809bedea",
   "MxScout/skills/mendix-testcases": "7ce2e3ed5354c51d8b5549b0f354f275ff58b87fe7cbd9041227f49eac78803a",
   "MxScout/skills/mxscout-project": "8a7a9acbf7af340f9fac90e3622a1866f99055ad887e27c018c3979ed7c8a421",
-  "Tandem/skills/mendix/mxcraft-model": "fe51980fc1975a3e323e2a96c11d3b3ef57bee245416887e4a2689b889e806e1",
+  "Tandem/skills/mendix/mxcraft-model": "1f968953223cb84b644841b53f9545c489e7ba3fe664ea17e6cb0c7cf9acfd67",
   "Tandem/skills/mendix/mxcraft-workflow": "c8001923e7e3f0021208ef967c57b6ea98a16251331d01ba03e6d0aaae6d039e",
   "Tandem/skills/mendix/mxcraft-theme-scss": "9084f4f95663fd9b00678d44b78e4686165827d663ad69286ac1299f1a8bb29e",
   "Tandem/skills/tandem": "8049eebc4ab13810efe8549a7a2a81b5cc36e03f4243c69a5d1b710da40e9db3",
@@ -13,7 +13,7 @@
   "Tandem/skills/lean-context": "33bbcf3e539e67742eca57bd020a7f159c055c778da0daa8146047cc262473fc",
   "Tandem/skills/instrukcja-testow": "1d24b35ad831450e8877bbca4127fc1dd70d10566db3b7f3fa7ea71c5832ff0f",
   "Tandem/skills/dokumentacja": "733eb086ab680d87a36d15584d48b18039796afa9335c76b9fa75c3d94949b52",
-  "MxScout/skills/mendix-plan": "a9c7e0da1682f041c4257c4ad561ee6ad58195b0c47af8f7c6b04d25a960980a",
+  "MxScout/skills/mendix-plan": "ee35a5230a9b87e55d05ca48667af336631e7c3bddd6d049f6077390ea931e76",
   "MxScout/skills/mendix-nightly": "db22777ed598514f8a0fb326cc1e9e0bca6079576cea17af6176f466b0e7763f",
   "MxScout/skills/mendix-comments": "689510285cd10072a8469115eb653d3ae8f75b0e52e0f3d0d3e629ff7c576b0f"
 }
