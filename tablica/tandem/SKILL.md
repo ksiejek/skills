@@ -6,7 +6,7 @@ argument-hint: "[next | status | <KLUCZ>]"
 
 # Tandem: historyjka od wzięcia do Done, z tokenami
 
-Wersja 0.24 · 2026-11-13 (scalenie PR w innym repo robi Claude, nie Karol; TAN-251: za duża historyjka dzieli się przy pobraniu; historia wersji w `reference/historia-decyzji.md`.)
+Wersja 0.25 · 2026-11-13 (TAN-255: zdanie „co robi” każdego zbudowanego dokumentu Mendix; scalenie PR w innym repo robi Claude, nie Karol; TAN-251: za duża historyjka dzieli się przy pobraniu; historia wersji w `reference/historia-decyzji.md`.)
 
 Karol patrzy na postęp w Tandem (http://127.0.0.1:4291/), nie w czacie: każdy krok widoczny, z czasem i tokenami. Kontekst trzymaj mały (skill `lean-context`). Rdzeń dla sesji budowy: potrzebne zasady ze skilla `sprinter` są niżej („Tablica i kto co robi”), sprintera czytasz tylko
 przy planowaniu, refinemencie i zakładaniu historyjek. Pliki `reference/*.md`
@@ -73,6 +73,9 @@ Miara zużycia: prawdziwe tokeny z zapisu sesji (`~/.claude/projects/<folder>/<i
 ## Koniec historyjki
 
 1. **Sprawdź sam** całość (testy, przeglądarka, kopia projektu) i opisz wynik w `story_comment`. Testu dla Karola nie zakładasz; w pipeline każde kryterium dostaje przypadek dla kroku testu UI (`test_cases_set` z `criterion`) albo zapisany powód, dlaczego nie da się go zautomatyzować. Tablica rodzinna: `selfCheck` w `run_report` przed `story_move` (`reference/przebieg-i-koniec.md`).
+   **Zdanie „co robi” (Mendix, TAN-255, obowiązkowe).** Przed `story_move` do Automated Testing każdy zbudowany albo zmieniony dokument modelu (mikroflow, nanoflow, strona, encja, enumeracja) dostaje zdanie: `story_comment` z `docNotes: { "Moduł.Dokument": { say, changes: [{ sign: "+" | "~" | "-", text }] } }`, kilka dokumentów w jednym wywołaniu. `say` to jedno–dwa zdania po polsku dla człowieka: kiedy się uruchamia i co daje, bez nazw technicznych poza tymi, które widzi użytkownik; `changes` (przy zmienionym) to krótka lista: `+` doszło, `~` zmienione, `-` usunięte. Import z Marketplace i usunięte dokumenty zdania nie potrzebują. Bez zdania „Sprawdzenie modelu” daje ostrzeżenie „brak opisu”, a ticket pokazuje zdanie zapasowe z oznaczeniem `auto`.
+   - Dobrze: „Uruchamia się przy każdym starcie aplikacji i włącza logowanie kontem Microsoft. Gdy to logowanie nie jest skonfigurowane, zapisuje ostrzeżenie w logu, a aplikacja startuje dalej.”
+   - Źle: „Mikroflow AfterStartUp wywołuje ASU_OIDC_Startup.” (powtarza nazwy, nie mówi, co się dzieje ani po co).
 2. **Oceń kryteria**: `run_report` z `criteria: [{ index (od 0), done, evidence }]` dla każdego; `evidence` to jedno zdanie, skąd wiesz; niespełnione `done: false` z powodem. Karol niczego nie odhacza.
 3. `run_ask` „Chcesz coś sprawdzić sam przed wydaniem?” najwyżej po partii zmian (kilka historyjek jednej funkcjonalności, koniec sprintu), nie po każdej.
 4. **`story_move`** do `done`; w projekcie z pipeline do `autotest` (po zielonych testach pipeline sam daje Done; Mendix w trybie wsadowym: build, `mx check` i Twoja ocena kryteriów, pełne testy raz na partię, szczegóły `reference/mendix.md`). Pisz `done` / `autotest`, nie `testing`. Ticket planistyczny: prosto do `done`.
