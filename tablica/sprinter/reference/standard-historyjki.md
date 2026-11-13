@@ -105,6 +105,22 @@ kontekst mały i każdą sprawdza się osobno.
 - **Dolna granica**: każda historyjka płaci stały start (ok. 34 tys. tokenów kontekstu
   i swoje kroki pipeline). Drobne zmiany w tym samym miejscu zostają w jednej historyjce;
   poniżej ok. 3 plików nie dzielisz, chyba że części są od siebie niezależne.
+- **Jedna sesja budowy** (pomiar z 12.11, po TAN-224): sesja startuje z ok. 40 tys. tokenów
+  i streszcza rozmowę przy ok. 150 tys., więc na pracę ma ok. 100 tys. Długa budowa streszcza
+  się co 5–10 minut i za każdym razem gubi szczegóły. Historyjka ma się zmieścić w jednej
+  sesji z najwyżej jednym streszczeniem: zwykle do ok. 10 mln tokenów wejścia.
+- **Model Mendix**: najwyżej ok. 10 nowych albo zmienionych dokumentów modelu (encje jednej
+  domeny liczą się jako jeden, każdy mikroflow, strona i snippet osobno). Import modułów
+  z Marketplace, design system z motywem i bezpieczeństwo (role, MxAdmin) to trzy osobne
+  historyjki, nie jedna (LIC-24 „Sprint Zero 1/3” robiła wszystkie trzy naraz: 590 nowych
+  elementów, 15,5 mln tokenów, zatrzymanie na samoocenie). Na start to próg z doświadczenia,
+  nie pomiar.
+- **Ręce Karola osobno**: krok, który robi Karol (Studio Pro, telefon, logowanie, link,
+  konto), nie leży w środku budowy. Pytasz o niego na starcie (TAN-105) albo robisz z niego
+  pierwszą, małą historyjkę, a resztę przez `dependsOn` za nią. ML-145 i ML-147 stały
+  w środku budowy, bo czekały na Karola.
+- **Dzielisz przy pisaniu**, czyli przy planowaniu i zakładaniu historyjki, nie w trakcie
+  budowy. Historyjkę w Running tylko komentujesz.
 - Tandem pokazuje na karcie w Szkicu podpowiedź „Za duża”, gdy historyjka ma ponad
   6 kryteriów albo ponad 8 plików do zmiany (ślad plików albo pliki wymienione w poleceniu
   przed `Out of scope:`); tę samą podpowiedź zwracają `story_add`, `story_edit`

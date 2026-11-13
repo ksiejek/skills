@@ -5,7 +5,7 @@ description: Zasady Sprintera, wspólnego rdzenia MxCraft i Tandem – tygodniow
 
 # Sprinter: jak pracuje zespół Karol + Claude
 
-Wersja 0.23 · 2026-11-11 (GEN-86: commit historyjki robi Tandem przy Done; historia wersji w skillu tandem, `reference/historia-decyzji.md`.)
+Wersja 0.25 · 2026-11-12 (rozmiar ticketu przy planowaniu: jedna sesja budowy, limit dokumentów modelu Mendix, kroki Karola na starcie, liczby przy każdym tickecie planu; historia wersji w skillu tandem, `reference/historia-decyzji.md`.)
 
 Sprinter to wspólny rdzeń MxCraft i Tandem: sprinty, historyjki i tablica.
 Ten plik mieszka w Tandem (`skills/sprinter/SKILL.md`); `$TANDEM_DIR` to folder repo Tandem. Sesja budowy ma potrzebne zasady w skillu `tandem`; ten czytasz przy planowaniu, refinemencie i zakładaniu historyjek. Pliki `reference/*.md` czytasz na żądanie (spis na końcu).
@@ -46,7 +46,8 @@ Dwie części, strona pokazuje je osobno; obie krótkie, bo Karol czyta, żeby w
    - `acceptance`: jedno sprawdzalne zdanie na pozycję, opisane tym, co Karol zobaczy, zwykle 3–6; ocenia je Claude.
    - Tytuł mówi, co zmieni się dla Karola. Pytania i decyzje w `questions`, `decisions`, nie w opisie.
 2. **Dla Claude · polecenie** (`prompt`): zawsze szczegółowe i techniczne, tak, by nowa sesja z pustym kontekstem zrobiła historyjkę bez pytań. Po kontekście zawsze trzy części, w tej kolejności: **Where** (pliki i funkcje do zmiany, z jednym istniejącym wzorem do naśladowania), **Check** (dokładne polecenie i oczekiwany wynik), **Out of scope** (czego nie ruszać). Gdy coś musi zrobić Karol, polecenie mówi, kiedy zapytać przez `run_ask` i jaką ścieżkę kliknięć mu podać.
-- **Podział (TAN-227)**: jedna historyjka = jedna rzecz, którą Karol zobaczy; najwyżej 6 kryteriów i około 7 zmienianych plików. Większa praca to kilka historyjek połączonych `dependsOn`, w kolejności, w jakiej muszą wejść. Dolna granica: każda historyjka płaci stały start (ok. 34 tys. tokenów kontekstu i swoje kroki pipeline), więc drobne zmiany w tym samym miejscu zostają w jednej; poniżej ok. 3 plików nie dzielisz, chyba że części są niezależne. Szczegóły i przykład: `reference/standard-historyjki.md`, „Podział”.
+- **Podział (TAN-227)**: jedna historyjka = jedna rzecz, którą Karol zobaczy; najwyżej 6 kryteriów i około 7 zmienianych plików, w Mendixie około 10 dokumentów modelu, a całość mieści się w jednej sesji budowy (ok. 100 tys. kontekstu na pracę). Krok Karola nigdy w środku budowy: na starcie albo jako osobna pierwsza historyjka. Dzielisz przy planowaniu i pisaniu, nie w trakcie budowy; przy planie wypisujesz przy każdym tickecie kryteria · pliki · dokumenty modelu (`reference/od-planu-do-sprintu.md`, „Rozmiar ticketu przy planowaniu”). Większa praca to kilka historyjek połączonych `dependsOn`, w kolejności, w jakiej muszą wejść. Dolna granica: każda historyjka płaci stały start (ok. 34 tys. tokenów kontekstu i swoje kroki pipeline), więc drobne zmiany w tym samym miejscu zostają w jednej; poniżej ok. 3 plików nie dzielisz, chyba że części są niezależne. Szczegóły i przykład: `reference/standard-historyjki.md`, „Podział”.
+- **Z planu aplikacji (GEN-89)**: tickety sprintu z planu, kolejność budowy (dane, uprawnienia, logika, ekrany, dane testowe), sprint startowy, „gotowe do sprintu” i „zrobione”: `reference/od-planu-do-sprintu.md`.
 - Forma pól: akapity i listy z „- ”; bez nagłówków, emoji, pogrubień, tabel i numeracji. `story_add` i `story_edit` (w konektorze `create_ticket`, `update_ticket`) zwracają `hint`, gdy brakuje „Kto:”, intencja wygląda jak polecenie albo historyjka ma ponad 6 kryteriów lub ponad 8 plików do zmiany: popraw albo podziel od razu.
 - Historyjek w Running, Automated Testing i Done nie zmieniasz (`story_edit` odmawia); nieczytelną opisz w `story_comment`.
 - Konektor Trio oddaje najwyżej 24 KB naraz: plany, raporty i dokumentacja w Markdown z podsumowaniem na górze i sekcjami do 24 KB; dłuższy materiał jako plik `.md` (`story_attach`) albo `create_doc`.
@@ -75,6 +76,7 @@ Pomysł (zakładka Pomysły, `<PREFIX>-I<n>`) to rozmowa przez kilka sesji przed
 
 - `reference/tablica-pipeline.md`: tabela kolumn pipeline, testy partiami, układ rodzinny, orkiestrator, dwie drogi Mendix, jeden job. Czytaj, gdy sprawa dotyczy kolumn, testów, wdrożenia albo zatrzymanej historyjki.
 - `reference/standard-historyjki.md`: pełny standard historyjki, podział na mniejsze, `walk`, forma, rozmiar. Czytaj przy zakładaniu, zmianie, refinemencie historyjki i przy raporcie z modelem.
+- `reference/od-planu-do-sprintu.md`: od planu do ticketów, kolejność budowy w sprincie, sprint startowy każdej nowej aplikacji, gotowe do sprintu i zrobione, kto jest źródłem przypadków testowych. Czytaj, gdy z planu powstają tickety, przy nowej aplikacji i przy ocenie, czy ticket jest gotowy albo zrobiony.
 - `reference/przyklad-ab3.md`: wzór historyjki przed i po. Czytaj, gdy piszesz historyjkę i chcesz wzór.
 - `reference/rytm-historyjki.md`: pełny tekst rytmu. Czytaj, gdy skrót nie rozstrzyga.
 - `reference/jak-pisac-do-karola.md`: pięć reguł z przykładami. Czytaj, gdy serwer odrzuci podsumowanie albo piszesz zatrzymanie, pytanie, wpis historii.

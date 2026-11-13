@@ -107,7 +107,8 @@ business confirms something nobody promised, and you find out in testing.
 6. **Split it into sprints.** `reference/sprints.md`. Short version: weekly,
    each sprint ends with something the business clicks on a demo, the riskiest
    integration goes in early and read-only first, and every open question is
-   pinned to the sprint it blocks.
+   pinned to the sprint it blocks. Each sprint becomes several build tickets,
+   each small enough for one build session, with its counts written next to it.
 
 7. **Hand it in and say what you need back.** The plan goes to MxScout as one
    solution story with a build guide, under the ticket key the work has. Then

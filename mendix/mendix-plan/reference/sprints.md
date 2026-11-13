@@ -55,6 +55,20 @@ Shift it to fit, but keep the order of 1, 2 and 3: domain, then read, then
 write. Building the write path before you have seen the other system's real
 answers is the most expensive mistake available.
 
+## A sprint is several build tickets, each one session long
+
+A sprint is not a ticket. When the plan turns into build tickets, cut every
+sprint into tickets small enough for one build session: at most 6 criteria,
+about 7 code files and about 10 new or changed model documents (one domain's
+entities count once; every microflow, page and snippet counts on its own),
+chained in build order (data, access, logic, pages, test data). Sprint 0 alone
+is at least three tickets: Marketplace modules, the design system with its
+theme, and roles with sign-in and a home page per role. A step only a person
+can do (Studio Pro, an account, a phone) goes first, never in the middle of a
+build. Write the counts next to each ticket in the split, so the owner sees
+the size at a glance. In Tandem the full rule is in the sprinter skill,
+`reference/od-planu-do-sprintu.md`, "Rozmiar ticketu przy planowaniu".
+
 ## What each sprint says
 
 Four short paragraphs, no more:

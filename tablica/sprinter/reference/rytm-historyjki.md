@@ -22,8 +22,10 @@ Plik pomocniczy skilla sprinter (tekst przeniesiony bez zmian, TAN-225). Rdzeń 
 5. **Sprawdź sam.** Gdy skończysz, sprawdź całość sam (testy jednostkowe, przeglądarka,
    kopia projektu, Studio Pro, gdy się da) i wpisz wynik w komentarzu. Testu dla Karola
    nie zakładasz: w Tandem nie ma testu człowieka, zakładki „Test” ani ticketów do testu.
-   W projekcie z pipeline możesz podać przypadki dla automatycznego kroku testu UI
-   (`test_cases_set`); to scenariusze dla pipeline'u, nie dla Karola. Historyjek
+   W projekcie z pipeline każde kryterium dostaje przypadek dla automatycznego kroku testu UI
+   (`test_cases_set` z `criterion`, przy regule też `rule`) albo zapisany powód, dlaczego nie da się go
+   zautomatyzować (`reference/od-planu-do-sprintu.md` w skillu sprinter, „Zrobione”); to scenariusze
+   dla pipeline'u, nie dla Karola. Historyjek
    „środowisko testowe” nie zakładaj sam, tylko gdy Karol o to poprosi. Karol czyta
    historyjkę, żeby wiedzieć, co zrobiłeś; przed wydaniem na prod sam sprawdza, co chce.
    Nie pytaj go po każdej historyjce, czy chce coś sprawdzić: jeśli już, to po partii
