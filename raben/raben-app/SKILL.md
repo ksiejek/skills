@@ -115,6 +115,10 @@ daje własny moduł aplikacji), `Administration.AppUser`, własne dokumenty w `A
    przypięcie kolumny `rb-pin-actions` / `rb-row-actions`). Data grid 2 nie dostaje klas „włącz wygląd” (`rb-show-sort`,
    `rb-selectable`, `rb-grid-flush`), a przyciski pagera klas ikon (`rb-pg-*`): to domyślny wygląd RabenDesign.
    Ogólne lekcje: `mxcraft-template/reference/lessons.md` 26-30.
+7. Nowa klasa `rb-*` (Karol, 2026-11-13): tylko gdy nie ma innej drogi, bo programista, który sam składa stronę,
+   zna klasy Atlasa i Mendix, a klas RabenDesign nie. W porządku są trzy przypadki: Atlas nie ma odpowiednika;
+   building block albo szablon RabenDesign, którego wymaga wygląd (klasy przychodzą z blokiem); jedna nietypowa strona
+   aplikacji (klasa w `CustomStyling`). Bez przesady w drugą stronę, ale przed dopisaniem klasy sprawdź selektor Atlasa.
 
 ## 6. Znane pułapki
 
