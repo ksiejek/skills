@@ -299,12 +299,26 @@
       (can.length ? ', can ' + can.join('/') : '') + ']';
   }
 
-  function entityLine(e, data) {
+  function entityRefs(e, data) {
     var refs = [];
     data.associations.forEach(function (a) {
       if (a.from === e.qn) refs.push('→ ' + a.to + (a.many ? ' (*-*)' : ' (*-1)') + ' via ' + a.name);
       else if (a.to === e.qn) refs.push('← ' + a.from + (a.many ? ' (*-*)' : ' (*-1)') + ' via ' + a.name);
     });
+    return refs;
+  }
+  // The fingerprint of every microflow, nanoflow, page and entity of a model, by qualified name — the same ones the
+  // descriptions go out of date by, so "changed" at Replace model (MXS-214) and "may be out of date" always agree.
+  function fingerprints(model) {
+    var data = window.MxDocsData.build(model);
+    var out = { microflows: {}, nanoflows: {}, pages: {}, entities: {} };
+    Object.keys(data.flows).forEach(function (k) { var f = data.flows[k]; if (out[f.kind + 's']) out[f.kind + 's'][f.qn] = hashOf(f); });
+    Object.keys(data.entities).forEach(function (q) { var e = data.entities[q]; out.entities[q] = entityHash(e, entityRefs(e, data)); });
+    return out;
+  }
+
+  function entityLine(e, data) {
+    var refs = entityRefs(e, data);
     var parts = ['E ' + e.name + ' #' + entityHash(e, refs) + externalTag(e) + (e.persistable ? '' : ' (not persistable)') + (e.generalization ? ' extends ' + e.generalization : '')];
     if (e.attributes.length) parts.push('attrs: ' + e.attributes.map(function (a) { return a.name + ':' + a.type; }).join(', '));
     if (refs.length) parts.push('refs: ' + refs.join(', '));
@@ -1220,5 +1234,5 @@
   // parts: how a change, a ticket and their pieces are read, for the Assist page's items (assist.js).
   var parts = { str: str, texts: texts, diagram: diagramItems, diagramFile: items, now: nowOf, proposal: proposalOf, impact: impactOf, risks: riskList, evidence: evidenceOf, traced: tracedOf,
     riskRef: riskRef, c4: c4Of, ticket: ticketOf, change: changeOf, VERDICTS: TICKET_VERDICTS, CONFIDENCE: CONFIDENCE, STORY_MAX: STORY_MAX };
-  window.MxDescribe = { LANGUAGES: LANGUAGES, languageCode: languageCode, languageName: languageName, localize: localize, translationTodo: translationTodo, coverage: coverage, shownLanguage: shownLanguage, pack: pack, parse: parse, attach: attach, merge: merge, mergeRisks: mergeRisks, riskKey: riskKey, titleKey: titleKey, toFile: toFile, hashOf: hashOf, flowText: flowText, elementText: elementText, riskIndex: riskIndex, parts: parts, FORMAT: DESC_FORMAT, PACK_FORMAT: PACK_FORMAT };
+  window.MxDescribe = { LANGUAGES: LANGUAGES, languageCode: languageCode, languageName: languageName, localize: localize, translationTodo: translationTodo, coverage: coverage, shownLanguage: shownLanguage, pack: pack, parse: parse, attach: attach, merge: merge, mergeRisks: mergeRisks, riskKey: riskKey, titleKey: titleKey, toFile: toFile, hashOf: hashOf, fingerprints: fingerprints, flowText: flowText, elementText: elementText, riskIndex: riskIndex, parts: parts, FORMAT: DESC_FORMAT, PACK_FORMAT: PACK_FORMAT };
 })();

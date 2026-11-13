@@ -288,7 +288,11 @@
       // version of a Marketplace module it took. Dropping them would delete
       // the only note somebody left.
       folders: [], documents: [],
-      security: null
+      security: null,
+      // App Settings a change view compares (MXS-220): the navigation
+      // profiles with their home pages and menus, and the Theme screen's
+      // module order. Null on a model whose reader did not look.
+      navigation: null, themeModuleOrder: null
     };
   }
 
@@ -403,6 +407,55 @@
       common: common,
       sameAsUserName: sameAsUserName
     };
+  }
+
+  // The Navigation screen (MXS-220), one entry per profile (Responsive,
+  // Phone, Tablet …): its home page, the per-role home pages, the login and
+  // not-found pages, and the menu as a tree. A menu item stores no roles of
+  // its own — Studio Pro shows it to whoever may open its target — so
+  // `targetRoles` is filled from the target page or flow once those are read.
+  function navTarget(x) {
+    if (!x || typeof x !== 'object') return null;
+    var page = str(x, 'Page') || str(x, 'Form'), flow = str(x, 'Microflow');
+    if (!page && !flow) return null;
+    var out = {};
+    if (page) out.page = page;
+    if (flow) out.microflow = flow;
+    return out;
+  }
+  function readMenuItems(items) {
+    return payload(items).filter(function (it) { return it && it['$Type'] === 'Menus$MenuItem'; }).map(function (it) {
+      var item = { caption: pageTextOf(it.Caption) || '', action: pageActionOf(it.Action) };
+      var sub = readMenuItems(it.Items);
+      if (sub.length) item.items = sub;
+      return item;
+    });
+  }
+  function readNavigation(doc) {
+    return { profiles: payload(doc.Profiles).filter(function (p) { return p && p['$Type'] === 'Navigation$NavigationProfile'; }).map(function (p) {
+      var login = navTarget(p.LoginPageSettings);
+      return {
+        name: str(p, 'Name') || str(p, 'Kind') || '',
+        kind: str(p, 'Kind'),
+        homePage: navTarget(p.HomePage),
+        roleHomePages: payload(p.HomeItems).filter(function (h) { return h && typeof h === 'object' && str(h, 'UserRole'); }).map(function (h) {
+          return Object.assign({ userRole: str(h, 'UserRole') }, navTarget(h) || {});
+        }),
+        loginPage: login ? login.page || null : null,
+        notFoundPage: (navTarget(p.NotFoundHomepage) || {}).page || null,
+        menu: readMenuItems(p.Menu && p.Menu.Items)
+      };
+    }) };
+  }
+  // App Settings > Theme: the order the theme / UI-resource modules' styles
+  // are loaded in, Settings$ThemeModuleEntry by entry (MXS-220).
+  function readThemeModuleOrder(doc) {
+    var order = null;
+    payload(doc.Settings).forEach(function (part) {
+      if (!part || !Array.isArray(part.ThemeModuleOrder)) return;
+      order = payload(part.ThemeModuleOrder).map(function (e) { return e && str(e, 'ModuleName'); }).filter(Boolean);
+    });
+    return order;
   }
 
   // The rest of the project's Security screen, the part that decides whether
@@ -949,6 +1002,15 @@
     else if (type === 'Forms$CancelChangesClientAction') out = { kind: 'cancel' };
     else if (type === 'Forms$ClosePageClientAction') out = { kind: 'close' };
     else if (type === 'Forms$DeleteClientAction') out = { kind: 'delete' };
+    else if (type === 'Forms$OpenLinkClientAction') {
+      // Where the button goes (MXS-220): Address is a StaticOrDynamicString,
+      // a literal in Value or, when IsDynamic, an attribute of the object.
+      var addr = a.Address && typeof a.Address === 'object' ? a.Address : {};
+      var attr = addr.AttributeRef && typeof addr.AttributeRef === 'object' ? str(addr.AttributeRef, 'Attribute') : null;
+      out = { kind: 'openlink', linkType: str(a, 'LinkType') || 'Web' };
+      if (addr.IsDynamic === true && attr) out.addressAttribute = attr;
+      else if (typeof addr.Value === 'string' && addr.Value) out.address = pageClip(addr.Value);
+    }
     else out = { kind: type.replace(/^.*\$/, '').replace(/(ClientAction|Action)$/, '').toLowerCase() || 'other' };
     if (a.ClosePage === true) out.closes = true;
     var confirm = (a.MicroflowSettings && a.MicroflowSettings.ConfirmationInfo) || a.ConfirmationInfo;
@@ -1620,11 +1682,24 @@
       if (!m || typeof m !== 'object') return;
       var param = str(m, 'Parameter');
       if (!param) return;
-      var value = typeof m.Argument === 'string' ? m.Argument
-        : (m.Value && typeof m.Value === 'object' && typeof m.Value.Argument === 'string' ? m.Value.Argument : '');
+      var value = typeof m.Argument === 'string' ? m.Argument : codeValueText(m.Value) || codeValueText(m.ParameterValue);
       rows.push({ name: shortName(param), value: oneLine(value) || '' });
     });
     return rows.length ? rows : null;
+  }
+  // A Java or JavaScript action's argument is a typed value object: Value
+  // (Java) or ParameterValue (JavaScript, MXS-220). Measured in four
+  // projects: BasicCodeActionParameterValue keeps an expression in Argument,
+  // EntityTypeCodeActionParameterValue an entity, MicroflowParameterValue a
+  // microflow; a string template is read as its text.
+  function codeValueText(v) {
+    if (typeof v === 'string') return v;
+    if (!v || typeof v !== 'object') return '';
+    if (typeof v.Argument === 'string') return v.Argument;
+    var named = str(v, 'Entity') || str(v, 'Microflow') || str(v, 'Nanoflow');
+    if (named) return named;
+    var tpl = v.TypedTemplate || v.Template;
+    return tpl && typeof tpl === 'object' ? templateText(tpl) || '' : '';
   }
   function activityFields(action) {
     var type = String(action['$Type'] || '').replace(/^.*\$/, '');
@@ -1701,6 +1776,13 @@
       put('target', str(call, 'Microflow') || str(call, 'Nanoflow') || str(action, 'JavaAction') || str(action, 'JavaScriptAction'));
       if (typeof action.UseReturnVariable === 'boolean') put('useReturn', action.UseReturnVariable ? 'Yes' : 'No');
       put('out', str(action, 'ResultVariableName') || str(action, 'OutputVariableName'));
+    } else if (type === 'LogMessageAction') {
+      // The message stays the step's title (activityLabel); level, log node
+      // (an expression, e.g. 'MxAdmin') and the stack-trace switch are the
+      // rest of Studio Pro's Log message dialog (MXS-220).
+      put('level', str(action, 'Level'));
+      put('logNode', oneLine(action.Node));
+      if (typeof action.IncludeLatestStackTrace === 'boolean') put('stackTrace', action.IncludeLatestStackTrace ? 'Yes' : 'No');
     } else if (type === 'AggregateAction' || type === 'ListOperationsAction') {
       put('out', str(action, 'ResultVariableName') || str(action, 'AggregateVariableName'));
     } else if (type === 'CastAction') {
@@ -2850,6 +2932,8 @@
       // Navigation sits in this same slot, and a role's home page is the one
       // way into an application that no flow or page names.
       noteReferences(pdoc['$Type'], typeof pdoc.Name === 'string' && pdoc.Name ? pdoc.Name : null, pdoc);
+      if (pdoc['$Type'] === 'Navigation$NavigationDocument') { result.navigation = readNavigation(pdoc); continue; }
+      if (pdoc['$Type'] === 'Settings$ProjectSettings') { result.themeModuleOrder = readThemeModuleOrder(pdoc); continue; }
       if (pdoc['$Type'] !== 'Security$ProjectSecurity') continue;
       payload(pdoc.UserRoles).forEach(function (ur) {
         if (!ur || ur['$Type'] !== 'Security$UserRole' || !ur.Name) return;
@@ -2864,6 +2948,21 @@
       result.security = readProjectSecurity(pdoc);
     }
     result.userRoles.sort(function (a, b) { return a.name.localeCompare(b.name); });
+    // Who sees a menu item: whoever may open what it opens.
+    if (result.navigation) {
+      var rolesOf = {};
+      ['pages', 'microflows', 'nanoflows'].forEach(function (key) {
+        result[key].forEach(function (d) { if (Array.isArray(d.allowedModuleRoles)) rolesOf[d.qualifiedName] = d.allowedModuleRoles; });
+      });
+      var fillRoles = function (items) {
+        items.forEach(function (item) {
+          var a = item.action, qn = a && (a.page || a.flow);
+          if (qn && rolesOf[qn]) item.targetRoles = rolesOf[qn].slice();
+          if (item.items) fillRoles(item.items);
+        });
+      };
+      result.navigation.profiles.forEach(function (p) { fillRoles(p.menu); });
+    }
 
     // Pass 4: module roles. Every role a module declares lives in its own
     // one-per-module unit — which is the ONLY place a role that no access
@@ -2948,5 +3047,7 @@
 
   root.MxMpr = { externalEntitySource: externalEntitySourceOf, blobToGuid: blobToGuid, payload: payload, idHex: idHex, buildModel: buildModel, collectReferences: collectReferences,
     applyAssociationDefaults: applyAssociationDefaults, activityKicker: activityKicker, constantVerdict: constantVerdict, readConstant: readConstant,
-    readPageData: readPageData, readPageStructure: readPageStructure };
+    readPageData: readPageData, readPageStructure: readPageStructure,
+    activityFields: activityFields, activityProps: activityProps, pageActionOf: pageActionOf,
+    readNavigation: readNavigation, readThemeModuleOrder: readThemeModuleOrder };
 })(typeof self !== 'undefined' ? self : this);
