@@ -145,7 +145,14 @@ około dziesięć razy (Karol, 2026-10-18).
      `[{ repo: "mxcraft-skills", branch: "skill/ml-74-consolidate", commit: "1234776" }]` (`dir`, gdy kopia
      nie leży w `~/Projects/<repo>`). Taki ticket nigdy nie jest „dokumentem”: „Scalenie z main” sprawdza,
      czy commit jest w main tego repo, inaczej wypycha gałąź, otwiera PR (`gh`) i ticket czeka w Automated
-     Testing („czeka na scalenie …”). Do main obcego repo nie scalasz sam (TAN-55).
+     Testing („czeka na scalenie …”, TAN-55). **Ten PR scalasz Ty, nie Karol** (Karol, 2026-11-13: „możesz takie
+     rzeczy robić jako AI, a nie jako skrypt”). Każdy Claude, który widzi ticket czekający na scalenie: przejrzyj PR
+     (`gh pr view <nr> --json commits,files,mergeable`): są w nim commity tego ticketu i ewentualnie niewypchnięte
+     commity z lokalnego main tego repo, które mają tam trafić; scal `gh pr merge <nr> --merge`; potem wyrównaj lokalny
+     main tego repo (`git fetch`, `git rebase origin/main`, `git push`) i zostaw kopię roboczą czystą. Tandem sam
+     wznawia krok po scaleniu (lib/pr-wait.js, co 5 min). Karola pytasz tylko, gdy: repo to mxcraft-skills (bez jego
+     „gotowe” nie scalasz), PR ma konflikt albo commit, którego pochodzenia nie umiesz wskazać, albo w kopii roboczej
+     main są niezacommitowane zmiany, które cofają scalany kod.
 6. **Commit robi Tandem przy Done** (Mendix w trybie partiami: jeden commit „KLUCZ: tytuł” w folderze aplikacji,
    tylko pliki historyjki i model, `modules/mendix/lib/pipeline/sprint-loop.js`; kod: wdrożenie z `result.files`;
    worktree: Twoje commity na gałęzi, scala wdrożenie). W folderze projektu sam nie commitujesz.

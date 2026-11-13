@@ -6,7 +6,7 @@ argument-hint: "[next | status | <KLUCZ>]"
 
 # Tandem: historyjka od wzięcia do Done, z tokenami
 
-Wersja 0.23 · 2026-11-12 (GEN-89: przypadek testowy pipeline na każde kryterium, ticket planistyczny odsyła do „od planu do sprintu” w skillu sprinter; historia wersji w `reference/historia-decyzji.md`.)
+Wersja 0.24 · 2026-11-13 (scalenie PR w innym repo robi Claude, nie Karol; TAN-251: za duża historyjka dzieli się przy pobraniu; historia wersji w `reference/historia-decyzji.md`.)
 
 Karol patrzy na postęp w Tandem (http://127.0.0.1:4291/), nie w czacie: każdy krok widoczny, z czasem i tokenami. Kontekst trzymaj mały (skill `lean-context`). Rdzeń dla sesji budowy: potrzebne zasady ze skilla `sprinter` są niżej („Tablica i kto co robi”), sprintera czytasz tylko
 przy planowaniu, refinemencie i zakładaniu historyjek. Pliki `reference/*.md`
@@ -79,7 +79,7 @@ Miara zużycia: prawdziwe tokeny z zapisu sesji (`~/.claude/projects/<folder>/<i
 5. **`run_report`** z `summary` (najwyżej 3 zdania i 60 słów po polsku, bez nazw plików, narzędzi, ścieżek i hashy; technikalia w `summaryTech`, inaczej odmowa), `result` i `handover`:
    - `model`: `["ServiceDesk.SE_Ticket_Escalate · nowe zdarzenie co 60 min"]`; `sprinter`: `["SD-15 · Running → Done"]` (z pipeline `→ Automated Testing`);
    - `files`: ścieżki od korzenia repo przed „ · ”, każdy zmieniony plik (wdrożenie commituje tylko te; bez listy przy cudzych zmianach staje);
-   - `branch`: gałąź z kodem, gdy pracowałeś w worktree; `repos`: każda gałąź w innym repo niż projekt (`[{ repo, branch, commit }]`), taki ticket czeka w Automated Testing na scalenie w main tego repo (TAN-55), do main obcego repo nie scalasz sam.
+   - `branch`: gałąź z kodem, gdy pracowałeś w worktree; `repos`: każda gałąź w innym repo niż projekt (`[{ repo, branch, commit }]`), taki ticket czeka w Automated Testing na scalenie w main tego repo (TAN-55). Scalasz je Ty, nie Karol (2026-11-13): przegląd PR, `gh pr merge --merge`, wyrównanie lokalnego main tego repo; szczegóły w `reference/przebieg-i-koniec.md`, pkt 5.
 6. **Commit robi Tandem przy Done**, nie Ty i nie Karol: Mendix jeden commit „KLUCZ: tytuł” w folderze aplikacji (tylko pliki historyjki i model, `modules/mendix/lib/pipeline/sprint-loop.js`), kod: wdrożenie z `result.files`. W worktree commitujesz sam na gałęzi (pkt 6 „Przebieg”), scala wdrożenie. Tylko gdy nikt nie commituje za Ciebie (Mendix z `pipeline.mendix.commitPerStory: false`): treść po angielsku w `commit-message.txt` (`reference/przebieg-i-koniec.md`, pkt 6).
 7. W czacie dwa zdania i koniec tury: „SD-15 w Done; 412k tokenów, 11:27. Następną weźmie nowa sesja.” (z pipeline „w Automated Testing”). Nie wołasz `story_next`.
 
