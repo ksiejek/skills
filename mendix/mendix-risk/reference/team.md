@@ -1,9 +1,11 @@
 # mendix-risk on an MxScout Team server
 
-MxScout reads a Mendix model. Its engine finds by rule what a rule can see.
-Your job is what a rule cannot: read who may do what, put the facts together
-into a scenario with an effect, prove each sentence of it from the model, and
-write it so a person can check it in minutes.
+MxScout reads a Mendix model. Its engine finds by rule what a rule can see:
+a few risks it can prove, and many **leads** it cannot (places worth reading,
+with no level). Your job is what a rule cannot do: confirm or drop every lead,
+find what no rule points at, put the facts together into a scenario with an
+effect, prove each sentence of it from the model, and write it so a person can
+check it in minutes. The Risks list holds only what was confirmed.
 
 This is the skill as an agent uses it through the MxScout Team server's MCP
 tools (the MCP server `mxscout`): every read and every write is an MCP tool.
@@ -48,10 +50,10 @@ files of the same names in `reference/`).
 
 | Stage | What it does | Result | Model |
 |---|---|---|---|
-| A. Read | Collects access facts and leads. No judgement, no levels. | fact sheet, list of leads | cheaper |
-| B. Judge | Turns leads into scenarios with claims, effect and level. Builds chains across modules. | draft risks with claims | cheaper for one to three documents; high for chains and P1 |
-| C. Check | Reopens every element, searches for every denial, counts roles, looks for the check that makes the risk false, removes duplicates. | each claim marked, drafts corrected | same as B or higher, from a fresh read |
-| D. Write | Reads the server's current risks, then writes. Reports what was not checked and what it cost. | risks in MxScout, or a file in a dry run | any |
+| A. Read | Collects access facts and leads: the engine's and its own. No judgement, no levels. | fact sheet, list of leads | cheaper |
+| B. Judge | Gives every engine lead a verdict (confirmed, dropped, undecided) and turns confirmed and own leads into scenarios with claims, effect and level. Builds chains across modules. | lead verdicts, draft risks with claims | cheaper for one to three documents; high for chains and P1 |
+| C. Check | Reopens every element, searches for every denial, counts roles, looks for the check that makes the risk false, checks every drop the same way, removes duplicates. | each claim and each drop marked, drafts corrected | same as B or higher, from a fresh read |
+| D. Write | Reads the server's current risks, then writes the risks and the lead verdicts. Reports what was not checked and what it cost. | risks and lead verdicts in MxScout, or files in a dry run | any |
 
 Do not merge the stages. Reading while judging is how a lead becomes a
 "finding" before anyone looked at the access rule. When one agent runs all
@@ -69,8 +71,10 @@ stage and hand over its result in the form below.
 2. `read_skill` name `describe`, part `risk-levels`: the levels P1–P3, the
    three kinds of evidence and the patterns (`theme`). That part is the one
    definition; this skill adds to it, it does not replace it.
-3. `list_risks`: what is written already, with every `id`. Keep a copy; you
-   need it in stage D.
+3. `list_risks` with `leads: true`: what is written already, with every
+   `id`, and the engine's leads with the verdict each one carries from an
+   earlier run. Keep a copy; you need it in stage D. Tell the person how many
+   leads are open, per check, with the estimate.
 4. `estimate_task`, tell the person, `start_task`. After the work
    `report_usage` with your model and real token counts, and say the line it
    answers. A model with no price has no cost to give: say so, never 0.
@@ -116,8 +120,10 @@ you have a file system. It is working material and never goes to MxScout.
 8. **What you could not read:** Java actions, Marketplace modules whose
    entities the pack leaves out, flows beyond what you followed. They go on
    the "not checked" list now, by name.
-9. **Leads:** run the catalogue in the part `checks` over the fact sheet.
-   A lead is a line: check number, element, the fact. No level, no effect yet.
+9. **Leads:** the engine's open leads from `list_risks` (part 1 of `checks`:
+   skip the ones already decided and not stale), and your own: run part 2 of
+   `checks` over the fact sheet. A lead is a line: check, element, the fact.
+   No level, no effect yet.
 
 ## Stage B: judge the leads into risks
 
@@ -125,7 +131,11 @@ you have a file system. It is working material and never goes to MxScout.
    roles, counted from project security), with which object (the parameters),
    what the flow and every microflow it calls check before the effect, what
    the server checks first (before-commit and before-delete handlers,
-   validation rules), what changes, and whose data that is.
+   validation rules), what changes, and whose data that is. Engine leads
+   first, grouped by document, in the order of their rank; for each, the row
+   of its check in part 1 of `checks` says what to read and what confirms or
+   drops it. Every engine lead you open ends with a verdict and one sentence
+   of reason; the ones you did not open stay open.
 2. **Write the scenario as numbered steps.** Each step is one claim: the
    sentence, the element, what the model says. See the part `risk-format`.
 3. **Every way in, together.** The same operation from another page or flow,
@@ -184,15 +194,22 @@ Work from the drafts, not from memory of stages A and B. For every risk:
 5. **Pack traps** in the part `pitfalls`: apply each to the claims that
    rest on an `access` line, a long expression, a delete, a constant.
 6. **Duplicates:** compare the set of elements with every other draft, with
-   the server's risks from `list_risks`, and with what MxScout's engine finds
-   itself (`risk-levels`, "Risks worked out"). A lead the engine covers gets
-   no second risk; when you add a consequence the engine entry cannot state,
-   say in the risk which engine finding it builds on.
-7. **Correct the draft.** A claim that disagrees is rewritten or removed. A
+   the server's risks from `list_risks`, and with the risks MxScout's engine
+   writes itself (`risk-levels`, "Risks worked out"). What the engine already
+   lists as a risk gets no second risk; when you add a consequence the engine
+   entry cannot state, say in the risk which engine finding it builds on.
+   An engine **lead** is the opposite case: it is on no list until you
+   confirm it.
+7. **Dropped leads are checked like claims.** Reopen the element the reason
+   names. A drop that rests on "one rule for reading and writing", "only
+   administrators" or "a decision reads the same state" is true only when the
+   rule, the role count or the decision is there in this read. A drop you
+   cannot support becomes `undecided`.
+8. **Correct the draft.** A claim that disagrees is rewritten or removed. A
    risk that loses the claim its effect stands on becomes "to verify" or goes.
    A level that no longer follows from the claims is lowered, with one
    sentence why.
-8. **Checking somebody else's risks** is this stage alone: the same eight
+9. **Checking somebody else's risks** is this stage alone: the same
    steps, a verdict per claim and per risk (confirmed, partly, to test,
    rejected), and proposed changes. You change nothing on the server unless
    the person says so, change by change.
@@ -209,16 +226,21 @@ Work from the drafts, not from memory of stages A and B. For every risk:
    of privileged roles, `t3` findings and chains).
 3. **Never drop silently.** A risk you can no longer support is reported to
    the person with the claim that fell. Removing it is their decision.
-4. `write_risks`, up to 20 per call, each `{ id, level, title, detail, fix,
-   theme, where }` in the layout of the part `risk-format`. Read back
-   with `list_risks` and compare the count and the levels with what you sent.
+4. `write_risks`, up to 20 risks per call, each `{ id, level, title, detail,
+   fix, theme, where }` in the layout of the part `risk-format`, with `from`
+   (the ids of the engine leads it confirms) when it has any. In the same or
+   a separate call hand in the lead verdicts: `leads`, each `{ id, verdict,
+   reason, risk }`. Read back with `list_risks` (`leads: true`) and compare
+   the count, the levels and the verdicts with what you sent.
 5. **Dry run.** When the person asks for a comparison, a test or "do not
    write", put the same payload in a file (`risks.json`), with the claims
-   (`claims.json`), the fact sheet and the not-checked list beside it, and
-   write nothing to MxScout except the cost ledger.
+   (`claims.json`), the lead verdicts (`lead-decisions.json`), the fact
+   sheet and the not-checked list beside it, and write nothing to MxScout
+   except the cost ledger.
 6. **Report,** short, in the person's language: how many risks per level and
    per kind of evidence, what changed against the previous list (new, changed,
-   to close, unchanged), what was not checked and why, the tests for a test
+   to close, unchanged), the engine's leads per check (confirmed, dropped,
+   undecided, not opened), what was not checked and why, the tests for a test
    environment, and the cost line.
 
 ## After a sprint
@@ -237,6 +259,9 @@ story (a chain is often made of two changes from two stories).
 4. A risk whose elements did not change is not read again; it is counted as
    unchanged. A risk whose claims no longer hold is proposed "to close" with
    the evidence; a person closes it.
+5. Engine leads: only the new ones and the ones marked `stale` (a document
+   they rest on changed) are opened. A decided lead that is not stale keeps
+   its verdict.
 
 ## Keeping the cost down
 
@@ -248,3 +273,6 @@ story (a chain is often made of two changes from two stories).
 3. `read_raw` always with the narrowest path
    (`AccessRules[1].XPathConstraint`, `Associations[Name=…]`, `DefaultValue`).
 4. Stage C costs a fraction of stage B. Do not save on it.
+5. Engine leads are cheap to list and dear to read. Group them by document,
+   keep each verdict, and never read a decided lead twice: on a large
+   application that is most of what a second run saves.

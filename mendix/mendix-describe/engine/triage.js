@@ -157,7 +157,9 @@
   // the caller does not have the model, and then the decisions about them are left out rather than guessed at.
   // modelUnchecked: { all, keys, prefixes } — what the model cannot say about them (constants.js unchecked: all = no
   // constant read; perfrisks.js unchecked: prefixes = a kind of finding not judged): such a risk is not gone, and keeps what was decided.
-  function view(projectId, descValue, from, modelRisks, modelUnchecked) {
+  // modelFindings (rules 6): what MxScout works out from the model that is NOT a risk — performance, code quality,
+  // personal data, a lead. Its decisions are kept, and it is never shown or counted here, nor taken as gone.
+  function view(projectId, descValue, from, modelRisks, modelUnchecked, modelFindings) {
     load(projectId);
     var rec = (from ? from.rec : recs[projectId]) || null, E = rec ? rec.risks : {};
     var seen = {}, out = [];
@@ -170,19 +172,31 @@
       out.push(x);
     }
     // A risk the skill's security check wrote that MxScout works out from this model itself is shown once, as MxScout's.
-    var live = {};
+    var live = {}, elsewhere = {};
     (modelRisks || []).forEach(function (r) { var id = mxId({ key: r.key }); if (id) live[id] = true; });
+    (modelFindings || []).forEach(function (r) { elsewhere[r.key] = true; var id = mxId({ key: r.key }); if (id) live[id] = true; });
+    var W = (modelUnchecked && modelUnchecked.withdrawn) || null;
+    function withdrawnWhy(key) {
+      if (!W) return null;
+      if (W.keys && W.keys[key]) return W.keys[key];
+      var p = (W.prefixes || []).filter(function (x) { return String(key).indexOf(x) === 0; })[0];
+      return p ? (W.why && W.why[p]) || 'withdrawn by a change in MxScout’s rules — the model did not change' : null;
+    }
     ((descValue && descValue.risks) || []).forEach(function (r) { if (r.id && live[r.id]) return; put(Object.assign({}, r, { origin: 'ai' }), find(E, Object.assign({}, r, { origin: 'ai' }))); });
     (modelRisks || []).forEach(function (r) { put(Object.assign({}, r, { origin: 'model' }), find(E, Object.assign({}, r, { origin: 'model' }))); });
     ((from ? from.findings : app.findings(projectId)) || []).forEach(function (f) { var r = commentRisk(f); if (r) put(r, E[r.key] || null); });
-    Object.keys(E).map(function (k) { return E[k]; }).filter(function (e) { return e.origin !== 'person' && !seen[e.key] && (e.origin !== 'model' || modelRisks); })
+    Object.keys(E).map(function (k) { return E[k]; }).filter(function (e) { return e.origin !== 'person' && !seen[e.key] && !elsewhere[e.key] && (e.origin !== 'model' || modelRisks); })
       .sort(function (a, b) { return String(a.at || '').localeCompare(String(b.at || '')); })
       .forEach(function (e) {
         // A risk from the model that this model no longer has: what is decided follows from the model.
         // Unless the model cannot say: the constants not read, its value not judged — then nothing follows.
         var unread = e.origin === 'model' && modelUnchecked && ((modelUnchecked.all && /^m:secrets:/.test(e.key)) || (modelUnchecked.keys || {})[e.key] ||
           (modelUnchecked.prefixes || []).some(function (p) { return String(e.key).indexOf(p) === 0; }));
-        if (e.origin === 'model' && !unread) e = Object.assign({}, e, { status: e.status === 'fixed' || e.status === 'verified' ? 'verified' : DECIDED[e.status] ? e.status : 'gone' });
+        // Withdrawn by the rules (rules 6), not by the model: no longer reported, never verified — a fix is
+        // only what the model shows.
+        var off = e.origin === 'model' && !unread ? withdrawnWhy(e.key) : null;
+        if (off) e = Object.assign({}, e, { status: DECIDED[e.status] ? e.status : e.status === 'verified' ? 'verified' : 'gone', withdrawn: off });
+        else if (e.origin === 'model' && !unread) e = Object.assign({}, e, { status: e.status === 'fixed' || e.status === 'verified' ? 'verified' : DECIDED[e.status] ? e.status : 'gone' });
         put(Object.assign({}, e.risk, { origin: e.origin === 'model' ? 'model' : 'ai', key: e.key }), e);
       });
     out.forEach(function (r, i) { r.no = i + 1; });
@@ -194,7 +208,7 @@
   // data.ai.risks, the rest in data.ai.triaged. With no descriptions but risks people raised, the
   // data gets an ai part of its own, which says no agent wrote anything (agent: false).
   function apply(data, projectId, descValue, from) {
-    var rows = view(projectId, descValue, from, data.modelRisks || [], data.modelUnchecked || null);
+    var rows = view(projectId, descValue, from, data.modelRisks || [], data.modelUnchecked || null, data.modelFindings || []);
     if (!data.ai) {
       if (!rows.length) return data;
       data.ai = { app: null, by: null, written: null, language: null, risks: [], context: null, c4: null, modules: {}, agent: false };

@@ -6,7 +6,7 @@ What MxScout finds wrong in a Mendix model, turned into how to build it right. E
 
 **How to use it.** Refining a story that changes the model: name the standards it touches by id (for example 'anon', 'scope-write', 'conv-microflow-prefix'), and build to them. Fixing a risk MxScout reported: the part of its id after 'mx-' and before the subject is the entry to read.
 
-Three parts: **Checked by MxScout** (39 standards, one per check, under the check’s id), **Judged by an agent** (8, no check) and **Conventions** (7, no check).
+Three parts: **Checked by MxScout** (50 standards, one per check, under the check’s id), **Judged by an agent** (8, no check) and **Conventions** (7, no check).
 
 ## Checked by MxScout
 
@@ -15,42 +15,53 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 | `security-level` | Security level | P1, P2 | LCNC-SEC-05 | — |
 | `demo-password` | Demo user password | P2 | LCNC-SEC-04 | — |
 | `role-no-module-role` | User role without module roles | P2 | LCNC-SEC-05 | — |
-| `strict-mode-off` | Strict mode | P3 | LCNC-SEC-05 | — |
+| `strict-mode-off` | Strict mode | P2 | LCNC-SEC-05 | — |
 | `page-url-check` | Page URL check | P3 | LCNC-SEC-05 | — |
 | `role-manages-all` | User role that manages every role | P3 | LCNC-SEC-02 | — |
 | `service-open` | Published service with nothing in front of it | P3 | LCNC-SEC-04 | — |
-| `anon` | Anonymous role (Mendix MXS003–MXS010) | P1, P3 | LCNC-SEC-02 | MXS003–MXS010 |
+| `anon` | Anonymous role (Mendix MXS003–MXS010) | P1, P2, P3 | LCNC-SEC-02 | MXS003–MXS010 |
 | `selfreg` | Self-registration | P1, P2, P3 | LCNC-SEC-01 | — |
 | `accounts` | User accounts | P1, P2, P3 | LCNC-SEC-01 | — |
-| `guard-page-hides` | Hidden on the page, not checked in the flow | P1, P2 | LCNC-SEC-02 | — |
+| `guard-page-hides` | Hidden on the page, not checked in the flow | — | LCNC-SEC-02 | — |
 | `guard-bypass-xpath` | Microflow retrieves past the role’s XPath | P1, P2 | LCNC-SEC-02 | — |
-| `guard-same-entity` | Two objects of the same entity from the client | P3 | LCNC-SEC-02 | — |
-| `scope-write` | Written wider than edited | P1, P2 | LCNC-SEC-02 | — |
-| `scope-delete` | Deleted wider than the Delete buttons | P1, P2 | LCNC-SEC-02 | — |
-| `scope-note` | Write scope | P3 | LCNC-SEC-02 | — |
-| `access-wider` | Reads every row, sees fewer | P3 | LCNC-SEC-03 | — |
-| `access-unused` | Granted, never used | P3 | LCNC-SEC-02 | — |
-| `access-unwritten` | May write, nothing writes | P3 | LCNC-SEC-02 | — |
-| `access-fails` | May run it, may not do what it does | P2 | LCNC-SEC-05 | — |
-| `access-finds-nothing` | May run it, finds nothing | P3 | LCNC-SEC-05 | — |
+| `guard-same-entity` | Two objects of the same entity from the client | — | LCNC-SEC-02 | — |
+| `scope-write` | Written wider than edited | — | LCNC-SEC-02 | — |
+| `scope-delete` | Deleted wider than the Delete buttons | — | LCNC-SEC-02 | — |
+| `scope-note` | Write scope | — | LCNC-SEC-02 | — |
+| `access-wider` | Reads every row, sees fewer | — | LCNC-SEC-03 | — |
+| `access-unused` | Granted, never used | — | LCNC-SEC-02 | — |
+| `access-unwritten` | May write, nothing writes | — | LCNC-SEC-02 | — |
+| `access-fails` | May run it, may not do what it does | — | LCNC-SEC-05 | — |
+| `access-finds-nothing` | May run it, finds nothing | — | LCNC-SEC-05 | — |
 | `access-past` | Does for a role what its rules do not allow | P3 | LCNC-SEC-02 | — |
 | `access-rule` | Access rule MxScout cannot follow | — | LCNC-SEC-02 | — |
-| `guard-escalation` | Writes past the role’s own access rules | P1, P2 | LCNC-SEC-02 | — |
-| `guard-role-wider` | Callable by more roles than any page offers it to | P3 | LCNC-SEC-02 | — |
-| `service-op-unscoped` | Service operation that trusts the key in the request | P1, P2 | LCNC-SEC-02 | — |
-| `access-not-inherited` | Read in full while its parent is narrowed | P1, P2 | LCNC-SEC-03 | — |
-| `secret-attribute` | An attribute whose name says it holds a secret | P1, P2 | LCNC-SEC-08 | — |
-| `logic-note` | What the drawing says about the logic | P2, P3 | LCNC-SEC-05 | — |
+| `guard-escalation` | Writes past the role’s own access rules | — | LCNC-SEC-02 | — |
+| `guard-role-wider` | Callable by more roles than any page offers it to | — | LCNC-SEC-02 | — |
+| `service-op-unscoped` | Service operation that trusts the key in the request | — | LCNC-SEC-02 | — |
+| `access-not-inherited` | Read in full while its parent is narrowed | P2 | LCNC-SEC-03 | — |
+| `secret-attribute` | An attribute whose name says it holds a secret | — | LCNC-SEC-08 | — |
+| `logic-note` | What the drawing says about the logic | — | LCNC-SEC-05 | — |
 | `secret-constant` | Constant the browser receives that looks like a secret | P1, P2 | LCNC-SEC-08 | — |
 | `constant-note` | Constants | P3 | LCNC-SEC-08 | — |
 | `advisory` | Known security advisory | P3 | LCNC-SEC-07 | — |
-| `market-admin` | Administrative role of a Marketplace module on a user role | P2 | LCNC-SEC-02 | — |
-| `market-unused` | Marketplace module the app does not use | P3 | LCNC-SEC-07 | — |
+| `market-admin` | Administrative role of a Marketplace module on a user role | — | LCNC-SEC-02 | — |
+| `market-unused` | Marketplace module the app does not use | — | LCNC-SEC-07 | — |
 | `market-role-unused` | Marketplace module role that grants nothing | P3 | LCNC-SEC-02 | — |
 | `perf-retrieve-all` | Whole list retrieved for one object or a length | P3 | none | — |
 | `shape-flow-size` | Microflow too large to read | P3 | none | — |
 | `shape-error-handler` | Service or Java call with no error handler | P2, P3 | none | — |
 | `naming-prefix` | Name that breaks the prefix convention | P3 | none | — |
+| `admin-wide-access` | Administrator roles reach almost everything | P2 | LCNC-SEC-02 | — |
+| `access-self-grant` | A role may write the association its own access is scoped by | P2 | LCNC-SEC-02 | — |
+| `guard-scope-set` | A client-callable flow sets a scope association without looking at the caller | — | LCNC-SEC-02 | — |
+| `scope-delete-state` | A delete right that does not name the state | — | LCNC-SEC-02 | — |
+| `guard-account-param` | An account from the client is changed, or gets objects made for it | — | LCNC-SEC-01 | — |
+| `role-manages-no-pages` | A role that manages users and has no pages | P2 | LCNC-SEC-01 | — |
+| `services-many-modules` | One user role opens the published services of several modules | P3 | LCNC-SEC-04 | — |
+| `guard-auth-loose` | An authentication microflow that matches a secret loosely | — | LCNC-SEC-01 | — |
+| `guard-sub-callable` | A sub-microflow the client can call, that stores or sends | — | LCNC-SEC-02 | — |
+| `demo-admin` | A demo user with the administrator’s role | P3 | LCNC-SEC-04 | — |
+| `access-text-open` | A text or file store read in full | — | LCNC-SEC-03 | — |
 
 ### `security-level` — Security level
 
@@ -90,7 +101,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `strict-mode-off` — Strict mode
 
-*worth knowing · P3 · access · LCNC-SEC-05 · no Mendix code · risk id `mx-strict-mode-off-project`*
+*finding · P2 · access · LCNC-SEC-05 · no Mendix code · risk id `mx-strict-mode-off-project`*
 
 **What is wrong.** Strict mode is off: the browser can do more than the app's own pages and flows do when an access rule is set up too wide.
 
@@ -138,7 +149,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `anon` — Anonymous role (Mendix MXS003–MXS010)
 
-*finding or worth knowing · P1 or P3 · access · LCNC-SEC-02 · Mendix MXS003, MXS004, MXS005, MXS006, MXS007, MXS008, MXS009, MXS010 · risk id `mx-anon-<code>-<entity or role>`*
+*finding or worth knowing · P1 or P2 or P3 · access · LCNC-SEC-02 · Mendix MXS003, MXS004, MXS005, MXS006, MXS007, MXS008, MXS009, MXS010 · risk id `mx-anon-<code>-<entity or role>`*
 
 **What is wrong.** Anonymous visitors, who never sign in, get more than a visitor needs: sensitive entities, write access, user management, the administrator's role or Administration's module roles, or every row of an entity.
 
@@ -171,7 +182,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `accounts` — User accounts
 
-*finding or worth knowing · P1 or P2 or P3 · access · LCNC-SEC-01 · no Mendix code · risk id `mx-accounts-<kind>-<user role>-<entity>`*
+*finding or worth knowing or lead (not a risk: for the risk skill) · P1 or P2 or P3 · access · LCNC-SEC-01 · no Mendix code · risk id `mx-accounts-<kind>-<user role>-<entity>`*
 
 **What is wrong.** A user role changes other people's accounts, hands out user roles without User management, changes other people's names or e-mail, or reads other people's personal fields.
 
@@ -183,7 +194,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `guard-page-hides` — Hidden on the page, not checked in the flow
 
-*finding or to verify · P1 or P2 · access · LCNC-SEC-02 · no Mendix code · risk id `mx-guard-page-hides-<microflow>`*
+*lead (not a risk: for the risk skill) · access · LCNC-SEC-02 · no Mendix code · risk id `mx-guard-page-hides-<microflow>`*
 
 **What is wrong.** A page hides or disables a button by a condition (the object's state, its owner), and the microflow behind the button does not check that condition: anyone allowed to run the microflow can call it directly. MxScout ranks it P1 only when the model proves the scenario: the condition is a state the role cannot set itself (an enumeration or a boolean, read-only for the role or changed only behind a check of its own value) or an owner it can read past, and a stored step is unchecked with nothing in front of it that MxScout cannot read — a rule, a Java action, a before-commit microflow that may refuse it. Every way in to the same operation is weighed together: when the same role is offered the microflow on another page, or the very change on a form, without the condition, it is to verify. Otherwise it is to verify (P2), with what to look at: a page's condition is a hint, not proof.
 
@@ -195,7 +206,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `guard-bypass-xpath` — Microflow retrieves past the role’s XPath
 
-*finding or to verify · P1 or P2 · access · LCNC-SEC-02 · no Mendix code · risk id `mx-guard-bypass-xpath-<microflow>`*
+*finding or lead (not a risk: for the risk skill) · P1 or P2 · access · LCNC-SEC-02 · no Mendix code · risk id `mx-guard-bypass-xpath-<microflow>`*
 
 **What is wrong.** A microflow that does not apply entity access retrieves objects the role's own access rule keeps from it, and returns them to that role. P1 only when the model shows where the rows go — returned to the caller, shown on a page, changed and committed, or deleted; a retrieve whose rows go nowhere a person sees, or a return the model does not show, is to verify (P2): Apply entity access off alone is not a finding.
 
@@ -207,9 +218,9 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `guard-same-entity` — Two objects of the same entity from the client
 
-*worth knowing · P3 · access · LCNC-SEC-02 · no Mendix code · risk id `mx-guard-same-entity-<microflow>`*
+*switched off · access · LCNC-SEC-02 · no Mendix code · risk id `mx-guard-same-entity-<microflow>`*
 
-**What is wrong.** A microflow takes two objects of the same entity from the client and changes one of them, without checking that they belong together.
+**What is wrong.** Switched off in rules 6: two object parameters of one entity on a flow the client calls. Two parameters of the same entity say nothing about a missing check — none the review of a real application read was real — so MxScout no longer reports it, and a decision about its old id is closed as withdrawn by the rules.
 
 **Build it this way.** When a microflow takes more than one object from the client, it checks that they belong together (the same owner, or one associated to the other) before it changes either.
 
@@ -219,7 +230,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `scope-write` — Written wider than edited
 
-*finding or to verify · P1 or P2 · access · LCNC-SEC-02 · no Mendix code · risk id `mx-scope-write-<entity>`*
+*lead (not a risk: for the risk skill) · access · LCNC-SEC-02 · no Mendix code · risk id `mx-scope-write-<entity>`*
 
 **What is wrong.** An access rule lets a role change an attribute in every state of the object, while every page and microflow that role uses edits it only in some states. P1 only when at least one state attribute is an enumeration or a boolean the role cannot set itself (read-only for it, or changed only behind a check of its own value) and no before-commit microflow may refuse the write; a setting the role may write, a String only its name calls a status, or a commit check MxScout cannot read makes it to verify (P2).
 
@@ -231,7 +242,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `scope-delete` — Deleted wider than the Delete buttons
 
-*finding or to verify · P1 or P2 · access · LCNC-SEC-02 · no Mendix code · risk id `mx-scope-delete-<entity>`*
+*lead (not a risk: for the risk skill) · access · LCNC-SEC-02 · no Mendix code · risk id `mx-scope-delete-<entity>`*
 
 **What is wrong.** An access rule lets a role delete an object in every state, while every Delete button and microflow the role uses deletes it only in some. P1 only when at least one state attribute is an enumeration or a boolean the role cannot set itself and no before-delete microflow may refuse the delete; otherwise it is to verify (P2).
 
@@ -243,7 +254,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `scope-note` — Write scope
 
-*worth knowing · P3 · access · LCNC-SEC-02 · no Mendix code · risk id `mx-scope-note-<kind>-<microflow>`*
+*cleanup list (not a risk) · access · LCNC-SEC-02 · no Mendix code · risk id `mx-scope-note-<kind>-<microflow>`*
 
 **What is wrong.** Worth knowing: one before-commit microflow guards several entities, or a role holds create rights nothing it reaches uses.
 
@@ -255,7 +266,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `access-wider` — Reads every row, sees fewer
 
-*worth knowing · P3 · access · LCNC-SEC-03 · no Mendix code · risk id `mx-access-wider-model`*
+*lead (not a risk: for the risk skill) · access · LCNC-SEC-03 · no Mendix code · risk id `mx-access-wider-model`*
 
 **What is wrong.** A read access rule has no XPath, while nothing the role reaches lists every row: a page is not a security boundary, the rule is what the client may fetch.
 
@@ -267,7 +278,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `access-unused` — Granted, never used
 
-*worth knowing · P3 · access · LCNC-SEC-02 · no Mendix code · risk id `mx-access-unused-model`*
+*cleanup list (not a risk) · access · LCNC-SEC-02 · no Mendix code · risk id `mx-access-unused-model`*
 
 **What is wrong.** A module role holds an access rule on an entity that nothing the role reaches shows, reads, takes or returns.
 
@@ -279,7 +290,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `access-unwritten` — May write, nothing writes
 
-*worth knowing · P3 · access · LCNC-SEC-02 · no Mendix code · risk id `mx-access-unwritten-model`*
+*lead (not a risk: for the risk skill) or cleanup list (not a risk) · access · LCNC-SEC-02 · no Mendix code · risk id `mx-access-unwritten-model`*
 
 **What is wrong.** A module role may write, create or delete an entity, and no input on its pages, no New or Delete button and no flow that runs with its rights does.
 
@@ -291,7 +302,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `access-fails` — May run it, may not do what it does
 
-*finding · P2 · logic · LCNC-SEC-05 · no Mendix code · risk id `mx-access-fails-<flow>`*
+*code quality list (not a risk) · logic · LCNC-SEC-05 · no Mendix code · risk id `mx-access-fails-<flow>`*
 
 **What is wrong.** A microflow or nanoflow a role may run changes, creates or deletes an entity the role has no right on, so it fails for that role.
 
@@ -303,7 +314,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `access-finds-nothing` — May run it, finds nothing
 
-*worth knowing · P3 · access · LCNC-SEC-05 · no Mendix code · risk id `mx-access-finds-nothing-model`*
+*code quality list (not a risk) · access · LCNC-SEC-05 · no Mendix code · risk id `mx-access-finds-nothing-model`*
 
 **What is wrong.** A flow a role may run reads an entity that role cannot read, so it finds nothing for that role.
 
@@ -339,7 +350,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `guard-escalation` — Writes past the role’s own access rules
 
-*finding or to verify · P1 or P2 · access · LCNC-SEC-02 · no Mendix code · risk id `mx-guard-escalation-<microflow>-<entity>-<step>-<why>`*
+*lead (not a risk: for the risk skill) · access · LCNC-SEC-02 · no Mendix code · risk id `mx-guard-escalation-<microflow>-<entity>-<step>-<why>`*
 
 **What is wrong.** A microflow with Apply entity access off, which a role that does not administer the application may call, changes, creates or deletes a persistable entity either BEYOND that role’s own rules (it holds no such right at all: write none, no delete, a member outside Read, Write) or PAST the XPath that keeps its rules to its own rows — and no decision on the way to the step compares the object with the signed-in user. The flow then does for the caller what no rule of its own allows, on anybody’s object, whatever any page shows or hides. P1 when the step deletes, or when what it writes is a credential or an account; P2 otherwise. To verify when something MxScout cannot read stands in front of the step — a rule, a Java action, a flow deeper than it follows — or when no page, snippet or nanoflow offers the flow at all. Apply entity access off is NOT a risk on its own: most Mendix developers switch it off on purpose, and a step every calling role may take anyway is reported as nothing.
 
@@ -351,7 +362,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `guard-role-wider` — Callable by more roles than any page offers it to
 
-*worth knowing · P3 · access · LCNC-SEC-02 · no Mendix code · risk id `mx-guard-role-wider-<microflow>`*
+*lead (not a risk: for the risk skill) · access · LCNC-SEC-02 · no Mendix code · risk id `mx-guard-role-wider-<microflow>`*
 
 **What is wrong.** A microflow’s allowed roles include a user role that no page, snippet or nanoflow offers it to: every trigger of it sits on a page, or in a container, kept to other roles. Allowed roles are what the runtime enforces, so that role still reaches the flow from the browser’s console — a surface nobody meant to open, usually a role given "just in case".
 
@@ -363,7 +374,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `service-op-unscoped` — Service operation that trusts the key in the request
 
-*finding or to verify · P1 or P2 · access · LCNC-SEC-02 · no Mendix code · risk id `mx-service-op-unscoped-<microflow>`*
+*lead (not a risk: for the risk skill) · access · LCNC-SEC-02 · no Mendix code · risk id `mx-service-op-unscoped-<microflow>`*
 
 **What is wrong.** A published REST operation runs a microflow that does not apply entity access and fetches a persistable entity by a value the request itself carries (an id, a number, a key), while no decision in it compares that object with the user the service authenticated: whoever the service lets in reads or changes anybody’s object by guessing a key. P1 when the operation deletes, or when the entity is an account. The sibling operations of the same service that DO compare are the evidence that it was meant to be checked; where none of them does, it is to verify — the service may be open on purpose.
 
@@ -375,7 +386,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `access-not-inherited` — Read in full while its parent is narrowed
 
-*finding · P1 or P2 · access · LCNC-SEC-03 · no Mendix code · risk id `mx-access-not-inherited-<entity>`*
+*finding or lead (not a risk: for the risk skill) · P2 · access · LCNC-SEC-03 · no Mendix code · risk id `mx-access-not-inherited-<entity>`*
 
 **What is wrong.** A role reads every row of an entity — its rule has no XPath — while every rule it holds on the entity that one belongs to keeps the rows to its own. The row filter stops at the parent, so everything hanging off somebody else’s record is open: the copy of a comment, the mail that was sent, the attachment, the line in the audit log — the same data, one association away. P1 when the child carries a file or a member whose name says it holds a secret, P2 otherwise.
 
@@ -387,7 +398,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `secret-attribute` — An attribute whose name says it holds a secret
 
-*finding · P1 or P2 · secrets · LCNC-SEC-08 · no Mendix code · risk id `mx-secret-attribute-<entity>-<attribute>`*
+*lead (not a risk: for the risk skill) · secrets · LCNC-SEC-08 · no Mendix code · risk id `mx-secret-attribute-<entity>-<attribute>`*
 
 **What is wrong.** A persistable entity has an attribute whose name says it holds a password, a token or an API key, and a user role that does not administer the application may read it: P1 when the rule that gives the read has no XPath, so the client may fetch every row of them, P2 when an XPath narrows it. A name is only a hint about what an attribute holds; what makes the finding is who may read it. Where no flow that writes it calls anything that encrypts or hashes, the risk also says the value is stored as it was typed.
 
@@ -399,7 +410,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `logic-note` — What the drawing says about the logic
 
-*to verify or worth knowing · P2 or P3 · logic · LCNC-SEC-05 · no Mendix code · risk id `mx-logic-note-<kind>`*
+*code quality list (not a risk) · logic · LCNC-SEC-05 · no Mendix code · risk id `mx-logic-note-<kind>`*
 
 **What is wrong.** Three things a flow’s drawing shows, each said once with its flows as places. A commit or a delete inside a loop: a failure half way through leaves half the work stored and half not, and nothing undoes what already did (P2, to verify — a short list, or a run nobody minds repeating, makes it harmless). A REST call with no error handler on it: when the far side is slow, down or answers with an error, the flow carries on as though it had answered, and whatever it stores afterwards is stored on nothing (P2). A scheduled event switched off: whatever it was for does not happen, and nothing in the application says so (P3).
 
@@ -411,7 +422,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `secret-constant` — Constant the browser receives that looks like a secret
 
-*finding or to verify · P1 or P2 · secrets · LCNC-SEC-08 · no Mendix code · risk id `mx-secret-constant-<module-constant>`, triage key `m:secrets:<Module.Constant>`*
+*finding or lead (not a risk: for the risk skill) · P1 or P2 · secrets · LCNC-SEC-08 · no Mendix code · risk id `mx-secret-constant-<module-constant>`, triage key `m:secrets:<Module.Constant>`*
 
 **What is wrong.** A constant with Expose to client on has a name or a default value that looks like a key, a password or a token: every browser of the app receives its value. P1 when its default value looks like a secret (or its name is itself shaped like a key); one only its name calls a secret is to verify (P2) — what value an environment gives it is not in the model.
 
@@ -447,7 +458,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `market-admin` — Administrative role of a Marketplace module on a user role
 
-*finding or to verify · P2 · access · LCNC-SEC-02 · no Mendix code · risk id `mx-market-admin-<module role>-<user role>`*
+*lead (not a risk: for the risk skill) · access · LCNC-SEC-02 · no Mendix code · risk id `mx-market-admin-<module role>-<user role>`*
 
 **What is wrong.** A user role that is not the application’s administrator carries the administrative module role of a Marketplace module, so everybody given it may configure the module, run its imports or manage its data. A role only its name calls administrative (Admin, Manager), that holds no right, flow or page in the module, is to verify (P2): the catalogue or what the role may do decides, not its name.
 
@@ -459,7 +470,7 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 
 ### `market-unused` — Marketplace module the app does not use
 
-*worth knowing · P3 · access · LCNC-SEC-07 · no Mendix code · risk id `mx-market-unused-<module>`*
+*cleanup list (not a risk) · access · LCNC-SEC-07 · no Mendix code · risk id `mx-market-unused-<module>`*
 
 **What is wrong.** Worth knowing: a Marketplace module is installed and nothing of the app’s own calls its flows, shows its pages or uses its entities.
 
@@ -528,6 +539,138 @@ Three parts: **Checked by MxScout** (39 standards, one per check, under the chec
 **Fix an existing model.** Rename the document in Studio Pro (rename updates every reference), to the prefix of what it does or without a prefix when none fits.
 
 **Source.** [Naming Convention Best Practices](https://docs.mendix.com/refguide/naming-convention-best-practices/) · MxScout `public/perfrisks.js`
+
+### `admin-wide-access` — Administrator roles reach almost everything
+
+*finding · P2 · access · LCNC-SEC-02 · no Mendix code · risk id `mx-admin-wide-access-project`*
+
+**What is wrong.** The application’s administrator roles — the one App Security names, one that may assign every user role, and one that gives users its own role and opens the pages that show accounts — read, change and delete almost every entity with no XPath and hand out roles. Every other check leaves them out because that reach is their job; this one says it once, per project, with each role’s reach. Not the built-in administrator account or its password: every environment sets its own.
+
+**Build it this way.** An administrator role is held by the few people who administer the application, carries only the module roles it needs, and day-to-day work runs on narrower roles.
+
+**Fix an existing model.** Keep these roles to the few people who administer the application and review who holds them on every release; take module roles off an administrator role that it does not need, and give day-to-day work a narrower role.
+
+**Source.** [User Roles](https://docs.mendix.com/refguide/user-roles/) · [Implementing Best Practices for App Security](https://docs.mendix.com/howto/security/best-practices-security/) · MxScout `public/secrisks.js`
+
+### `access-self-grant` — A role may write the association its own access is scoped by
+
+*finding · P2 · access · LCNC-SEC-02 · no Mendix code · risk id `mx-access-self-grant-<entity>-<association>`*
+
+**What is wrong.** An access rule held by a role that does not administer the application gives write on an association, with no XPath keeping it to the role’s own rows, while another rule of the same role keeps its rows to the signed-in user BY that association. The role can set the association to itself on any object and so make itself the owner of anybody’s rows.
+
+**Build it this way.** An association that decides whose rows are whose is set only by a microflow that checks who may set it, or only on the role’s own row; no rule gives write on it to the role it scopes.
+
+**Fix an existing model.** Take write on the association off the rule, or keep that rule to the own rows ([%CurrentUser%] in its XPath); set the association in a microflow that checks the caller may.
+
+**Source.** [Access Rules](https://docs.mendix.com/refguide/access-rules/) · [Implementing Best Practices for App Security](https://docs.mendix.com/howto/security/best-practices-security/) · MxScout `public/accessuse.js`
+
+### `guard-scope-set` — A client-callable flow sets a scope association without looking at the caller
+
+*lead (not a risk: for the risk skill) · access · LCNC-SEC-02 · no Mendix code · risk id `mx-guard-scope-set-<microflow>`*
+
+**What is wrong.** A microflow a non-administrator may call, with Apply entity access off, changes or creates an object and sets an association that access rules keep rows to the user by — and nothing in it names the current user or session. A lead: whether every caller may put that object into that scope is the risk skill’s to prove.
+
+**Build it this way.** A microflow that sets a scope association compares what it is handed with $currentUser (or checks the caller administers it) before it sets it, or applies entity access.
+
+**Fix an existing model.** Add a decision before the change that checks the caller may put the object into that scope, or set Apply entity access to Yes and give the association write only where it belongs.
+
+**Source.** [Microflows](https://docs.mendix.com/refguide/microflow/) · [Access Rules](https://docs.mendix.com/refguide/access-rules/) · MxScout `public/guards.js`
+
+### `scope-delete-state` — A delete right that does not name the state
+
+*lead (not a risk: for the risk skill) · access · LCNC-SEC-02 · no Mendix code · risk id `mx-scope-delete-state-<entity>`*
+
+**What is wrong.** A stored entity has a workflow state (an enumeration named Status, State, Phase or Stage), and a rule a non-administrator holds allows delete with an XPath that does not name that state: the object may be deleted in any state, whatever the pages offer. A lead.
+
+**Build it this way.** A delete right on an entity with a workflow state names the states it may be deleted in, in the rule’s XPath, or delete goes through a microflow that checks the state.
+
+**Fix an existing model.** Add the deletable states to the XPath of the rule that allows delete, or take delete off and delete in a microflow that checks the state.
+
+**Source.** [Access Rules](https://docs.mendix.com/refguide/access-rules/) · MxScout `public/editscope.js`
+
+### `guard-account-param` — An account from the client is changed, or gets objects made for it
+
+*lead (not a risk: for the risk skill) · access · LCNC-SEC-01 · no Mendix code · risk id `mx-guard-account-param-<microflow>`*
+
+**What is wrong.** A microflow a non-administrator may call, with Apply entity access off, takes an account (an entity built on System.User) as a parameter and changes it, deletes it, or creates a stored object linked to it — with no decision comparing it with the current user. Marked "credential" when what it creates holds a secret. A lead.
+
+**Build it this way.** A microflow handed an account compares it with $currentUser before it changes it or makes anything for it, unless only a role that administers accounts may call it.
+
+**Fix an existing model.** Add a decision that compares the account with $currentUser (or checks the caller administers it), or take the role off Allowed roles.
+
+**Source.** [Microflows](https://docs.mendix.com/refguide/microflow/) · [User Roles](https://docs.mendix.com/refguide/user-roles/) · MxScout `public/guards.js`
+
+### `role-manages-no-pages` — A role that manages users and has no pages
+
+*finding · P2 · access · LCNC-SEC-01 · no Mendix code · risk id `mx-role-manages-no-pages-<user-role>`*
+
+**What is wrong.** A user role that may manage users (all roles, or a list) opens no page of the application, or holds a module role a published service allows: an account for a system or a report that can create users, set their passwords and hand out roles.
+
+**Build it this way.** User management belongs to a role a person signs in with to administer accounts; an integration or reporting role manages no users.
+
+**Fix an existing model.** Take User management off the role in App Security (User roles › the role › User management) and give it to a role a person signs in with.
+
+**Source.** [User Roles](https://docs.mendix.com/refguide/user-roles/) · [Implementing Best Practices for App Security](https://docs.mendix.com/howto/security/best-practices-security/) · MxScout `public/accounts.js`
+
+### `services-many-modules` — One user role opens the published services of several modules
+
+*finding · P3 · access · LCNC-SEC-04 · no Mendix code · risk id `mx-services-many-modules-<user-role>`*
+
+**What is wrong.** One user role holds module roles allowed on the published services of three modules or more: whoever holds one credential of it calls all of them.
+
+**Build it this way.** Each integration has a user role of its own, holding only the module role of its own service.
+
+**Fix an existing model.** Give each integration a user role of its own and take the other services’ module roles off this one.
+
+**Source.** [Published REST Services](https://docs.mendix.com/refguide/published-rest-services/) · [User Roles](https://docs.mendix.com/refguide/user-roles/) · MxScout `public/secrisks.js`
+
+### `guard-auth-loose` — An authentication microflow that matches a secret loosely
+
+*lead (not a risk: for the risk skill) · access · LCNC-SEC-01 · no Mendix code · risk id `mx-guard-auth-loose-<microflow>`*
+
+**What is wrong.** The authentication microflow of a published service tests a credential with find, contains or starts-with: a request that carries the secret anywhere inside a longer value passes. A lead.
+
+**Build it this way.** An authentication microflow compares a credential exactly, on the whole header or field that carries it, and refuses an empty one.
+
+**Fix an existing model.** Compare the credential with = on the whole value, and refuse an empty one.
+
+**Source.** [Published REST Services](https://docs.mendix.com/refguide/published-rest-services/) · MxScout `public/guards.js`
+
+### `guard-sub-callable` — A sub-microflow the client can call, that stores or sends
+
+*lead (not a risk: for the risk skill) · access · LCNC-SEC-02 · no Mendix code · risk id `mx-guard-sub-callable-<microflow>`*
+
+**What is wrong.** A microflow that only other microflows call, yet a non-administrator may call from the client, commits, deletes or calls out, takes parameters and names no current user: from the browser’s console it runs with whatever arguments the caller gives. A lead.
+
+**Build it this way.** A microflow only other microflows call has no allowed roles.
+
+**Fix an existing model.** Take every role off Allowed roles of the sub-microflow.
+
+**Source.** [Microflows](https://docs.mendix.com/refguide/microflow/) · [Implementing Best Practices for App Security](https://docs.mendix.com/howto/security/best-practices-security/) · MxScout `public/guards.js`
+
+### `demo-admin` — A demo user with the administrator’s role
+
+*worth knowing · P3 · access · LCNC-SEC-04 · no Mendix code · risk id `mx-demo-admin-<demo-user>`*
+
+**What is wrong.** Demo users are on and a demo user holds the user role App Security names as the administrator: wherever demo users were once created they can sign in with every right the administrator has.
+
+**Build it this way.** No demo user holds the administrator’s role; demo users are off outside development.
+
+**Fix an existing model.** Take the administrator’s role off the demo user, or switch demo users off — and remove the accounts where they were created.
+
+**Source.** [Demo Users](https://docs.mendix.com/refguide/demo-users/) · MxScout `public/secrisks.js`
+
+### `access-text-open` — A text or file store read in full
+
+*lead (not a risk: for the risk skill) · access · LCNC-SEC-03 · no Mendix code · risk id `mx-access-text-open-<entity>`*
+
+**What is wrong.** A stored entity that is a file document, or has a String of unlimited length or 1000+ characters named like content, body, description, text, message, comment, note or subject, is read by a non-administrator through a rule with no XPath: whatever anyone writes into it is readable by all of them. A lead, ranked first among the entities read in full.
+
+**Build it this way.** A text or file store is read by the rule of what it belongs to: an XPath that follows its owner, the way the owner’s rule does.
+
+**Fix an existing model.** Give the read rule an XPath that follows what the entity belongs to.
+
+**Source.** [Access Rules](https://docs.mendix.com/refguide/access-rules/) · MxScout `public/accessuse.js`
 
 ## Judged by an agent — no check
 

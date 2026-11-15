@@ -186,6 +186,7 @@
       arch: ['M2.5 2.5h4v4h-4zM9.5 2.5h4v4h-4zM6 9.5h4v4H6z', 'M4.5 6.5v1.5h7V6.5M8 8v1.5'],
       risk: ['M8 2l6 11H2z', 'M8 6.5v3M8 11.5h.01'],
       quality: ['M3 8.5l3 3 7-7'],
+      perf: ['M2.5 11.5a5.5 5.5 0 0 1 11 0', 'M8 11.5l3-4'], codeq: ['M3 4.5h10M3 8h7M3 11.5h4', 'M11 10.5l1.5 1.5 2-2.5'],
       nano: ['M5.3 4.5h5.4a3.5 3.5 0 0 1 0 7H5.3a3.5 3.5 0 0 1 0-7z', 'M5.5 8h4.5M8.5 6.3L10.2 8l-1.7 1.7'],
       page: ['M3 2h10v12H3z', 'M5.5 5.5h5M5.5 8h5M5.5 10.5h3'],
       dev: ['M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5'],
@@ -766,7 +767,7 @@
       // ---- model quality ----
       if (Q) {
         w('## Model quality'); w();
-        w('Six checks read straight from the model and measured against Mendix’s own guidelines.'); w();
+        w('Checks read straight from the model and measured against Mendix’s own guidelines, and the performance and code quality findings, which are not risks.'); w();
         function check(title, n, guide, lines) {
           w('### ' + title + ' (' + n + ')'); w();
           if (guide) { w('> **Mendix guideline.** ' + esc(guide[0]) + ' — ' + esc(guide[1])); w(); }
@@ -778,6 +779,12 @@
         check('Flows over 25 elements', Q.over + ' of ' + Q.flowsN, GUIDE.large, Q.large.map(function (f) { return code(f[1]) + ' — ' + plural(f[2], 'step', 'steps'); }).concat(Q.over > Q.large.length ? ['+ ' + (Q.over - Q.large.length) + ' more over 25 elements'] : []));
         check('Prefixes outside the convention', Q.prefN, GUIDE.names, Q.pref.map(function (p) { return code(p[0] + '_') + ' — ' + p[1] + (p[2] ? ' · Mendix convention: ' + esc(p[2]) : '') + ' · e.g. ' + code(p[3][0]); }));
         check('Microflows that apply entity access', Q.eaApplied + ' of ' + Q.eaTotal, GUIDE.access, Q.ea.filter(function (r) { return r[1]; }).map(function (r) { return code(r[0]) + ' — ' + r[1] + ' microflows, a role can start ' + r[2] + ', apply entity access ' + r[3]; }));
+        // Layout A: performance and code quality are not risks and have pages of their own; this file lists each apart.
+        var mdLine = function (r) { return (r.level ? r.level + ' · ' : '') + esc(String(r.title || '').replace(/^Worth knowing: /, '')) + ((r.where || [])[0] ? ' — ' + code(String(r.where[0]).split('|')[0]) : ''); };
+        var perfMd = (data.modelFindings || []).filter(function (r) { return r.list === 'performance'; });
+        var cqMd = (data.modelFindings || []).filter(function (r) { return r.list === 'quality'; }).concat(data.security && data.security.quality ? data.security.quality : []);
+        if (perfMd.length) check('Performance', perfMd.length, null, perfMd.map(mdLine));
+        if (cqMd.length) check('Code quality', cqMd.length, null, cqMd.map(mdLine));
       }
 
       // ---- for developers ----
@@ -1225,6 +1232,15 @@
       var assist = opts.assist || null;
       // The solved cases (docs-knowledge.js): handed over by MxScout (opts.cases), or in the file's data when the export was asked for them.
       var cases = opts.cases || (data.cases && data.cases.length ? { items: function () { return data.cases; } } : null), sec = data.security && data.security.items && window.MxDocsSecurity ? data.security : null; // sec: the Security review (docs-security.js)
+      // Layout A (2026-11-15): performance and code quality are pages of their own, never risks — perfrisks.js's lists
+      // (data.modelFindings) and the security checks' code quality list (data.security.quality). Personal data keeps its
+      // page; cleanup is a section of the Security review; the leads sit behind one line on the Risks page.
+      var PERF = (data.modelFindings || []).filter(function (r) { return r.list === 'performance'; });
+      var CODEQ = (data.modelFindings || []).filter(function (r) { return r.list === 'quality'; }).concat(sec && sec.quality ? sec.quality : []);
+      var PRIV = (data.modelFindings || []).filter(function (r) { return r.list === 'privacy'; });
+      var LEADS = sec && sec.leads ? sec.leads : [], LC = sec && sec.leadCounts ? sec.leadCounts : null;
+      // What the reader opened on these pages: the leads line, their order, a group shown in full; a list page's filters.
+      var lst = { open: false, mode: 'check', more: {} }, lf = { perf: { lv: null, ck: null, mod: null }, codeq: { lv: null, ck: null, mod: null } };
       function assistOpen() { return (assist.items() || []).filter(function (x) { return x.status === 'open' || x.status === 'in-progress' || x.status === 'waiting'; }).length; }
       // The application's full description lives on Processes (as its item 0), so the page is there when either is.
       var procPage = !!(data.ai && data.ai.app && (procs.length || data.ai.app.story || data.ai.app.summary));
@@ -1235,12 +1251,12 @@
       var GROUPS = [
         ['Application', [['start', 'Overview', 'home'], procPage ? ['processes', 'Processes', 'proc'] : null, ['modules', 'Modules', 'module'], ['arch', 'Architecture', 'arch']]],
         ['Model', [['domain', 'Entities', 'entity'], ['refs:microflow', 'Microflows', 'flow'], ['refs:nanoflow', 'Nanoflows', 'nano'], ['refs:page', 'Pages', 'page']]],
-        ['Review', [allRisks.length ? ['risks', 'Risks', 'risk'] : null, sec ? ['security', 'Security review', 'shield'] : null, assist ? ['assist', 'Assist', 'ticket'] : null, cases ? ['cases', 'Solved cases', 'case'] : null, ['quality', 'Model quality', 'quality'], devCtx ? ['dev', 'For developers', 'dev'] : null]]
+        ['Review', [allRisks.length ? ['risks', 'Risks', 'risk'] : null, PERF.length ? ['perf', 'Performance', 'perf'] : null, CODEQ.length ? ['codeq', 'Code quality', 'codeq'] : null, sec ? ['security', 'Security review', 'shield'] : null, assist ? ['assist', 'Assist', 'ticket'] : null, cases ? ['cases', 'Solved cases', 'case'] : null, ['quality', 'Model quality', 'quality'], devCtx ? ['dev', 'For developers', 'dev'] : null]]
       ].map(function (g) { return [g[0], g[1].filter(Boolean)]; });
       var NAV = [];
       GROUPS.forEach(function (g) { g[1].forEach(function (r) { var v = r[0].split(':')[0]; if (!NAV.some(function (x) { return x[0] === v; })) NAV.push([v, r[1], r[2]]); }); });
       var counts = { processes: procs.length, modules: data.kpi.modules, 'refs:microflow': data.kpi.microflows, 'refs:nanoflow': data.kpi.nanoflows, 'refs:page': data.kpi.pages, domain: data.kpi.entities,
-        quality: data.quality.unreached.length, risks: risks.length, security: sec ? sec.counts.finding : 0, dev: devCount, cases: cases ? (cases.items() || []).length : 0 };
+        quality: data.quality.unreached.length, risks: risks.length, perf: PERF.length, codeq: CODEQ.length, security: sec ? sec.counts.finding : 0, dev: devCount, cases: cases ? (cases.items() || []).length : 0 };
       var navBtns = {};
       var initial = String(data.project || '?').charAt(0).toUpperCase();
       var side = h('nav', { class: 'dx-side', 'aria-label': _('Documentation') }, [
@@ -1327,7 +1343,7 @@
       //   #/flows/{Module.Name}   ?seg=all|mf|nf|pg the list, ?step=N the step, ?var=Name the trace
       //   #/domain/{Module}/{Entity}
       //   #/architecture?s={section}  #/risks/{R-012}  #/quality/{check}  #/developers/{tab}
-      var ROUTE_OF = { start: '', processes: 'processes', assist: 'assist', cases: 'cases', modules: 'modules', refs: 'flows', domain: 'domain', arch: 'architecture', risks: 'risks', security: 'security', quality: 'quality', dev: 'developers' };
+      var ROUTE_OF = { start: '', processes: 'processes', assist: 'assist', cases: 'cases', modules: 'modules', refs: 'flows', domain: 'domain', arch: 'architecture', risks: 'risks', perf: 'performance', codeq: 'code-quality', security: 'security', quality: 'quality', dev: 'developers' };
       var VIEW_OF = {};
       Object.keys(ROUTE_OF).forEach(function (k) { VIEW_OF[ROUTE_OF[k]] = k; });
       // Addresses written before these routes existed still open.
@@ -1367,7 +1383,7 @@
           var ak = m[1] === 'tickets' ? ['ticket'].concat(arg ? [arg] : []) : m[1] === 'changes' ? ['idea'].concat(arg ? [arg] : []) : String(arg || '').split('/');
           st.akind = ak[0] || null; st.aid = ak[1] || null;
         }
-        if (st.view === 'risks' || st.view === 'quality' || st.view === 'dev' || st.view === 'security') st.sub = arg;
+        if (st.view === 'risks' || st.view === 'quality' || st.view === 'dev' || st.view === 'security' || st.view === 'perf' || st.view === 'codeq') st.sub = arg;
         if (st.view === 'cases') st.cid = arg ? 'knowledge/' + arg + '.md' : null;
         if (st.view === 'risks') rf = { lv: /^P[123]$/.test(q.lv) ? q.lv : null, th: PAT[q.th] ? q.th : null, mod: q.mod || null, q: q.q || '', group: q.group === 'mod' ? 'mod' : 'sev',
           st: /^(fixed|verified|fp|gone|all)$/.test(q.st || '') ? q.st : null, or: q.by === 'ai' || q.by === 'person' ? q.by : null };
@@ -1392,7 +1408,7 @@
         if (s.view === 'processes') arg = String(s.proc || 0);
         if (s.view === 'assist' && s.akind) arg = s.akind + (s.aid ? '/' + s.aid : '');
         if (s.view === 'cases' && s.cid) arg = String(s.cid).replace(/^knowledge\//, '').replace(/\.md$/, '');
-        if ((s.view === 'risks' || s.view === 'quality' || s.view === 'dev' || s.view === 'security') && s.sub) arg = s.sub;
+        if ((s.view === 'risks' || s.view === 'quality' || s.view === 'dev' || s.view === 'security' || s.view === 'perf' || s.view === 'codeq') && s.sub) arg = s.sub;
         if ((s.view === 'start' || s.view === 'arch') && s.sec) q = 's=' + encodeURIComponent(s.sec);
         if (s.view === 'modules' || s.view === 'arch' || s.view === 'dev') {
           var mq = q ? [q] : [];
@@ -1583,12 +1599,12 @@
 
       // ---------- drawing ----------
       // A page this data has no drawing for — an address of the Tickets or Changes pages there were — is the Overview.
-      var DRAW = { start: drawStart, processes: drawProcesses, assist: drawAssist, cases: drawCases, modules: drawModules, refs: drawRefs, domain: drawDomain, quality: drawQuality, risks: drawRisks, dev: drawDev, arch: drawArch, security: function () { window.MxDocsSecurity.draw({ h: h, ln: ln, main: main, setTitle: setTitle, plural: plural, _: _, countOf: countOf, statusLabel: TRI.label || null, data: data, sec: sec, st: st, flowKey: flowKey, modelRead: modelRead, fmtDate: fmtDate }); } };
+      var DRAW = { start: drawStart, processes: drawProcesses, assist: drawAssist, cases: drawCases, modules: drawModules, refs: drawRefs, domain: drawDomain, quality: drawQuality, risks: drawRisks, perf: function () { drawList('perf'); }, codeq: function () { drawList('codeq'); }, dev: drawDev, arch: drawArch, security: function () { window.MxDocsSecurity.draw({ h: h, ln: ln, main: main, setTitle: setTitle, plural: plural, _: _, countOf: countOf, statusLabel: TRI.label || null, data: data, sec: sec, st: st, flowKey: flowKey, modelRead: modelRead, fmtDate: fmtDate }); } };
       function draw() {
         Object.keys(navBtns).forEach(function (k) { navBtns[k].classList.toggle('on', k === st.view || (st.view === 'refs' && k === 'refs:' + (st.seg === 'nanoflow' || st.seg === 'page' ? st.seg : 'microflow'))); });
         var kept = scrollsOf(root);
         clear(list); clear(main); clear(headTools);
-        if ((st.view === 'risks' && !allRisks.length) || (st.view === 'dev' && !devCtx) || (st.view === 'processes' && !procPage) || (st.view === 'assist' && !assist) || (st.view === 'cases' && !cases) || (st.view === 'security' && !sec) || !DRAW[st.view]) st.view = 'start';
+        if ((st.view === 'risks' && !allRisks.length) || (st.view === 'dev' && !devCtx) || (st.view === 'processes' && !procPage) || (st.view === 'assist' && !assist) || (st.view === 'cases' && !cases) || (st.view === 'security' && !sec) || (st.view === 'perf' && !PERF.length) || (st.view === 'codeq' && !CODEQ.length) || !DRAW[st.view]) st.view = 'start';
         onScroll = null;
         root.setAttribute('data-view', st.view);
         // The page's own scrolling boxes keep their place while it is the same page and the same item on it —
@@ -1598,7 +1614,7 @@
         var place = (opts.only || (opts.preview ? 'preview' : 'file')) + '|' + hashOf(st).split('?')[0];
         main.setAttribute('data-keep-scroll', 'dx-main|' + place);
         list.setAttribute('data-keep-scroll', 'dx-list|' + (opts.only || (opts.preview ? 'preview' : 'file')) + '|' + st.view + '|' + (st.view === 'assist' ? st.akind || '' : ''));
-        root.classList.toggle('no-list', st.view === 'refs' || st.view === 'domain' || st.view === 'start' || st.view === 'quality' || st.view === 'risks' || st.view === 'cases' || st.view === 'dev' || st.view === 'arch' || st.view === 'security');
+        root.classList.toggle('no-list', st.view === 'refs' || st.view === 'domain' || st.view === 'start' || st.view === 'quality' || st.view === 'risks' || st.view === 'cases' || st.view === 'dev' || st.view === 'arch' || st.view === 'security' || st.view === 'perf' || st.view === 'codeq');
         DRAW[st.view]();
         putScrolls(root, kept);
       }
@@ -2909,7 +2925,7 @@
       // and the elements it found. Nothing here is an agent's.
       var QKIND = { mf: 'MF', nf: 'NF', pg: 'PG' };
       function drawQuality() {
-        setTitle(_('Model quality'), _('Six checks read straight from the model and measured against Mendix’s own guidelines. Nothing on this page was written by an agent.'));
+        setTitle(_('Model quality'), _('Checks read straight from the model and measured against Mendix’s own guidelines. The performance and code quality findings have pages of their own. Nothing on this page was written by an agent.'));
         var D = derived(), Q = D && D.quality;
         if (!Q) { main.appendChild(h('div', { class: 'dx-note', text: _('This copy of the reader has no checks.') })); return; }
         var schedOff = Q.sched.filter(function (x) { return !x[2]; }).length;
@@ -2924,6 +2940,7 @@
           { id: 'names', group: _('Naming'), v: Q.prefN, label: _('Prefixes outside the convention'), sub: Q.pref.length ? _('{0}, e.g. {1}', [countOf(Q.pref.length, ['{0} prefix', '{0} prefixes'], ['{0} prefiks', '{0} prefiksy', '{0} prefiksów'], ['{0} Präfix', '{0} Präfixe']), Q.pref.slice(0, 3).map(function (p) { return p[0] + '_'; }).join(', ')]) : _('None'), warn: false },
           { id: 'access', group: _('Security'), v: Q.eaApplied, of: Q.eaTotal, label: _('Microflows that apply entity access'), sub: _('The rest skip the access rules'), warn: false }
         ];
+        // Layout A: performance and code quality are pages of their own now (drawList), not a card here.
         var chk = CH.some(function (c) { return c.id === st.sub; }) ? st.sub : 'unreached';
         var cards = h('div', { class: 'dx-q-cards', role: 'tablist', 'aria-label': _('Checks') }, CH.map(function (c) {
           var on = c.id === chk;
@@ -3001,6 +3018,260 @@
           .concat(cur.rows.length ? cur.rows : [h('p', { class: 'dx-empty', text: _('None.') })])
           .concat(cur.foot ? [h('span', { class: 'dx-q-foot', text: cur.foot })] : []));
         main.appendChild(h('div', { class: 'dx-q' }, [cards, h('section', { class: 'dx-q-detail' }, [left, table])]));
+      }
+
+      // ---------- one list beside one item: the Risks page's layout, shared ----------
+      // The Risks page, Performance and Code quality are drawn with the same pieces (2026-11-15: the two lists had a
+      // table of their own, hard to read on a large application): the filters on the left (a strip above them on a
+      // narrower screen), a list of short rows, and the chosen item beside it at a width that reads.
+      function brk(s) { return window.MxRiskText ? window.MxRiskText.breaks(h, s) : [s]; } // a long title or name wraps after its dots and underscores: docs-risktext.js
+      // A place a finding names: 'Module.Name', or 'Module.Name|mf' with its kind — whatever the model has by that name.
+      function whereOf(w) {
+        var m = /^([^|]+?)(?:\|(mf|nf|pg|en|dm))?$/.exec(String(w).trim()) || [null, String(w), null];
+        var qn = m[1], kind = m[2];
+        if (!kind) { var k = flowKey(qn); kind = k ? { microflow: 'mf', nanoflow: 'nf', page: 'pg' }[data.flows[k].kind] : data.entities[qn] ? 'en' : null; }
+        return { qn: qn, kind: kind };
+      }
+      function fcHead(label, active, clearFn) {
+        return h('div', { class: 'dx-fc-h' }, [h('span', { class: 'dx-cap', text: label }), active ? h('button', { type: 'button', class: 'dx-fc-clear', text: _('Show all'), onclick: clearFn }) : null]);
+      }
+      // The level filter: rows [{ l: 'P2', name, when, n }] under a bar of their sizes.
+      function fcSev(label, rows, active, pick, wide) {
+        return h('section', { class: 'dx-fc', 'aria-label': label }, [
+          fcHead(label, active, function () { pick(null); }),
+          h('div', { class: 'dx-sevbar', 'aria-hidden': 'true' }, rows.map(function (x) {
+            var s = h('span', { class: 'b-' + x.l.toLowerCase() + (active && active !== x.l ? ' dim' : '') }); s.style.flexGrow = String(x.n); s.style.minWidth = x.n ? '4px' : '0'; return s;
+          })),
+          h('div', { class: 'dx-fc-rows' }, rows.map(function (x) {
+            var on = active === x.l, l = x.l.toLowerCase();
+            return h('button', { type: 'button', class: 'dx-fc-sev' + (wide ? ' wide' : '') + (on ? ' on ' + l : '') + (active && !on ? ' dim' : ''), 'aria-pressed': on ? 'true' : 'false', onclick: function () { pick(on ? null : x.l); } },
+              wide ? [h('span', { class: 'dx-lv ' + l, text: x.l }), h('span', { class: 'dx-fc-t' }, [h('b', { text: x.name }), h('small', { text: x.when })]), h('span', { class: 'dx-fc-n', text: String(x.n) })]
+                : [h('span', { class: 'dx-lv ' + l, text: x.l }), h('b', { text: x.name }), h('small', { text: x.when }), h('span', { class: 'dx-fc-n', text: String(x.n) })]);
+          }))
+        ]);
+      }
+      // A filter by kind (the Risks page's patterns, the lists' checks): rows [{ key, label, n, p1 }], chips in the strip, bars on the left.
+      function fcBars(label, rows, active, pick, wide, note) {
+        var max = Math.max.apply(null, rows.map(function (p) { return p.n; }).concat([1]));
+        return h('section', { class: 'dx-fc', 'aria-label': label }, [
+          fcHead(label, active, function () { pick(null); }),
+          note || null,
+          h('div', { class: wide ? 'dx-fc-rows' : 'dx-pats' }, rows.map(function (p) {
+            var on = active === p.key;
+            var cls = (wide ? 'dx-fc-pat' : 'dx-pat') + (on ? ' on' : '') + ((active && !on) || !p.n ? ' dim' : '');
+            var click = function () { pick(on ? null : p.key); };
+            if (!wide) return h('button', { type: 'button', class: cls, 'aria-pressed': on ? 'true' : 'false', onclick: click },
+              [p.p1 ? h('span', { class: 'dx-p1dot', 'aria-label': _('has P1') }) : null, p.label, h('span', { class: 'dx-fc-n', text: String(p.n) })]);
+            var bar = h('span', { class: 'dx-fc-bar' }, [h('span')]); bar.firstChild.style.width = Math.round(p.n / max * 100) + '%';
+            return h('button', { type: 'button', class: cls, 'aria-pressed': on ? 'true' : 'false', onclick: click },
+              [h('span', { class: 'dx-fc-t row' }, [h('span', { text: p.label }), p.p1 ? h('span', { class: 'dx-fc-p1', text: p.p1 + ' P1' }) : null]), h('span', { class: 'dx-fc-n', text: String(p.n) }), bar]);
+          }))
+        ]);
+      }
+      // The modules: rows [{ name, n, P1, P2, P3, N }] (N: the ones with no level), most first, in an order a pick does not change.
+      function fcMods(label, rows, active, pick, wide) {
+        var max = rows.length ? Math.max(1, rows[0].n) : 1;
+        return h('section', { class: 'dx-fc', 'aria-label': _('Modules') }, [
+          fcHead(label, active, function () { pick(null); }),
+          h('div', { class: 'dx-fc-rows tight' + (wide ? '' : ' dx-fc-scroll') }, rows.map(function (m) {
+            var on = active === m.name;
+            var bars = h('span', { class: 'dx-modbar', 'aria-hidden': 'true' }, ['P1', 'P2', 'P3', 'N'].filter(function (l) { return m[l]; }).map(function (l) { var s = h('span', { class: 'b-' + l.toLowerCase() }); s.style.width = (m[l] / max * 100).toFixed(1) + '%'; return s; }));
+            return h('button', { type: 'button', class: 'dx-fc-mod' + (on ? ' on' : ''), 'aria-pressed': on ? 'true' : 'false', onclick: function () { pick(on ? null : m.name); } },
+              [h('span', { class: 'mono', text: modLabel(m.name) }), bars, h('span', { class: 'dx-fc-n', text: String(m.n) })]);
+          }))
+        ]);
+      }
+      // The list's head: how many, a switch beside it, and the filters on as chips [[label, remove]].
+      function rkListHead(count, seg, chips) {
+        return h('div', { class: 'dx-rk-lh' }, [
+          h('div', { class: 'dx-rk-lh-row' }, [h('b', { text: count }), seg || null]),
+          chips.length ? h('div', { class: 'dx-rk-chips' }, chips.map(function (c) {
+            return h('button', { type: 'button', class: 'dx-rk-chip', 'aria-label': _('Remove filter {0}', [c[0]]), onclick: c[1] }, [c[0], h('span', { 'aria-hidden': 'true', text: '×' })]);
+          })) : null
+        ]);
+      }
+      // A heading of the list: a level (badge, name, when) or a module (in code font), and how many under it.
+      function rkGroup(lv, name, when, n) {
+        return h('div', { class: 'dx-rk-g' + (lv ? '' : ' mono') }, lv ? [h('span', { class: 'dx-lv ' + lv.toLowerCase(), text: lv }), h('b', { text: name }), h('small', { text: when }), h('span', { class: 'dx-fc-n', text: String(n) })]
+          : [h('b', { text: name }), h('span', { class: 'dx-fc-n', text: String(n) })]);
+      }
+      // One row of the list: its level, its title (two lines at most) and one muted line under it.
+      function rkRow(to, on, lv, title, meta, extra, onClick) {
+        return ln(to, { class: 'dx-rk-row' + (lv ? '' : ' nolv') + (on ? ' on' : ''), 'aria-current': on ? 'true' : 'false' }, [
+          lv ? h('span', { class: 'dx-lv ' + lv.toLowerCase(), text: lv }) : null,
+          h('span', { class: 'dx-rk-t' }, [h('b', null, title), h('small', { text: meta })].concat(extra || []))
+        ], onClick);
+      }
+      // Above the item: the previous and next in the list, where it is in it, and its id.
+      function rkTop(prev, next, text, id) {
+        function b(fn, label, icon) { return h('button', { type: 'button', class: 'dx-rk-nav', 'aria-label': label, disabled: !fn, onclick: function () { if (fn) fn(); } }, [navIcon(icon, 14)]); }
+        return h('div', { class: 'dx-rk-top' }, [h('div', { class: 'dx-rk-navs' }, [b(prev, _('Previous finding'), 'up'), b(next, _('Next finding'), 'down'), h('span', { text: text })]),
+          h('span', { class: 'mono dx-rk-id', text: id })]);
+      }
+      // A place: its kind, its name (the module muted), a line under it, and a link to the document.
+      function rkPlace(w, sub, tip) {
+        var K = WHERE_KIND[w.kind] || ['··', null, null], dot = w.qn.indexOf('.'), key = K[2] ? flowKey(w.qn, { microflow: 'mf', nanoflow: 'nf', page: 'pg' }[K[2]]) : null, ent = !K[2] && w.kind && data.entities[w.qn];
+        var name = h('span', { class: 'dx-pd-qn mono' }, [h('span', { class: 'dx-mod', text: w.qn.slice(0, dot + 1) }), h('wbr')].concat(brk(w.qn.slice(dot + 1))));
+        var kids = [kindTag(K[0]), sub ? h('span', { class: 'dx-rk-wq' }, [name, h('small', { text: sub })]) : name,
+          key || ent ? h('span', { class: 'dx-rk-open' }, [_(K[1]), navIcon('arrow', 12)]) : null];
+        var at = tip ? { class: 'dx-rk-where', title: tip } : { class: 'dx-rk-where' };
+        if (key) return ln({ view: 'refs', module: data.flows[key].module, seg: data.flows[key].kind, key: key }, at, kids);
+        return ent ? ln({ view: 'domain', entity: w.qn }, at, kids) : h('div', at, kids);
+      }
+      function rkFrame(strip, facets, listCol, detail) {
+        return h('div', { class: 'dx-rk' }, [
+          h('div', { class: 'dx-rk-strip' + (strip.length === 2 ? ' two' : '') }, strip),
+          h('div', { class: 'dx-rk-body' }, [h('aside', { class: 'dx-rk-facets', 'aria-label': _('Filters'), 'data-keep-scroll': 'rk-facets' }, facets), listCol, detail])
+        ]);
+      }
+
+      // ---------- performance and code quality (layout A, 2026-11-15) ----------
+      // Two lists that are not risks, each a page of its own with its counter and filters, drawn like the Risks page.
+      // The findings of one check (and one level, on Performance) say the same thing about different places, so they
+      // are one item: what is wrong in plain words, why it matters, what to do, and the places, by module when there
+      // are many — not one sentence per place. The item's name and why are the reader's language; the engine's own
+      // text (what to do, a place's sentence) stays English like a risk's own text (docs-risktext.js).
+      var LIST_CHECK = {
+        'perf-retrieve-in-loop': [N_('Retrieve inside a loop'), N_('Reads from the database once per item of a loop'), N_('A hundred items mean a hundred queries where one would do, so the flow gets slower as the list grows.')],
+        'perf-commit-in-loop': [N_('Commit inside a loop'), N_('Saves one object at a time inside a loop'), N_('Every item is a database write with its commit events: slow on a long list, and a failure halfway leaves part of it saved.')],
+        'perf-delete-in-loop': [N_('Delete inside a loop'), N_('Deletes one object at a time inside a loop'), N_('Every item runs a delete with its events and the delete rules of its associations, where one delete of the list would do.')],
+        'perf-call-in-loop': [N_('Call inside a loop'), N_('Calls a flow that reads or saves data once per item of a loop'), N_('The called flow’s queries run again for every item; how much that costs depends on how long the list gets.')],
+        'perf-no-index': [N_('Sort or filter with no index'), N_('Filters or sorts on an attribute with no index'), N_('The database reads every row to find a few: unnoticed on a small table, slow once it grows.')],
+        'perf-heavy-page': [N_('Heavy page'), N_('A page asks the server for data many times when it opens'), N_('Every list and data view on it is a trip to the server, and people wait for the slowest one.')],
+        'perf-row-query': [N_('A query per row of a list'), N_('Each row of a list starts a query of its own'), N_('A list of fifty rows asks the database fifty more times every time it is shown.')],
+        'perf-xpath': [N_('Costly XPath'), N_('An XPath the database cannot answer from an index'), N_('The constraint makes the database read the table before it can narrow it down.')],
+        'perf-calculated': [N_('Calculated attribute in a list'), N_('An attribute worked out by a microflow on every read'), N_('The microflow runs each time an object is read, so once for every row of a list that shows it.')],
+        'perf-view-entity': [N_('View entity'), N_('Work a view entity could do in one query'), N_('The model works the figure out object by object; a view entity lets the database do it at once.')],
+        'perf-held-objects': [N_('Objects held in the client'), N_('Temporary objects stay in the browser until a reload'), N_('They pile up in the browser’s memory while the application is open, and a list over them grows with use.')],
+        'perf-retrieve-all': [N_('Retrieve of every row'), N_('Retrieves every row of a table that keeps growing'), N_('With no limit the list grows with the data, and so do the time and the memory it takes.')],
+        'shape-flow-size': [N_('Flow too large'), N_('Flows too large to read at once'), N_('A flow with that many activities is hard to follow and easy to break when it is changed.')],
+        'shape-error-handler': [N_('Call with no error handler'), N_('Calls to Java or a service with no error handler'), N_('When the call fails, the flow stops with a system error the user cannot do anything about.')],
+        'naming-prefix': [N_('Names against the convention'), N_('Names against Mendix’s convention'), N_('The prefix does not say what starts the document, so it is harder to find and to judge.')],
+        'logic-note': [N_('REST call with no error handler'), N_('REST calls with no error handler'), N_('When the call fails, the flow stops with a system error the user cannot do anything about.')],
+        'access-fails': [N_('Fails for a role'), N_('Flows that fail for a role allowed to start them'), N_('The role reaches the flow but not something it calls, so it ends in an error.')],
+        'access-finds-nothing': [N_('Finds nothing for a role'), N_('Retrieves that find nothing for a role allowed to run them'), N_('The role’s access rules always leave the list empty, so the flow works on nothing.')]
+      };
+      var LIST_LV = { P2: [N_('Felt by users'), N_('Pages and actions people wait on')], P3: [N_('Later, with more data'), N_('Background work, rare paths')] };
+      function ckOf(r) { return String(r.check || '').replace(/^model:/, ''); }
+      // A check's name (the filter), the item's title in plain words and why it matters.
+      function listCheck(r, items) {
+        var L = LIST_CHECK[ckOf(r)];
+        if (L) return { name: _(L[0]), title: _(L[1]), why: _(L[2]), known: true };
+        var nm = r.checkName || ckOf(r) || _('Other'), one = items && items.every(function (x) { return x.title === items[0].title; });
+        return { name: nm, title: one ? String(items[0].title || nm).replace(/^Worth knowing: /, '') : nm, why: '', known: false };
+      }
+      function listMod(r) { var w = (r.where || [])[0]; return w ? whereOf(w).qn.split('.')[0] : RISK_OTHER; }
+      function tally(list, keyOf) { var m = {}; list.forEach(function (r) { var k = keyOf(r); m[k] = (m[k] || 0) + 1; }); return Object.keys(m).map(function (k) { return { key: k, n: m[k] }; }).sort(function (a, b) { return b.n - a.n || a.key.localeCompare(b.key); }); }
+      function uniq(a) { return a.filter(function (x, i) { return x && a.indexOf(x) === i; }); }
+      // A name in a lead's text (the Risks page's leads): a link to its flow or entity when the model has one.
+      function qnLink(w) {
+        var qn = String(w).split('|')[0], k = flowKey(qn), dot = qn.indexOf('.');
+        var kids = [h('span', { class: 'dx-mod', text: dot > 0 ? qn.slice(0, dot + 1) : '' }), dot > 0 ? qn.slice(dot + 1) : qn];
+        if (k) return ln({ view: 'refs', module: data.flows[k].module, seg: data.flows[k].kind, key: k }, { class: 'dx-ls-qn mono' }, kids);
+        if (data.entities[qn]) return ln({ view: 'domain', entity: qn }, { class: 'dx-ls-qn mono' }, kids);
+        return h('span', { class: 'dx-ls-qn mono' }, kids);
+      }
+      var LVO2 = { P1: 0, P2: 1, P3: 2 };
+      // One item per check (and level, on Performance): the level first, then the most places.
+      function listGroups(kind, rows) {
+        var by = {}, out = [];
+        rows.forEach(function (r) {
+          var lv = kind === 'perf' && r.level ? r.level : null, k = ckOf(r) + (lv ? '-' + lv.toLowerCase() : '');
+          if (!by[k]) out.push(by[k] = { key: k, check: ckOf(r), lv: lv, items: [] });
+          by[k].items.push(r);
+        });
+        out.forEach(function (g) { g.mods = tally(g.items, listMod); g.c = listCheck(g.items[0], g.items); });
+        var lo = function (g) { return g.lv in LVO2 ? LVO2[g.lv] : 3; };
+        return out.sort(function (a, b) { return lo(a) - lo(b) || b.items.length - a.items.length || a.c.title.localeCompare(b.c.title); });
+      }
+      function drawList(kind) {
+        var all = kind === 'perf' ? PERF : CODEQ, F = lf[kind], perf = kind === 'perf';
+        function nf(patch) { Object.keys(patch).forEach(function (k) { F[k] = patch[k]; }); go({ view: kind, sub: st.sub }); }
+        function match(r, skip) { return (skip === 'lv' || !F.lv || r.level === F.lv) && (skip === 'ck' || !F.ck || ckOf(r) === F.ck) && (skip === 'mod' || !F.mod || listMod(r) === F.mod); }
+        var shown = all.filter(function (r) { return match(r); });
+        tools([opts.hash ? copyLink() : null], null);
+        var nm = function (n) { return countOf(n, ['{0} finding', '{0} findings'], ['{0} znalezisko', '{0} znaleziska', '{0} znalezisk'], ['{0} Befund', '{0} Befunde']); };
+        if (perf) {
+          var p2 = all.filter(function (r) { return r.level === 'P2'; }).length, p3 = all.filter(function (r) { return r.level === 'P3'; }).length;
+          setTitle(_('Performance'), _('{0} that slow the application down as its data grows: {1} P2, {2} P3. Not risks: they are not counted on the Risks page.', [nm(all.length), p2, p3]));
+        } else setTitle(_('Code quality'), _('{0} that make the model harder to change or to trust. Not risks, and no level.', [nm(all.length)]));
+
+        // ---- the filters: a facet's counts leave out its own filter, as on the Risks page ----
+        var lvRows = ['P2', 'P3'].map(function (l) { return { l: l, name: _(LIST_LV[l][0]), when: _(LIST_LV[l][1]), n: all.filter(function (r) { return r.level === l && match(r, 'lv'); }).length }; });
+        var ckRows = tally(all.filter(function (r) { return match(r, 'ck'); }), ckOf).map(function (x) {
+          var its = all.filter(function (r) { return ckOf(r) === x.key; });
+          return { key: x.key, label: listCheck(its[0], its).name, n: x.n };
+        });
+        if (F.ck && !ckRows.some(function (x) { return x.key === F.ck; })) ckRows.push({ key: F.ck, label: listCheck({ check: F.ck }, []).name, n: 0 });
+        var byM = {};
+        all.forEach(function (r) { if (!match(r, 'mod')) return; var mo = listMod(r), m = byM[mo] || (byM[mo] = { name: mo, n: 0, P1: 0, P2: 0, P3: 0, N: 0 }); m.n++; m[perf && m[r.level] !== undefined ? r.level : 'N']++; });
+        if (F.mod && !byM[F.mod]) byM[F.mod] = { name: F.mod, n: 0, P1: 0, P2: 0, P3: 0, N: 0 };
+        var modRows = Object.keys(byM).map(function (k) { return byM[k]; }).sort(function (a, b) { return b.n - a.n || a.name.localeCompare(b.name); });
+        var pickLv = function (v) { nf({ lv: v }); }, pickCk = function (v) { nf({ ck: v }); }, pickMod = function (v) { nf({ mod: v }); };
+        var strip = [fcMods(_('Where they gather'), modRows, F.mod, pickMod, false)].concat(perf ? [fcSev(_('Severity'), lvRows, F.lv, pickLv, false)] : [], [fcBars(_('By check'), ckRows, F.ck, pickCk, false)]);
+        var facets = (perf ? [fcSev(_('Severity'), lvRows, F.lv, pickLv, true)] : []).concat([fcBars(_('By check'), ckRows, F.ck, pickCk, true), fcMods(_('Modules'), modRows, F.mod, pickMod, true)]);
+
+        // ---- the list: one row per item ----
+        var groups = listGroups(kind, shown);
+        var cur = groups.filter(function (g) { return g.key === st.sub; })[0] || groups[0] || null;
+        var chips = [];
+        if (F.lv) chips.push([F.lv + ' · ' + _(LIST_LV[F.lv][0]), function () { nf({ lv: null }); }]);
+        if (F.ck) chips.push([listCheck({ check: F.ck }, all.filter(function (r) { return ckOf(r) === F.ck; })).name, function () { nf({ ck: null }); }]);
+        if (F.mod) chips.push([modLabel(F.mod), function () { nf({ mod: null }); }]);
+        var rows = [], lastLv = null;
+        groups.forEach(function (g) {
+          if (perf && g.lv !== lastLv) {
+            lastLv = g.lv;
+            var inLv = shown.filter(function (r) { return r.level === g.lv; }).length;
+            rows.push(g.lv && LIST_LV[g.lv] ? rkGroup(g.lv, _(LIST_LV[g.lv][0]), _(LIST_LV[g.lv][1]), inLv) : rkGroup(null, _('Other'), '', inLv));
+          }
+          var to = { view: kind, sub: g.key };
+          rows.push(rkRow(to, cur === g, g.lv, brk(g.c.title), _('{0} in {1}', [places(g.items.length), inModules(g.mods.length)]) + (g.c.known || g.c.title === g.c.name ? '' : ' · ' + g.c.name), null, function () { go(to); }));
+        });
+        var listCol = h('section', { class: 'dx-rk-list', 'aria-label': _('Findings'), 'data-keep-scroll': 'ls-list:' + kind }, [
+          rkListHead(chips.length ? _('{0} of {1}', [shown.length, nm(all.length)]) : nm(all.length), null, chips),
+          shown.length ? null : h('div', { class: 'dx-empty pad', text: _('No finding matches these filters.') })
+        ].concat(rows));
+
+        // ---- the item: what is wrong, why it matters, what to do, where ----
+        var detail = h('article', { class: 'dx-rk-detail', 'aria-label': _('Finding'), 'data-keep-scroll': 'ls-detail:' + kind + ':' + (cur ? cur.key : '') });
+        if (cur) {
+          var idx = groups.indexOf(cur), n = cur.items.length, M = cur.mods;
+          var step = function (d) { var g = groups[idx + d]; return g ? function () { go({ view: kind, sub: g.key }); } : null; };
+          var details = uniq(cur.items.map(function (r) { return r.detail; })), fixes = uniq(cur.items.map(function (r) { return r.fix; }));
+          // A place: the document it names, with the other names of the finding (what it reads, what it calls) under it.
+          // A check this page has no plain words for keeps each finding's own sentence there, since they may differ.
+          var place = function (r) {
+            var wh = r.where || [];
+            if (!wh.length) return h('div', { class: 'dx-rk-where' }, [kindTag('··'), h('span', { class: 'dx-rk-wq' }, [h('span', { text: String(r.title || '').replace(/^Worth knowing: /, '') })]), null]);
+            var also = wh.slice(1).map(function (w) { return whereOf(w).qn; }).join(', ');
+            return rkPlace(whereOf(wh[0]), cur.c.known ? also : [String(r.title || '').replace(/^Worth knowing: /, ''), also].filter(Boolean).join(' · '), cur.c.known ? String(r.title || '').replace(/^Worth knowing: /, '') : null);
+          };
+          var byName = function (a, b) { return String((a.where || [])[0] || '').localeCompare(String((b.where || [])[0] || '')); };
+          var whereBody = n > 8 && M.length > 1 ? M.map(function (m) {
+            return h('section', { class: 'dx-rk-pm' }, [h('div', { class: 'dx-rk-pmh' }, [h('b', { text: modLabel(m.key) }), h('span', { class: 'dx-fc-n', text: String(m.n) })]),
+              h('div', { class: 'dx-pd-rows' }, cur.items.filter(function (r) { return listMod(r) === m.key; }).sort(byName).map(place))]);
+          }) : [h('div', { class: 'dx-pd-rows' }, cur.items.slice().sort(byName).map(place))];
+          var main2 = h('div', { class: 'dx-rk-main' }, [
+            rkTop(step(-1), step(1), _('{0} of {1}', [idx + 1, groups.length]), cur.check),
+            h('div', { class: 'dx-rk-head' }, [
+              h('div', { class: 'dx-rk-pills' }, [
+                cur.lv && LIST_LV[cur.lv] ? h('span', { class: 'dx-rk-sev ' + cur.lv.toLowerCase() }, [h('b', { class: 'mono', text: cur.lv }), _(LIST_LV[cur.lv][0])]) : null,
+                h('button', { type: 'button', class: 'dx-rk-pill', text: cur.c.name, title: _('Show only {0}', [cur.c.name.toLowerCase()]), onclick: function () { nf({ ck: cur.check }); } }),
+                M.length === 1 ? h('button', { type: 'button', class: 'dx-rk-pill mono', text: modLabel(M[0].key), title: _('Show only {0}', [modLabel(M[0].key)]), onclick: function () { nf({ mod: M[0].key }); } }) : null
+              ]),
+              h('h2', null, brk(cur.c.title)),
+              h('span', { class: 'dx-rk-when', text: _('{0} in {1}', [places(n), inModules(M.length)]) + (cur.lv && LIST_LV[cur.lv] ? ' · ' + _(LIST_LV[cur.lv][1]) : '') })
+            ]),
+            cur.c.why ? h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: _('Why it matters') }), h('p', { class: 'dx-rk-p', text: cur.c.why })]) : null,
+            details.length === 1 ? h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: _('What happens') }), h('p', { class: 'dx-rk-p', text: details[0] })]) : null,
+            fixes.length ? h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: _('What to do') }), h('div', { class: 'dx-rk-fix' }, fixes.slice(0, 3).map(function (f) { return h('p', { class: 'dx-rk-p', text: f }); }))]) : null,
+            h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: _('Where · {0}', [places(n)]) })].concat(whereBody)),
+            h('p', { class: 'dx-rk-foot' }, [navIcon('info', 14), _('MxScout worked this out from the model itself, the same on every load. Not a risk: it is not counted on the Risks page.')])
+          ]);
+          add(detail, h('div', { class: 'dx-rk-wrap' }, [main2]));
+        }
+        main.appendChild(rkFrame(strip, facets, listCol, detail));
       }
 
       // ---------- architecture (redesign spec 16) ----------
@@ -3201,13 +3472,7 @@
         if (riskRows) return riskRows;
         var D = derived();
         riskRows = allRisks.map(function (r, i) {
-          var where = (r.where || []).map(function (w) {
-            var m = /^([^|]+?)(?:\|(mf|nf|pg|en|dm))?$/.exec(String(w).trim()) || [null, String(w), null];
-            var qn = m[1], kind = m[2];
-            // A bare name: whatever the model has by that name, a flow before a page before an entity.
-            if (!kind) { var k = flowKey(qn); kind = k ? { microflow: 'mf', nanoflow: 'nf', page: 'pg' }[data.flows[k].kind] : data.entities[qn] ? 'en' : null; }
-            return { qn: qn, kind: kind };
-          });
+          var where = (r.where || []).map(whereOf); // a bare name: whatever the model has by that name, a flow before a page before an entity
           var th = r.theme || (D && D.risks && D.risks[i] && D.risks[i][1]) || 'logic';
           // A risk past the counted ones takes its pattern from the file's own list of them (reportdata.js).
           if (!r.theme && i >= risks.length && D && D.triaged && D.triaged[i - risks.length]) th = D.triaged[i - risks.length];
@@ -3256,19 +3521,8 @@
 
         // ---- the facets ----
         function sevFacet(wide) {
-          var counts = ['P1', 'P2', 'P3'].map(function (l) { return all.filter(function (x) { return x.lv === l && match(x, 'lv'); }).length; });
-          return h('section', { class: 'dx-fc', 'aria-label': _('Severity') }, [
-            facetHead(_('Severity'), rf.lv, function () { setF({ lv: null }); }),
-            h('div', { class: 'dx-sevbar', 'aria-hidden': 'true' }, ['P1', 'P2', 'P3'].map(function (l, k) {
-              var s = h('span', { class: 'b-' + l.toLowerCase() + (rf.lv && rf.lv !== l ? ' dim' : '') }); s.style.flexGrow = String(counts[k]); s.style.minWidth = counts[k] ? '4px' : '0'; return s;
-            })),
-            h('div', { class: 'dx-fc-rows' }, ['P1', 'P2', 'P3'].map(function (l, k) {
-              var on = rf.lv === l;
-              return h('button', { type: 'button', class: 'dx-fc-sev' + (wide ? ' wide' : '') + (on ? ' on ' + l.toLowerCase() : '') + (rf.lv && !on ? ' dim' : ''), 'aria-pressed': on ? 'true' : 'false', onclick: function () { setF({ lv: on ? null : l }); } },
-                wide ? [h('span', { class: 'dx-lv ' + l.toLowerCase(), text: l }), h('span', { class: 'dx-fc-t' }, [h('b', { text: levelName(l) }), h('small', { text: levelWhen(l) })]), h('span', { class: 'dx-fc-n', text: String(counts[k]) })]
-                  : [h('span', { class: 'dx-lv ' + l.toLowerCase(), text: l }), h('b', { text: levelName(l) }), h('small', { text: levelWhen(l) }), h('span', { class: 'dx-fc-n', text: String(counts[k]) })]);
-            }))
-          ]);
+          return fcSev(_('Severity'), ['P1', 'P2', 'P3'].map(function (l) { return { l: l, name: levelName(l), when: levelWhen(l), n: all.filter(function (x) { return x.lv === l && match(x, 'lv'); }).length }; }),
+            rf.lv, function (v) { setF({ lv: v }); }, wide);
         }
         // The conclusion: one pattern holding most of the P1 findings, said in a sentence; otherwise nothing (Karol, 2026-10-13).
         var p1 = all.filter(function (x) { return x.lv === 'P1'; }), top = null;
@@ -3281,48 +3535,82 @@
           var pats = PAT_ORDER.map(function (k) {
             var n = all.filter(function (x) { return x.th === k && match(x, 'th'); }).length;
             var pp = all.filter(function (x) { return x.th === k && x.lv === 'P1' && match(x, 'th'); }).length;
-            return { k: k, n: n, p1: pp };
-          }).filter(function (p) { return p.k !== 'brief' || p.n || rf.th === 'brief'; });
-          var max = Math.max.apply(null, pats.map(function (p) { return p.n; }).concat([1]));
-          return h('section', { class: 'dx-fc', 'aria-label': _('Patterns') }, [
-            facetHead(_('Patterns'), rf.th, function () { setF({ th: null }); }),
-            insight ? h('p', { class: 'dx-insight' }, [h('b', { text: insight }), ' ' + patNote(top[0])]) : null,
-            h('div', { class: wide ? 'dx-fc-rows' : 'dx-pats' }, pats.map(function (p) {
-              var on = rf.th === p.k;
-              var cls = (wide ? 'dx-fc-pat' : 'dx-pat') + (on ? ' on' : '') + ((rf.th && !on) || !p.n ? ' dim' : '');
-              if (!wide) return h('button', { type: 'button', class: cls, 'aria-pressed': on ? 'true' : 'false', onclick: function () { setF({ th: on ? null : p.k }); } },
-                [p.p1 ? h('span', { class: 'dx-p1dot', 'aria-label': _('has P1') }) : null, patName(p.k), h('span', { class: 'dx-fc-n', text: String(p.n) })]);
-              var bar = h('span', { class: 'dx-fc-bar' }, [h('span')]); bar.firstChild.style.width = Math.round(p.n / max * 100) + '%';
-              return h('button', { type: 'button', class: cls, 'aria-pressed': on ? 'true' : 'false', onclick: function () { setF({ th: on ? null : p.k }); } },
-                [h('span', { class: 'dx-fc-t row' }, [h('span', { text: patName(p.k) }), p.p1 ? h('span', { class: 'dx-fc-p1', text: p.p1 + ' P1' }) : null]), h('span', { class: 'dx-fc-n', text: String(p.n) }), bar]);
-            }))
-          ]);
+            return { key: k, label: patName(k), n: n, p1: pp };
+          }).filter(function (p) { return p.key !== 'brief' || p.n || rf.th === 'brief'; });
+          return fcBars(_('Patterns'), pats, rf.th, function (v) { setF({ th: v }); }, wide, insight ? h('p', { class: 'dx-insight' }, [h('b', { text: insight }), ' ' + patNote(top[0])]) : null);
         }
         function modFacet(wide) {
           var by = {};
           all.forEach(function (x) { if (!match(x, 'mod')) return; var m = by[x.mod] || (by[x.mod] = { name: x.mod, n: 0, P1: 0, P2: 0, P3: 0 }); m.n++; m[x.lv]++; });
           if (rf.mod && !by[rf.mod]) by[rf.mod] = { name: rf.mod, n: 0, P1: 0, P2: 0, P3: 0 };
+          // Every module, in one order that a pick does not change (Karol, 2026-10-14: the picked one jumped to the top); the strip scrolls when there are many.
           var list2 = Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.n - a.n || b.P1 - a.P1 || a.name.localeCompare(b.name); });
-          var max = list2.length ? Math.max(1, list2[0].n) : 1;
-          // Every module, in one order that a pick does not change (Karol, 2026-10-14: the picked
-          // one jumped to the top); the strip scrolls when there are many.
-          var shown = list2, rest = [];
-          return h('section', { class: 'dx-fc', 'aria-label': _('Modules') }, [
-            facetHead(wide ? _('Modules') : _('Where they gather'), rf.mod, function () { setF({ mod: null }); }),
-            h('div', { class: 'dx-fc-rows tight' + (wide ? '' : ' dx-fc-scroll') }, shown.map(function (m) {
-              var on = rf.mod === m.name;
-              var bars = h('span', { class: 'dx-modbar', 'aria-hidden': 'true' }, ['P1', 'P2', 'P3'].map(function (l) { var s = h('span', { class: 'b-' + l.toLowerCase() }); s.style.width = (m[l] / max * 100).toFixed(1) + '%'; return s; }));
-              return h('button', { type: 'button', class: 'dx-fc-mod' + (on ? ' on' : ''), 'aria-pressed': on ? 'true' : 'false', onclick: function () { setF({ mod: on ? null : m.name }); } },
-                [h('span', { class: 'mono', text: modLabel(m.name) }), bars, h('span', { class: 'dx-fc-n', text: String(m.n) })]);
-            })),
-            !wide && rest.length ? h('span', { class: 'dx-fc-rest', text: '+ ' + countOf(rest.length, ['{0} more module', '{0} more modules'], ['{0} moduł więcej', '{0} moduły więcej', '{0} modułów więcej'], ['{0} weiteres Modul', '{0} weitere Module']) + ', ' + findings(rest.reduce(function (s2, m) { return s2 + m.n; }, 0)) }) : null
-          ]);
-        }
-        function facetHead(label, active, clearFn) {
-          return h('div', { class: 'dx-fc-h' }, [h('span', { class: 'dx-cap', text: label }), active ? h('button', { type: 'button', class: 'dx-fc-clear', text: _('Show all'), onclick: clearFn }) : null]);
+          return fcMods(wide ? _('Modules') : _('Where they gather'), list2, rf.mod, function (v) { setF({ mod: v }); }, wide);
         }
 
-        function brk(s) { return window.MxRiskText ? window.MxRiskText.breaks(h, s) : [s]; } // ---- the list ---- (a long title or name wraps after its dots and underscores: docs-risktext.js)
+        // ---- what is not a risk (layout A): the other lists, one link each, and the leads behind one grey line ----
+        function notRisks() {
+          var links = [[_('Performance'), PERF.length, { view: 'perf' }], [_('Code quality'), CODEQ.length, { view: 'codeq' }], [_('Personal data'), PRIV.length, null, 'gdpr'],
+            [_('Cleanup · on Security review'), sec ? sec.counts.cleanup || 0 : 0, sec ? { view: 'security' } : null]].filter(function (x) { return x[1]; });
+          var nav = links.length ? h('div', { class: 'dx-nr-links' }, [h('span', { class: 'dx-cap', text: _('Not risks — on their own pages') })].concat(links.map(function (x) {
+            var kids = [h('span', { text: x[0] }), h('span', { class: 'dx-fc-n', text: String(x[1]) }), navIcon('arrow', 12)];
+            // Personal data is MxScout's own screen, not a page of this reader: a link only where MxScout can open it.
+            if (x[3]) return opts.route ? h('button', { type: 'button', class: 'dx-nr-link', onclick: function () { opts.route({ view: x[3] }); } }, kids) : h('span', { class: 'dx-nr-link off' }, kids);
+            return ln(x[2], { class: 'dx-nr-link' }, kids);
+          }))) : null;
+          if (!LEADS.length) return nav;
+          var c = LC || { open: LEADS.length, confirmed: 0, dropped: 0, stale: 0 };
+          var line = h('button', { type: 'button', class: 'dx-ld-line', 'aria-expanded': lst.open ? 'true' : 'false', onclick: function () { lst.open = !lst.open; lst.top = true; rkY = 0; draw(); } }, [
+            h('span', { class: 'dx-ld-q', 'aria-hidden': 'true', text: '?' }),
+            h('span', { class: 'dx-ld-t' }, [h('b', { text: countOf(LEADS.length, ['{0} lead for the risk skill — not a risk.', '{0} leads for the risk skill — not risks.'], ['{0} trop dla skilla ryzyk — nie ryzyko.', '{0} tropy dla skilla ryzyk — nie ryzyka.', '{0} tropów dla skilla ryzyk — nie ryzyka.'], ['{0} Hinweis für den Risiko-Skill — kein Risiko.', '{0} Hinweise für den Risiko-Skill — keine Risiken.']) }),
+              h('small', { text: _('Computed from the model, not proven; not counted above.') })]),
+            h('span', { class: 'dx-ld-tog', text: lst.open ? _('Hide leads') + ' ▴' : _('Show leads') + ' ▾' })
+          ]);
+          if (!lst.open) return h('div', { class: 'dx-nr' }, [nav, line]);
+          function decision(l) {
+            var d = l.decision;
+            if (!d || l.stale || d.verdict === 'undecided') return h('span', { class: 'dx-ld-d open', title: l.stale ? _('Decided before the lead changed: read it again.') : d && d.reason ? d.reason : '', text: l.stale ? _('open · changed since') : d && d.verdict === 'undecided' ? _('undecided') : _('open') });
+            if (d.verdict === 'confirmed') return h('span', { class: 'dx-ld-d conf', title: d.reason || '', text: d.risk ? _('confirmed → {0}', [d.risk]) : _('confirmed') });
+            return h('span', { class: 'dx-ld-d drop', title: d.reason || '', text: _('dropped') });
+          }
+          function row(l) {
+            return h('details', { class: 'dx-ld-row', 'data-id': l.id }, [
+              h('summary', null, [h('span', { class: 'dx-ld-n mono', text: '#' + l.n }), h('span', { class: 'dx-ld-rt' }, [h('b', { text: l.title }), l.where.length ? h('small', { class: 'mono', text: String(l.where[0]).split('|')[0] }) : null]), decision(l)]),
+              h('div', { class: 'dx-ld-body' }, [
+                l.decision && l.decision.reason ? h('p', { class: 'dx-ld-why' }, [h('span', { class: 'dx-cap', text: l.decision.verdict === 'dropped' ? _('Dropped because') : _('Decided') }), ' ', l.decision.reason, l.decision.by ? ' — ' + l.decision.by + (l.decision.at ? ', ' + fmtDate(l.decision.at) : '') : '']) : null,
+                l.detail ? h('p', { text: l.detail }) : null,
+                l.fix ? h('p', { class: 'dx-ls-fix' }, [h('span', { class: 'dx-cap acc', text: _('What to do') }), ' ', l.fix]) : null,
+                l.where.length ? h('div', { class: 'dx-ls-where' }, [h('span', { class: 'dx-cap', text: _('Where') })].concat(l.where.map(qnLink))) : null
+              ])
+            ]);
+          }
+          var groups = [];
+          if (lst.mode === 'rank') groups.push({ key: 'rank', name: _('Ranked, one list'), sub: '', items: LEADS });
+          else {
+            var seen = {};
+            LEADS.forEach(function (l) { if (!seen[l.check]) { seen[l.check] = { key: l.check, name: l.checkName || l.check, items: [] }; groups.push(seen[l.check]); } seen[l.check].items.push(l); });
+          }
+          var panel = h('div', { class: 'dx-ld-panel' }, [
+            h('p', { class: 'dx-ld-intro', text: _('A lead is something MxScout worked out from the model but cannot prove on its own. The risk skill takes them in rank order and either confirms a lead (it then appears below as a risk, with a level) or drops it. Nothing here needs action from you.') }),
+            h('div', { class: 'dx-ld-bar' }, [
+              h('span', { class: 'dx-ld-sum', text: _('{0} open · {1} confirmed · {2} dropped', [c.open, c.confirmed, c.dropped]) + (c.stale ? ' · ' + _('{0} changed since a decision', [c.stale]) : '') }),
+              h('div', { class: 'dx-seg2', role: 'group', 'aria-label': _('Show') }, [h('span', { text: _('Show') })].concat([['check', _('By check')], ['rank', _('Ranked, one list')]].map(function (m) {
+                var on = lst.mode === m[0];
+                return h('button', { type: 'button', class: on ? 'on' : '', 'aria-pressed': on ? 'true' : 'false', text: m[1], onclick: function () { lst.mode = m[0]; draw(); } });
+              })))
+            ])
+          ].concat(groups.map(function (g) {
+            var full = !!lst.more[g.key], cut = lst.mode === 'rank' ? 25 : 3;
+            return h('section', { class: 'dx-ld-g' }, [
+              lst.mode === 'rank' ? null : h('div', { class: 'dx-ld-gh' }, [h('b', { text: g.name }), h('span', { class: 'dx-fc-n', text: String(g.items.length) })]),
+              h('div', null, (full ? g.items : g.items.slice(0, cut)).map(row)),
+              g.items.length > cut && !full ? h('button', { type: 'button', class: 'dx-ls-more', text: _('Show {0} more', [g.items.length - cut]), onclick: function () { lst.more[g.key] = true; draw(); } }) : null
+            ]);
+          })));
+          return h('div', { class: 'dx-nr' }, [nav, line, panel]);
+        }
+
+        // ---- the list ----
         var shown = all.filter(function (x) { return match(x, null); });
         var byMod = rf.group === 'mod';
         shown.sort(byMod ? function (a, b) { return a.mod.localeCompare(b.mod) || LVO[a.lv] - LVO[b.lv] || a.i - b.i; }
@@ -3331,10 +3619,10 @@
         var want = riskIndexOf(st.sub), cur = shown.filter(function (x) { return x.i === want; })[0] || shown[0] || null;
         var anyF = !!(rf.lv || rf.th || rf.mod || q);
         var chips = [];
-        if (rf.lv) chips.push([rf.lv + ' · ' + levelName(rf.lv), { lv: null }]);
-        if (rf.th) chips.push([patName(rf.th), { th: null }]);
-        if (rf.mod) chips.push([modLabel(rf.mod), { mod: null }]);
-        if (q) chips.push(['“' + rf.q.trim() + '”', { q: '' }]);
+        if (rf.lv) chips.push([rf.lv + ' · ' + levelName(rf.lv), function () { setF({ lv: null }); }]);
+        if (rf.th) chips.push([patName(rf.th), function () { setF({ th: null }); }]);
+        if (rf.mod) chips.push([modLabel(rf.mod), function () { setF({ mod: null }); }]);
+        if (q) chips.push(['“' + rf.q.trim() + '”', function () { setF({ q: '' }); }]);
         var groupN = {};
         shown.forEach(function (x) { var g = byMod ? x.mod : x.lv; groupN[g] = (groupN[g] || 0) + 1; });
         var rows = [], lastG = null;
@@ -3342,30 +3630,22 @@
           var g = byMod ? x.mod : x.lv;
           if (g !== lastG) {
             lastG = g;
-            rows.push(h('div', { class: 'dx-rk-g' + (byMod ? ' mono' : '') }, byMod ? [h('b', { text: modLabel(g) }), h('span', { class: 'dx-fc-n', text: String(groupN[g]) })]
-              : [h('span', { class: 'dx-lv ' + g.toLowerCase(), text: g }), h('b', { text: levelName(g) }), h('small', { text: levelWhen(g) }), h('span', { class: 'dx-fc-n', text: String(groupN[g]) })]));
+            rows.push(byMod ? rkGroup(null, modLabel(g), '', groupN[g]) : rkGroup(g, levelName(g), levelWhen(g), groupN[g]));
           }
-          var on = cur && x.i === cur.i;
-          rows.push(ln({ view: 'risks', sub: riskId(x.i) }, { class: 'dx-rk-row' + (on ? ' on' : ''), 'aria-current': on ? 'true' : 'false' }, [
-            h('span', { class: 'dx-lv ' + x.lv.toLowerCase(), text: x.lv }),
-            h('span', { class: 'dx-rk-t' }, [h('b', null, brk(x.r.title)), h('small', { text: modLabel(x.mod) + ' · ' + patName(x.th) + ' · ' + places(x.where.length) + (x.or === 'person' ? ' · ' + _('raised by {0}', [x.r.by || _('a person')]) : '') }),
-              statusMark(x.s)])
-          ], function () { go({ view: 'risks', sub: riskId(x.i)}); }));
+          rows.push(rkRow({ view: 'risks', sub: riskId(x.i) }, !!(cur && x.i === cur.i), x.lv, brk(x.r.title),
+            modLabel(x.mod) + ' · ' + patName(x.th) + ' · ' + places(x.where.length) + (x.or === 'person' ? ' · ' + _('raised by {0}', [x.r.by || _('a person')]) : ''), [statusMark(x.s)],
+            function () { go({ view: 'risks', sub: riskId(x.i)}); }));
         });
         // The status filter (risk triage) and whose a risk is: docs-triage.js — also while a filter other than Open is on.
         var statusBar = TRI.statusBar({ h: h, everything: everything, inOrigin: inOrigin, rf: rf, setF: setF, shown: triaged.length || people || (rf.st && rf.st !== 'open'), people: people, agents: agents });
         var listCol = h('section', { class: 'dx-rk-list', 'aria-label': _('Findings'), 'data-keep-scroll': 'rk-list' }, [
           statusBar,
-          h('div', { class: 'dx-rk-lh' }, [
-            h('div', { class: 'dx-rk-lh-row' }, [h('b', { text: anyF ? _('{0} of {1}', [shown.length, findings(all.length)]) : findings(all.length) }),
-              h('div', { class: 'dx-seg2', role: 'group', 'aria-label': _('Group by') }, [h('span', { text: _('Group') })].concat([['sev', _('Severity')], ['mod', _('Module')]].map(function (g) {
-                var on = (rf.group || 'sev') === g[0];
-                return h('button', { type: 'button', class: on ? 'on' : '', 'aria-pressed': on ? 'true' : 'false', text: g[1], onclick: function () { setF({ group: g[0] }); } });
-              })))]),
-            chips.length ? h('div', { class: 'dx-rk-chips' }, chips.map(function (c) {
-              return h('button', { type: 'button', class: 'dx-rk-chip', 'aria-label': _('Remove filter {0}', [c[0]]), onclick: function () { setF(c[1]); } }, [c[0], h('span', { 'aria-hidden': 'true', text: '×' })]);
-            })) : null
-          ]),
+          notRisks(),
+          rkListHead(anyF ? _('{0} of {1}', [shown.length, findings(all.length)]) : findings(all.length),
+            h('div', { class: 'dx-seg2', role: 'group', 'aria-label': _('Group by') }, [h('span', { text: _('Group') })].concat([['sev', _('Severity')], ['mod', _('Module')]].map(function (g) {
+              var on = (rf.group || 'sev') === g[0];
+              return h('button', { type: 'button', class: on ? 'on' : '', 'aria-pressed': on ? 'true' : 'false', text: g[1], onclick: function () { setF({ group: g[0] }); } });
+            }))), chips),
           shown.length ? null : h('div', { class: 'dx-empty pad', text: (rf.st || 'open') === 'open' && !anyF && !rf.or ? _('No open risks — every one is marked fixed, a false positive, an accepted risk or no longer reported. See the other filters above.') : _('No finding matches these filters.') })
         ].concat(rows));
 
@@ -3383,10 +3663,7 @@
           var sameP = all.filter(function (x) { return x.th === cur.th && x.i !== cur.i; }).sort(byLv);
           var sameM = all.filter(function (x) { return x.mod === cur.mod && x.i !== cur.i; }).sort(byLv);
           var patMods = {}; sameP.forEach(function (x) { patMods[x.mod] = true; });
-          var nav2 = function (d, label, icon) {
-            var t2 = shown[idx + d];
-            return h('button', { type: 'button', class: 'dx-rk-nav', 'aria-label': label, disabled: !t2, onclick: function () { if (t2) go({ view: 'risks', sub: riskId(t2.i)}); } }, [navIcon(icon, 14)]);
-          };
+          var step = function (d) { var t2 = shown[idx + d]; return t2 ? function () { go({ view: 'risks', sub: riskId(t2.i)}); } : null; };
           // The finding in four tabs; the test case and the fix are drawn by docs-risktext.js.
           var tab = rf.tab || 'about', kitT = { h: h, rt: rt, navIcon: navIcon, own: cur.or === 'model' || /^mx-/.test(cur.r.id || '') };
           var tabBar = window.MxRiskText.tabBar(kitT, cur.r, tab, cur.where.length + sameP.length + sameM.length, function (k) { rf.tab = k; go({ view: 'risks', sub: st.sub }); });
@@ -3394,13 +3671,7 @@
           var rkTabBody = tab === 'test' || tab === 'fix' || tab === 'guide' ? window.MxRiskText.panel(kitT, cur.r, tab)
             : tab === 'where' ? [
               h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: _('Where · {0}', [places(cur.where.length)]) }),
-                h('div', { class: 'dx-pd-rows' }, cur.where.map(function (w) {
-                  var K = WHERE_KIND[w.kind] || ['··', null, null], dot = w.qn.indexOf('.'), key = K[2] ? flowKey(w.qn, { microflow: 'mf', nanoflow: 'nf', page: 'pg' }[K[2]]) : null, ent = !K[2] && w.kind && data.entities[w.qn];
-                  var kids = [kindTag(K[0]), h('span', { class: 'dx-pd-qn mono' }, [h('span', { class: 'dx-mod', text: w.qn.slice(0, dot + 1) }), h('wbr')].concat(brk(w.qn.slice(dot + 1)))),
-                    key || ent ? h('span', { class: 'dx-rk-open' }, [_(K[1]), navIcon('arrow', 12)]) : null];
-                  if (key) return ln({ view: 'refs', module: data.flows[key].module, seg: data.flows[key].kind, key: key }, { class: 'dx-rk-where' }, kids);
-                  return ent ? ln({ view: 'domain', entity: w.qn }, { class: 'dx-rk-where' }, kids) : h('div', { class: 'dx-rk-where' }, kids);
-                }))]),
+                h('div', { class: 'dx-pd-rows' }, cur.where.map(function (w) { return rkPlace(w); }))]),
               sameP.length ? h('section', { class: 'dx-rk-sec dx-rk-same' }, [h('h3', { class: 'dx-cap', text: _('Same pattern elsewhere') }),
                 h('p', { class: 'dx-rk-note', text: _('{0} in {1} share this pattern.', [countOf(sameP.length, ['{0} more finding', '{0} more findings'], ['{0} ustalenie więcej', '{0} ustalenia więcej', '{0} ustaleń więcej'], ['{0} weiterer Befund', '{0} weitere Befunde']), inModules(Object.keys(patMods).length)]) }),
                 h('div', { class: 'dx-pd-rows' }, sameP.slice(0, 6).map(sib)), h('button', { type: 'button', class: 'dx-more-link', text: _('All {0} with this pattern', [sameP.length + 1]), onclick: function () { setF({ th: cur.th }); } })]) : null,
@@ -3417,8 +3688,7 @@
                 : cur.or === 'model' ? _('MxScout worked this out from the model itself, the same on every load — not an agent’s finding. It never shows a constant’s value; it does not have one.') : _('An agent read the model and wrote this finding. It sees only the model, not the data or the configuration in production.')])
             ];
           var main2 = h('div', { class: 'dx-rk-main' }, [
-            h('div', { class: 'dx-rk-top' }, [h('div', { class: 'dx-rk-navs' }, [nav2(-1, _('Previous finding'), 'up'), nav2(1, _('Next finding'), 'down'), h('span', { text: modLabel(gKey) + ' · ' + _('{0} of {1}', [inG.indexOf(cur) + 1, inG.length]) })]),
-              h('span', { class: 'mono dx-rk-id', text: riskId(cur.i) })]),
+            rkTop(step(-1), step(1), modLabel(gKey) + ' · ' + _('{0} of {1}', [inG.indexOf(cur) + 1, inG.length]), riskId(cur.i)),
             h('div', { class: 'dx-rk-head' }, [
               h('div', { class: 'dx-rk-pills' }, [
                 h('span', { class: 'dx-rk-sev ' + cur.lv.toLowerCase() }, [h('b', { class: 'mono', text: cur.lv }), levelName(cur.lv)]),
@@ -3436,15 +3706,14 @@
           ].concat(rkTabBody));
           add(detail, h('div', { class: 'dx-rk-wrap' }, [main2]));
         }
-        main.appendChild(h('div', { class: 'dx-rk' }, [
-          h('div', { class: 'dx-rk-strip' }, [modFacet(false), sevFacet(false), patFacet(false)]),
-          h('div', { class: 'dx-rk-body' }, [h('aside', { class: 'dx-rk-facets', 'aria-label': _('Filters'), 'data-keep-scroll': 'rk-facets' }, [sevFacet(true), patFacet(true), modFacet(true)]), listCol, detail])
-        ]));
+        main.appendChild(rkFrame([modFacet(false), sevFacet(false), patFacet(false)], [sevFacet(true), patFacet(true), modFacet(true)], listCol, detail));
         // The list where it was; the chosen row in view only if it is not, scrolling the list alone.
         listCol.addEventListener('scroll', function () { rkY = listCol.scrollTop; });
         // Laid out first: a scroll set on a box not yet measured is clamped to nothing.
         var onRow = listCol.querySelector('.dx-rk-row.on');
-        function placeList() { if (!listCol.isConnected) return; void listCol.offsetHeight; listCol.scrollTop = rkY; keepInView(listCol, onRow, true); rkY = listCol.scrollTop; }
+        // Opening or closing the leads shows the top of the list, where they are, not the chosen risk below them.
+        var atTop = !!lst.top; lst.top = false;
+        function placeList() { if (!listCol.isConnected) return; void listCol.offsetHeight; listCol.scrollTop = rkY; if (!atTop) keepInView(listCol, onRow, true); rkY = listCol.scrollTop; }
         placeList();
         requestFrame(placeList);
       }

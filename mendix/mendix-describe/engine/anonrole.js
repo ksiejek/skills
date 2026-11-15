@@ -222,9 +222,9 @@
         if (written.length) what.push('change ' + written.slice(0, 6).join(', ') + (written.length > 6 ? ' and ' + (written.length - 6) + ' more' : ''));
         else if (writing.some(function (r) { return r.defaultAccess === 'rw'; })) what.push('change them');
         if (writing.some(function (r) { return r.allowDelete; })) what.push('delete objects');
-        // How much it matters: a visitor that may DELETE, or write rows that are not its own (no XPath keeping
-        // them to the session's own object), reaches other people's data — P1. One that may only create and fill
-        // in its own row, behind an XPath, is the shape of a public form: a finding, but P2 (MXS-173).
+        // How much it matters (rules 6, C15.2): a visitor that may DELETE, or write rows that are not its own (no
+        // XPath keeping them to the session's own object), reaches other people's data — P2. One that may only create
+        // and fill in its own row, behind an XPath, is the shape of a public form: P3.
         var wide = writing.some(function (r) { return r.allowDelete; }) ||
           writing.some(function (r) { var g = rightsOf(r); return (g.write || g.del) && !restrictsToUser(r.xpathConstraint || ''); });
         out.results.push(result('MXS006', 'finding',
@@ -232,7 +232,7 @@
             ' — written to the database by nobody anyone can name.' +
             (wide ? '' : ' Every rule that gives the write keeps the rows to the visitor’s own object, and none allows delete: the shape of a public form.'),
           'Take create, write and delete off the rule for ' + where(writing).moduleRole + '; take a visitor’s input in a non-persistable entity and check it in a microflow before anything is stored.',
-          Object.assign({ priority: wide ? 'P1' : 'P2' }, where(writing))));
+          Object.assign({ priority: wide ? 'P2' : 'P3' }, where(writing))));
       }
 
       // MXS010 — read without an XPath on a persistable entity. Not for a

@@ -121,6 +121,45 @@
   }
   // An attribute that says what state an object is in — as guards.js reads it.
   function isState(ix, entityQn, name) { return !!stateKind(ix, entityQn, name); }
+  // A workflow state (rules 6, C12): an enumeration attribute whose own name, or its enumeration's name, has Status,
+  // State, Phase or Stage as a word of it.
+  function stateWord(name) {
+    return String(name || '').replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/([A-Z])([A-Z][a-z])/g, '$1 $2').split(/[\s_.]+/)
+      .some(function (w) { return /^(status|state|phase|stage)$/i.test(w); });
+  }
+  function workflowState(ix, entityQn, name) {
+    var a = attrOf(ix, entityQn, name);
+    if (!a || a.type !== 'Enumeration') return false;
+    return stateWord(a.name) || stateWord(shortName(a.enumerationQualifiedName));
+  }
+  // N3 (rules 6): a delete right that does not name the state. A stored application entity with a workflow state
+  // (above), and a rule a non-administrator holds that allows delete with an XPath that does not name that attribute:
+  // the object may be deleted in any state — what scope-delete says without needing a page.
+  // → [{ entity, states: [attr], moduleRole, userRoles, xpath }]
+  function deleteStates(model, admins) {
+    var ix = indexModel(model), out = [], market = {};
+    admins = admins || {};
+    (model.modules || []).forEach(function (m) { if (m && m.fromAppStore) market[m.name] = true; });
+    (model.entities || []).forEach(function (e) {
+      if (!e || !e.qualifiedName || e.persistable === false || market[e.module]) return;
+      var states = [];
+      var seen = {};
+      for (var x = e; x && !seen[x.qualifiedName]; x = x.generalization ? ix.entity[x.generalization] : null) {
+        seen[x.qualifiedName] = true;
+        (x.attributes || []).forEach(function (a) { if (a && workflowState(ix, e.qualifiedName, a.name) && states.indexOf(a.name) === -1) states.push(a.name); });
+      }
+      if (!states.length) return;
+      (e.accessRules || []).forEach(function (r) {
+        if (!r || !r.allowDelete) return;
+        var who = (model.userRoles || []).filter(function (u) { return u && !admins[u.name] && (u.moduleRoles || []).indexOf(r.moduleRole) !== -1; }).map(function (u) { return u.name; });
+        if (!who.length) return;
+        var xp = String(r.xpathConstraint || '');
+        if (states.some(function (a) { return new RegExp('\\b' + a + '\\b').test(xp); })) return;
+        out.push({ entity: e.qualifiedName, states: states.slice(), moduleRole: r.moduleRole, userRoles: who.sort(), xpath: r.xpathConstraint || null });
+      });
+    });
+    return out;
+  }
   // 'typed' — an enumeration or a boolean; 'named' — only its name says it is a state (a hint, not proof).
   function stateKind(ix, entityQn, name) {
     if (!name || name.indexOf('.') !== -1) return null;
@@ -616,6 +655,11 @@
     });
     Object.keys(byKey).sort().forEach(function (k) {
       var f = byKey[k];
+      // Rules 6 (C12): the condition has to be a WORKFLOW state — an enumeration whose name, or its enumeration's
+      // name, has Status, State, Phase or Stage as a word. A Boolean (a feature flag) or the kind of the object is
+      // not one: 0 of 5 such findings on a real application were real.
+      f.stateAttrs = f.stateAttrs.filter(function (a) { return workflowState(ix, f.entity, a); });
+      if (!f.stateAttrs.length) return;
       f.attributes.sort(); f.userRoles.sort();
       var check = checks.filter(function (c) { return f.kind === 'write' && c.entities.indexOf(f.entity) !== -1; })[0];
       if (check) f.mitigation = 'A shared commit check runs before every commit of ' + shortName(f.entity) + ' (' + check.microflow + ', with ' + check.markers.join(', ') + ' set by no role) and may refuse it; MxScout does not follow what it checks.';
@@ -664,7 +708,9 @@
     var sc = window.MxGuards && window.MxGuards.serverChecks ? window.MxGuards.serverChecks(model, f.entity, type, solid.length ? solid : f.stateAttrs, false) : { doubts: [], clear: [] };
     var server = sc.doubts.map(function (x) { return x.microflow + ' ' + x.why + '.'; });
     f.confidence = solid.length && !server.length ? 'confirmed' : 'suspected';
-    f.priority = f.confidence === 'confirmed' ? 'P1' : 'P2';
+    // Never P1 when every rule giving the right keeps the role to its own rows (rules 6, C12.2); secrisks.js makes
+    // every one of these a lead, and the priority only ranks them.
+    f.priority = f.confidence === 'confirmed' && !f.ownRows ? 'P1' : 'P2';
     // Whose rows it reaches, said as a mitigation rather than as a level: every rule that gives the write keeps
     // the role to its OWN, so what it reaches in a state the pages do not allow is its own object. A personal
     // setting or a board of one's own is then a process break, not somebody else's data (MXS-173).
@@ -763,5 +809,5 @@
     return hit.stateUse;
   }
 
-  window.MxEditScope = { analyse: analyse, of: of, stateUse: stateUse, VERDICT_TEXT: VERDICT_TEXT, strictText: strictText };
+  window.MxEditScope = { analyse: analyse, of: of, stateUse: stateUse, VERDICT_TEXT: VERDICT_TEXT, strictText: strictText, deleteStates: deleteStates, workflowState: function (model, e, a) { return workflowState(indexModel(model), e, a); } };
 })();

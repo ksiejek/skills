@@ -24,6 +24,12 @@
  *                       a "verify" entry: { "id", "still": false, "why": "not seen in the model" }; MxScout marks
  *                       the first verified and stops counting the second. One marked fixed that the model
  *                       still shows gets { "still": true, "why": "still in the model" }: MxScout reopens it.
+ *   --decisions <file>  the risk skill's own decisions on the leads, a JSON list (or { "items": [...] }) of
+ *                       { "id", "verdict": "confirmed" | "dropped" | "undecided", "reason", "risk"?, "hash"? }:
+ *                       each lead in "leads" then carries its "decision" and "stale": true when the lead's "hash"
+ *                       (its detail and the rules number) is not the one the decision kept; "leadsCounts" says how
+ *                       many are open, confirmed, dropped, undecided and stale. Copy each lead's "hash" into its
+ *                       decision; one without a hash is never stale. Needs no server.
  *   --out <file>        write it to a file instead — a name without a path goes in the work folder (node agent.js
  *                       workdir); nothing is written inside the Mendix project or the project folder.
  *
@@ -194,7 +200,10 @@ function recipeMarkdown(E, r, ways) {
   const asJson = flag('--json'); flag('--md');
   const out = take('--out');
   const fixId = take('--fix'), fixedIds = take('--fixed'), note = take('--note'), readOnly = flag('--read-only');
-  if (args.some((a) => /^--/.test(a))) fail('Usage: node check-security.js [<app.mpr | Mendix project | MxScout project folder>] [--json | --md] [--out <file>] [--fix <id> [--read-only]] [--fixed <id>[,<id>] --note "what was changed"]');
+  const decisionsFile = take('--decisions');
+  if (args.some((a) => /^--/.test(a))) fail('Usage: node check-security.js [<app.mpr | Mendix project | MxScout project folder>] [--json | --md] [--out <file>] [--decisions <file>] [--fix <id> [--read-only]] [--fixed <id>[,<id>] --note "what was changed"]');
+  const decisions = decisionsFile === null ? null : readJson(decisionsFile);
+  if (decisionsFile !== null && !(Array.isArray(decisions) || (decisions && Array.isArray(decisions.items)))) fail('--decisions needs a JSON list of { "id", "verdict", "reason" } (or { "items": [...] }): ' + decisionsFile);
   if (fixedIds !== null && !(note || '').trim()) fail('--fixed needs --note "what was changed" — MxScout shows it with the risk.');
   const at = locate(args[0]);
   const E = engine();
@@ -226,14 +235,14 @@ function recipeMarkdown(E, r, ways) {
     fixed = {};
     ids.forEach((id) => { fixed[id] = note.trim(); });
   }
-  const part = E.MxSecRisks.part(model, { decided, kept, fixed, project: at.project && at.project.name ? at.project.name : undefined, written: new Date().toISOString().slice(0, 10) });
+  const part = E.MxSecRisks.part(model, { decided, kept, fixed, decisions, project: at.project && at.project.name ? at.project.name : undefined, written: new Date().toISOString().slice(0, 10) });
   let text;
   if (fixId !== null) {
     const r = res.risks.find((x) => x.id === fixId);
     if (!r) fail('No risk ' + fixId + ' in this model' + (decided || kept ? ' — if it was there before, it is gone: node check-security.js --fixed ' + fixId + ' --note "what was changed".' : '.'));
     const ways = waysFor(r.recipe, readOnly);
     text = asJson ? JSON.stringify({ id: r.id, level: r.level, title: r.title, detail: r.detail, fix: r.fix, where: r.where, recipe: r.recipe, ways }, null, 2) + '\n' : recipeMarkdown(E, r, ways);
-  } else text = asJson || fixed ? JSON.stringify(part, null, 2) + '\n' : markdown(res, part, at, decided);
+  } else text = asJson || fixed || decisions ? JSON.stringify(part, null, 2) + '\n' : markdown(res, part, at, decided);
   if (!out) { process.stdout.write(text); return; }
   // The work folder and the clean Mendix project: check-descriptions.js's rule, shared with agent.js.
   const W = require('./check-descriptions.js').workplace;

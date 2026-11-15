@@ -6,9 +6,12 @@ description: Find, prove and write the risks of a Mendix application from MxScou
 # Risks of a Mendix application: found, proved, written
 
 MxScout reads a Mendix model, and its engine finds by rule what a rule can
-see. This skill is for what a rule cannot: read who may do what, put the facts
-together into a scenario with an effect, prove each sentence of it from the
-model, and write it so a person can check it in minutes.
+see: a few risks it can prove, and many leads it cannot. That is the cheap
+level, with no AI. This skill is the second level: confirm or drop every lead
+the engine hands over, find what no rule points at, put the facts together
+into a scenario with an effect, prove each sentence of it from the model, and
+write it so a person can check it in minutes. Only what was confirmed is a
+risk.
 
 It is a skill of its own, apart from mendix-describe, because the two jobs
 differ: a description is a sentence for the business that nobody checks word
@@ -27,7 +30,8 @@ may run on a cheaper model. A risk is only as good as its weakest claim.
   rules and its four stages apply unchanged. This file says what stands for
   the MCP tools, and what the files add.
 
-In both, read `reference/checks.md` (the catalogue of leads),
+In both, read `reference/checks.md` (the catalogue of leads: the engine's,
+with what confirms and what drops each, and your own),
 `reference/pitfalls.md` (what produces false alarms) and
 `reference/risk-format.md` (fact sheet, leads, claims, risk) once, and
 `../mendix-describe/reference/risk-levels.md` for the levels P1–P3, the kinds
@@ -48,21 +52,25 @@ git that writes: committing is the person's.
 | `read_module` | `node ../mendix-describe/agent.js module <Name> --out <work>/m.md`, one module at a time |
 | `search`, `read_document` | `node ../mendix-describe/agent.js pack <work>/pack.md` once, then search that file and read the lines of the one document |
 | `read_raw` | There is none. What the pack does not show (an association's delete behaviour, whether a constant has a default, the cut part of a long expression) is "not decided": the claim goes under "Not confirmed", naming where in Studio Pro to look |
-| what MxScout's engine finds | `node ../mendix-describe/check-security.js <MendixProject or folder or app.mpr>`: its summary, and with `--json` its risks under fixed ids (`mx-…`) |
+| what MxScout's engine finds | `node ../mendix-describe/check-security.js <MendixProject or folder or app.mpr>`: its summary, and with `--json` its `risks` and its `leads` under fixed ids (`mx-…`) |
+| `list_risks` with `leads: true` | The same `--json` with `--decisions <work>/lead-decisions.json`: every lead with the verdict an earlier run kept, and `stale` when the lead changed since |
+| `write_risks` with `leads` | `<work>/lead-decisions.json`: the list of `{ id, verdict, reason, risk }`, rewritten whole at the end of the run |
 | `list_risks` | The pack's `## risk triage` section (what was written and what a person decided), and `node ../mendix-describe/agent.js docs --out <work>/docs.md` |
 | `write_risks` | A descriptions part with `"add": true` that holds only `risks`, handed over with `node ../mendix-describe/agent.js send <work>/risks.json` |
 | `estimate_task`, `start_task`, `report_usage` | There is no ledger. Tell the person your model and the tokens the work used, when you can see them |
 
 ## From files: what each stage adds
 
-**Stage A.** Run `check-security.js` first and read its summary. What it
-lists is the engine's: the anonymous role, the accounts, self-registration,
-what a page hides and its microflow does not check, writes wider than the
-pages, entity access against its use, constants the browser receives, the
-security settings. Those are facts for your fact sheet and leads already
-handled: you do not write risks about what it covers. Your leads are what it
-cannot see: who a flow acts for, what a decision reads, what a delete takes
-with it, chains across modules.
+**Stage A.** Run `check-security.js --json` first. Its `risks` are the
+engine's own (the security settings, the anonymous role, a child read in full
+that is deleted with its parent, a role that can make itself an owner, a role
+that manages users and has no pages, secrets in constants): facts for your
+fact sheet, and you do not write them again. Its `leads` are yours to settle:
+what a page hides and its microflow does not check, a flow that writes past a
+role's rules, a flow that sets whose rows these are, rights wider than their
+use, text and files read in full. Part 1 of `reference/checks.md` says how.
+Your own leads are what it cannot see: who a flow acts for, what a decision
+reads, what a delete takes with it, chains across modules.
 
 **Stage C.** Duplicates are checked against the engine's ids and against the
 `## risk triage` lines, by the rules of mendix-describe's "Risk triage": a
@@ -91,6 +99,7 @@ leave `risks.json`, `claims.json`, the fact sheet and the not-checked list in
 1. The risks, per level and per kind of evidence (finding, to verify, worth
    knowing).
 2. Against the previous list: new, changed, proposed to close, unchanged.
+   The engine's leads per check: confirmed, dropped, undecided, not opened.
 3. What was not checked, and why (Java, a module the pack leaves out,
    platform behaviour, the environment).
 4. The few tests on a test environment that would settle what the model
@@ -103,7 +112,7 @@ leave `risks.json`, `claims.json`, the fact sheet and the not-checked list in
 ```
 SKILL.md                  this file
 reference/team.md         the skill itself: seven rules, four stages, after a sprint, cost
-reference/checks.md       the catalogue of leads: what to read next, what clears each
+reference/checks.md       the catalogue of leads: the engine's (what confirms, what drops) and your own
 reference/pitfalls.md     traps that produce false alarms and false all-clears
 reference/risk-format.md  fact sheet, leads, claims, the risk and its detail layout
 ```

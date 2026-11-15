@@ -584,14 +584,34 @@
       // loads: the constants the browser receives that look like a secret (constants.js), and what slows the app
       // down — work per item of a loop, filters with no index, queries per row of a list (perfrisks.js, MXS-66).
       // And where personal data is open to too many or written to a log (gdpr.js, MXS-70), with the project's own marks.
-      modelRisks: (window.MxConstants ? window.MxConstants.risks(model) : []).concat(window.MxPerfRisks ? window.MxPerfRisks.risks(model) : [])
-        .concat(window.MxGdpr && project ? window.MxGdpr.risks(model, project) : [])
-        .map(function (r) { return Object.assign({}, r, { where: r.where.slice() }); }),
+      // Rules 6 (rule-changes C0, C16, C17): only what is a RISK is on the Risks page and in its count. Performance
+      // and code quality (perfrisks.js `list`), personal data (gdpr.js, the Personal data page's own list) and a lead
+      // (a constant only its name calls a secret, for the risk skill) are modelFindings: still worked out, still
+      // triaged by their id, never counted as risks.
+      modelRisks: modelAll(model, project).filter(function (r) { return !r.list && !r.lead; }),
+      modelFindings: modelAll(model, project).filter(function (r) { return r.list || r.lead; }),
       // What this model cannot say about its constants (constants.js unchecked) or about performance (perfrisks.js
-      // unchecked, by kind of finding): a decided risk about one stays as it was.
-      modelUnchecked: window.MxConstants && window.MxConstants.unchecked ? Object.assign(window.MxConstants.unchecked(model),
-        window.MxPerfRisks ? window.MxPerfRisks.unchecked(model) : {}) : (window.MxPerfRisks ? window.MxPerfRisks.unchecked(model) : null)
+      // unchecked, by kind of finding): a decided risk about one stays as it was. `withdrawn`: what a change of the
+      // rules took away — never read as a fix (triage.js).
+      modelUnchecked: uncheckedOf(model)
     };
+  }
+  function modelAll(model, project) {
+    return (window.MxConstants ? window.MxConstants.risks(model) : []).concat(window.MxPerfRisks ? window.MxPerfRisks.risks(model) : [])
+      .concat(window.MxGdpr && project ? window.MxGdpr.risks(model, project) : [])
+      .map(function (r) { return Object.assign({}, r, { where: r.where.slice() }); });
+  }
+  // The rules' own changes are told apart from the model's: { all, keys, prefixes, withdrawn: { keys, prefixes, why } }.
+  var GDPR_WITHDRAWN = 'withdrawn by a change in MxScout’s rules (rules 6): personal data is the Personal data page’s list, a bare Name is personal only on an account or beside another personal attribute, a company’s tax id is not personal, and an entity only administrators read or a Marketplace module’s own is not reported — the model did not change';
+  function uncheckedOf(model) {
+    var C = window.MxConstants && window.MxConstants.unchecked ? window.MxConstants.unchecked(model) : null;
+    var P = window.MxPerfRisks ? window.MxPerfRisks.unchecked(model) : null;
+    if (!C && !P) return null;
+    var out = { all: !!(C && C.all), keys: (C && C.keys) || {}, prefixes: (P && P.prefixes) || [],
+      withdrawn: { keys: (C && C.withdrawn) || {}, prefixes: [], why: {} } };
+    if (P && P.withdrawn) P.withdrawn.prefixes.forEach(function (p) { out.withdrawn.prefixes.push(p); out.withdrawn.why[p] = P.withdrawn.why; });
+    ['id:mx-gdpr-log-', 'id:mx-gdpr-every-row-'].forEach(function (p) { out.withdrawn.prefixes.push(p); out.withdrawn.why[p] = GDPR_WITHDRAWN; });
+    return out;
   }
 
   // → [{ name, market: { version, catalogued, about, link, used, usedText, roles: [{ name, moduleRole, admin, may, userRoles, entities,

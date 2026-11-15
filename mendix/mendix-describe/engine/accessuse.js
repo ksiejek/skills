@@ -295,8 +295,17 @@
         var createNever = r.create && !reach.creates[qn];
         var deleteNever = r.del && ![qn].concat(ancestors(qn)).some(function (x) { return reach.deletes[x]; });
         if (!never.length && !createNever && !deleteNever) return;
+        // Which of those members a rule WITHOUT an own-rows XPath lets the role write (rules 6, C13.2): only those
+        // are worth the risk skill's look; the rest — writable only on the role's own row — are cleanup.
+        var restrictsU = typeof window !== 'undefined' && window.MxAccounts && window.MxAccounts.restrictsToUser;
+        var openW = {};
+        ((entity.accessRules || [])).forEach(function (rule) {
+          if (!rule || !roles[rule.moduleRole]) return;
+          if (rule.xpathConstraint && restrictsU && restrictsU(rule.xpathConstraint)) return;
+          Object.keys(rule.attrAccess || {}).forEach(function (a) { if (rule.attrAccess[a] === 'rw') openW[a] = true; });
+        });
         unwritten.push({ entity: qn, name: entity.name, module: entity.module, userRole: subject.name,
-          attributes: never, create: !!createNever, del: !!deleteNever });
+          attributes: never, openWrite: never.filter(function (a) { return openW[a]; }), create: !!createNever, del: !!deleteNever });
       });
 
       // ---- allowed to run, not allowed to do ----
@@ -359,17 +368,47 @@
         if ((visible && !visible.has(qn)) || child.persistable === false) return;
         var mine = (child.accessRules || []).filter(function (r) { return r && roles[r.moduleRole] && grantsRead(r); });
         if (!mine.length || mine.some(function (r) { return r.xpathConstraint; })) return;
+        // Round 2: the open rule has to give the role something to read — an attribute of the child (its own or one it
+        // inherits). An entity with no attributes, which only links others (a wrapper), shows nothing: no item.
+        var attrCount = 0;
+        for (var g = child, gi = 0; g && gi < 20; gi++) {
+          attrCount += (g.attributes || []).length;
+          // A generalization the model does not list (System.FileDocument, System.User …) has attributes of its own.
+          if (g.generalization && !entityByName[g.generalization]) attrCount++;
+          g = g.generalization ? entityByName[g.generalization] : null;
+        }
+        var readsAttr = mine.some(function (r) {
+          if (Object.keys(r.attrAccess || {}).some(function (k) { return r.attrAccess[k] === 'r' || r.attrAccess[k] === 'rw'; })) return true;
+          return (r.defaultAccess === 'r' || r.defaultAccess === 'rw') && attrCount > 0;
+        });
+        if (!readsAttr) return;
+        // Rules 6 (C7): a parent is a parent when its delete removes the child — the association's delete behaviour
+        // (mpr.js deleteWithParent), directly or through one more such association. A reference without it is the
+        // child merely pointing at something (an account at its view settings): said, as `cascade: false`, for the
+        // risk skill to weigh, never a finding on its own. A model read before the delete behaviour was kept says
+        // nothing either way (`cascade: null`).
+        var aqn = function (a) { return a.name.indexOf('.') === -1 && a.module ? a.module + '.' + a.name : a.name; };
+        var known = (model.associations || []).some(function (a) { return a && typeof a.deleteWithParent === 'boolean'; });
+        var paths = [];
         (model.associations || []).forEach(function (a) {
-          if (!a || a.type !== 'Reference' || !isUnder(qn, a.owner)) return;
-          var parent = entityByName[a.other];
-          if (!parent || parent.persistable === false || a.other === qn) return;
+          if (!a || a.type !== 'Reference' || !isUnder(qn, a.owner) || a.other === qn) return;
+          paths.push({ parent: a.other, via: [aqn(a)], cascade: known ? a.deleteWithParent === true : null });
+          if (a.deleteWithParent !== true) return;
+          (model.associations || []).forEach(function (b) {
+            if (!b || b === a || b.type !== 'Reference' || b.deleteWithParent !== true || !isUnder(a.other, b.owner) || b.other === qn || b.other === a.other) return;
+            paths.push({ parent: b.other, via: [aqn(a), aqn(b)], cascade: true });
+          });
+        });
+        paths.forEach(function (pth) {
+          var parent = entityByName[pth.parent];
+          if (!parent || parent.persistable === false) return;
           // The parent has to be kept to the SIGNED-IN USER: any other XPath (a status, a flag) narrows rows in a
           // way the child need not repeat, and taking every XPath for this makes a note of half the model.
           var keeps = typeof window !== 'undefined' && window.MxAccounts && window.MxAccounts.restrictsToUser;
           var up = (parent.accessRules || []).filter(function (r) { return r && roles[r.moduleRole] && grantsRead(r); });
           if (!up.length || !keeps || !up.every(function (r) { return r.xpathConstraint && keeps(r.xpathConstraint); })) return;
           notInherited.push({ entity: qn, name: child.name, module: child.module, userRole: subject.name,
-            parent: a.other, association: a.name.indexOf('.') === -1 && a.module ? a.module + '.' + a.name : a.name,
+            parent: pth.parent, association: pth.via.join(' / '), cascade: pth.cascade,
             moduleRoles: unique(mine.map(function (r) { return r.moduleRole; })),
             parentXPaths: unique(up.map(function (r) { return String(r.xpathConstraint).replace(/\s+/g, ' ').trim(); })),
             sensitive: sensitiveOf(qn) });
@@ -647,6 +686,92 @@
     parameter: ['a flow parameter', 'flow parameters'],
     mention: ['named on a page or in a flow', 'named on a page or in a flow']
   };
+  // ---------- rules 6: the associations rows are kept to the user by, and what that opens (N1, N12) ----------
+  function shortOf(qn) { var x = String(qn || ''); return x.slice(x.lastIndexOf('.') + 1); }
+  function restricts(x) { var R = typeof window !== 'undefined' && window.MxAccounts && window.MxAccounts.restrictsToUser; return !!x && (R ? R(x) : /\[%CurrentUser%\]/.test(x)); }
+  // A "scope association": named in an access rule's XPath together with [%CurrentUser%]. Whoever may set it decides
+  // whose rows those are. → { <association, short name>: { entities: [qn], moduleRoles: [mr] } }
+  function scopeAssocs(model) {
+    var assoc = {}, out = {};
+    (model.associations || []).forEach(function (a) { if (a && a.name) assoc[shortOf(a.name)] = true; });
+    (model.entities || []).forEach(function (e) {
+      (e && e.accessRules || []).forEach(function (r) {
+        var x = String(r && r.xpathConstraint || '');
+        if (!/\[%CurrentUser%\]/i.test(x)) return;
+        (x.replace(/'[^']*'/g, '').match(/[A-Za-z_]\w*\.[A-Za-z_]\w*/g) || []).forEach(function (tok) {
+          var n = shortOf(tok);
+          if (!assoc[n]) return;
+          var o = out[n] = out[n] || { entities: [], moduleRoles: [] };
+          if (o.entities.indexOf(e.qualifiedName) === -1) o.entities.push(e.qualifiedName);
+          if (o.moduleRoles.indexOf(r.moduleRole) === -1) o.moduleRoles.push(r.moduleRole);
+        });
+      });
+    });
+    return out;
+  }
+  function marketOf(model) { var m = {}; (model.modules || []).forEach(function (x) { if (x && x.fromAppStore && x.name !== 'Administration') m[x.name] = true; }); return m; }
+  function holdersOf(model, moduleRole, admins) {
+    return (model.userRoles || []).filter(function (u) { return u && !admins[u.name] && (u.moduleRoles || []).indexOf(moduleRole) !== -1; });
+  }
+  // N1: a rule held by a non-administrator, with no own-rows XPath, that gives WRITE on a scope association which
+  // another rule of the same user role keeps its rows by — the role can put itself into anybody's scope.
+  // → [{ entity, association, moduleRole, userRoles, scopes: [entity] }]
+  // Round 2: `account` says whether the association ends at System.User or a specialisation of it — seen from the
+  // rows it scopes, the far end is an account, so the role names itself or another account the owner directly.
+  // Ending elsewhere on both sides (a comment, a task, a dictionary), the owner is reached through more steps:
+  // secrisks.js keeps that as a lead. `farEnd` is the end other than the written entity.
+  function selfGrants(model, admins) {
+    admins = admins || {};
+    var scope = scopeAssocs(model), market = marketOf(model), out = [], gen = {}, ends = {};
+    (model.entities || []).forEach(function (e) { if (e && e.qualifiedName) gen[e.qualifiedName] = e.generalization || null; });
+    (model.associations || []).forEach(function (a) { if (a && a.name) ends[shortOf(a.name)] = a; });
+    function isAccount(q) { for (var i = 0; q && i < 20; i++) { if (q === 'System.User') return true; q = gen[q]; } return false; }
+    function farEnd(a, q) { var x = ends[a]; if (!x) return null; return x.owner === q ? x.other : x.other === q ? x.owner : (x.other || x.owner); }
+    (model.entities || []).forEach(function (e) {
+      if (!e || !e.qualifiedName || market[e.module]) return;
+      (e.accessRules || []).forEach(function (r) {
+        if (!r || restricts(r.xpathConstraint)) return;
+        Object.keys(r.assocAccess || {}).forEach(function (a) {
+          var sc = scope[shortOf(a)];
+          if (r.assocAccess[a] !== 'rw' || !sc) return;
+          var who = holdersOf(model, r.moduleRole, admins).filter(function (u) { return (u.moduleRoles || []).some(function (m) { return sc.moduleRoles.indexOf(m) !== -1; }); });
+          if (!who.length) return;
+          var far = farEnd(shortOf(a), e.qualifiedName);
+          out.push({ entity: e.qualifiedName, association: shortOf(a), moduleRole: r.moduleRole, userRoles: who.map(function (u) { return u.name; }).sort(), scopes: sc.entities.slice().sort(), xpath: r.xpathConstraint || null,
+            farEnd: far, account: !!(ends[shortOf(a)] && (isAccount(ends[shortOf(a)].owner) || isAccount(ends[shortOf(a)].other))) });
+        });
+      });
+    });
+    return out;
+  }
+  // N12: a stored text or file store — a file document, or a String of unlimited length or 1000+ characters named like
+  // content, body, description, text, message, comment, note or subject — that a non-administrator reads by a rule
+  // with no XPath. → [{ entity, file, attributes, userRoles, moduleRoles }]
+  var TEXTY = /content|body|description|text|message|comment|note|subject/i;
+  function textStores(model, admins) {
+    admins = admins || {};
+    var byName = {}, out = [];
+    (model.entities || []).forEach(function (e) { if (e && e.qualifiedName) byName[e.qualifiedName] = e; });
+    function isFile(q) { for (var i = 0; q && i < 20; i++) { if (q === 'System.FileDocument') return true; q = byName[q] && byName[q].generalization; } return false; }
+    (model.entities || []).forEach(function (e) {
+      if (!e || !e.qualifiedName || e.persistable === false || /^System\./.test(e.qualifiedName)) return;
+      var file = isFile(e.qualifiedName);
+      var attrs = (e.attributes || []).filter(function (a) { return a && a.type === 'String' && (!a.length || a.length >= 1000) && TEXTY.test(a.name); }).map(function (a) { return a.name; });
+      if (!file && !attrs.length) return;
+      var who = [], mrs = [];
+      (e.accessRules || []).forEach(function (r) {
+        if (!r || r.xpathConstraint || !grantsRead(r)) return;
+        var h = holdersOf(model, r.moduleRole, admins);
+        if (!h.length) return;
+        if (mrs.indexOf(r.moduleRole) === -1) mrs.push(r.moduleRole);
+        h.forEach(function (u) { if (who.indexOf(u.name) === -1) who.push(u.name); });
+      });
+      if (!who.length) return;
+      out.push({ entity: e.qualifiedName, file: file, attributes: attrs, userRoles: who.sort(), moduleRoles: mrs.sort() });
+    });
+    return out;
+  }
+
   function summary(uses) {
     var counts = {};
     uses.forEach(function (u) { counts[u.how] = (counts[u.how] || 0) + 1; });
@@ -664,5 +789,5 @@
     return hit;
   }
 
-  window.MxAccessUse = { analyse: analyse, of: of, summary: summary, grantsRead: grantsRead, HOW: HOW };
+  window.MxAccessUse = { analyse: analyse, of: of, summary: summary, grantsRead: grantsRead, HOW: HOW, scopeAssocs: scopeAssocs, selfGrants: selfGrants, textStores: textStores };
 })();

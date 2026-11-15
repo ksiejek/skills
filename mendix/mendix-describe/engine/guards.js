@@ -166,13 +166,26 @@
 
   // The application's administrators, by what the model says rather than by a name — the same rule secrisks.js
   // uses (adminsOf): a risk about a role that administers the application is what that role is for.
+  // Rules 6 (C9): managing its own role makes a role an administrator only when it opens a page that shows accounts.
   function adminRoles(model) {
-    var out = {}, sec = (model && model.security) || {};
+    var out = {}, sec = (model && model.security) || {}, opens = accountPages(model || {});
     if (sec.adminUserRole) out[sec.adminUserRole] = true;
     ((model && model.userRoles) || []).forEach(function (u) {
       if (!u || !u.name) return;
-      if (u.manageAllRoles || (u.manageableRoles || []).indexOf(u.name) !== -1) out[u.name] = true;
+      if (u.manageAllRoles || ((u.manageableRoles || []).indexOf(u.name) !== -1 && opens[u.name])) out[u.name] = true;
     });
+    return out;
+  }
+  function accountPages(model) {
+    var gen = {}, out = {}, roles = {};
+    (model.entities || []).forEach(function (e) { if (e && e.qualifiedName) gen[e.qualifiedName] = e.generalization || null; });
+    function isAccount(q) { for (var i = 0; q && i < 20; i++) { if (q === 'System.User') return true; q = gen[q]; } return false; }
+    (model.pages || []).forEach(function (p) {
+      if (!p) return;
+      var shows = (p.parameters || []).some(function (x) { return x && isAccount(x.entityQualifiedName); }) || (p.dataSources || []).some(function (d) { return d && isAccount(d.entity); });
+      if (shows) (p.allowedModuleRoles || []).forEach(function (m) { roles[m] = true; });
+    });
+    (model.userRoles || []).forEach(function (u) { if (u && (u.moduleRoles || []).some(function (m) { return roles[m]; })) out[u.name] = true; });
     return out;
   }
   // A member whose name says it holds a credential. The name is a hint; what makes a finding is who may write it.
@@ -814,7 +827,8 @@
     // not reach and a setting it switches itself. Without it, a role's write right on the attribute is a doubt.
     var stateUse = opts.stateUse !== undefined ? opts.stateUse
       : window.MxEditScope && window.MxEditScope.stateUse ? window.MxEditScope.stateUse(model, { legacyNames: legacyNames }) : null;
-    var ctx = { model: model, stateUse: stateUse, admins: adminRoles(model) };
+    var ctx = { model: model, stateUse: stateUse, admins: adminRoles(model), market: {} };
+    (model.modules || []).forEach(function (m) { if (m && m.fromAppStore) ctx.market[m.name] = true; });
 
     function judge(flow, kind) {
       var params = (flow.parameters || []).filter(function (p) { return p && p.entityQualifiedName && !p.isList; })
@@ -853,20 +867,22 @@
       // Only where a trigger hands the two objects over from the client: a sub-microflow other microflows call
       // gets its parameters built on the server, and nothing lets anyone hand it the same object twice. All seven
       // notes of this kind on the reviewed application were such sub-microflows (MXS-173).
+      // Two objects of one entity from the client is no longer said (rules 6, C4): it tells nothing about a missing
+      // check, and none of those the review read was real. r.sameEntity still says it, for whoever draws the flow.
       if (!r.triggers.length) return;
-      r.sameEntity.forEach(function (s) {
-        out.notes.push({ kind: 'same-entity', flow: r.qualifiedName, flowKind: r.kind, entity: s.entity, params: s.params,
-          text: r.qualifiedName + ' takes ' + s.params.map(function (p) { return '$' + p; }).join(' and ') + ', both ' + s.entity +
-            ': whoever calls it hands each over by its id, so it may be given the same object twice, or two that do not belong together.' });
-      });
       if (r.kind !== 'microflow') return;
       pageHides(ix, r, out.findings, ctx);
       escalationWrite(ix, r, out.findings, ctx);
-      roleWider(ix, r, out.notes);
+      roleWider(ix, r, out.notes, ctx);
     });
     bypassXpath(ix, model, out.findings);
-    serviceOps(ix, model, out.findings);
+    serviceOps(ix, model, out.findings, ctx);
     out.logic = logicOf(ix, model);
+    // Rules 6: the leads the review needed and these checks did not have (N2, N4, N9, N10).
+    scopeSet(ix, model, out.findings, ctx);
+    accountParam(ix, model, out.findings, ctx);
+    authLoose(ix, model, out.findings);
+    subCallable(ix, model, out.findings, ctx);
     var said = {};
     out.findings = out.findings.filter(function (f) { if (said[f.text]) return false; said[f.text] = true; return true; });
     var order = { P1: 0, P2: 1, P3: 2 };
@@ -1108,9 +1124,81 @@
     rules: 'runs in the browser, under the role’s access rules'
   };
 
+  // ---------- what a flow stores (rules 6, C2.2) ----------
+  // Does the flow, or any flow it calls (followed to the end), store or send anything: a commit, a delete, a change or
+  // a create that commits, a call out (REST, web service, external) or a Java action (which may do either)? A flow
+  // that only opens a page or changes in memory gives nobody anything a page condition was keeping back.
+  var storeCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+  var STORES = { CommitAction: true, DeleteAction: true, RestCallAction: true, RestOperationCallAction: true, CallWebServiceAction: true, CallExternalAction: true, JavaActionCallAction: true, ExportXmlAction: false };
+  function storesDeep(ix, qn) {
+    var memo = storeCache && storeCache.get(ix);
+    if (!memo) { memo = {}; if (storeCache) storeCache.set(ix, memo); }
+    function go(q, depth) {
+      if (q in memo) return memo[q];
+      memo[q] = false; // a call cycle stores nothing more than its other steps
+      var f = ix.micro[q];
+      if (!f) return (memo[q] = !ix.nano[q]); // a flow not in this model: it may
+      var g = f.graph;
+      if (!g || !g.nodes) { var A = f.activity || {}; return (memo[q] = !!(A.commitCount || (A.deletes || []).length || A.restCalls || (A.javaActions || []).length)); }
+      var yes = g.nodes.some(function (n) {
+        if (n.disabled || n.kind !== 'activity') return false;
+        var P = n.props || {};
+        if (STORES[n.action]) return true;
+        if ((n.action === 'ChangeAction' || n.action === 'CreateChangeAction') && P.commit && P.commit !== 'No') return true;
+        if (n.action === 'MicroflowCallAction' && P.target && depth < 12) return go(P.target, depth + 1);
+        return false;
+      });
+      return (memo[q] = yes);
+    }
+    return go(qn, 0);
+  }
+  // The attributes the decisions of a flow read, and of the flows it calls FIRST — before its first step that
+  // stores anything, in the order of the drawing (one level down): { attribute: true }.
+  function decidedAttrs(ix, qn) {
+    var out = {}, seen = {};
+    function scan(q, depth) {
+      var f = ix.micro[q] || ix.nano[q];
+      if (!f || seen[q] || !f.graph) return;
+      seen[q] = true;
+      var storing = false;
+      (f.graph.nodes || []).forEach(function (n) {
+        if (n.disabled) return;
+        var P = n.props || {};
+        // A decision that cannot come out both ways reads nothing that decides.
+        if (n.kind === 'decision' && tautology(n.expression)) return;
+        if (n.kind === 'decision' || (n.kind === 'activity' && n.action === 'RetrieveAction')) refsIn(String(n.expression || '') + ' ' + String(P.xpath || '')).forEach(function (r) { r.path.forEach(function (a) { out[shortName(a)] = true; }); });
+        if (depth < 1 && !storing && n.kind === 'activity' && n.action === 'MicroflowCallAction' && P.target) scan(P.target, depth + 1);
+        if (n.kind === 'activity' && (n.action === 'CommitAction' || n.action === 'DeleteAction' || ((n.action === 'ChangeAction' || n.action === 'CreateChangeAction') && P.commit && P.commit !== 'No'))) storing = true;
+      });
+    }
+    scan(qn, 0);
+    return out;
+  }
+  // The step is one the role may already take by a rule of its own on the same rows it can read (C1's test): the
+  // flow gives it nothing (rules 6, C2.5).
+  // A commit carries no members of its own: what it stores is what the flow changed on the same object before it.
+  function allowedHere(ix, st, role, all) {
+    var rules = rulesOf(ix, st.entity, role);
+    if (!rules.length || !holdsKind(ix, st, role)) return false;
+    var members = uniq((st.members || []).map(shortName));
+    if (st.kind === 'commit') (all || []).forEach(function (x) { if (x !== st && x.kind === 'change' && x.variable === st.variable) (x.members || []).forEach(function (m) { if (members.indexOf(shortName(m)) === -1) members.push(shortName(m)); }); });
+    if (st.kind === 'commit' && !members.length) return false;
+    var probe = st.kind === 'commit' ? Object.assign({}, st, { kind: 'change' }) : st;
+    if (!givesStep(probe, rules, members).length) return false;
+    var reads = rules.filter(function (x) { return window.MxAccessUse && window.MxAccessUse.grantsRead ? window.MxAccessUse.grantsRead(x) : true; });
+    return !readsMore(probe, rules, reads, members);
+  }
+
   function pageHides(ix, r, findings, ctx) {
     var seen = {}, mine = [];
     var callers = roleObjects(ix, r.callers), flips = flipped(r);
+    // Rules 6 (C2): a lead, and none at all when the flow stores and sends nothing (C2.2), or when every role that may
+    // call it administers the application (C2.3).
+    var admins = (ctx && ctx.admins) || {};
+    if (!callers.some(function (c) { return !admins[c.name]; })) { r.open = []; return; }
+    if (!storesDeep(ix, r.qualifiedName)) { r.open = []; return; }
+    var decided = decidedAttrs(ix, r.qualifiedName);
+    var plain = callers.filter(function (c) { return !admins[c.name]; });
     // A handler that only commits what the client typed — an on-change or a validation flow that sets no value
     // of its own and only commits the object it was handed — stores a value the entity's own write rules already
     // decide. The page's condition in front of it is which widget is on the form (MXS-173: three such risks).
@@ -1169,12 +1257,31 @@
         var steps = r.open.filter(function (s) { return s.from === c.param; });
         if (!steps.length) return false;
         if (c.kind === 'owner') return !steps.every(function (s) { return s.guards.owner.length; });
+        // A decision of the flow (or of one it calls first) reads the very attribute the page's condition reads:
+        // the author does look at it, wherever the decision stands (rules 6, C2.4).
+        if (decided[c.attribute] === true) return false;
         return !steps.every(function (s) { return s.guards.state.some(function (g) { return g.attribute === c.attribute; }); });
       });
       if (!missing.length) return;
       var params = uniq(missing.map(function (c) { return c.param; }));
       var steps = r.open.filter(function (s) { return params.indexOf(s.from) !== -1; });
       var stored = steps.some(function (s) { return s.stored; });
+      // Every stored step is one each calling role may already take by its own rule, on the rows it reads (C2.5).
+      // Only a change, commit or delete of the very object the caller handed over: a new object made for it (a create)
+      // is nothing the role could have changed before, so it never counts as allowed anyway.
+      var storedSteps = steps.filter(function (s) { return s.stored; });
+      // Round 2: never when what is stored sets a scope association (the N1/N2 set — an association an access rule
+      // keeps rows to the signed-in user by): pointing it elsewhere moves rows into somebody's scope, which the role's
+      // write right on the member alone does not make harmless.
+      if (ctx && !ctx.scope) ctx.scope = window.MxAccessUse && window.MxAccessUse.scopeAssocs && ctx.model ? window.MxAccessUse.scopeAssocs(ctx.model) : {};
+      var scopeSet = (ctx && ctx.scope) || {};
+      var setsScope = storedSteps.some(function (st) {
+        var ms = (st.members || []).slice();
+        if (st.kind === 'commit') (r.steps || []).forEach(function (x) { if (x !== st && x.kind === 'change' && x.variable === st.variable) ms = ms.concat(x.members || []); });
+        return ms.some(function (m) { return scopeSet[shortName(m)]; });
+      });
+      var plainChange = !setsScope && storedSteps.every(function (s) { return s.kind !== 'create' && s.how === 'parameter'; });
+      if (storedSteps.length && plainChange && storedSteps.every(function (st) { return plain.every(function (role) { return allowedHere(ix, st, role, r.steps); }); })) return;
       var key = [tr.page, tr.widget || tr.caption, r.qualifiedName].join(' ');
       if (seen[key]) {
         missing.forEach(function (c) { if (!seen[key].conditions.some(function (x) { return x.text === c.text; })) seen[key].conditions.push(c); });
@@ -1323,15 +1430,20 @@
       // over an association, a loop, an XPath naming it — is as narrow as the parameter the caller could supply,
       // and saying it again for every hop says the same thing many times over. An in-memory change reaches
       // nothing at all.
-      if (st.how !== 'parameter' || !st.stored) return;
+      // Rules 6 (C1): an object the flow RETRIEVES itself — from the database by a parameter's value, over an
+      // association from a parameter, or a loop over such a list — is weighed too, with the condition below; one
+      // the caller hands over only where the role can read rows it may not change (readsMore).
+      var handed = st.how === 'parameter', fetched = st.how === 'xpath' || st.how === 'association' || st.how === 'iterator';
+      if ((!handed && !fetched) || !st.stored) return;
       if (st.guards.owner.length) return; // it does compare the object with the signed-in user
       if (st.selfAssoc) return;           // it only puts the CALLER into an object the role already reads
       var members = uniq((st.members || []).map(shortName));
       roles.forEach(function (role) {
         var rules = rulesOf(ix, st.entity, role);
+        var reads = rules.filter(function (x) { return window.MxAccessUse && window.MxAccessUse.grantsRead ? window.MxAccessUse.grantsRead(x) : true; });
         // The role has to be able to hand the object over in the first place: with no rule on the entity it
         // cannot fetch one, and the object reaches the flow only where something else gives it.
-        if (!rules.length || !rules.some(function (x) { return window.MxAccessUse && window.MxAccessUse.grantsRead ? window.MxAccessUse.grantsRead(x) : true; })) return;
+        if (handed && (!rules.length || !reads.length)) return;
         // Two different sentences, and the rules before said neither.
         //  past-xpath   — the role may do this, but every rule of its own keeps it to its OWN rows, and the flow
         //                 does it to anybody's object.
@@ -1340,8 +1452,18 @@
         //                 controlled way to let a role change a member it may not set on a form, and reporting
         //                 every one of those is the 284-flow list the review threw out (MXS-173).
         var beyond = !holdsKind(ix, st, role);
-        var ownerScoped = rules.every(function (x) { return x.xpathConstraint && (restricts ? restricts(x.xpathConstraint) : USER.test(x.xpathConstraint)); });
+        var own = function (x) { return !!x.xpathConstraint && (restricts ? restricts(x.xpathConstraint) : USER.test(x.xpathConstraint)); };
+        var ownerScoped = rules.length > 0 && rules.every(own);
         if (!beyond && !ownerScoped) return;
+        if (handed) {
+          // beyond-rules: when every rule that lets the role read the entity keeps it to its own rows, the only object
+          // it can hand over is its own — the flow is how the application lets it do the rest (C1.3).
+          if (beyond && reads.length && reads.every(own)) return;
+          // past-xpath: only when the role reads rows it may not change — a read rule whose XPath is not the XPath of
+          // any rule that gives the step (a missing XPath reads every row). One XPath for reading and writing means
+          // it can only hand over an object it may already change (C1.1; 13 of 13 such items were false).
+          if (!beyond && !readsMore(st, rules, reads, members)) return;
+        }
         var why = beyond ? 'beyond-rules' : 'past-xpath';
         // One risk per flow and per reason: a flow is one place to fix, whatever it touches on the way there.
         var key = why;
@@ -1370,8 +1492,11 @@
       f.xpaths = uniq(f.xpaths);
       var creds = f.members.filter(credential);
       var account = isA(ix, f.entity, 'System.User');
+      // Rules 6 (C1.4): a lead for the risk skill, never P1 — what the flow does past the rules is computed, whether
+      // it matters is the skill's to prove. The priority only ranks the leads (a delete, a credential, an account first).
       f.confidence = f.doubts.length ? 'suspected' : 'confirmed';
-      f.priority = f.step === 'delete' || creds.length || account ? 'P1' : 'P2';
+      f.priority = 'P2';
+      f.rank = f.step === 'delete' || creds.length || account ? 1 : 2;
       f.text = r.qualifiedName + ' does not apply entity access and ' + andList(f.steps) + ', while ' +
         (f.why === 'beyond-rules'
           ? who + ' may not ' + (f.step === 'delete' ? 'delete ' : f.step === 'create' ? 'create ' : 'write ') + shortName(f.entity) +
@@ -1396,14 +1521,47 @@
     });
   }
 
+  // Does the role read rows of the entity it may not take this step on? A rule that grants read whose XPath is not
+  // the XPath of any rule granting the step: delete, create, or write on every member the flow sets (rules 6, C1.1).
+  function readsMore(st, rules, reads, members) {
+    var gives = givesStep(st, rules, members);
+    // No rule gives the step (these members, this delete): every rule that lets the role read is then one whose XPath
+    // is not the XPath of a rule granting the step — it reads rows it may not change this way (C1.1, as written; on the
+    // reviewed application such flows were real).
+    if (!gives.length) return reads.length > 0;
+    var norm = function (x) { return oneLine(x || '').replace(/\s+/g, ''); };
+    var stepX = {};
+    gives.forEach(function (r) { stepX[norm(r.xpathConstraint)] = true; });
+    if (stepX['']) return false; // the step is allowed on every row: there is nothing it could read and not change
+    return reads.some(function (r) { return !stepX[norm(r.xpathConstraint)]; });
+  }
+  // The rules of the role that give the step: delete, create, or write on every member the flow sets.
+  function givesStep(st, rules, members) {
+    return rules.filter(function (r) {
+      if (st.kind === 'delete') return !!r.allowDelete;
+      if (st.kind === 'create') return !!r.allowCreate;
+      if (!members.length) return r.defaultAccess === 'rw' || Object.keys(r.attrAccess || {}).some(function (a) { return r.attrAccess[a] === 'rw'; }) || Object.keys(r.assocAccess || {}).some(function (a) { return r.assocAccess[a] === 'rw'; });
+      return members.every(function (m) { return (r.attrAccess || {})[m] === 'rw' || (r.assocAccess || {})[m] === 'rw' || r.defaultAccess === 'rw'; });
+    });
+  }
+
   // ---------- a service operation that trusts the key in the request (rules 5, MXS-173) ----------
   // A published REST (or MCP) operation runs a microflow with the request's own values. When that microflow does
   // not apply entity access and fetches the object by a key the request carries, with nothing comparing it to the
   // user the service authenticated, anybody the service lets in reads or changes anybody's object by guessing an
   // id. The sibling operations of the same service that DO check are the evidence that it was meant to be checked.
-  function serviceOps(ix, model, findings) {
+  // Rules 6 (C5): the keys a request carries are its scalar parameters AND the attributes of a non-persistable
+  // parameter object (the request body mapped: [Number = $Request/OrderNo]); "compares with the user" is only a
+  // decision, or the XPath of that very retrieve, that names both the object fetched and the authenticated account —
+  // using the account as the author of what the operation creates is no comparison. A service whose allowed roles
+  // only user roles that open no page hold is system-to-system and not judged. Every one is a lead, saying whether
+  // the operation stores anything.
+  function serviceOps(ix, model, findings, ctx) {
+    var opens = opensPage(ix, model);
     (model.publishedServices || []).forEach(function (svc) {
       if (!svc || svc.kind === 'OData') return;
+      var holders = (svc.allowedModuleRoles || []).length ? ix.userRoles.filter(function (u) { return u.moduleRoles.some(function (m) { return svc.allowedModuleRoles.indexOf(m) !== -1; }); }) : null;
+      if (holders && holders.length && holders.every(function (u) { return !opens[u.name]; })) return;
       var ops = [];
       (svc.exposes || []).forEach(function (op) {
         var m = /→\s*(\S+)\s*$/.exec(String(op));
@@ -1411,39 +1569,80 @@
         ops.push({ label: String(op).replace(/\s*→.*$/, ''), flow: ix.micro[m[1]] });
       });
       if (!ops.length) return;
-      var judged = ops.map(function (op) { return Object.assign({ checks: checksUser(ix, op.flow) }, op); });
+      var judged = ops.map(function (op) { var hit = keyedRetrieve(ix, op.flow); return Object.assign({ hit: hit, checks: hit ? comparesAccount(ix, op.flow, hit) : checksUser(ix, op.flow) }, op); });
       var safe = judged.filter(function (x) { return x.checks; }).map(function (x) { return x.label; });
       judged.forEach(function (op) {
-        var f = op.flow;
-        if (op.checks || f.applyEntityAccess) return;
-        var keys = {};
-        (f.parameters || []).forEach(function (p) { if (p && !p.entityQualifiedName) keys[p.name] = true; });
-        if (!Object.keys(keys).length) return;
-        var hit = null;
-        ((f.graph && f.graph.nodes) || []).forEach(function (n) {
-          var p = n.props || {};
-          if (hit || n.disabled || n.kind !== 'activity' || n.action !== 'RetrieveAction' || p.source !== 'From database' || !p.xpath || !p.entity) return;
-          if (!ix.entity[p.entity] || !stored(ix, p.entity)) return;
-          if (refsIn(p.xpath).some(function (r) { return keys[r.v]; })) hit = { entity: p.entity, xpath: oneLine(p.xpath) };
-        });
-        if (!hit) return;
-        var writes = ((f.graph && f.graph.nodes) || []).some(function (n) {
-          return !n.disabled && n.kind === 'activity' && /^(ChangeAction|CommitAction|DeleteAction)$/.test(n.action);
-        });
+        var f = op.flow, hit = op.hit;
+        if (!hit || op.checks || f.applyEntityAccess) return;
+        var writes = storesDeep(ix, f.qualifiedName);
         var deletes = ((f.graph && f.graph.nodes) || []).some(function (n) { return !n.disabled && n.action === 'DeleteAction'; });
         findings.push({
-          kind: 'service-unscoped', priority: deletes || isA(ix, hit.entity, 'System.User') ? 'P1' : 'P2',
-          confidence: safe.length ? 'confirmed' : 'suspected', flow: f.qualifiedName, entity: hit.entity,
+          kind: 'service-unscoped', priority: 'P2', rank: deletes || isA(ix, hit.entity, 'System.User') ? 1 : writes ? 2 : 3,
+          confidence: 'suspected', flow: f.qualifiedName, entity: hit.entity,
           service: svc.qualifiedName || svc.name, operation: op.label, xpath: hit.xpath, writes: writes,
           doubts: safe.length ? [] : ['No other operation of ' + (svc.name || 'the service') + ' compares the object with the authenticated user either, so MxScout cannot tell whether this service is meant to be open — look at what authenticates it.'],
-          evidence: safe.length ? [andList(safe.slice(0, 4)) + ' of the same service ' + (safe.length === 1 ? 'does' : 'do') + ' compare the object with the authenticated user; this one does not.'] : [],
-          scenario: safe.length ? 'Anybody the service lets in may call ' + op.label + ' with a key of somebody else’s ' + shortName(hit.entity) + '.' : null,
-          impact: safe.length ? (deletes ? 'Somebody else’s object is deleted.' : writes ? 'Somebody else’s object is read and changed.' : 'Somebody else’s object is read.') : null,
+          evidence: (safe.length ? [andList(safe.slice(0, 4)) + ' of the same service ' + (safe.length === 1 ? 'does' : 'do') + ' compare the object with the authenticated user; this one does not.'] : [])
+            .concat([writes ? f.qualifiedName + ' stores or sends something (a commit, a delete, a call out).' : f.qualifiedName + ' stores nothing: it reads.']),
           text: (svc.name || 'A published service') + ' exposes ' + op.label + ' as ' + f.qualifiedName +
             ', which does not apply entity access and fetches ' + hit.entity + ' by a value the request carries (' + hit.xpath +
-            '), while no decision in it compares that object with the user the service authenticated: the key in the request decides whose object it is.'
+            '), while no decision in it, nor that retrieve, compares the object with the user the service authenticated: the key in the request decides whose object it is. ' +
+            (writes ? 'The operation stores or sends something.' : 'The operation stores nothing; it reads.')
         });
       });
+    });
+  }
+  // The user roles that open at least one page: { userRole: true }.
+  function opensPage(ix, model) {
+    var roles = {}, out = {};
+    (model.pages || []).forEach(function (p) { (p && p.allowedModuleRoles || []).forEach(function (m) { roles[m] = true; }); });
+    ix.userRoles.forEach(function (u) { if (u.moduleRoles.some(function (m) { return roles[m]; })) out[u.name] = true; });
+    return out;
+  }
+  // The first database retrieve of a persistable entity by a key the request carries: a scalar parameter, or an
+  // attribute of a non-persistable parameter object. → { entity, xpath, out } or null.
+  function keyedRetrieve(ix, f) {
+    var keys = {}, bodies = {};
+    (f.parameters || []).forEach(function (p) {
+      if (!p) return;
+      if (!p.entityQualifiedName) keys[p.name] = true;
+      else if (!stored(ix, p.entityQualifiedName)) bodies[p.name] = true;
+    });
+    if (!Object.keys(keys).length && !Object.keys(bodies).length) return null;
+    var hit = null;
+    ((f.graph && f.graph.nodes) || []).forEach(function (n) {
+      var p = n.props || {};
+      if (hit || n.disabled || n.kind !== 'activity' || n.action !== 'RetrieveAction' || p.source !== 'From database' || !p.xpath || !p.entity) return;
+      if (!ix.entity[p.entity] || !stored(ix, p.entity)) return;
+      if (refsIn(p.xpath).some(function (r) { return keys[r.v] || (bodies[r.v] && r.path.length); })) hit = { entity: p.entity, xpath: oneLine(p.xpath), raw: p.xpath, out: p.out };
+    });
+    return hit;
+  }
+  // The variables of a flow that hold the authenticated account: $currentUser, an account fetched by it, what a
+  // helper that fetches it handed back.
+  function accountVars(ix, f) {
+    var out = { currentUser: true };
+    var nodes = (f.graph && f.graph.nodes) || [];
+    for (var round = 0; round < 3; round++) nodes.forEach(function (n) {
+      var p = n.props || {};
+      if (n.disabled || n.kind !== 'activity' || !p.out) return;
+      if (n.action === 'RetrieveAction' && p.source === 'From database' && p.entity && isA(ix, p.entity, 'System.User') && (USER.test(String(p.xpath || '')) || refsIn(p.xpath).some(function (r) { return out[r.v]; }))) out[p.out] = true;
+      if (n.action === 'RetrieveAction' && p.source === 'By association' && out[p.from] && p.entity && isA(ix, p.entity, 'System.User')) out[p.out] = true;
+      if (n.action === 'MicroflowCallAction' && p.target && fetchesUser(ix, p.target)) out[p.out] = true;
+    });
+    return out;
+  }
+  // A decision, or the keyed retrieve's own XPath, that names both the fetched object (or a path from it) and the
+  // authenticated account.
+  function comparesAccount(ix, f, hit) {
+    var acc = accountVars(ix, f), names = function (text) { return USER.test(String(text || '')) || refsIn(text).some(function (r) { return acc[r.v]; }); };
+    if (names(hit.raw)) return true;
+    var objs = {}; objs[hit.out] = true;
+    var nodes = (f.graph && f.graph.nodes) || [];
+    nodes.forEach(function (n) { var p = n.props || {}; if (!n.disabled && n.action === 'RetrieveAction' && p.source === 'By association' && objs[p.from] && p.out) objs[p.out] = true; });
+    return nodes.some(function (n) {
+      if (n.disabled || n.kind !== 'decision') return false;
+      var x = String(n.expression || '');
+      return refsIn(x).some(function (r) { return objs[r.v]; }) && names(x);
     });
   }
   // Does a flow compare anything with the signed-in (or authenticated) user anywhere — a decision, an XPath, a
@@ -1460,55 +1659,176 @@
     });
   }
 
-  // ---------- what the drawing says about the logic, not about access (rules 5, MXS-173) ----------
-  // Three classes risk-levels.md already names and nothing worked out: a commit or a delete inside a loop (a
-  // failure half way leaves half the work done), a REST call with no error handler (the flow carries on as if it
-  // had answered), and a scheduled event switched off (what it was for does not happen). Each is ONE note with
-  // its flows as places: on a real model they run to dozens, and a list of dozens reads as noise.
+  // ---------- what the drawing says about the logic, not about access ----------
+  // Rules 6 (C6): one class left, and it is code quality, not a risk — a REST call with no error handler. Without
+  // one the call's failure stops the flow with an error and rolls its transaction back (the rules before said it
+  // "carries on as though it had answered", which it does not). A flow every caller of which puts an error handler
+  // on the call is not listed: the caller decides what happens. Commits in a loop are perfrisks.js's to say
+  // (perf-commit-in-loop), and a scheduled event switched off is a count on the project's overview — the model's
+  // flag is overridden per environment in the cloud.
   function logicOf(ix, model) {
-    var loops = [], noError = [], off = [];
+    var noError = [];
+    var handled = {}, called = {};
+    (model.microflows || []).forEach(function (f) {
+      var g = f && f.graph;
+      if (!g || !g.nodes) return;
+      g.nodes.forEach(function (n) {
+        var p = n.props || {};
+        if (n.disabled || n.kind !== 'activity' || n.action !== 'MicroflowCallAction' || !p.target) return;
+        called[p.target] = (called[p.target] || 0) + 1;
+        if ((g.edges || []).some(function (e) { return e && e.from === n.id && e.isError; })) handled[p.target] = (handled[p.target] || 0) + 1;
+      });
+    });
     (model.microflows || []).concat(model.nanoflows || []).forEach(function (f) {
       var g = f && f.graph;
       if (!g || !g.nodes) return;
-      var byId = {};
-      g.nodes.forEach(function (n) { byId[n.id] = n; });
-      var inLoop = function (n) {
-        var seen = {}, up = n.parentId;
-        while (up && byId[up] && !seen[up]) { if (byId[up].kind === 'loop') return true; seen[up] = true; up = byId[up].parentId; }
-        return false;
-      };
-      g.nodes.forEach(function (n) {
-        if (n.disabled || n.kind !== 'activity') return;
-        var p = n.props || {};
-        var commits = n.action === 'CommitAction' || n.action === 'DeleteAction' || (n.action === 'ChangeAction' && p.commit && p.commit !== 'No') ||
-          (n.action === 'CreateChangeAction' && p.commit && p.commit !== 'No');
-        if (commits && inLoop(n) && loops.indexOf(f.qualifiedName) === -1) loops.push(f.qualifiedName);
-        if (n.action === 'RestCallAction' && noError.indexOf(f.qualifiedName) === -1 &&
-          !(g.edges || []).some(function (e) { return e && e.from === n.id && e.isError; })) noError.push(f.qualifiedName);
-      });
-    });
-    (model.automation || []).forEach(function (a) {
-      if (a && a.kind === 'scheduled event' && a.enabled === false) off.push(a.qualifiedName);
+      var q = f.qualifiedName;
+      var others = (f.calledBy || []).filter(function (c) { return c && c.kind !== 'microflow'; }).length;
+      if (called[q] && !others && handled[q] === called[q]) return;
+      if (g.nodes.some(function (n) {
+        return !n.disabled && n.kind === 'activity' && n.action === 'RestCallAction' && !(g.edges || []).some(function (e) { return e && e.from === n.id && e.isError; });
+      })) noError.push(q);
     });
     var out = [];
-    if (loops.length) out.push({ kind: 'commit-in-loop', level: 'P2', flows: loops.sort(),
-      text: loops.length + (loops.length === 1 ? ' flow commits' : ' flows commit') + ' or delete inside a loop, so a failure half way through leaves half the work stored and half not — the rest of the list never happens, and nothing undoes what already did.',
-      fix: 'Collect the objects in the loop and commit the list once after it, or wrap the loop so a failure rolls the whole run back.' });
     if (noError.length) out.push({ kind: 'rest-no-error', level: 'P2', flows: noError.sort(),
-      text: noError.length + (noError.length === 1 ? ' flow calls' : ' flows call') + ' a REST service with no error handler on the call: when the far side is slow, down or answers with an error, the flow carries on as though it had answered, and whatever it stores afterwards is stored on nothing.',
-      fix: 'Give each REST call an error handler — Custom with an error event, or a path that says the call failed — and decide there what the flow does without an answer.' });
-    if (off.length) out.push({ kind: 'scheduled-off', level: 'P3', flows: off.sort(),
-      text: off.length + (off.length === 1 ? ' scheduled event is' : ' scheduled events are') + ' switched off: whatever each was for does not happen, and nothing in the application says so.',
-      fix: 'Switch on each event the application needs, or delete the ones it does not — a switched-off event is a promise nobody keeps.' });
+      text: noError.length + (noError.length === 1 ? ' flow calls' : ' flows call') + ' a REST service with no error handler on the call, and no caller handles the error for it: when the far side is slow, down or answers with an error, the flow stops with an error and its transaction is rolled back, so the user sees a generic error and whatever the flow had done is undone without saying why.',
+      fix: 'Give each REST call an error handler — Custom with an error event, or a path that says the call failed — and decide there what the flow does without an answer (log it, tell the user, retry).' });
     return out;
+  }
+
+  // ---------- leads the review needed (rules 6, N2, N4, N9, N10) ----------
+  // The user roles that may call a flow and do not administer the application.
+  function plainCallers(ix, f, ctx) { var admins = (ctx && ctx.admins) || {}; return callersOf(ix, f).filter(function (u) { return !admins[u.name]; }).map(function (u) { return u.name; }); }
+  function inMarket(ctx, qn) { var m = String(qn || '').split('.')[0]; return !!(ctx && ctx.market && ctx.market[m] && m !== 'Administration'); }
+  // Does any expression, XPath or value in the flow name the current user or session?
+  function namesUser(f) {
+    return ((f.graph && f.graph.nodes) || []).some(function (n) {
+      if (n.disabled) return false;
+      var p = n.props || {};
+      return USER.test(String(n.expression || '')) || USER.test(String(p.xpath || '')) || /\$currentSession\b/i.test(String(n.expression || '')) ||
+        (n.fields || []).some(function (x) { return USER.test(String(x && x.value || '')) || /\$currentSession\b/i.test(String(x && x.value || '')); });
+    });
+  }
+  // N2: a client-callable microflow that sets an association some access rule's XPath keeps rows to the user by (a
+  // "scope association"), with Apply entity access off and nothing in it naming the current user or session — it may
+  // put anybody into anybody's scope. First the flows where the association scopes another entity than the one written.
+  function scopeSet(ix, model, findings, ctx) {
+    var scope = window.MxAccessUse && window.MxAccessUse.scopeAssocs ? window.MxAccessUse.scopeAssocs(model) : {};
+    if (!Object.keys(scope).length) return;
+    (model.microflows || []).forEach(function (f) {
+      if (!f || !f.qualifiedName || f.applyEntityAccess || inMarket(ctx, f.qualifiedName) || !f.graph) return;
+      var who = plainCallers(ix, f, ctx);
+      if (!who.length || namesUser(f)) return;
+      var hits = [], other = false;
+      (f.graph.nodes || []).forEach(function (n) {
+        if (n.disabled || !/^(ChangeAction|CreateChangeAction)$/.test(n.action || '')) return;
+        var written = (n.props || {}).entity || null;
+        (n.fields || []).forEach(function (x) {
+          var a = x && x.association ? scope[shortName(x.name)] : null;
+          if (!a) return;
+          if (hits.indexOf(shortName(x.name)) === -1) hits.push(shortName(x.name));
+          if (a.entities.some(function (e) { return e !== written; })) other = true;
+        });
+      });
+      if (!hits.length) return;
+      var scoped = uniq([].concat.apply([], hits.map(function (h) { return scope[h].entities; }))).sort();
+      findings.push({ kind: 'scope-set', priority: 'P2', rank: other ? 1 : 2, confidence: 'suspected', flow: f.qualifiedName, entity: scoped[0], entities: scoped, roles: who, associations: hits,
+        evidence: [f.qualifiedName + ' sets ' + andList(hits) + ', which the access rules of ' + andList(scoped.slice(0, 4)) + ' keep rows to the signed-in user by.',
+          f.qualifiedName + ' has Apply entity access = No and names neither $currentUser nor the session anywhere.'],
+        doubts: ['Whether every caller may set that association for the objects it is handed — look at what hands them over.'],
+        text: andList(who.map(function (x) { return '"' + x + '"'; })) + ' may call ' + f.qualifiedName + ', which sets ' + andList(hits) +
+          ' — an association the access rules of ' + andList(scoped.slice(0, 4)) + ' use to keep rows to the signed-in user — with Apply entity access off and nothing in it naming the current user: it can put anybody into anybody’s scope.' });
+    });
+  }
+  // N4: a client-callable microflow takes an account as a parameter and changes it, deletes it, or creates a stored
+  // object linked to it, with no decision comparing it with the current user. "credential" when what it creates has
+  // an attribute whose name says it holds a secret (secret-attribute's words).
+  function accountParam(ix, model, findings, ctx) {
+    var secret = window.MxConstants && window.MxConstants.secretAttributeName ? window.MxConstants.secretAttributeName : function (n) { return /password|secret|token|apikey|api_key|privatekey|private_key|secretkey|accesskey/i.test(String(n || '')); };
+    (model.microflows || []).forEach(function (f) {
+      if (!f || !f.qualifiedName || f.applyEntityAccess || inMarket(ctx, f.qualifiedName) || !f.graph) return;
+      var who = plainCallers(ix, f, ctx);
+      if (!who.length) return;
+      var ps = (f.parameters || []).filter(function (p) { return p && p.entityQualifiedName && !p.isList && isA(ix, p.entityQualifiedName, 'System.User'); }).map(function (p) { return p.name; });
+      if (!ps.length) return;
+      var mine = function (text) { return refsIn(text).some(function (r) { return ps.indexOf(r.v) !== -1; }); };
+      var uses = [], made = [], cred = false;
+      (f.graph.nodes || []).forEach(function (n) {
+        if (n.disabled || n.kind !== 'activity') return;
+        var p = n.props || {};
+        if (n.action === 'ChangeAction' && ps.indexOf(String(p.object)) !== -1 && (n.fields || []).length) uses.push('changes $' + p.object);
+        if (n.action === 'DeleteAction' && ps.indexOf(String(p.object)) !== -1) uses.push('deletes $' + p.object);
+        if (n.action === 'CreateChangeAction' && p.entity && stored(ix, p.entity) && (n.fields || []).some(function (x) { return x && x.association && mine(x.value); })) {
+          uses.push('creates ' + shortName(p.entity) + ' for it');
+          made.push(p.entity);
+          var e = ix.entity[p.entity];
+          if (e && (e.attributes || []).some(function (a) { return a && (a.type || 'String') === 'String' && secret(a.name); })) cred = true;
+        }
+      });
+      if (!uses.length) return;
+      var compared = (f.graph.nodes || []).some(function (n) { return !n.disabled && n.kind === 'decision' && mine(n.expression) && USER.test(String(n.expression || '')); });
+      if (compared) return;
+      uses = uniq(uses);
+      findings.push({ kind: 'account-param', priority: 'P2', rank: cred ? 0 : 1, confidence: 'suspected', flow: f.qualifiedName, entity: made[0] || (f.parameters || []).filter(function (p) { return ps.indexOf(p.name) !== -1; })[0].entityQualifiedName,
+        entities: uniq(made), roles: who, credential: cred, params: ps,
+        evidence: [f.qualifiedName + ' ' + andList(uses) + '.', 'No decision in it compares ' + andList(ps.map(function (x) { return '$' + x; })) + ' with the current user.'].concat(cred ? ['What it creates holds a credential (an attribute whose name says secret).'] : []),
+        doubts: ['Whether every caller may name any account — look at the pages and flows that hand it over.'],
+        text: andList(who.map(function (x) { return '"' + x + '"'; })) + ' may call ' + f.qualifiedName + ', which takes an account from the client and ' + andList(uses) +
+          ', with Apply entity access off and no decision comparing that account with the current user' + (cred ? ' — and what it creates is a credential' : '') + '.' });
+    });
+  }
+  // N9: the authentication microflow of a published service tests a credential with find, contains or starts-with:
+  // a request that carries the secret anywhere in a longer text passes.
+  function authLoose(ix, model, findings) {
+    var LOOSE = /\b(find|contains|startsWith|starts-with|endsWith|ends-with)\s*\(/i, CRED = /key|token|password|passwd|secret|credential|auth/i;
+    var seen = {};
+    (model.publishedServices || []).forEach(function (svc) {
+      var q = svc && svc.authenticationMicroflow, f = q && ix.micro[q];
+      if (!f || seen[q] || !f.graph) return;
+      seen[q] = true;
+      var hits = (f.graph.nodes || []).filter(function (n) { return !n.disabled && n.kind === 'decision' && LOOSE.test(String(n.expression || '')) && CRED.test(String(n.expression || '')); });
+      if (!hits.length) return;
+      findings.push({ kind: 'auth-loose', priority: 'P2', rank: 1, confidence: 'suspected', flow: q, entity: null, service: svc.qualifiedName || svc.name,
+        evidence: hits.slice(0, 3).map(function (n) { return 'A decision in ' + q + ' tests: ' + oneLine(n.expression).replace(/'[^']{4,}'/g, "'…'"); }),
+        doubts: ['Whether the text it searches is only the credential, or a longer value a caller controls.'],
+        text: q + ', the authentication microflow of ' + (svc.name || 'a published service') + ', tests a credential with find, contains or starts-with: a request that carries the secret anywhere inside a longer value passes, and an empty or partial match may too.' });
+    });
+  }
+  // N10: a sub-microflow — every caller is a microflow — that a non-administrator may still call from the client, that
+  // commits, deletes or calls out, has parameters and names no current user: from the console it runs with any
+  // arguments. A microflow only microflows call needs no allowed roles.
+  var SENDS = /mail|send|push|sms|notif/i;
+  function subCallable(ix, model, findings, ctx) {
+    (model.microflows || []).forEach(function (f) {
+      if (!f || !f.qualifiedName || f.applyEntityAccess || inMarket(ctx, f.qualifiedName) || !f.graph) return;
+      var cb = f.calledBy || [];
+      if (!cb.length || !cb.every(function (c) { return c && c.kind === 'microflow'; })) return;
+      if (!(f.parameters || []).length) return;
+      var who = plainCallers(ix, f, ctx);
+      if (!who.length || namesUser(f)) return;
+      var nodes = (f.graph.nodes || []).filter(function (n) { return !n.disabled && n.kind === 'activity'; });
+      var writes = nodes.filter(function (n) { var P = n.props || {}; return n.action === 'DeleteAction' || n.action === 'CommitAction' || ((n.action === 'ChangeAction' || n.action === 'CreateChangeAction') && P.commit && P.commit !== 'No'); }).length;
+      var sends = nodes.some(function (n) { return /^(RestCallAction|RestOperationCallAction|CallWebServiceAction|CallExternalAction)$/.test(n.action) || (n.action === 'JavaActionCallAction' && SENDS.test(String((n.props || {}).target || n.ref || ''))); });
+      if (!writes && !sends) return;
+      findings.push({ kind: 'sub-callable', priority: 'P2', rank: sends ? 1 : 2, confidence: 'suspected', flow: f.qualifiedName, entity: null, roles: who, sends: sends,
+        evidence: ['Only microflows call ' + f.qualifiedName + ' (' + andList(uniq(cb.map(function (c) { return c.name; })).slice(0, 3)) + '), yet ' + andList(who.map(function (x) { return '"' + x + '"'; })) + ' may call it.',
+          f.qualifiedName + (writes ? ' stores (' + writes + ' step' + (writes > 1 ? 's' : '') + ')' : '') + (writes && sends ? ' and ' : '') + (sends ? ' calls out' : '') + ', takes parameters and names no current user.'],
+        doubts: ['Whether any argument a caller could choose reaches somebody else’s data.'],
+        text: andList(who.map(function (x) { return '"' + x + '"'; })) + ' may call ' + f.qualifiedName + ' from the browser, although only microflows call it: it ' + (writes ? 'stores' : '') + (writes && sends ? ' and ' : '') + (sends ? 'sends' : '') +
+          ' with whatever arguments the caller gives, and names no current user. A microflow only other microflows call needs no allowed roles.' });
+    });
   }
 
   // ---------- a flow offered to fewer roles than may call it (rules 5, MXS-173) ----------
   // Allowed roles are what the runtime enforces; the pages are what the application offers. A role that may call a
   // flow although no page, snippet or nanoflow it can reach offers it reaches it only from the console — a surface
   // nobody meant to open. Worth knowing: often a role given "just in case".
-  function roleWider(ix, r, notes) {
+  // Rules 6 (C3): a lead per flow, never about a role that administers the application, and only for a flow that
+  // stores or sends something (C2.2) — 28 of 76 flows the review read were listed for administrators alone.
+  function roleWider(ix, r, notes, ctx) {
     if (r.kind !== 'microflow' || !r.triggers.length) return;
+    var admins = (ctx && ctx.admins) || {};
+    if (!storesDeep(ix, r.qualifiedName)) return;
     var offered = {};
     r.triggers.forEach(function (tr) {
       var pg = tr.pageKind === 'page' ? ix.page[tr.page] : null;
@@ -1520,7 +1840,7 @@
         offered[u.name] = true;
       });
     });
-    var extra = r.callers.filter(function (n) { return !offered[n]; });
+    var extra = r.callers.filter(function (n) { return !offered[n] && !admins[n]; });
     if (!extra.length || !Object.keys(offered).length) return;
     notes.push({ kind: 'role-wider', flow: r.qualifiedName, flowKind: r.kind, roles: extra.sort(), offeredTo: Object.keys(offered).sort(),
       text: andList(extra.map(function (x) { return '"' + x + '"'; })) + (extra.length > 1 ? ' may call ' : ' may call ') + r.qualifiedName +

@@ -68,6 +68,18 @@
     return w.some(function (x) { return WEAK[x]; });
   }
 
+  // An ATTRIBUTE whose name says it holds a secret (rules 6, C10) — stricter than a constant's: the word "key" alone
+  // does not (IsKey, KeyField, SortKey), only a compound that names a secret key does; and a name starting with "is" or
+  // "has" is a flag about the secret, never the secret.
+  var ATTR_SECRET = /password|passwd|passphrase|secret|token|api_?key|private_?key|secret_?key|access_?key|credential/i;
+  function secretAttributeName(name) {
+    var n = String(name || '');
+    if (!n || /^(is|has)(?=[A-Z_]|$)/.test(n) || /^(is|has)_/i.test(n) || PUBLIC.test(n)) return false;
+    var w = words(n);
+    if (w.length > 1 && BESIDE[w[w.length - 1]]) return false;
+    return ATTR_SECRET.test(n);
+  }
+
   // A model imported from JSON (an MxSonar export) may carry a constant's value under any name: only these
   // fields are kept, and nothing is read out of the rest.
   function clean(list) {
@@ -83,12 +95,19 @@
     });
   }
 
+  // A name that is itself shaped like a credential (an access key id, a token) never goes into an id, a title or a
+  // place (rules 6, C11): the module and a hash stand for it, the same on every load, so a decision still holds.
+  function hash(s) { var h = 0x811c9dc5; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return ('0000000' + h.toString(16)).slice(-8); }
+  function shown(c) { return c.nameWhy ? c.module + '.<masked ' + hash(c.qualifiedName) + '>' : c.qualifiedName; }
+  // The one risk for the project's secret-named constants with a value in the model (rules 6, C11).
+  var DEFAULTS_KEY = 'm:secrets:defaults';
+
   function check(model) {
     model = model || {};
     var list = Array.isArray(model.constants) ? model.constants : [];
     var out = { state: 'checked', anonymous: !!(model.security && model.security.guestAccess), list: [], exposed: [], findings: [], notes: [], risks: [] };
     if (!list.length) { out.state = model.meta && model.meta.readsConstants ? 'none' : 'not-read'; return out; }
-    var market = {};
+    var market = {}, defaults = [];
     (model.modules || []).forEach(function (m) { if (m && m.fromAppStore) market[m.name] = true; });
 
     list.forEach(function (c0) {
@@ -106,52 +125,55 @@
       out.list.push(c);
       if (c.exposedToClient && !c.excluded) out.exposed.push(c);
 
+      c.shown = shown(c);
       if (c.secret && c.exposedToClient) {
         // Only the name says so: no value in the model looks like a secret, so the model does not prove one.
         var named = c.nameSecret && !c.valueSecret && !c.nameWhy;
         var f = { kind: 'exposed-secret', priority: named ? 'P2' : 'P1', constant: c.qualifiedName, module: c.module, marketplace: c.marketplace,
-          reason: reasonOf(c), key: 'm:secrets:' + c.qualifiedName, confidence: named ? 'suspected' : 'confirmed' };
+          reason: reasonOf(c), key: 'm:secrets:' + c.shown, confidence: named ? 'suspected' : 'confirmed' };
         if (named) f.doubts = ['Only its name says ' + c.qualifiedName + ' is a secret: ' + (c.defaultVerdict === 'empty' ? 'it has no default value in the model' : c.defaultVerdict === 'plain' ? 'its default value does not look like one' : 'its default value was not judged') +
           ', so whether an environment gives it a secret value is not in the model — look at the deployment’s constants.'];
         else f.evidence = [c.valueSecret ? 'Its default value ' + (c.defaultWhy || 'looks like a secret') + ', and the browser receives it.' : c.nameWhy + ', and the browser receives the name.'];
-        f.text = 'Every browser that opens the app receives the constant ' + c.qualifiedName + (c.marketplace ? ' (Marketplace module ' + c.module + ')' : '') +
+        f.text = 'Every browser that opens the app receives the constant ' + c.shown + (c.marketplace ? ' (Marketplace module ' + c.module + ')' : '') +
           ' — Mendix sends constants marked “Expose to client” with the session' +
           (out.anonymous ? ', and anonymous access is on, so visitors who have not signed in receive it too' : '') + '. ' + whyText(c) + '.';
-        f.fix = 'Untick “Expose to client” on ' + c.qualifiedName + ' and use it in a microflow on the server. If the browser really needs it, it must not be a secret' +
+        f.fix = 'Untick “Expose to client” on ' + c.shown + ' and use it in a microflow on the server. If the browser really needs it, it must not be a secret' +
           ' (a public key, an address); then mark this a false positive and say so.';
         out.findings.push(f);
         if (named) f.text += ' To verify — the model does not prove it: ' + f.doubts[0];
+        // Only the name says so: a lead for the risk skill (rules 6), not a risk — `lead` marks it, and the Risks
+        // page leaves it out (docs-data.js); the security check hands it over with its leads.
         out.risks.push({
-          id: 'model-secrets-' + c.qualifiedName, key: f.key, origin: 'model', level: f.priority, theme: 'secrets', confidence: f.confidence, doubts: f.doubts || null, evidence: f.evidence || null,
-          title: (named ? 'To verify: the browser receives the constant ' + c.qualifiedName + ', whose name says it is a secret' : 'The browser receives the constant ' + c.qualifiedName + ', which looks like a secret'),
-          detail: f.text, fix: f.fix, where: [c.qualifiedName]
+          id: 'model-secrets-' + c.shown, key: f.key, origin: 'model', level: named ? null : f.priority, lead: named || undefined, theme: 'secrets', confidence: f.confidence, doubts: f.doubts || null, evidence: f.evidence || null,
+          title: (named ? 'The browser receives the constant ' + c.shown + ', whose name says it is a secret' : 'The browser receives the constant ' + c.shown + ', which looks like a secret'),
+          detail: f.text, fix: f.fix, where: [c.shown]
         });
-      } else if (c.secret && c.hasDefault) {
-        // A value in the model that LOOKS like a secret is in every copy of the model, its history and every
-        // package — a real secret already spread, whoever deploys it. That is a finding (P2), not something worth
-        // knowing: risk-levels.md put it at P1 and the rules before gave it P3 (MXS-173, the review of
-        // 2026-11-01, where eleven of them sat among the notes). Only the NAME saying secret stays a note.
-        var why = whyText(c) + (c.nameWhy ? '. The name of ' + c.qualifiedName + ' ' + c.nameWhy.replace(/^the name itself /, 'itself ') : '');
-        var textBoth = c.qualifiedName + (c.marketplace ? ' (Marketplace module ' + c.module + ')' : '') + ' has a default value in the model. ' + why +
-          '. The value is in every copy of the model, its history and every package; Mendix advises leaving such a constant empty in the model and setting it per environment at deployment.';
-        var fixBoth = 'Empty the default value of ' + c.qualifiedName + ' and set it in each environment’s configuration; change the secret if the model was ever shared.' +
-          (c.nameWhy ? ' Rename the constant too, and if it was a real key, change the key.' : '');
-        if (c.valueSecret) {
-          out.findings.push({ kind: 'default-in-model', priority: 'P2', constant: c.qualifiedName, module: c.module, marketplace: c.marketplace,
-            reason: reasonOf(c), key: 'm:secrets:' + c.qualifiedName, confidence: 'confirmed',
-            evidence: ['Its default value ' + (c.defaultWhy || 'looks like a secret') + ', and the model carries it.'], text: textBoth, fix: fixBoth });
-          out.risks.push({ id: 'model-secrets-' + c.qualifiedName, key: 'm:secrets:' + c.qualifiedName, origin: 'model', level: 'P2', theme: 'secrets',
-            confidence: 'confirmed', doubts: null, evidence: ['Its default value ' + (c.defaultWhy || 'looks like a secret') + ', and the model carries it.'],
-            title: 'The model carries a secret as the default value of ' + c.qualifiedName, detail: textBoth, fix: fixBoth, where: [c.qualifiedName] });
-        } else {
-          out.notes.push({ kind: 'default-in-model', constant: c.qualifiedName, module: c.module, marketplace: c.marketplace, text: textBoth, fix: fixBoth });
-        }
+      } else if (c.secret && c.hasDefault && c.defaultVerdict !== 'empty' && (c.nameSecret || c.nameWhy)) {
+        // Rules 6 (C11): a constant whose NAME says secret and that has a default value in the model is a finding,
+        // P2, whatever the value looks like — a value there is in every copy of the model, its history and every
+        // package. All of them are ONE risk for the project (below), the constants as its places.
+        defaults.push(c);
       } else if (c.nameWhy && !c.excluded) {
-        out.notes.push({ kind: 'name-is-key', constant: c.qualifiedName, module: c.module, marketplace: c.marketplace,
-          text: 'The name of ' + c.qualifiedName + ' — ' + c.nameWhy.replace(/^the name itself /, 'itself ') + '. Every screen and file that lists the constants shows it.',
+        out.notes.push({ kind: 'name-is-key', constant: c.shown, module: c.module, marketplace: c.marketplace,
+          text: 'The name of ' + c.shown + ' — ' + c.nameWhy.replace(/^the name itself /, 'itself ') + '. Every screen and file that lists the constants shows it.',
           fix: 'Rename the constant and, if it was a real key, change the key.' });
       }
     });
+    if (defaults.length) {
+      var names = defaults.map(function (c) { return c.shown; });
+      var detail = defaults.length + ' constant' + (defaults.length > 1 ? 's' : '') + ' whose name says ' + (defaults.length > 1 ? 'they hold' : 'it holds') + ' a secret ' +
+        (defaults.length > 1 ? 'have' : 'has') + ' a default value in the model: ' + defaults.map(function (c) {
+          return c.shown + (c.marketplace ? ' (Marketplace module ' + c.module + ')' : '') + ' — ' + (c.valueSecret ? 'the value ' + (c.defaultWhy || 'looks like a secret') : 'a value is set') +
+            (c.nameWhy ? '; its name is itself shaped like a key, so it is masked here' : '');
+        }).join('; ') + '. A value in the model is in every copy of the model, its history and every package, whoever deploys it; Mendix advises leaving such a constant empty in the model and setting it per environment at deployment.';
+      var fix = 'Empty the default value of each and set it in each environment’s configuration; change the secret if the model was ever shared.' +
+        (defaults.some(function (c) { return c.nameWhy; }) ? ' Rename a constant whose name is itself a key, and change that key.' : '');
+      var evidence = defaults.map(function (c) { return c.shown + ': the name says secret and the model carries a default value' + (c.valueSecret ? ' that ' + (c.defaultWhy || 'looks like a secret') : '') + '.'; });
+      out.findings.push({ kind: 'default-in-model', priority: 'P2', constants: defaults.map(function (c) { return c.qualifiedName; }), key: DEFAULTS_KEY, confidence: 'confirmed', evidence: evidence, text: detail, fix: fix });
+      var heading = 'The model carries a value for ' + (defaults.length > 1 ? defaults.length + ' constants whose names say secret' : 'the secret-named constant ' + names[0]);
+      out.risks.push({ id: 'model-secrets-defaults', key: DEFAULTS_KEY, origin: 'model', level: 'P2', theme: 'secrets', confidence: 'confirmed', doubts: null, evidence: evidence,
+        title: heading, detail: detail, fix: fix, where: names.slice(0, 40) });
+    }
     return out;
   }
   function reasonOf(c) {
@@ -191,10 +213,21 @@
   // the constants were not read, and each whose default value was not judged (a model from a JSON export).
   // → { all: bool, keys: { 'm:secrets:<qn>': why } }
   function unchecked(model) {
-    var c = of(model), out = { all: c.state === 'not-read', keys: {} };
-    c.list.forEach(function (x) { if (x.defaultVerdict === 'unknown') out.keys['m:secrets:' + x.qualifiedName] = 'its default value was not judged in this model'; });
+    var c = of(model), out = { all: c.state === 'not-read', keys: {}, withdrawn: {} };
+    c.list.forEach(function (x) { if (x.defaultVerdict === 'unknown') out.keys['m:secrets:' + x.shown] = 'its default value was not judged in this model'; });
+    // Rules 6 took these keys away, the model did not: a constant not sent to the browser was a risk of its own (its
+    // value looked secret, or a secret name had a default) and is now one of the places of the project's one risk, or
+    // not a risk; a name that is itself a key is masked.
+    var live = {};
+    c.risks.forEach(function (r) { live[r.key] = true; });
+    c.list.forEach(function (x) {
+      [x.qualifiedName, x.shown].forEach(function (n) {
+        var k = 'm:secrets:' + n;
+        if (!live[k] && (x.secret || x.valueSecret)) out.withdrawn[k] = 'withdrawn by a change in MxScout’s rules (rules 6): the secret-named constants with a value in the model are one risk for the project, and a constant only its value made a risk is no longer one — the model did not change';
+      });
+    });
     return out;
   }
 
-  window.MxConstants = { check: check, of: of, risks: risks, unchecked: unchecked, clean: clean, secretName: secretName, words: words };
+  window.MxConstants = { check: check, of: of, risks: risks, unchecked: unchecked, clean: clean, secretName: secretName, secretAttributeName: secretAttributeName, words: words };
 })();

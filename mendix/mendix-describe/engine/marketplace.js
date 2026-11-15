@@ -251,9 +251,18 @@
     // The same rule secrisks.js uses (adminsOf): App Security's administrator, a role that may assign every
     // role, and a role that may give users its OWN role — it administers them. The two files counted
     // administrators differently, so three risks said of an administrator that it is not one (MXS-173).
+    // Rules 6 (C9): giving users its own role makes a role an administrator only when it opens a page that shows accounts.
+    var gen = {}, accRoles = {}, opens = {};
+    (model.entities || []).forEach(function (e) { if (e && e.qualifiedName) gen[e.qualifiedName] = e.generalization || null; });
+    var isAccount = function (q) { for (var i = 0; q && i < 20; i++) { if (q === 'System.User') return true; q = gen[q]; } return false; };
+    (model.pages || []).forEach(function (p) {
+      if (p && ((p.parameters || []).some(function (x) { return x && isAccount(x.entityQualifiedName); }) || (p.dataSources || []).some(function (d) { return d && isAccount(d.entity); })))
+        (p.allowedModuleRoles || []).forEach(function (m) { accRoles[m] = true; });
+    });
+    (model.userRoles || []).forEach(function (u) { if (u && (u.moduleRoles || []).some(function (m) { return accRoles[m]; })) opens[u.name] = true; });
     (model.userRoles || []).forEach(function (u) {
       if (!u || !u.name) return;
-      if (u.manageAllRoles || (u.manageableRoles || []).indexOf(u.name) !== -1) admins[u.name] = true;
+      if (u.manageAllRoles || ((u.manageableRoles || []).indexOf(u.name) !== -1 && opens[u.name])) admins[u.name] = true;
     });
     out.appAdmins = Object.keys(admins).sort();
 
@@ -384,6 +393,9 @@
         var sure = r.why !== 'name' || does;
         if (r.admin) r.userRoles.forEach(function (u) {
           if (admins[u]) return;
+          // A module role named after the user role that carries it was made FOR that role — the team extended the
+          // module with roles of its own application — not the module's administration (rules 6, C14).
+          if (r.name === u) return;
           out.findings.push({ kind: 'admin-role', module: m.name, moduleRole: r.moduleRole, userRole: u, why: r.why,
             confidence: sure ? 'confirmed' : 'suspected',
             doubts: sure ? [] : ['Only its name says ' + r.moduleRole + ' administers ' + m.name + ': it holds no create, delete or write right, flow or page there that MxScout sees — look at what it is for.'],

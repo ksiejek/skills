@@ -2669,6 +2669,19 @@
         if (events.length) entity.events = events;
       });
 
+      // What deleting an object does over the association (DeleteBehavior { ParentDeleteBehavior,
+      // ChildDeleteBehavior }, each DeleteMeButKeepReferences | DeleteMeAndReferences | DeleteMeIfNoReferences —
+      // measured on a real Mx 10 model, 2026-11-15). The pointer names are the .mpr's: ParentPointer is the owner
+      // (the entity that holds the reference), ChildPointer the other end. ChildDeleteBehavior DeleteMeAndReferences
+      // means deleting the OTHER end deletes the owners that refer to it: an order's notes go with the order.
+      // `deleteWithParent` says just that (accessuse.js reads it: a child read in full under a parent kept to its
+      // owner is a finding only when the parent's delete takes the child with it).
+      function deleteOf(a) {
+        var d = a && a.DeleteBehavior;
+        if (!d || typeof d !== 'object') return null;
+        var pd = typeof d.ParentDeleteBehavior === 'string' ? d.ParentDeleteBehavior : null, cd = typeof d.ChildDeleteBehavior === 'string' ? d.ChildDeleteBehavior : null;
+        return pd || cd ? { owner: pd, other: cd } : null;
+      }
       payload(pm.doc.Associations).forEach(function (a) {
         if (!a || a['$Type'] !== 'DomainModels$Association') return;
         var owner = entityById.get(idHex(a.ParentPointer));
@@ -2680,6 +2693,8 @@
           other: other.qn, otherMultiplicity: null,
           type: a.Type || null
         };
+        var del = deleteOf(a);
+        if (del) { assoc.deleteBehavior = del; assoc.deleteWithParent = del.other === 'DeleteMeAndReferences'; }
         result.associations.push(assoc);
         // Indexed by qualified name, which is how a flow body's
         // association-based retrieve names it (see readFlowActivity).
@@ -2696,6 +2711,8 @@
           other: a.Child, otherMultiplicity: null,
           type: a.Type || null
         };
+        var delX = deleteOf(a);
+        if (delX) { cross.deleteBehavior = delX; cross.deleteWithParent = delX.other === 'DeleteMeAndReferences'; }
         result.associations.push(cross);
         associationByName.set(pm.moduleName + '.' + a.Name, cross);
       });

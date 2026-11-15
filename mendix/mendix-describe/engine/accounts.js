@@ -364,13 +364,29 @@
           (manager ? '; it manages users, so that is likely its job.' : ', and it manages no users — it can rename somebody else' + (sso ? ', in an app whose sign-in is ' + andList(ssoText) + '.' : '.'));
         fix = manager ? 'Nothing, if this role administers accounts.' : 'Restrict the rule to the signed-in user’s own account or take the write right off.';
       }
-      add({ kind: 'identity-write', register: r0.register, priority: r0.priority, userRole: r0.userRole, entity: r0.entity, fields: fields,
+      // Rules 6 (C8.3): another person's name changed by a role that manages users is its job — the Security screen says it, not a risk.
+      add({ kind: 'identity-write', register: !own && r0.register === 'note' ? 'info' : r0.register, priority: r0.priority, userRole: r0.userRole, entity: r0.entity, fields: fields,
         writers: w.writers, unused: w.unused, notFollowed: w.notFollowed, title: own ? 'Changes its own name' + (fields.some(function (f) { return /mail/i.test(f); }) ? ' or e-mail' : '') : 'Changes other people’s names',
         text: text, fix: fix });
     });
 
-    // User management, one line per role.
+    // User management, one line per role. Rules 6 (C8.1, N5): a role that manages users and opens no page at all is a
+    // finding (P2) — a reporting or integration account that can make users. Holding a module role a published service
+    // allows is no longer enough (round 2): an administrator with pages may also call a service. One with pages that administers the application (secrisks.js adminsOf: it may give users its own role
+    // and opens the pages that show accounts) gets no item; any other is said on the Security screen only ('info').
+    var pageRoles = {}, serviceRoles = {}, accountPageRoles = {};
+    (model.pages || []).forEach(function (p) {
+      var shows = (p && (p.parameters || []).some(function (x) { return x && byQn[x.entityQualifiedName] && underUser(byQn[x.entityQualifiedName]) || (x && x.entityQualifiedName === 'System.User'); })) ||
+        (p && (p.dataSources || []).some(function (d) { return d && (d.entity === 'System.User' || (byQn[d.entity] && underUser(byQn[d.entity]))); }));
+      (p && p.allowedModuleRoles || []).forEach(function (m) { pageRoles[m] = true; if (shows) accountPageRoles[m] = true; });
+    });
+    (model.publishedServices || []).forEach(function (svc) { (svc && svc.allowedModuleRoles || []).forEach(function (m) { serviceRoles[m] = svc.qualifiedName || svc.name; }); });
+    function opensPages(r) { return (r.moduleRoles || []).some(function (m) { return pageRoles[m]; }); }
+    function onService(r) { return (r.moduleRoles || []).map(function (m) { return serviceRoles[m]; }).filter(Boolean); }
+    function administers(r) { return !!appAdmin[r.name] || ((r.manageableRoles || []).indexOf(r.name) !== -1 && (r.moduleRoles || []).some(function (m) { return accountPageRoles[m]; })); }
     userRoles.filter(isUserManager).filter(function (r) { return !appAdmin[r.name]; }).forEach(function (role) {
+      var svcs = uniq(onService(role)), noPages = !opensPages(role);
+      if (!noPages && administers(role)) return;
       var list = manages(role);
       var mine = {};
       (role.moduleRoles || []).forEach(function (mr) { mine[mr] = true; });
@@ -379,7 +395,17 @@
         return r && r.name !== role.name && (r.moduleRoles || []).some(function (mr) { return !mine[mr]; });
       });
       var w = writeNote(role.name, 'System.User', ['Name', 'Password', 'Active', 'Blocked']);
-      add({ kind: 'user-management', register: 'note', priority: null, userRole: role.name, entity: 'System.User', writers: w.writers, unused: false, notFollowed: w.notFollowed,
+      if (noPages) {
+        var heading = 'Manages users and opens no page';
+        add({ kind: 'manager-no-pages', register: 'finding', priority: 'P2', userRole: role.name, entity: 'System.User', writers: w.writers, unused: false, notFollowed: w.notFollowed, services: svcs,
+          title: heading,
+          text: '"' + role.name + '" manages ' + (role.manageAllRoles ? 'every user role' : list.length + ' user role' + (list.length === 1 ? '' : 's') + ' (' + names(list.slice(0, 6)) + (list.length > 6 ? ' and ' + (list.length - 6) + ' more' : '') + ')') +
+            ', and it opens no page of the application' + (svcs.length ? ', and it holds a module role ' + andList(svcs.slice(0, 3)) + ' allow' + (svcs.length === 1 ? 's' : '') : '') +
+            ': it is an account for a system or a report, not for a person who administers users — yet whoever holds its credentials may create users, set their passwords and hand out those roles.',
+          fix: 'Take User management off "' + role.name + '" in App Security (User roles › ' + role.name + ' › User management), and give it to a role a person signs in with.' });
+        return;
+      }
+      add({ kind: 'user-management', register: 'info', priority: null, userRole: role.name, entity: 'System.User', writers: w.writers, unused: false, notFollowed: w.notFollowed,
         title: 'Manages users',
         text: '"' + role.name + '" manages ' + (role.manageAllRoles ? 'every user role' : 'the user roles ' + names(list)) +
           ': it may set the name, password, active and blocked flags and the roles of those users, whatever an XPath on the account entity says.' +
@@ -393,7 +419,8 @@
     var readFields = Object.keys(readOthers).sort();
     if (readFields.length) {
       var readRoles = uniq([].concat.apply([], readFields.map(function (f) { return readOthers[f]; }))).filter(function (n) { return !appAdmin[n]; }).sort();
-      if (readRoles.length) add({ kind: 'read-others', register: 'note', priority: null, userRole: readRoles.join(', '), userRoles: readRoles, fields: readFields,
+      // Rules 6 (C8.3): said on the Security screen, not a risk.
+      if (readRoles.length) add({ kind: 'read-others', register: 'info', priority: null, userRole: readRoles.join(', '), userRoles: readRoles, fields: readFields,
         title: 'Reads other people’s ' + andList(readFields),
         text: names(readRoles) + (readRoles.length === 1 ? ' may read ' : ' may read ') + andList(readFields) +
           ' on other people’s accounts. Usually needed — a ticket shows who raised it — and it is also how a changed name reaches others.',
@@ -404,7 +431,7 @@
     var carriers = userRoles.filter(function (r) { return (r.moduleRoles || []).indexOf('Administration.User') !== -1; }).map(function (r) { return r.name; });
     if (carriers.length && out.administration) {
       var v = out.administration.version;
-      add({ kind: 'administration-user', register: 'note', priority: null, moduleRole: 'Administration.User',
+      add({ kind: 'administration-user', register: 'info', priority: null, moduleRole: 'Administration.User',
         title: 'Administration.User in use',
         text: names(carriers) + ' carr' + (carriers.length === 1 ? 'ies' : 'y') + ' Administration.User, the module’s old all-in-one role: reading and editing one’s own account, and reading others’. ' +
           (v ? (versionAtLeast(v, '4.5.0') ? 'This project has Administration ' + v + ', which supersedes it with narrower roles.' : 'This project has Administration ' + v + '; 4.5.0 and later replace it with narrower roles.')
@@ -462,19 +489,38 @@
         });
         return rules.length > 0 && rules.every(function (rule) { return restrictsToUser(rule.xpathConstraint || ''); });
       }
+      // Rules 6 (C8.2): a member only where a rule WITHOUT an own-rows XPath gives the write — on the role's own row it
+      // is a preference — and one item per entity and member, the roles as its places: nine notes "may change
+      // Colour, DarkMode" for nine roles on their own account were one thing said nine times. A lead for the skill.
+      function openWrite(userRole, entityQn, field) {
+        var role = userRoles.filter(function (r) { return r.name === userRole; })[0] || {}, mine = {};
+        (role.moduleRoles || []).forEach(function (mr) { mine[mr] = true; });
+        return ((byQn[entityQn] || {}).accessRules || []).some(function (rule) {
+          return rule && mine[rule.moduleRole] && (rule.attrAccess || {})[field] === 'rw' && !restrictsToUser(rule.xpathConstraint || '');
+        });
+      }
+      var byMember = {};
       use.unwritten.concat(whole).forEach(function (u) {
         if (!fam[u.entity] || !(u.attributes || []).length) return;
         if (appAdmin[u.userRole] || ownAccountOnly(u.userRole, u.entity, u.attributes)) return;
-        add({ kind: 'write-unused', register: 'note', priority: null, userRole: u.userRole, entity: u.entity, fields: u.attributes.slice(), unused: true,
+        u.attributes.forEach(function (a) {
+          if (!openWrite(u.userRole, u.entity, a)) return;
+          var k = u.entity + '.' + a, m = byMember[k] = byMember[k] || { entity: u.entity, field: a, roles: [] };
+          if (m.roles.indexOf(u.userRole) === -1) m.roles.push(u.userRole);
+        });
+      });
+      Object.keys(byMember).sort().forEach(function (k) {
+        var m = byMember[k];
+        m.roles.sort();
+        add({ kind: 'write-unused', register: 'lead', priority: null, userRole: m.roles.join(', '), userRoles: m.roles, entity: m.entity, fields: [m.field], unused: true,
           title: 'Not used — remove',
-          text: '"' + u.userRole + '" may change ' + andList(u.attributes.slice(0, 8)) + (u.attributes.length > 8 ? ' and ' + (u.attributes.length - 8) + ' more' : '') +
-            ' on ' + u.entity + ', and no page or flow it reaches with its rights does.',
-          fix: 'Take the write right off: an account right nothing uses is only a way in.' });
+          text: names(m.roles) + ' may change ' + m.field + ' on every ' + m.entity + ' (a rule with no XPath that keeps it to the own account), and no page or flow ' + (m.roles.length === 1 ? 'it reaches' : 'they reach') + ' with ' + (m.roles.length === 1 ? 'its' : 'their') + ' rights does.',
+          fix: 'Take the write right on ' + m.field + ' off: an account right nothing uses is only a way in.' });
       });
     }
 
-    var reg = { finding: 0, note: 1, unchecked: 2 }, pri = { P1: 0, P2: 1 };
-    var kinds = ['account-write', 'identity-write', 'user-management', 'read-others', 'administration-user', 'specialization', 'default-rights', 'write-unused'];
+    var reg = { finding: 0, note: 1, lead: 2, info: 3, unchecked: 4 }, pri = { P1: 0, P2: 1 };
+    var kinds = ['account-write', 'manager-no-pages', 'identity-write', 'user-management', 'read-others', 'administration-user', 'specialization', 'default-rights', 'write-unused'];
     out.results.sort(function (a, b) {
       return (reg[a.register] - reg[b.register]) || ((a.priority ? pri[a.priority] : 2) - (b.priority ? pri[b.priority] : 2)) ||
         (kinds.indexOf(a.kind) - kinds.indexOf(b.kind)) || String(a.userRole || a.entity || '').localeCompare(String(b.userRole || b.entity || ''));

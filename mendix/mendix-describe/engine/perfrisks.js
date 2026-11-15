@@ -35,7 +35,11 @@
 (function () {
   'use strict';
 
-  var RULES = 1;
+  // 2 (2026-11-15, rule-changes C16): every finding is on the performance or the code quality list, not a risk
+  // (`list`, theme performance or quality); temporary objects a page keeps are one finding per entity, the pages as
+  // places; an import or export mapping is no service call, and a Java action of a Marketplace or the platform's own
+  // module is not reported for its error handling. The ids those changes took away are withdrawn (unchecked().withdrawn).
+  var RULES = 2;
   var CHECKS = ['perf-retrieve-in-loop', 'perf-commit-in-loop', 'perf-delete-in-loop', 'perf-call-in-loop', 'perf-no-index',
     'perf-heavy-page', 'perf-row-query', 'perf-xpath', 'perf-calculated', 'perf-view-entity', 'perf-held-objects',
     'perf-retrieve-all', 'shape-flow-size', 'shape-error-handler', 'naming-prefix'];
@@ -48,7 +52,9 @@
   // Build rules MxScout checks beside the queries (Craft's build-rules.md, MXS-126): the size of a microflow, a call that
   // can fail with no error handler, and the prefixes of Mendix's naming convention (standards.json: conv-*).
   var FLOW_SIZE = 25;
-  var SERVICE_CALLS = { RestCallAction: true, RestOperationCallAction: true, CallWebServiceAction: true, CallExternalAction: true, ImportXmlAction: true, ExportXmlAction: true };
+  // A call to something outside that can fail. An import or export mapping (ImportXmlAction, ExportXmlAction) only maps
+  // in memory: on a real application 12 of 16 "service calls with no error handler" were a mapping alone (rules 2).
+  var SERVICE_CALLS = { RestCallAction: true, RestOperationCallAction: true, CallWebServiceAction: true, CallExternalAction: true };
   var JAVA_CALLS = { JavaActionCallAction: true };
   var MICROFLOW_PREFIXES = ['ACT', 'SUB', 'DS', 'VAL', 'OCH', 'OEN', 'OLE', 'BCO', 'ACO', 'BCR', 'ACR', 'BDE', 'ADE', 'BRO', 'ARO', 'CAL', 'SCE',
     'ASU', 'BSD', 'HCH', 'CWS', 'CRS', 'PWS', 'PRS', 'POS', 'WFA', 'WFS', 'WFC', 'TEST', 'UT'];
@@ -170,8 +176,11 @@
       seen[id] = true;
       where = where.filter(Boolean);
       if (where.length && I.market[moduleOf(where[0])]) { setAside++; return; } // the place it is in decides: a Marketplace module's own
+      // Rules 2 (C16): none of these is a risk. Each belongs to a list of its own — performance, or code quality (the
+      // shape of a flow, its error handling, its names) — shown on its own page and never counted as a risk.
+      var list = /^perf-/.test(check) ? 'performance' : 'quality';
       out.push(Object.assign({
-        id: id, key: 'id:' + id, origin: 'model', check: check, level: level, theme: theme,
+        id: id, key: 'id:' + id, origin: 'model', check: check, level: level, theme: list, list: list, pattern: theme,
         title: level === 'P3' ? 'Worth knowing: ' + title.replace(/^(A|The) /, function (m) { return m.toLowerCase(); }) : title,
         detail: detail, fix: fix, where: where.filter(Boolean).slice(0, 40)
       }, extra || {}));
@@ -270,7 +279,14 @@
           fq + ' has ' + steps.length + ' activities; a microflow of more than ' + FLOW_SIZE + ' is hard to read in one screen and to test in parts (validation flows are left out).',
           'Split it into sub-microflows (SUB_…) by what each part does, so the main flow reads as a list of steps.', [fq]);
       }
-      var failing = steps.filter(function (n) { return SERVICE_CALLS[n.action] || JAVA_CALLS[n.action]; }).filter(function (n) {
+      var failing = steps.filter(function (n) {
+        if (SERVICE_CALLS[n.action]) return true;
+        // A Java action of a Marketplace module or of the platform's own (System) is the module's helper, not this
+        // application's integration: its error handling is not reported (rules 2).
+        if (!JAVA_CALLS[n.action]) return false;
+        var jm = moduleOf((n.props || {}).target);
+        return !(jm && (I.market[jm] || jm === 'System'));
+      }).filter(function (n) {
         return !(g.edges || []).some(function (e) { return e.isError && e.from === n.id; });
       });
       if (failing.length) {
@@ -410,7 +426,11 @@
     });
     var nanos = {};
     (model.nanoflows || []).forEach(function (f) { nanos[f.qualifiedName] = true; });
+    // One finding per temporary entity, its pages as places (rules 2): on a real application 99 findings came from 3
+    // entities, one per page that used them.
+    var byEnt = {};
     if (Object.keys(held).length) (model.pages || []).forEach(function (p) {
+      if (I.market[moduleOf(p.qualifiedName)]) { setAside++; return; } // a Marketplace module's own page: its owner's
       var used = {}, reach = {}, todo = [];
       var parts = [p].concat((p.snippets || []).map(function (s) { return I.snippets[s]; }).filter(Boolean));
       parts.forEach(function (d) {
@@ -432,16 +452,20 @@
       if (!ents.length) return;
       var flowsHere = Object.keys(reach);
       if (flowsHere.some(function (q) { var A = reach[q].activity || {}; return (A.jsActions || []).concat(A.javaActions || []).some(function (x) { return CLEANUP.test(short(x)); }); })) return;
-      var nano = flowsHere.some(function (q) { return nanos[q]; }), pq = p.qualifiedName;
-      var action = nano ? 'JS_ClearUnusedObjects' : 'JA_DeleteNonPersistable';
-      add('perf-held-objects', pq, 'P2', 'performance', 'Temporary objects on ' + pq + ' stay in the browser until a reload',
-        pq + ' works with ' + ents.map(function (e) { return e + ' (' + (I.entities[e].viewEntity ? 'a view entity' : 'non-persistable') + ', tied to ' + held[e].join(' and ') + ')'; }).join('; ') +
-        '. The browser’s garbage collector keeps every temporary object connected to the session or the user, so each one made on this page stays in memory until the page is reloaded, and the page grows slower the longer it is used. No flow the page starts clears them. How many pile up depends on how the page is used, which the model cannot show.',
-        (nano ? 'The page starts nanoflows: call the JavaScript action JS_ClearUnusedObjects' : 'The page starts microflows only: call the Java action JA_DeleteNonPersistable') +
+      var nano = flowsHere.some(function (q) { return nanos[q]; });
+      ents.forEach(function (e) { var b = byEnt[e] = byEnt[e] || { pages: [], nano: false }; b.pages.push(p.qualifiedName); if (nano) b.nano = true; });
+    });
+    Object.keys(byEnt).sort().forEach(function (e) {
+      var b = byEnt[e], pages = b.pages.sort(), action = b.nano ? 'JS_ClearUnusedObjects' : 'JA_DeleteNonPersistable';
+      var what = e + ' (' + (I.entities[e].viewEntity ? 'a view entity' : 'non-persistable') + ', tied to ' + held[e].join(' and ') + ')';
+      add('perf-held-objects', e, 'P2', 'performance', 'Temporary ' + short(e) + ' objects stay in the browser until a reload',
+        pages.length + ' page' + (pages.length > 1 ? 's work' : ' works') + ' with ' + what + ': ' + pages.slice(0, 12).join(', ') + (pages.length > 12 ? ' and ' + (pages.length - 12) + ' more' : '') +
+        '. The browser’s garbage collector keeps every temporary object connected to the session or the user, so each one made on these pages stays in memory until the page is reloaded, and the page grows slower the longer it is used. No flow these pages start clears them. How many pile up depends on how the pages are used, which the model cannot show.',
+        (b.nano ? 'The pages start nanoflows: call the JavaScript action JS_ClearUnusedObjects' : 'The pages start microflows only: call the Java action JA_DeleteNonPersistable') +
         ' at the end of the flow that is done with these objects, passing them (Help → Wiki → Clear temporary objects without a reload has the code). Where the association to the session or the user is not needed, dropping it lets the browser clear the objects by itself.',
-        [pq].concat(ents), { action: action, guide: { where: pq + ', the flow that is done with ' + ents.join(', ') + '.',
-          expected: 'A call to ' + action + ' with the objects the page no longer needs' + (nano ? ', in a nanoflow' : ', in a microflow') + '.',
-          check: ['Use ' + pq + ' a few times, then run the flow: a list over the association to the session or the user is empty, and what the page still shows stays editable.'] } });
+        [e].concat(pages), { action: action, guide: { where: 'The flow that is done with ' + e + ', on ' + pages.slice(0, 3).join(', ') + (pages.length > 3 ? '…' : '') + '.',
+          expected: 'A call to ' + action + ' with the objects the page no longer needs' + (b.nano ? ', in a nanoflow' : ', in a microflow') + '.',
+          check: ['Use one of the pages a few times, then run the flow: a list over the association to the session or the user is empty, and what the page still shows stays editable.'] } });
     });
 
     var counts = { risks: out.length, P1: 0, P2: 0, P3: 0, setAside: setAside };
@@ -517,7 +541,14 @@
     if (flows.length && !flows.some(function (f) { return f.graph; })) pre.push('id:mx-perf-retrieve-in-loop', 'id:mx-perf-commit-in-loop', 'id:mx-perf-delete-in-loop', 'id:mx-perf-call-in-loop', 'id:mx-perf-view-entity', 'id:mx-perf-retrieve-all', 'id:mx-shape-flow-size', 'id:mx-shape-error-handler');
     if ((model.entities || []).length && !(model.entities || []).some(function (e) { return Array.isArray(e.indexes); })) pre.push('id:mx-perf-no-index');
     if ((model.pages || []).length && !(model.pages || []).some(function (p) { return p.structure; })) pre.push('id:mx-perf-heavy-page', 'id:mx-perf-row-query', 'id:mx-perf-view-entity', 'id:mx-perf-calculated');
-    return { prefixes: pre };
+    // Withdrawn by rules 2, not by the model: temporary objects were one finding per page (now per entity), and a
+    // flow whose only "service call" was an import or export mapping, or a Java action of a Marketplace or System
+    // module, had an error-handler finding. A finding of these kinds this model no longer gives is the rules' doing,
+    // never a fix: the Risks page says "no longer reported", never "verified" (triage.js).
+    var cur = {};
+    of(model).risks.forEach(function (r) { cur[r.key] = true; });
+    return { prefixes: pre, withdrawn: { prefixes: ['id:mx-perf-held-objects-', 'id:mx-shape-error-handler-'], live: cur,
+      why: 'withdrawn by a change in MxScout’s rules (performance rules ' + RULES + '): temporary objects are one finding per entity, and a mapping or a module’s own Java action is no service call — the model did not change' } };
   }
 
   var cache = typeof WeakMap === 'function' ? new WeakMap() : null;

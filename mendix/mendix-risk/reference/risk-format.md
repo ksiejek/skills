@@ -23,7 +23,35 @@ Facts only. No "risky", no "should". A fact you could not read is a line too:
 16 | Sales.Order | Sales.User reads all rows; entity has Note (text) and Order_Customer
 ```
 
-The number is the check in the part `checks`.
+The number is the check in part 2 of `checks`. An engine lead is listed by
+its own id and check:
+
+```
+mx-guard-page-hides-sales-act-credentials-issue | guard-page-hides | Sales.ACT_Credentials_Issue, Sales.Account
+```
+
+## Lead verdicts (stages B and C)
+
+One object per engine lead you opened. It is what the next run reads instead
+of the model, so the reason must stand on its own.
+
+```json
+[
+  { "id": "mx-guard-page-hides-sales-act-credentials-issue", "verdict": "confirmed",
+    "reason": "Creates and commits a credential for the account from the parameter; no decision compares it with the caller.",
+    "risk": "shop-t3-02-credentials-for-any-account" },
+  { "id": "mx-guard-escalation-sales-act-address-delete-past-xpath", "verdict": "dropped",
+    "reason": "Sales.Address has one rule for Sales.Customer, own rows, with delete: the role can only hand over an address it may delete." },
+  { "id": "mx-service-op-unscoped-sales-prs-order-get", "verdict": "undecided",
+    "reason": "Whether each caller has a token of its own is set in the environment, not in the model." }
+]
+```
+
+- `verdict`: `confirmed` (with `risk`, the id of the risk it went into),
+  `dropped`, `undecided`.
+- `reason`: one sentence, at most 300 characters, naming the element read
+  and what it says. Never a way in, never a value.
+- A lead you did not open has no object: it stays open.
 
 ## Claims (stages B and C)
 
@@ -50,7 +78,7 @@ whether the risk still holds.
 - `verdict`: `agrees`, `disagrees`, `not decided` (the model cannot say; the
   note names the test).
 
-## Risk (stage D): `{ id, level, title, detail, fix, theme, where }`
+## Risk (stage D): `{ id, level, title, detail, fix, theme, where, from }`
 
 | Field | Rule |
 |---|---|
@@ -59,6 +87,7 @@ whether the risk still holds.
 | `title` | The consequence in business words, under 90 characters: who can do what. "To verify: …" or "Worth knowing: …" when the evidence is that kind. No module names in the title |
 | `theme` | One key from `risk-levels`, "Patterns" |
 | `where` | Every element a claim names, qualified, the deciding one first |
+| `from` | The ids of the engine leads this risk confirms, when it came from any. Left out for a risk no lead pointed at |
 | `fix` | As a ticket would say it: module, document, what exactly to change. One change per sentence. At most 1,000 characters |
 | `detail` | The layout below, in the project's language. At most 3,000 characters: a long chain keeps its steps and shortens the prose, never the other way round |
 | `test` | From files only (a Team server does not keep it yet): `{ who, given, steps[], real, safe }`, at most 12 steps. On a Team server the same content is the "Test:" line of `detail` |
@@ -125,8 +154,10 @@ none).
 
 1. Counts: risks per level, and per kind of evidence.
 2. Against the previous list: new, changed, proposed to close, unchanged.
-3. Not checked, with the reason for each (Java, a module the pack leaves out,
+3. The engine's leads per check: confirmed, dropped, undecided, not opened;
+   and how many were skipped because an earlier verdict still stands.
+4. Not checked, with the reason for each (Java, a module the pack leaves out,
    platform behaviour, environment).
-4. The tests for a test environment, deduplicated: one platform behaviour
+5. The tests for a test environment, deduplicated: one platform behaviour
    often decides many risks.
-5. The cost line from `report_usage`.
+6. The cost line from `report_usage`.
