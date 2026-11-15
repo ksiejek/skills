@@ -5,7 +5,7 @@
   "MxScout/skills/mendix-change-proposal": "e438355c8e0ab3075844099b5085b7a4123076c8db833b77a6279063809bedea",
   "MxScout/skills/mendix-testcases": "7ce2e3ed5354c51d8b5549b0f354f275ff58b87fe7cbd9041227f49eac78803a",
   "MxScout/skills/mxscout-project": "8a7a9acbf7af340f9fac90e3622a1866f99055ad887e27c018c3979ed7c8a421",
-  "Tandem/skills/mendix/mxcraft-model": "c95f32c5e1295ffdee006f924186580cfa6a3c4cb851ba43e6f22f26bc8873f1",
+  "Tandem/skills/mendix/mxcraft-model": "d70e0e54b5e37b4498bd68b1fb713e1cb75fae99bc73ff17dc88d0a4ef57f29e",
   "Tandem/skills/mendix/mxcraft-workflow": "c8001923e7e3f0021208ef967c57b6ea98a16251331d01ba03e6d0aaae6d039e",
   "Tandem/skills/mendix/mxcraft-theme-scss": "9084f4f95663fd9b00678d44b78e4686165827d663ad69286ac1299f1a8bb29e",
   "Tandem/skills/tandem": "5aadc6aff706cd9d8567afad39cf328ab35b01ca1ad824c7bcca8311ce1bc527",
@@ -16,5 +16,5 @@
   "MxScout/skills/mendix-plan": "173e9c950e170f924d0f039674f6adc5c299c5f9ff3fb903967666bf0d9b9776",
   "MxScout/skills/mendix-nightly": "db22777ed598514f8a0fb326cc1e9e0bca6079576cea17af6176f466b0e7763f",
   "MxScout/skills/mendix-comments": "689510285cd10072a8469115eb653d3ae8f75b0e52e0f3d0d3e629ff7c576b0f",
-  "MxScout/skills/mendix-risk": "dd4cf5f7a50ee2dc7a3abedc3e159a4735b4bd005fe6d1ec0ede9575db6a0852"
+  "MxScout/skills/mendix-risk": "aef138934b90f25ae4083f0b1bb0f49cfacdc0d3152e67aaba5c671c3f7ed476"
 }
