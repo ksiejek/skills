@@ -494,6 +494,8 @@
       entities[en.qualifiedName] = {
         qn: en.qualifiedName, module: en.module, name: en.name, persistable: en.persistable !== false, builtin: !!en.builtin,
         generalization: en.generalization || null, view: !!en.viewEntity, doc: en.documentation || null,
+        // Where Studio Pro draws it (mpr.js): { x, y } in the modeler's pixels, null when the model does not say.
+        location: en.location && isFinite(en.location.x) && isFinite(en.location.y) ? { x: en.location.x, y: en.location.y } : null,
         attributes: (en.attributes || []).map(function (a) {
           var out = { name: a.name, type: a.enumerationQualifiedName ? 'Enumeration ' + a.enumerationQualifiedName : a.type + (a.length ? '(' + a.length + ')' : '') };
           var vals = a.enumerationQualifiedName && enumValues[a.enumerationQualifiedName];

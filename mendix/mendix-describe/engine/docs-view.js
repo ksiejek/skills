@@ -113,7 +113,9 @@
     function aiMark() { return h('span', { class: 'dx-ai', title: _('Written by an AI agent from this model, not read from it'), text: '✦ AI' }); }
     // Whether a person checked a description (public/trust.js) — only in a project opened from a Team server.
     function trustMark(kind, name) { return window.MxTrust ? window.MxTrust.mark(kind, name) : null; }
-    function planTag(p, mini) { return window.MxPlanLayer ? window.MxPlanLayer.tag(h, p, mini) : null; } // data.plan: the plan over the model, drawn by planlayer.js in MxScout only, never in the exported file
+    var MARKS = null; // mount option marks: 'change' words the plan marks as a ticket's done change, default 'plan'
+    function planWord(p) { return p.state === 'changed' ? _('Changed in {0}', [p.key]) : p.state === 'removed' ? _('Removed in {0}', [p.key]) : _('Added in {0}', [p.key]); }
+    function planTag(p, mini) { return window.MxPlanLayer ? window.MxPlanLayer.tag(h, p, mini, MARKS) : null; } // data.plan: the plan over the model, drawn by planlayer.js in MxScout only, never in the exported file
 
     function paragraphs(text) {
       return String(text || '').split(/\n\s*\n/).map(function (p) { return p.replace(/\s*\n\s*/g, ' ').trim(); }).filter(Boolean);
@@ -976,9 +978,212 @@
       return bestR;
     }
 
+    // ================================================================ the domain model where Studio Pro has it
+    // Karol, 2026-11-14: when every entity drawn has its Location from the modeler, the boxes
+    // stand where Studio Pro draws them — scaled to the reader's box, in the same order and next to the
+    // same neighbours, pushed apart only where a reader's box (taller, wider) would touch another — and
+    // the big empty stretches a modeler canvas collects are squeezed to a narrow band that says how much
+    // was taken out. The lines stay orthogonal: straight between boxes that face each other, otherwise
+    // one bend or a step through the gap between them, whichever crosses the fewest other boxes.
+    var MODELER_W = 170; // how wide Studio Pro draws an entity
+    var SQUEEZE_BAND = 24, SQUEEZE_KEEP = 48; // the band's width, and the whole gap left where one was squeezed
+
+    // The boxes at the modeler's places: locs[name] = { x, y } (modeler pixels), size(name) -> { w, h },
+    // opts = { scale, gx, gy } (the least gap kept between two boxes). → { name: { x, y, w, h } }, top left 0,0.
+    // Two boxes that would come closer than the gap are kept apart along the axis they stand further apart on
+    // in the modeler (measured against their size), the later one moving right or down, and everything
+    // behind it with it: the order on each axis is the modeler's.
+    function placeAtLocations(nodes, locs, size, opts) {
+      var s = opts.scale || 1, gx = opts.gx, gy = opts.gy;
+      var minX = Infinity, minY = Infinity;
+      nodes.forEach(function (k) { minX = Math.min(minX, locs[k].x); minY = Math.min(minY, locs[k].y); });
+      var o = nodes.map(function (k, i) { var sz = size(k); return { k: k, i: i, x0: (locs[k].x - minX) * s, y0: (locs[k].y - minY) * s, w: sz.w, h: sz.h }; });
+      o.forEach(function (b) { b.x = b.x0; b.y = b.y0; });
+      var cons = { x: [], y: [] }, seen = {};
+      var AX = { x: ['x', 'x0', 'w', gx], y: ['y', 'y0', 'h', gy] };
+      function solve(ax) {
+        var c = AX[ax], at = c[0], at0 = c[1], len = c[2], gap = c[3], into = {};
+        cons[ax].forEach(function (p) { (into[p[1]] = into[p[1]] || []).push(p[0]); });
+        var last = -Infinity; // never ahead of a box that stood before it in the modeler: the order holds
+        o.slice().sort(function (a, b) { return a[at0] - b[at0] || a.i - b.i; }).forEach(function (b) {
+          var v = Math.max(b[at0], last);
+          (into[b.i] || []).forEach(function (i) { v = Math.max(v, o[i][at] + o[i][len] + gap); });
+          b[at] = last = v;
+        });
+      }
+      for (var round = 0; round < 60; round++) {
+        var added = false;
+        for (var i = 0; i < o.length; i++) for (var j = i + 1; j < o.length; j++) {
+          var a = o[i], b = o[j];
+          if (seen[i + ',' + j]) continue;
+          if (!(a.x < b.x + b.w + gx && b.x < a.x + a.w + gx && a.y < b.y + b.h + gy && b.y < a.y + a.h + gy)) continue;
+          var dx = Math.abs(b.x0 + b.w / 2 - a.x0 - a.w / 2) / ((a.w + b.w) / 2 + gx);
+          var dy = Math.abs(b.y0 + b.h / 2 - a.y0 - a.h / 2) / ((a.h + b.h) / 2 + gy);
+          var ax = dx >= dy ? 'x' : 'y', at0 = AX[ax][1];
+          var first = a[at0] < b[at0] || (a[at0] === b[at0] && a.i < b.i) ? a : b;
+          cons[ax].push([first.i, first === a ? b.i : a.i]);
+          seen[i + ',' + j] = true; added = true;
+        }
+        if (!added) break;
+        solve('x'); solve('y');
+      }
+      var x0 = Infinity, y0 = Infinity, pos = {};
+      o.forEach(function (b) { x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); });
+      o.forEach(function (b) { pos[b.k] = { x: b.x - x0, y: b.y - y0, w: b.w, h: b.h }; });
+      return pos;
+    }
+
+    // Squeezes every empty stretch along one axis ('x' or 'y') wider than limit to keep pixels: the boxes
+    // behind it move closer (pos is changed in place). → [{ at, size, gap }] — where each band starts after
+    // the squeeze, how wide it is, and how many pixels of empty space were there before.
+    function squeezeGaps(pos, axis, limit, keep, band) {
+      var at = axis === 'x' ? 'x' : 'y', len = axis === 'x' ? 'w' : 'h';
+      var names = Object.keys(pos), runs = [];
+      names.map(function (k) { return [pos[k][at], pos[k][at] + pos[k][len]]; }).sort(function (a, b) { return a[0] - b[0]; }).forEach(function (v) {
+        var last = runs[runs.length - 1];
+        if (last && v[0] <= last[1]) last[1] = Math.max(last[1], v[1]); else runs.push([v[0], v[1]]);
+      });
+      var cuts = [];
+      for (var k = 1; k < runs.length; k++) { var gap = runs[k][0] - runs[k - 1][1]; if (gap > limit) cuts.push({ from: runs[k - 1][1], to: runs[k][0], gap: gap }); }
+      if (!cuts.length) return [];
+      names.forEach(function (k) {
+        var b = pos[k], take = 0;
+        cuts.forEach(function (c) { if (c.to <= b[at]) take += c.gap - keep; });
+        b[at] -= take;
+      });
+      var taken = 0;
+      return cuts.map(function (c) {
+        var out = { at: c.from - taken + (keep - band) / 2, size: band, gap: c.gap };
+        taken += c.gap - keep;
+        return out;
+      });
+    }
+
+    // Orthogonal lines between boxes placed anywhere (not on a grid). pos: { name: { x, y, w, h } };
+    // pairs as domainLayout takes them; G.fy: a side port's height under the box top. → [{ p, pts }]
+    function freeRoutes(pos, pairs, G) {
+      var names = Object.keys(pos);
+      function hits(pts, a, b) {
+        var n = 0;
+        for (var k = 0; k < pts.length - 1; k++) {
+          var p = pts[k], q = pts[k + 1];
+          names.forEach(function (m) {
+            if (m === a || m === b) return;
+            var r = pos[m];
+            if (Math.max(p[0], q[0]) > r.x + 1 && Math.min(p[0], q[0]) < r.x + r.w - 1 && Math.max(p[1], q[1]) > r.y + 1 && Math.min(p[1], q[1]) < r.y + r.h - 1) n++;
+          });
+        }
+        return n;
+      }
+      function lengthOf(pts) { var l = 0; for (var k = 0; k < pts.length - 1; k++) l += Math.abs(pts[k + 1][0] - pts[k][0]) + Math.abs(pts[k + 1][1] - pts[k][1]); return l; }
+      // a side's middle, as the first guess for choosing the shape
+      function mid(b, sd) { return sd === 'L' ? [b.x, b.y + G.fy] : sd === 'R' ? [b.x + b.w, b.y + G.fy] : sd === 'T' ? [b.x + b.w / 2, b.y] : [b.x + b.w / 2, b.y + b.h]; }
+      function build(shape, s, e) {
+        if (shape.kind === 'h') { if (s[1] === e[1]) return [s, e]; var mx = shape.mid; return [s, [mx, s[1]], [mx, e[1]], e]; }
+        if (shape.kind === 'v') { if (s[0] === e[0]) return [s, e]; var my = shape.mid; return [s, [s[0], my], [e[0], my], e]; }
+        return shape.first === 'side' ? [s, [e[0], s[1]], e] : [s, [s[0], e[1]], e];
+      }
+      var chosen = pairs.map(function (p) {
+        var A = pos[p.a], B = pos[p.b], cands = [];
+        if (B.x >= A.x + A.w + 8) cands.push({ kind: 'h', sa: 'R', sb: 'L', mid: (A.x + A.w + B.x) / 2 });
+        if (A.x >= B.x + B.w + 8) cands.push({ kind: 'h', sa: 'L', sb: 'R', mid: (B.x + B.w + A.x) / 2 });
+        if (B.y >= A.y + A.h + 8) cands.push({ kind: 'v', sa: 'B', sb: 'T', mid: (A.y + A.h + B.y) / 2 });
+        if (A.y >= B.y + B.h + 8) cands.push({ kind: 'v', sa: 'T', sb: 'B', mid: (B.y + B.h + A.y) / 2 });
+        // one bend: out of a's side, into b's top or bottom — or out of a's top or bottom, into b's side
+        var bcx = B.x + B.w / 2, acx = A.x + A.w / 2, ay = A.y + G.fy, by = B.y + G.fy;
+        if (bcx > A.x + A.w + 8 || bcx < A.x - 8) {
+          if (ay < B.y - 8) cands.push({ kind: 'L', first: 'side', sa: bcx > acx ? 'R' : 'L', sb: 'T' });
+          if (ay > B.y + B.h + 8) cands.push({ kind: 'L', first: 'side', sa: bcx > acx ? 'R' : 'L', sb: 'B' });
+        }
+        if (acx > B.x + B.w + 8 || acx < B.x - 8) {
+          if (by < A.y - 8) cands.push({ kind: 'L', first: 'end', sa: 'T', sb: acx > bcx ? 'L' : 'R' });
+          if (by > A.y + A.h + 8) cands.push({ kind: 'L', first: 'end', sa: 'B', sb: acx > bcx ? 'L' : 'R' });
+        }
+        if (!cands.length) cands.push({ kind: 'h', sa: acx <= bcx ? 'R' : 'L', sb: acx <= bcx ? 'L' : 'R', mid: (acx + bcx) / 2 });
+        var best = null, bestCost = Infinity;
+        cands.forEach(function (c) {
+          var pts = build(c, mid(A, c.sa), mid(B, c.sb));
+          var cost = hits(pts, p.a, p.b) * 100000 + lengthOf(pts) + (pts.length - 2) * 40;
+          if (cost < bestCost) { bestCost = cost; best = c; }
+        });
+        return best;
+      });
+      // ports: the lines on one side of a box spread along it, ordered by where their other end is
+      var ports = {};
+      chosen.forEach(function (c, i) {
+        [[pairs[i].a, c.sa, pairs[i].b], [pairs[i].b, c.sb, pairs[i].a]].forEach(function (e, end) {
+          var id = e[0] + '|' + e[1], o = pos[e[2]];
+          (ports[id] = ports[id] || { b: pos[e[0]], sd: e[1], list: [] }).list.push({ i: i, end: end, key: e[1] === 'L' || e[1] === 'R' ? o.y + o.h / 2 : o.x + o.w / 2 });
+        });
+      });
+      var portAt = {};
+      Object.keys(ports).forEach(function (id) {
+        var P = ports[id], b = P.b, sd = P.sd;
+        P.list.sort(function (u, v) { return u.key - v.key; });
+        P.list.forEach(function (e, k) {
+          portAt[e.i + ':' + e.end] = sd === 'L' || sd === 'R' ? [sd === 'R' ? b.x + b.w : b.x, Math.min(b.y + G.fy + k * 16, b.y + b.h - 10)]
+            : [b.x + b.w / 2 + (k - (P.list.length - 1) / 2) * 18, sd === 'B' ? b.y + b.h : b.y];
+        });
+      });
+      // lanes: steps through the same gap get their own offset in it, so they do not run on top of each other
+      var lanes = {};
+      chosen.forEach(function (c, i) { if (c.kind !== 'L') (lanes[c.kind + Math.round(c.mid)] = lanes[c.kind + Math.round(c.mid)] || []).push(i); });
+      var shift = {};
+      Object.keys(lanes).forEach(function (k) {
+        var list = lanes[k];
+        list.sort(function (u, v) { var a = portAt[u + ':0'], b = portAt[v + ':0']; return chosen[u].kind === 'h' ? a[1] - b[1] : a[0] - b[0]; });
+        list.forEach(function (i, idx) { shift[i] = (idx - (list.length - 1) / 2) * 9; });
+      });
+      return chosen.map(function (c, i) {
+        var shape = c.kind === 'L' ? c : { kind: c.kind, mid: c.mid + (shift[i] || 0) };
+        return { p: pairs[i], pts: build(shape, portAt[i + ':0'], portAt[i + ':1']) };
+      });
+    }
+
+    // Which lines are too far to draw : the route is longer than `cols` columns (a column being a box and the
+    // gap after it, G.w + G.gx), or it would run through a box that is neither of its ends. Those become a small pill at
+    // each end instead. routes as modelerLayout returns them ({ p: { a, b }, pts }), pos as it places the boxes.
+    // → [index of the route, …]
+    function farLinks(routes, pos, G, cols) {
+      var limit = (cols == null ? 2 : cols) * (G.w + G.gx), far = [];
+      routes.forEach(function (rt, i) {
+        var len = 0, through = false;
+        for (var k = 0; k < rt.pts.length - 1; k++) {
+          var a = rt.pts[k], b = rt.pts[k + 1];
+          len += Math.abs(b[0] - a[0]) + Math.abs(b[1] - a[1]);
+          Object.keys(pos).forEach(function (n) {
+            if (n === rt.p.a || n === rt.p.b) return;
+            var q = pos[n];
+            if (Math.max(a[0], b[0]) > q.x + 1 && Math.min(a[0], b[0]) < q.x + q.w - 1 && Math.max(a[1], b[1]) > q.y + 1 && Math.min(a[1], b[1]) < q.y + q.h - 1) through = true;
+          });
+        }
+        if (len > limit || through) far.push(i);
+      });
+      return far;
+    }
+
+    // The whole drawing at the modeler's places: the boxes, the squeezed bands, the lines. G as domainLayout
+    // takes it (w, gx, gy, pad, fy). → { pos, routes, W, H, crossings: 0, bands: [{ axis, at, size, px }] },
+    // px being the modeler's pixels squeezed out of the band.
+    function modelerLayout(nodes, locs, pairs, size, G) {
+      if (!nodes.length) return { pos: {}, routes: [], W: 2 * G.pad, H: 2 * G.pad, crossings: 0, bands: [], modeler: true };
+      var scale = G.w / MODELER_W;
+      var pos = placeAtLocations(nodes, locs, size, { scale: scale, gx: Math.round(G.gx * 0.6), gy: Math.round(G.gy * 0.6) });
+      var hs = nodes.map(function (k) { return pos[k].h; }).sort(function (a, b) { return a - b; });
+      var card = hs[Math.floor(hs.length / 2)];
+      var limit = Math.max(card, G.w); // a stretch is empty when a whole card would fit in it
+      var bands = squeezeGaps(pos, 'y', limit, SQUEEZE_KEEP, SQUEEZE_BAND).map(function (b) { return { axis: 'y', at: b.at, size: b.size, px: Math.round(b.gap / scale) }; })
+        .concat(squeezeGaps(pos, 'x', limit, SQUEEZE_KEEP, SQUEEZE_BAND).map(function (b) { return { axis: 'x', at: b.at, size: b.size, px: Math.round(b.gap / scale) }; }));
+      var W = 0, H = 0;
+      nodes.forEach(function (k) { var b = pos[k]; b.x = Math.round(b.x + G.pad); b.y = Math.round(b.y + G.pad); W = Math.max(W, b.x + b.w); H = Math.max(H, b.y + b.h); });
+      bands.forEach(function (b) { b.at = Math.round(b.at + G.pad); });
+      return { pos: pos, routes: freeRoutes(pos, pairs, G), W: W + G.pad, H: H + G.pad, crossings: 0, bands: bands, modeler: true };
+    }
+
     // ================================================================ mount
     function mount(data, host, opts) {
       opts = opts || {};
+      MARKS = opts.marks || null;
       LBL = data && data.labels && typeof data.labels === 'object' ? data.labels : null;
       var st = { view: 'start', module: null, seg: 'microflow', key: null, entity: null, q: '' };
       if (opts.state) Object.keys(opts.state).forEach(function (k) { st[k] = opts.state[k]; });
@@ -2089,7 +2294,7 @@
         // Own modules and Marketplace ones apart, as App Explorer has them
         // (Karol, 2026-10-13): one list at a time, Own first.
         var allMods = [], mkt = {};
-        data.modules.forEach(function (m) { if (m.entities.length) { allMods.push([m.name, m.entities.length]); if (m.marketplace) mkt[m.name] = true; } });
+        data.modules.forEach(function (m) { if (opts.modules && opts.modules.indexOf(m.name) < 0) return; if (m.entities.length) { allMods.push([m.name, m.entities.length]); if (m.marketplace) mkt[m.name] = true; } });
         allMods.sort(function (a, b) { return a[0].toLowerCase().localeCompare(b[0].toLowerCase()); });
         var ownMods = allMods.filter(function (m) { return !mkt[m[0]]; }), mktMods = allMods.filter(function (m) { return mkt[m[0]]; });
         // External entities: the modules holding entities read through a consumed service, each with
@@ -2131,23 +2336,32 @@
         var free = true;
         var sel = picked || (free ? null : best), anchor = sel || best;
         var view = !free && st.dview === 'list' ? 'list' : 'diagram';
+        // Marked attributes first — removed, changed, new, then the rest in model order — so the first ones a box draws always include them.
+        var RANK = { removed: 0, changed: 1, new: 2 };
+        function ordAttrs(e) {
+          if (!e.attrs.some(function (a) { return a[3]; })) return e.attrs;
+          return e.attrs.map(function (a, i) { return [a, i]; }).sort(function (x, y) { return (x[0][3] ? RANK[x[0][3].state] : 3) - (y[0][3] ? RANK[y[0][3].state] : 3) || x[1] - y[1]; }).map(function (x) { return x[0]; });
+        }
         function pickEntity(n) { return { view: 'domain', entity: mod + '.' + n, dmodule: mod }; }
         // The picked entity's links to other modules (Karol, 2026-10-31): drawn in a lane beside the diagram, each
         // entity with its module and a line to the picked box; refers to it first, then what it refers to.
+        // the lane is always there, for every entity drawn (not only the picked one): each other-module entity once,
+        // with the boxes of this module that link to it. The picked entity's own links are drawn stronger.
         var away = [];
-        if (sel) {
-          var me = mod + '.' + sel, byQ = {};
-          Dm.assoc.forEach(function (a) {
-            var dir = a[1] === me && modOf(a[2]) !== mod ? 'out' : a[2] === me && modOf(a[1]) !== mod ? 'in' : null;
-            if (!dir) return;
-            var q = dir === 'out' ? a[2] : a[1], x = byQ[dir + ' ' + q] || (byQ[dir + ' ' + q] = { q: q, dir: dir, names: [] });
-            x.names.push(a[0]);
-          });
-          away = Object.keys(byQ).map(function (k) { return byQ[k]; }).sort(function (a, b) { return (a.dir === b.dir ? 0 : a.dir === 'in' ? -1 : 1) || a.q.localeCompare(b.q); });
-          // Its generalization, when that one is in another module (MDM.Account from System.User, say): first in
-          // the lane, so a specialization says so even where no box of this module can hold its parent.
-          if (E[sel] && E[sel].gen && modOf(E[sel].gen) !== mod) away.unshift({ q: E[sel].gen, dir: 'gen', names: [] });
+        var byQ = {};
+        function addAway(local, dir, q, name) {
+          if (opts.modules && opts.modules.indexOf(modOf(q)) < 0) return;
+          var x = byQ[dir + ' ' + q] || (byQ[dir + ' ' + q] = { q: q, dir: dir, names: [], from: [] });
+          if (name) x.names.push(name);
+          if (x.from.indexOf(local) < 0) x.from.push(local);
         }
+        Dm.assoc.forEach(function (a) {
+          if (modOf(a[1]) === mod && modOf(a[2]) !== mod) addAway(short(a[1]), 'out', a[2], a[0]);
+          else if (modOf(a[2]) === mod && modOf(a[1]) !== mod) addAway(short(a[2]), 'in', a[1], a[0]);
+        });
+        // A generalization in another module (MDM.Account from System.User, say) is a card too, so a specialization says so.
+        names.forEach(function (n) { if (E[n].gen && modOf(E[n].gen) !== mod) addAway(n, 'gen', E[n].gen, null); });
+        away = Object.keys(byQ).map(function (k) { return byQ[k]; }).sort(function (a, b) { return (a.dir === b.dir ? 0 : a.dir === 'gen' ? -1 : b.dir === 'gen' ? 1 : a.dir === 'in' ? -1 : 1) || a.q.localeCompare(b.q); });
 
         // the header: the module, and Diagram | List
         var modSel = h('select', { class: 'dx-dm-mod mono', 'aria-label': 'Module' }, mods.map(function (m) { var o = h('option', { value: m[0], text: m[0] + '  (' + m[1] + ')' }); if (m[0] === mod) o.selected = true; return o; }));
@@ -2222,7 +2436,7 @@
           var k = f < t2 ? f + '>' + t2 : t2 + '>' + f;
           var p = pm[k] || (pm[k] = { a: f, b: t2, n: 0, many: false, names: [], each: [] });
           p.n++; p.names.push(a[0]); if (a[3]) p.many = true;
-          p.each.push({ name: a[0], owner: f, many: !!a[3], plan: a[4] || null });
+          p.each.push({ name: a[0], owner: f, many: !!a[3], plan: a[4] ? { state: a[4].state || 'new', key: a[4].key } : null });
         });
         // A generalization inside the module is drawn like an association's line, but it is not one: no
         // multiplicities, and a hollow triangle at the parent, as UML and Studio Pro draw it.
@@ -2241,23 +2455,52 @@
         // Where the boxes sit depends on the module and which of its entities are drawn, not on which
         // one is picked: worked out once and kept, so a click on an entity only redraws (a large
         // module's layout is a search that took a second, and boxes moved between two clicks).
-        var lkey = mod + '\n' + (wide ? 'w' : 'n') + '\n' + shownNames.join('\n');
-        var L = domLayouts[lkey] || (domLayouts[lkey] = domainLayout(shownNames, pairs, function (n) { return { w: G.w, h: boxH(n) }; }, G));
+        // Where every entity drawn has its place from the modeler, the boxes stand there (modelerLayout);
+        // a model read before the reader kept the places, or one with a proposed entity, keeps the own grid.
+        var located = shownNames.length > 0 && shownNames.every(function (n) { return E[n].loc; });
+        var lkey = mod + '\n' + (wide ? 'w' : 'n') + (located ? 'm' : 'g') + '\n' + shownNames.join('\n');
+        var locs = {};
+        if (located) shownNames.forEach(function (n) { locs[n] = E[n].loc; });
+        var L = domLayouts[lkey] || (domLayouts[lkey] = located ? modelerLayout(shownNames, locs, pairs, function (n) { return { w: G.w, h: boxH(n) }; }, G)
+          : domainLayout(shownNames, pairs, function (n) { return { w: G.w, h: boxH(n) }; }, G));
         // The lane of other modules sits to the right of the layout, never inside it: the boxes keep their places
         // and only the stage grows. Eight at most; past that the last says how many more (the panel lists them all).
         var AW = Math.round(G.w * 0.86), AH = wide ? 50 : 44, AG = 10, AX = L.W + G.gx, AMAX = 8;
         var lane = away.length > AMAX ? away.slice(0, AMAX - 1) : away, more = away.slice(lane.length);
-        var nA = lane.length + (more.length ? 1 : 0), W = L.W, H = L.H, ay0 = 0, pb = sel ? L.pos[sel] : null;
-        if (nA && pb) {
+        var nA = lane.length + (more.length ? 1 : 0), W = L.W, H = L.H, ay0 = 0;
+        if (nA) {
+          // centred on the boxes that link out: the picked one, else all of them
+          var ys = (sel && L.pos[sel] ? [sel] : shownNames).map(function (n) { return L.pos[n].y + G.fy; });
+          var ymid = ys.length ? (Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2 : L.H / 2;
           var tot = nA * AH + (nA - 1) * AG;
-          ay0 = Math.max(G.pad + 24, Math.round(pb.y + G.fy - tot / 2));
+          ay0 = Math.max(G.pad + 24, Math.round(ymid - tot / 2));
           W = AX + AW + G.pad; H = Math.max(L.H, ay0 + tot + G.pad);
-        } else nA = 0;
+        }
         var stage = h('div', { class: 'dx-dm-stage' });
         stage.style.width = W + 'px'; stage.style.height = H + 'px';
         var svg = s('svg', { class: 'dx-dm-svg', width: W, height: H, 'aria-hidden': 'true' });
         stage.appendChild(svg);
         function r1(v) { return Math.round(v * 10) / 10; }
+        // One frame around the module's boxes, its name once on the frame (a box does not repeat it);
+        // the lane of other modules stays outside it.
+        var FI = 10;
+        svg.appendChild(s('rect', { class: 'dx-dm-frame', x: FI, y: FI, width: Math.max(0, L.W - 2 * FI), height: Math.max(0, L.H - 2 * FI), rx: 12, fill: 'none' }));
+        var frameCap = h('span', { class: 'dx-dm-framecap' }, [h('b', { class: 'mono', text: mod }), located ? h('small', { text: _('laid out as in Studio Pro') }) : null]);
+        frameCap.style.left = (FI + 14) + 'px'; frameCap.style.top = FI + 'px';
+        stage.appendChild(frameCap);
+        // the empty stretches of the modeler's canvas that were squeezed: a narrow band with two dashed lines and how much
+        (L.bands || []).forEach(function (bd) {
+          var lo = FI + 8, across = bd.axis === 'y' ? L.W - FI - 8 : L.H - FI - 8, mid = bd.at + bd.size / 2;
+          var px = String(bd.px >= 1000 ? Math.round(bd.px / 100) * 100 : Math.round(bd.px / 10) * 10).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
+          [bd.at, bd.at + bd.size].forEach(function (v) {
+            svg.appendChild(s('line', bd.axis === 'y' ? { class: 'dx-dm-band', x1: lo, y1: v, x2: across, y2: v } : { class: 'dx-dm-band', x1: v, y1: lo, x2: v, y2: across }));
+          });
+          var c = bd.axis === 'y' ? [(lo + across) / 2, mid] : [mid, (lo + across) / 2];
+          var tx = s('text', { class: 'dx-dm-bandtx', x: r1(c[0]), y: r1(c[1]), 'text-anchor': 'middle', 'dominant-baseline': 'central' });
+          if (bd.axis === 'x') tx.setAttribute('transform', 'rotate(-90 ' + r1(c[0]) + ' ' + r1(c[1]) + ')');
+          tx.textContent = _('≈ {0} px of empty space from the modeler squeezed', [px]);
+          svg.appendChild(tx);
+        });
         function pathOf(p, r) {
           var d = 'M' + r1(p[0][0]) + ' ' + r1(p[0][1]);
           for (var i = 1; i < p.length - 1; i++) {
@@ -2299,14 +2542,54 @@
             return [pt[0] + ox, pt[1] + oy];
           });
         }
+        // a line that is too far, or would cross a box, is a pill at each end instead ("↓ Other · far, *–1"); a click on it
+        // lights the box at the other end for a moment and scrolls to it. Generalizations keep their line.
+        var farSet = farLinks(L.routes, L.pos, G, 2).map(function (i) { return L.routes[i]; });
+        var pills = [];
+        function arrowTo(from, to) {
+          var dx = (to.x + to.w / 2) - (from.x + from.w / 2), dy = (to.y + to.h / 2) - (from.y + from.h / 2);
+          return Math.abs(dy) >= Math.abs(dx) ? (dy > 0 ? '↓' : '↑') : (dx > 0 ? '→' : '←');
+        }
+        function addPill(rt, endIdx) {
+          var mineN = endIdx === 0 ? rt.p.a : rt.p.b, otherN = endIdx === 0 ? rt.p.b : rt.p.a;
+          var pt = endIdx === 0 ? rt.pts[0] : rt.pts[rt.pts.length - 1], bx = L.pos[mineN], ob = L.pos[otherN];
+          var ms = rt.p.each.filter(function (as) { return !as.gen; }).map(function (as) {
+            var mineOwns = as.owner === mineN;
+            return mineOwns ? (as.many ? '*–*' : '*–1') : (as.many ? '*–*' : '1–*');
+          });
+          var uniq = ms.filter(function (m, i) { return ms.indexOf(m) === i; });
+          var el = h('button', { type: 'button', class: 'dx-dm-pill mono' + (rt.p.a === sel || rt.p.b === sel ? ' on' : ''), 'data-goto': otherN,
+            title: mod + '.' + mineN + ' ↔ ' + mod + '.' + otherN + ': ' + rt.p.names.join(', '),
+            text: arrowTo(bx, ob) + ' ' + otherN + ' · ' + _('far') + (uniq.length === 1 ? ', ' + uniq[0] : '') + (ms.length > 1 ? ' ×' + ms.length : '') });
+          el.addEventListener('click', function (ev) {
+            ev.preventDefault(); ev.stopPropagation();
+            var tgt = stage.querySelector('.dx-dm-box[data-ent="' + otherN + '"]');
+            if (!tgt) return;
+            tgt.classList.add('flash');
+            if (tgt.scrollIntoView) tgt.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+            setTimeout(function () { tgt.classList.remove('flash'); }, 1500);
+          });
+          // just outside the side of the box the line would have left by
+          var atRight = Math.abs(pt[0] - (bx.x + bx.w)) < 2, atLeft = Math.abs(pt[0] - bx.x) < 2, atBottom = Math.abs(pt[1] - (bx.y + bx.h)) < 2;
+          el.style.top = Math.round(pt[1] - (atRight || atLeft ? 10 : atBottom ? -4 : 24)) + 'px';
+          if (atRight) el.style.left = Math.round(pt[0] + 4) + 'px';
+          else if (atLeft) { el.style.right = Math.round(W - pt[0] + 4) + 'px'; }
+          else { el.style.left = Math.round(pt[0] - 10) + 'px'; }
+          pills.push(el);
+        }
+        farSet.forEach(function (rt) {
+          if (rt.p.each.every(function (as) { return as.gen; })) return;
+          addPill(rt, 0); addPill(rt, 1);
+        });
         lines.forEach(function (rt) {
           var on = rt.p.a === sel || rt.p.b === sel;
+          if (farSet.indexOf(rt) >= 0 && !rt.p.each.every(function (as) { return as.gen; })) return;
           rt.p.each.forEach(function (as, k) {
             var pts = offsetPts(rt.pts, (k - (rt.p.each.length - 1) / 2) * 7);
             // the route runs from p.a to p.b; an association owned at p.b runs the other way
             var fwd = as.owner === rt.p.a;
-            var path = s('path', { class: 'dx-dm-edge' + (on ? ' on' : '') + (as.plan ? ' plan' : ''), d: pathOf(pts, 8) });
-            var ti = s('title'); ti.textContent = as.name + (as.plan ? ' — in the plan of ' + as.plan.key : ''); path.appendChild(ti);
+            var path = s('path', { class: 'dx-dm-edge' + (on ? ' on' : '') + (as.plan ? ' plan plan-' + as.plan.state : ''), d: pathOf(pts, 8) });
+            var ti = s('title'); ti.textContent = as.name + (as.plan ? (as.plan.state === 'removed' ? ' — ' + _('removed in {0}', [as.plan.key]) : as.plan.state === 'changed' ? ' — ' + _('changed in {0}', [as.plan.key]) : MARKS === 'change' ? ' — ' + _('added in {0}', [as.plan.key]) : ' — in the plan of ' + as.plan.key) : ''); path.appendChild(ti);
             if (as.gen) {
               path.setAttribute('class', 'dx-dm-edge gen' + (on ? ' on' : ''));
               svg.appendChild(path);
@@ -2322,23 +2605,43 @@
             svg.appendChild(endLabel(oth[0], oth[1], as.many ? '*' : '1', on));
           });
         });
-        // one line from the picked box's header to each entity in the lane, sharing the way out
-        for (var ai = 0; ai < nA; ai++) {
-          var ay = ay0 + ai * (AH + AG) + AH / 2, ax = pb.x + pb.w, amid = pb.y + G.fy;
-          svg.appendChild(s('path', { class: 'dx-dm-edge on dx-dm-awayline', d: pathOf([[ax, amid], [AX - 18, amid], [AX - 18, ay], [AX, ay]], 8) }));
+        // one line from a box's header to each entity in the lane that it links to, sharing the way out; a small ring
+        // marks where it crosses the module's frame. A line that would run through another box is left out for a box
+        // that is not picked: the card names it, and the foot of the box does too.
+        function clearRight(n, y) {
+          var q0 = L.pos[n];
+          return Object.keys(L.pos).every(function (m) { var q = L.pos[m]; return m === n || !(q.x >= q0.x + q0.w - 1 && y > q.y + 1 && y < q.y + q.h - 1); });
         }
+        var fx = L.W - FI;
+        lane.forEach(function (x, ai) {
+          var ay = ay0 + ai * (AH + AG) + AH / 2, stub = false, drawn = 0;
+          x.from.forEach(function (n) {
+            var pb2 = L.pos[n];
+            if (!pb2) return;
+            var on2 = n === sel, amid = pb2.y + G.fy, ax = pb2.x + pb2.w;
+            if (!on2 && !clearRight(n, amid)) { stub = true; return; }
+            svg.appendChild(s('path', { class: 'dx-dm-edge dx-dm-awayline' + (on2 ? ' on' : ''), d: pathOf([[ax, amid], [AX - 18, amid], [AX - 18, ay], [AX, ay]], 8) }));
+            svg.appendChild(s('circle', { class: 'dx-dm-cross' + (on2 ? ' on' : ''), cx: fx, cy: amid, r: 3.5 }));
+            drawn++;
+          });
+          // boxes whose way out is blocked by their neighbours: the line starts at the frame, so the card is not orphaned
+          if (stub && !drawn) {
+            svg.appendChild(s('path', { class: 'dx-dm-edge dx-dm-awayline', d: pathOf([[fx, ay], [AX, ay]], 8) }));
+            svg.appendChild(s('circle', { class: 'dx-dm-cross', cx: fx, cy: ay, r: 3.5 }));
+          }
+        });
         function marker(e) { return h('span', { class: 'dx-dm-mk ' + (e.ext ? 'ext' : e.view ? 'view' : e.pers ? 'pers' : 'np'), 'aria-hidden': 'true' }); }
         // An external entity's header carries where it comes from, OData or REST.
         function extBadge(e) { return e.ext ? h('span', { class: 'dx-dm-xb', title: _('External entity: its rows are read from {0}, not stored in this app', [e.ext.service || _('another system')]), text: e.ext.source || 'OData' }) : null; }
         shownNames.forEach(function (n) {
           var e = E[n], b = L.pos[n], on = n === sel, dim = (!!sel && whole && !nbr[n]) || (scope === 'external' && !e.ext);
-          var na = e.attrs.length, list2 = na > G.maxA ? e.attrs.slice(0, G.maxA - 1) : e.attrs;
+          var na = e.attrs.length, ord = ordAttrs(e), list2 = na > G.maxA ? ord.slice(0, G.maxA - 1) : ord;
           var foot = footOf(n, shown);
-          var box = ln(pickEntity(n), { class: 'dx-dm-box' + (e.pers ? '' : ' np') + (e.view ? ' view' : '') + (e.ext ? ' ext' : '') + (e.plan ? ' plan plan-' + e.plan.state : '') + (on ? ' on' : '') + (dim ? ' dim' : ''), 'aria-pressed': on ? 'true' : 'false', title: mod + '.' + n + (e.plan ? ' — in the plan of ' + e.plan.key : '') }, [
+          var box = ln(pickEntity(n), { class: 'dx-dm-box' + (e.pers ? '' : ' np') + (e.view ? ' view' : '') + (e.ext ? ' ext' : '') + (e.plan ? ' plan plan-' + e.plan.state : '') + (on ? ' on' : '') + (dim ? ' dim' : ''), 'aria-pressed': on ? 'true' : 'false', 'data-ent': n, title: mod + '.' + n + (e.plan ? ' — ' + (MARKS === 'change' ? planWord(e.plan) : 'in the plan of ' + e.plan.key) : '') }, [
             // The kind, told two ways (Karol, 2026-10-13: "persistable, not and view must differ more"):
             // the header's colour and the outline (solid, dashed, dotted); the legend names them. The
             // word under the name went (2026-10-14: "not needed").
-            h('span', { class: 'dx-dm-bh' }, [marker(e), h('b', { class: 'mono', text: n }), extBadge(e), e.plan && e.plan.state === 'new' ? planTag(e.plan, true) : null, h('small', { class: 'mono', text: String(na) })]),
+            h('span', { class: 'dx-dm-bh' }, [marker(e), h('b', { class: 'mono', text: n }), extBadge(e), e.plan && (e.plan.state === 'new' || e.plan.state === 'removed') ? planTag(e.plan, true) : null, h('small', { class: 'mono', text: String(na) })]),
             h('span', { class: 'dx-dm-attrs' }, list2.map(function (a) { return h('span', { class: 'dx-dm-attr mono' + (a[3] ? ' plan plan-' + a[3].state : ''), title: a[3] ? 'Proposed: ' + a[3].state + (a[3].was ? ' (was ' + a[3].was + ')' : '') + (a[3].note ? ' — ' + a[3].note : '') : null }, [h('span', { text: a[0] }), h('small', { text: a[3] && e.plan && e.plan.state === 'changed' ? a[3].state : a[1] })]); })
               .concat(na > G.maxA ? [h('span', { class: 'dx-dm-attr more', text: '+ ' + (na - G.maxA + 1) + ' more' })] : [])),
             foot ? h('span', { class: 'dx-dm-foot mono', title: foot, text: foot }) : null
@@ -2347,19 +2650,22 @@
           if (opts.entityMenu) box.addEventListener('contextmenu', function (ev) { opts.entityMenu(mod + '.' + n, ev); }); // MxScout's context (basket.js)
           stage.appendChild(box);
         });
+        pills.forEach(function (el) { stage.appendChild(el); });
         if (nA) {
           var cap = h('span', { class: 'dx-cap dx-dm-awaycap', text: 'Other modules · ' + away.length });
           cap.style.left = AX + 'px'; cap.style.top = (ay0 - 22) + 'px';
           stage.appendChild(cap);
         }
         lane.concat(more.length ? [null] : []).forEach(function (x, i) {
-          var t = x ? (x.dir === 'gen' ? mod + '.' + sel + ' specialises ' + x.q + ': it inherits its attributes and associations'
-            : (x.dir === 'in' ? x.q + ' refers to ' + mod + '.' + sel : mod + '.' + sel + ' refers to ' + x.q) + ': ' + x.names.join(', '))
+          var fr = x ? x.from.map(function (n) { return mod + '.' + n; }).join(', ') : '';
+          var t = x ? (x.dir === 'gen' ? fr + ' specialises ' + x.q + ': it inherits its attributes and associations'
+            : (x.dir === 'in' ? x.q + ' refers to ' + fr : fr + ' refers to ' + x.q) + ': ' + x.names.join(', '))
             : more.map(function (m) { return m.q; }).join(', ');
-          var kids = x ? [h('small', { text: (x.dir === 'gen' ? '▲ ' : x.dir === 'in' ? '← ' : '↗ ') + modOf(x.q) + (x.names.length > 1 ? ' · ×' + x.names.length : '') }), h('b', { class: 'mono', text: short(x.q) })]
+          var kids = x ? [h('small', { class: 'mono', text: (x.dir === 'gen' ? '▲ ' : x.dir === 'in' ? '← ' : '↗ ') + modOf(x.q) + (x.names.length > 1 ? ' · ×' + x.names.length : '') }), h('b', { class: 'mono', text: short(x.q) })]
             : [h('b', { text: '+ ' + more.length + ' more' })];
           var b = x && data.entities[x.q] ? ln({ view: 'domain', entity: x.q, dmodule: modOf(x.q) }, { class: 'dx-dm-away', title: t }, kids)
             : h('div', { class: 'dx-dm-away' + (x ? '' : ' more'), title: t }, kids);
+          if (x && x.from.indexOf(sel) < 0 && sel) b.className += ' dim';
           b.style.left = AX + 'px'; b.style.top = (ay0 + i * (AH + AG)) + 'px'; b.style.width = AW + 'px'; b.style.height = AH + 'px';
           stage.appendChild(b);
         });
@@ -2378,6 +2684,9 @@
           h('span', { class: 'dx-dm-zsep' }),
           h('button', { type: 'button', class: 'fit', text: 'Fit', onclick: function () { var r = canvas.getBoundingClientRect(); domZoom = Math.max(0.5, Math.min(2, Math.floor(Math.min((r.width - 40) / W, (r.height - 90) / H) * 100) / 100)); applyZoom(); } })
         ]);
+        var marks = [];
+        names.forEach(function (n) { var pl = E[n].plan; if (pl) marks.push(pl.state); E[n].attrs.forEach(function (a) { if (a[3]) marks.push(a[3].state); }); });
+        Dm.assoc.forEach(function (a) { if (a[4]) marks.push(a[4].state || 'new'); });
         var legend = h('div', { class: 'dx-dm-legend' }, [
           h('span', { title: 'Stored in the database' }, [h('i', { class: 'dx-dm-mk pers' }), 'Persistable']),
           h('span', { title: 'Lives only in memory, never stored' }, [h('i', { class: 'dx-dm-mk np' }), 'Non-persistable']),
@@ -2385,6 +2694,9 @@
           extMods.length ? h('span', { title: _('Its rows are read from another system through a consumed service (OData), not stored in this app') }, [h('i', { class: 'dx-dm-mk ext' }), _('External entity')]) : null,
           h('span', { title: 'An association: * at the entity that owns it, 1 at the one it points to (* at both ends for a reference set)' }, [h('b', { class: 'mono', text: '* 1' }), 'association']),
           h('span', { title: 'An association to an entity in another module, listed at the foot of the box and, for the picked entity, drawn in a lane beside the diagram' }, [h('b', { text: '↗' }), 'other module']),
+          marks.some(function (m) { return m === 'new'; }) ? h('span', { title: _('Added in the ticket') }, [h('i', { class: 'dx-dm-mk plan-new' }), _('Added')]) : null,
+          marks.some(function (m) { return m === 'changed'; }) ? h('span', { title: _('Changed in the ticket') }, [h('i', { class: 'dx-dm-mk plan-changed' }), _('Changed')]) : null,
+          marks.some(function (m) { return m === 'removed'; }) ? h('span', { title: _('Removed in the ticket') }, [h('i', { class: 'dx-dm-mk plan-removed' }), _('Removed')]) : null,
           h('span', { title: 'A generalization: the entity inherits the attributes and associations of the one the triangle points at. A parent in another module is at the foot of the box, and in the lane for the picked entity' }, [h('b', { text: '▲' }), 'generalization'])]);
         var wrapEl = h('div', { class: 'dx-dm-wrap', 'data-keep-scroll': 'dm-wrap:' + scope + '|' + mod + '|' + (sel || '') }, [scaler]);
         // Ctrl (or ⌘) and the wheel zoom too, as in Studio Pro — a trackpad's pinch arrives the same
@@ -2507,16 +2819,37 @@
         // An enumeration attribute's type opens the values it can hold, under the row (Karol, 2026-11-10): the
         // name is what comes back in the data, the caption beside it what a person sees. Opened in place, no
         // render, so the panel keeps its scroll.
-        function enumToggle(type, vals) {
-          var list = h('ul', { class: 'dx-dm-enum', hidden: true }, vals.map(function (v) {
-            return h('li', null, [h('span', { class: 'mono', text: v[0] }), v[1] ? h('small', { text: v[1] }) : null]);
-          }));
-          var btn = h('button', { type: 'button', class: 'dx-dm-enumbtn', 'aria-expanded': 'false', title: _('Show the {0} values', [vals.length]), onclick: function () {
+        function enumToggle(type, vals, set) {
+          var rows = (vals || []).map(function (v) {
+            return h('li', { class: v[2] ? 'plan plan-' + v[2] : null }, [h('span', { class: 'mono', text: v[0] }), v[1] ? h('small', { text: v[1] }) : null, v[2] ? h('small', { class: 'dx-dm-vs', text: v[2] === 'removed' ? _('removed') : _('new') }) : null]);
+          });
+          // what the data gives of the attribute: default value, length, required / unique, calculated by a microflow; nothing for an absent one
+          var cfg = [];
+          if (set) {
+            if (set.d != null && set.d !== '') cfg.push([_('Default value'), String(set.d)]);
+            if (set.n != null && set.n !== '') cfg.push([_('Length'), String(set.n)]);
+            if (set.r) cfg.push([_('Required'), _('yes')]);
+            if (set.u) cfg.push([_('Unique'), _('yes')]);
+            if (set.c) cfg.push([_('Calculated'), String(set.c)]);
+          }
+          var body = h('div', { class: 'dx-dm-enum', hidden: true }, [rows.length ? h('ul', null, rows) : null, cfg.length ? h('dl', { class: 'dx-dm-set' }, [].concat.apply([], cfg.map(function (c) { return [h('dt', { text: c[0] }), h('dd', { class: 'mono', text: c[1] })]; }))) : null]);
+          var btn = h('button', { type: 'button', class: 'dx-dm-enumbtn', 'aria-expanded': 'false', title: rows.length ? _('Show the {0} values', [rows.length]) : _('Show the settings'), onclick: function () {
             var open = btn.getAttribute('aria-expanded') !== 'true';
             btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-            list.hidden = !open;
-          } }, [type + ' · ' + vals.length, h('span', { class: 'dx-dm-enumcaret', 'aria-hidden': 'true', text: '▾' })]);
-          return [btn, list];
+            body.hidden = !open;
+          } }, [rows.length ? type + ' · ' + rows.length : type, h('span', { class: 'dx-dm-enumcaret', 'aria-hidden': 'true', text: '▾' })]);
+          return [btn, body];
+        }
+        // An enumeration attribute's values: the model's, with the ticket's own change to them marked (plan.values: name, caption, state).
+        function attrVals(e, a) {
+          var base = e.vals && e.vals[a[0]] ? e.vals[a[0]].map(function (v) { return v.slice(); }) : null, pv = a[3] && a[3].values;
+          if (!pv || !pv.length) return base;
+          var out = base || [];
+          pv.forEach(function (x) {
+            var hit = out.filter(function (v) { return v[0] === x.name; })[0];
+            if (hit) { if (x.state) hit[2] = x.state; if (x.caption) hit[1] = x.caption; } else out.push([x.name, x.caption || '', x.state || 'new']);
+          });
+          return out;
         }
         var insp = h('aside', { class: 'dx-dm-insp', 'aria-label': 'Entity', 'data-keep-scroll': 'dm-insp:' + scope + '|' + mod + '|' + sel }, [
           h('div', { class: 'dx-dm-ih' }, [
@@ -2530,16 +2863,16 @@
               : h('span', { class: 'mono', text: e.gen }), ' — it inherits its attributes and associations.']) : null,
             e.desc && !(e.plan && e.plan.state === 'new') ? h('p', { class: 'dx-dm-d', text: e.desc }) : null,
             e.desc && !(e.plan && e.plan.state === 'new') ? trustMark('entity', mod + '.' + sel) : null,
-            e.desc && !(e.plan && e.plan.state === 'new') ? h('span', { class: 'dx-prov', text: 'Description written by an agent from the model.' }) : null, e.plan ? window.MxPlanLayer.entityNote(h, e.plan) : e.planBuilt && window.MxPlanLayer ? window.MxPlanLayer.builtNote(h, e.planBuilt) : null, // the guide's note, and that it is proposed; or, built, the proposal to compare
+            e.desc && !(e.plan && e.plan.state === 'new') ? h('span', { class: 'dx-prov', text: 'Description written by an agent from the model.' }) : null, e.plan ? window.MxPlanLayer.entityNote(h, e.plan, MARKS) : e.planBuilt && window.MxPlanLayer ? window.MxPlanLayer.builtNote(h, e.planBuilt) : null, // the guide's note, and that it is proposed; or, built, the proposal to compare
             h('div', { class: 'dx-dm-stats' }, [[e.attrs.length, 'attributes'], [nOwned + nRef, 'associations'], [e.access.length, 'access rules']].map(function (x) { return h('div', null, [h('span', { class: 'mono', text: String(x[0]) }), h('small', { text: x[1] })]); })),
             note ? h('p', { class: 'dx-ar-note' }, [navIcon('info', 14), h('span', null, [h('b', { text: 'Read from the model. ' }), note])]) : null,
             // MxScout's own: what the app can do with the entity (its data, a comment).
             opts.entityActions ? h('div', { class: 'dx-dm-acts' }, opts.entityActions(mod + '.' + sel)) : null
           ]),
           opts.entitySection ? opts.entitySection(mod + '.' + sel) : null,
-          h('section', { class: 'dx-dm-sec' }, [h('h3', { class: 'dx-cap', text: 'Attributes · ' + e.attrs.length }), h('div', { class: 'dx-pd-rows' }, e.attrs.length ? e.attrs.map(function (a) {
-            var vals = !a[3] && e.vals && e.vals[a[0]];
-            return h('div', { class: 'dx-dm-attrrow' + (a[3] ? ' plan plan-' + a[3].state : '') }, [h('span', { class: 'mono', text: a[0] }), vals ? enumToggle(a[2], vals) : h('small', { text: a[3] && a[3].was ? a[3].was + ' → ' + a[2] : a[2] }), a[3] && !(e.plan && e.plan.state === 'new') ? planTag({ state: a[3].state, key: e.plan ? e.plan.key : '' }) : null, a[3] && a[3].note ? h('small', { class: 'dx-dm-pn', text: a[3].note }) : null]);
+          h('section', { class: 'dx-dm-sec' }, [h('h3', { class: 'dx-cap', text: 'Attributes · ' + e.attrs.length }), h('div', { class: 'dx-pd-rows' }, e.attrs.length ? ordAttrs(e).map(function (a) {
+            var vals = attrVals(e, a), set = a[4] || null, more = vals || set;
+            return h('div', { class: 'dx-dm-attrrow' + (a[3] ? ' plan plan-' + a[3].state : '') }, [h('span', { class: 'mono', text: a[0] }), more ? (a[3] && a[3].was ? [h('small', { text: a[3].was + ' → ' })] : []).concat(enumToggle(a[2], vals, set)) : h('small', { text: a[3] && a[3].was ? a[3].was + ' → ' + a[2] : a[2] }), a[3] && !(e.plan && e.plan.state === 'new') ? planTag({ state: a[3].state, key: e.plan ? e.plan.key : '' }) : null, a[3] && a[3].note ? h('small', { class: 'dx-dm-pn', text: a[3].note }) : null]);
           }) : [h('span', { class: 'dx-empty', text: 'None of its own' + (e.gen ? ' — it inherits those of ' + short(e.gen) + '.' : '.') })])]),
           h('section', { class: 'dx-dm-sec' }, [h('h3', { class: 'dx-cap', text: 'Associations · ' + (nOwned + nRef) })].concat(
             ownedL.length ? [h('span', { class: 'dx-dm-gt', text: 'It refers to · ' + nOwned }), h('div', { class: 'dx-pd-rows' }, ownedL.map(function (g) { return assocRow(g, true); }))] : [],
@@ -3197,7 +3530,7 @@
       return p(d.getDate()) + '.' + p(d.getMonth() + 1) + '.' + d.getFullYear() + ', ' + p(d.getHours()) + ':' + p(d.getMinutes());
     }
 
-    return { mount: mount, labels: labels, layout: domainLayout, markdown: markdown, markdownName: markdownName, contextGroups: contextGroups, runtimeLayout: runtimeLayout };
+    return { mount: mount, labels: labels, layout: domainLayout, modelerLayout: modelerLayout, farLinks: farLinks, placeAtLocations: placeAtLocations, squeezeGaps: squeezeGaps, markdown: markdown, markdownName: markdownName, contextGroups: contextGroups, runtimeLayout: runtimeLayout };
   }
 
   window.MxDocsView = factory();

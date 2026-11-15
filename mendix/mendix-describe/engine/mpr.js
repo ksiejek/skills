@@ -2371,6 +2371,16 @@
   // a Marketplace module: which release of SAML20 or Administration a project
   // carries decides what its roles mean (accounts.js). Measured on a real
   // Mx 11.12.5 project; a project's own module has it empty.
+  // An entity's Location as the .mpr keeps it: "x;y", the box's top left in
+  // the modeler's pixels (measured on Studio Pro projects). Some readers hand it over as { X, Y }. Anything
+  // else is no position: null, and the drawing falls back to its own grid.
+  function entityLocationOf(v) {
+    var x, y;
+    if (typeof v === 'string') { var m = /^\s*(-?\d+(?:\.\d+)?)\s*;\s*(-?\d+(?:\.\d+)?)\s*$/.exec(v); if (!m) return null; x = Number(m[1]); y = Number(m[2]); }
+    else if (v && typeof v === 'object') { x = Number(v.X != null ? v.X : v.x); y = Number(v.Y != null ? v.Y : v.y); }
+    else return null;
+    return isFinite(x) && isFinite(y) ? { x: x, y: y } : null;
+  }
   function addModule(model, name, fromAppStore, version) {
     if (!model.modules.some(function (m) { return m.name === name; })) {
       var m = { name: name, fromAppStore: !!fromAppStore };
@@ -2528,7 +2538,9 @@
             var entity = {
               module: moduleName, name: raw.Name, qualifiedName: qn,
               tableName: null, generalization: null, persistable: true,
-              attributes: [], accessRules: []
+              attributes: [], accessRules: [],
+              // Where Studio Pro draws the box: its top left in the modeler's pixels, null when unknown.
+              location: entityLocationOf(raw.Location)
             };
             var view = viewEntitySourceOf(raw);
             if (view) entity.viewEntity = view;
@@ -3045,7 +3057,7 @@
     return sortModel(result);
   }
 
-  root.MxMpr = { externalEntitySource: externalEntitySourceOf, blobToGuid: blobToGuid, payload: payload, idHex: idHex, buildModel: buildModel, collectReferences: collectReferences,
+  root.MxMpr = { externalEntitySource: externalEntitySourceOf, entityLocation: entityLocationOf, blobToGuid: blobToGuid, payload: payload, idHex: idHex, buildModel: buildModel, collectReferences: collectReferences,
     applyAssociationDefaults: applyAssociationDefaults, activityKicker: activityKicker, constantVerdict: constantVerdict, readConstant: readConstant,
     readPageData: readPageData, readPageStructure: readPageStructure,
     activityFields: activityFields, activityProps: activityProps, pageActionOf: pageActionOf,

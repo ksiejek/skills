@@ -1,6 +1,6 @@
 # Risk levels P1–P3
 
-One definition, used by both skills: mendix-describe and mendix-docs. The
+One definition, used by mendix-describe, mendix-docs and mendix-risk. The
 canonical copy is in MxScout, `skills/mendix-describe/reference/`; edit it
 there. The skills repository carries a copy of it, and mendix-docs gets the public MxScout's copy when its installable copy is
 put together.

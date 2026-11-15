@@ -342,9 +342,16 @@
       ents[e.name] = {
         pers: e.persistable, view: e.view, gen: e.generalization, desc: e.desc || e.doc || null,
         // A planned attribute (planlayer.js) carries its plan as a fourth item; the model's have three.
-        attrs: e.attributes.map(function (a) { return [a.name].concat(typeLabel(a.type), a.plan ? [a.plan] : []); }),
+        // An attribute's settings the model gives ride as a fifth item: { d default, n length, r required, u unique, c calculated by }; none when it has none.
+        attrs: e.attributes.map(function (a) {
+          var set = {}, any = false;
+          [['d', a.defaultValue], ['n', a.length], ['r', a.required], ['u', a.unique], ['c', a.calculated]].forEach(function (x) { if (x[1] != null && x[1] !== '' && x[1] !== false) { set[x[0]] = x[1]; any = true; } });
+          return [a.name].concat(typeLabel(a.type), a.plan || any ? [a.plan || null] : [], any ? [set] : []);
+        }),
         access: e.access.map(function (ac) { return [ac.role.slice(ac.role.indexOf('.') + 1), ac.userRoles, ac.read, ac.write, ac.create, ac.del, prettyXpath(ac.xpath)].concat(ac.members ? [ac.members] : []); })
       };
+      // Where Studio Pro draws the box (docs-data.js); only when known, so the drawing can tell a whole module apart.
+      if (e.location) ents[e.name].loc = e.location;
       if (e.plan) ents[e.name].plan = e.plan;
       // An external entity (docs-data.js): its service and entity set; only on one.
       if (e.external) ents[e.name].ext = e.external;

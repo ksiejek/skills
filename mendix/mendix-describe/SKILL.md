@@ -1,6 +1,6 @@
 ---
 name: mendix-describe
-description: Write and keep up to date the business documentation of a Mendix application from MxScout, and answer questions about how it works. Reads an MxScout project (mxscout/ in a Mendix project, a project folder with project.json and ai-pack.md, a running MxScout sharing a project, or a .mxscout-ai-pack.md file) and writes what the app is for, its main processes and modules (a summary and a story each), a line on every microflow and nanoflow, risks ranked P1-P3 and developer notes, as descriptions MxScout shows. Brings them up to date after the model changed, adds a process, translates them, and answers with evidence from the current model. Use when told "use mendix-describe", "describe this app", "build the documentation", "update the documentation", "zbuduj dokumentację", "zaktualizuj dokumentację", "opisz aplikację", "opisz jeszcze ten proces", "translate the docs", "przetłumacz dokumentację", "how does it work", "jak działa", "kto może". Tickets, Jira issues, ideas and changes are mendix-assist's.
+description: Write and keep up to date the business documentation of a Mendix application from MxScout, and answer questions about how it works. Reads an MxScout project (mxscout/ in a Mendix project, a project folder with project.json and ai-pack.md, a running MxScout sharing a project, or a .mxscout-ai-pack.md file) and writes what the app is for, its main processes and modules (a summary and a story each), a line on every microflow and nanoflow and developer notes, as descriptions MxScout shows. Brings them up to date after the model changed, adds a process, translates them, and answers with evidence from the current model. Use when told "use mendix-describe", "describe this app", "build the documentation", "update the documentation", "zbuduj dokumentację", "zaktualizuj dokumentację", "opisz aplikację", "opisz jeszcze ten proces", "translate the docs", "przetłumacz dokumentację", "how does it work", "jak działa", "kto może". Risks are mendix-risk's; tickets, Jira issues, ideas and changes are mendix-assist's.
 ---
 
 # Describing a Mendix application for the business
@@ -434,9 +434,10 @@ The pack is large (a real app is ~1.7 MB, ~470k tokens). Never read it whole.
    main records), skip technical ones. An entity marked `[external OData: …]`
    in the pack is data read from that other system, not a table of this app:
    describe it so, and name the service it comes from. While you are in the module, also note
-   in the same part what you will not see again: its `risks`, ranked by
-   `reference/risk-levels.md`, and its `context` — where things are that
-   their names hide, the naming it follows, and what breaks easily.
+   in the same part what you will not see again: its `context` — where things
+   are that their names hide, the naming it follows, and what breaks easily.
+   What looks wrong there you tell the person: risks are mendix-risk's
+   (`../mendix-risk`), never written into a description.
    **And keep what the processes are made of**, in your own working file
    `<work>/work.<Module>.md` (never imported, never sent): every place a case
    starts in this module — a page's button, a scheduled event, a published
@@ -477,10 +478,10 @@ The pack is large (a real app is ~1.7 MB, ~470k tokens). Never read it whole.
      refusal, a fallback), which in a real application is most processes.
    Draw the architecture, levels 1 and 2, from the module notes
    (`reference/c4.md`): who uses it, what it talks to, what it runs as, and
-   in `open` what the model does not show. Add the risks that span modules
-   — tracing a process is where most of them show — and the conventions the
-   whole application shares. Put it in `<work>/descriptions.app.json`. Merging adds
-   the parts' risks and context up.
+   in `open` what the model does not show. Add the conventions the whole
+   application shares. Put it in `<work>/descriptions.app.json`. Merging adds
+   the parts' context up. What looked wrong while tracing — a process is where
+   most of it shows — goes to the person, for mendix-risk.
 
    **Before you merge, read your processes as their reader would.** Each
    story **complete** (`reference/business-narrative.md`, "When a story is
@@ -516,7 +517,9 @@ The pack is large (a real app is ~1.7 MB, ~470k tokens). Never read it whole.
    So if you described only some of the modules, or the project already has
    descriptions you did not start from, put `"add": true` there too — MxScout
    then keeps the rest and puts yours on top. Leave it out only for a complete
-   description that should take the place of the old one.
+   description that should take the place of the old one. A file without it
+   replaces the risks too, the ones mendix-risk wrote among them: when the
+   project has risks, keep `"add": true`.
    In a project folder: `node agent.js send <work>/descriptions.json --folder <folder>`
    (it lands in `inbox/`); inside the Mendix project: `node agent.js write
    <work>/descriptions.json --folder <MendixProject>` (laid over `descriptions/`
@@ -618,7 +621,7 @@ push, so the others pull it.
 2. Read the documentation for the processes and modules those flows belong
    to, then read those flows in the pack and describe them, module by module,
    as steps 3 and 5 above say — with their `hash`.
-3. Where a changed flow carries a process, a module's story or a risk, check
+3. Where a changed flow carries a process or a module's story, check
    that against the pack too and rewrite what no longer holds (a process with
    the same name replaces the one kept). Leave the rest as it is.
 4. Run the security check again — `node check-security.js <MendixProject | folder>
@@ -662,7 +665,8 @@ not a paragraph added to the application's story.
    `"add": true`, the process under `app.processes` (`name`, `summary`, `story`,
    `steps`, `flows` and, when it branches, a `diagram`; the story stage by stage,
    as `reference/business-narrative.md` says under "A process"), the flows on its way you have not described before
-   (with their `hash`), and the risks you met. Nothing else: with `"add": true`
+   (with their `hash`). Nothing else — the risks you met go to the person, for
+   mendix-risk: with `"add": true`
    MxScout lays it over the descriptions it keeps — a process of the same name
    is replaced, a new one added — and leaves the rest as it was.
 4. **Check and hand it over:**
@@ -806,8 +810,9 @@ install; it needs no MxScout running.
   same ids every time, here and in MxScout, so what a person decided about one
   holds. Hand it over as it is; **never edit it, and never write a risk of your
   own about what it covers** — a risk of yours on the same thing is a duplicate
-  under another id. Write the risks it cannot see (logic, error handling,
-  commits in loops, dead code, a value written into a flow…).
+  under another id. The risks it cannot see (logic, error handling, commits
+  in loops, dead code, a value written into a flow…) are mendix-risk's
+  (`../mendix-risk`), which starts from this check.
 - With the project's `triage.json` and its descriptions beside the model it
   adds `verify`: each of its risks the model no longer shows, marked fixed or
   still counted, with `"why": "not seen in the model"` — MxScout marks the first
@@ -993,34 +998,19 @@ entity.
   the flow changes.
 - **No secrets, no data.** The pack holds none, and you add none.
 
-### Risks and context
+### Context, and risks
 
-- **Rank by `reference/risk-levels.md`,** the same definition mendix-docs
-  ranks by. The worst consequence the model shows decides the level. What
-  depends on something the model does not show is at most P2, and says what
-  must be confirmed. One risk per cause, with every place it is in.
-- **By the evidence, before the level** (`reference/risk-levels.md`,
-  "Evidence"). A P1 says in its `detail` who can do what, what in the model
-  shows it, and what follows. A page's visibility or editability condition is
-  a hint, not proof: tell a permission, an owner or a state the application
-  keeps from a setting the role switches itself, and follow the whole
-  scenario — the microflows it calls, the before-commit microflow, the access
-  rules — before you rank. A missing check, a commit or Apply entity access
-  off alone is never P1. What you suspect and cannot prove is "To verify: …",
-  at most P2, saying what to look at. No exceptions by role name, Marketplace
-  module or attribute name, and none for one application: fix the reasoning,
-  not the list.
-- **A risk is for someone who will fix it:** the title says what is wrong, the
-  `detail` why it matters, `where` the qualified names, the `fix` what to do in
-  one sentence, and an `id` — a short slug you keep on every update (see "Risk
-  triage" above).
+- **Risks are mendix-risk's** (`../mendix-risk/SKILL.md`): it reads the access
+  facts, judges them into risks ranked by `reference/risk-levels.md`, tries to
+  refute every claim, and writes them. What looks wrong while you describe,
+  tell the person; never write it into a description.
 - **The context is for whoever changes the model next** — a developer or an
   agent. Write what the names do not tell: where a rule really lives, which flow
   must be used instead of a direct change, which convention the modules keep.
   Do not restate what the documentation already shows (parameters, callers,
   steps).
 - **No questions for the owner.** If something cannot be read from the model,
-  say so in the risk or the pitfall it belongs to.
+  say so in the context or the pitfall it belongs to.
 
 ## Files
 
@@ -1033,7 +1023,7 @@ entity.
 - `reference/business-narrative.md` — the two layers: what a summary and a
   description are, how long, how they are shown. Shared with mendix-docs.
 - `reference/risk-levels.md` — what P1, P2 and P3 mean and how to calibrate
-  them. Shared with mendix-docs.
+  them. Shared with mendix-docs and mendix-risk.
 - `reference/fixing.md` — a security risk's recipe, the two ways to make the
   change (by hand, Studio Pro's MCP server) with what guards each, and
   the check after that lets MxScout mark it verified.
