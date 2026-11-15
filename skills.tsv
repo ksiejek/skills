@@ -13,6 +13,7 @@ mendix-change-proposal	active	Skills/mendix/mendix-change-proposal
 mendix-testcases	active	Skills/mendix/mendix-testcases
 mendix-nightly	active	Skills/mendix/mendix-nightly	the nightly job of a Team server, read with read_skill name nightly
 mendix-comments	active	Skills/mendix/mendix-comments	work the comments on a plan's prototype into tickets and back, read with read_skill name comments
+mendix-risk	active	Skills/mendix/mendix-risk	the risks of an application, apart from describe: four stages (read, judge, check, write); read_skill name risk once MxScout ships it
 mxscout-project	active	Skills/mendix/mxscout-project
 mendix-docs	active	Skills/mendix/mendix-docs	packed from Skills/mendix/mendix-docs-source by sync.sh
 mxcraft-model	active	mxcraft-skills/skills/mxcraft-model	shared repo ksiejek/mxcraft-skills (CRAFT-16); edit there, on a skill/<topic> branch
