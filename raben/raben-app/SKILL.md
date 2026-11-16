@@ -119,6 +119,18 @@ daje własny moduł aplikacji), `Administration.AppUser`, własne dokumenty w `A
    zna klasy Atlasa i Mendix, a klas RabenDesign nie. W porządku są trzy przypadki: Atlas nie ma odpowiednika;
    building block albo szablon RabenDesign, którego wymaga wygląd (klasy przychodzą z blokiem); jedna nietypowa strona
    aplikacji (klasa w `CustomStyling`). Bez przesady w drugą stronę, ale przed dopisaniem klasy sprawdź selektor Atlasa.
+7a. Dane tylko do odczytu (podgląd, popup ze szczegółami) projektujesz zawsze tak samo (Karol, 2026-11-16, popupy MDM
+   w License: „musimy właśnie tak projektować każdą stronę w Mendix”; makieta https://claude.ai/artifact/2xN2d6xferuH9GgpvdCLmt):
+   - data view z *Read-only style* **Content only** (nie Control: szare pole wygląda na wyłączony input); pola dziedziczą;
+   - na górze nazwa rekordu (Text, render H4), pod nią kod i stan jako znaczniki (`label label-default` / `label-success`
+     w kontenerze `rb-row`), a te wartości nie powtarzają się niżej jako pola;
+   - pola: etykieta nad wartością (domyślnie, w layout gridzie po dwie kolumny) albo obok wartości (data view *Form
+     orientation* Horizontal: wiersze z cienką linią); oba układy są w RabenDesign od 1.10.1 bez nowych klas;
+   - lista (oddziały, jednostki) to wartość pola: kontener z klasą `form-control-static` pod etykietą `control-label`;
+   - stopka popupu: po lewej jedno zdanie o źródle i dacie zmiany („Z HeadQuarters, zmiana {data}”), po prawej przyciski
+     (stopka data view albo layout `RabenDesign_PopUp_Footer`); bez osobnego pola „Ostatnia zmiana” i akapitu o źródle;
+   - błąd wyglądu, który zepsułby to samo każdemu (zakładki, Data grid 2, pola), poprawiasz w RDS
+     (`~/Mendix/RabenDesignSystem-main`), potem paczka do Marketplace i podmiana modułu we wszystkich aplikacjach (pkt 8).
 8. RabenDesign w aplikacji jest tylko do odczytu, jak każdy moduł z Marketplace (Karol, 2026-11-16). Nie zmieniasz
    `themesource/rabendesign/**` ani dokumentów modułu RabenDesign w aplikacji, także przy drobnej poprawce z komentarza
    testera. RDS to rodzic aplikacji. Kolejność przy każdej stronie i każdej poprawce wyglądu:
