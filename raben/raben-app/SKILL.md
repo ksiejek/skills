@@ -119,6 +119,14 @@ daje własny moduł aplikacji), `Administration.AppUser`, własne dokumenty w `A
    zna klasy Atlasa i Mendix, a klas RabenDesign nie. W porządku są trzy przypadki: Atlas nie ma odpowiednika;
    building block albo szablon RabenDesign, którego wymaga wygląd (klasy przychodzą z blokiem); jedna nietypowa strona
    aplikacji (klasa w `CustomStyling`). Bez przesady w drugą stronę, ale przed dopisaniem klasy sprawdź selektor Atlasa.
+8. RabenDesign w aplikacji jest tylko do odczytu, jak każdy moduł z Marketplace (Karol, 2026-11-16). Nie zmieniasz
+   `themesource/rabendesign/**` ani dokumentów modułu RabenDesign w aplikacji, także przy drobnej poprawce z komentarza
+   testera. Wygląd jednej aplikacji poprawiasz w `CustomStyling` (zmienna Atlasa, `--rb-*` albo selektor w module).
+   Błąd samego RabenDesign idzie jako ticket RDS do projektu raben-design-system: poprawka w
+   `~/Mendix/RabenDesignSystem-main`, nowa paczka na Marketplace, potem osobny ticket aplikacji „RabenDesign X.Y.Z”,
+   który podmienia moduł w całości i niczego w nim nie dopisuje. Commit aplikacji zmieniający `themesource/rabendesign`
+   musi być w całości równy paczce danej wersji. Wzór błędu: Intercom INT-89, INT-95–102 i INT-107 poprawiały style
+   prosto w RabenDesign; sprząta to ticket INT-120.
 
 ## 6. Znane pułapki
 
