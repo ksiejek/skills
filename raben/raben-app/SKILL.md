@@ -133,6 +133,7 @@ daje własny moduł aplikacji), `Administration.AppUser`, własne dokumenty w `A
   start (Sprint Zero), nie jako decyzję do podjęcia.
 - Zasady Raben nie trafiają do `mxcraft-skills` ani na tablicę Craftsman (Karol, 2026-11-01). Nowa zasada Raben
   idzie tutaj i do LIC-16.
+- Repo aplikacji Mendix Raben trzyma tylko to, czego używa Mendix (`*.mpr`, `mprcontents/`, `theme/`, `themesource/`, `javasource/`, `javascriptsource/`, `widgets/`, `userlib/`, `vendorlib/`, `resources/`, `nativemobile/`, `theme-cache/`, `data-snapshot.zip`, `.gitignore`); bez README, notatek, skilli, `mxscout/` i skryptów, notatki idą do ticketu albo MxScout (CRAFT-141). Tandem commituje tylko te ścieżki (TAN-317); sprzątanie starych plików: osobny ticket na aplikację (Intercom INT-119).
 
 ## 8. Pokazywanie aplikacji Karolowi
 - Każdą aplikację Mendix, którą Karol ma obejrzeć (ticket, poprawki, nowa wersja), wystawiasz na jej demo
