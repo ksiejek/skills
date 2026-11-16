@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Przed i po</title>
+<style>
+:root{--bg:#F6F7F8;--surface:#FFFFFF;--surface2:#ECEFF2;--line:#C4CCD5;--fg:#14181D;--muted:#56616D;--steel:#14708C;
+  --ok:#187F47;--okbg:#E2F4E9;--warn:#A86200;--warnbg:#FBEFD9;--bad:#C2182B;--badbg:#FBE4E6}
+@media (prefers-color-scheme:dark){:root{--bg:#12161B;--surface:#1A2027;--surface2:#232A33;--line:#3D4855;--fg:#F1F3F5;--muted:#9DA8B4;--steel:#5CC0DA;
+  --ok:#4FCB86;--okbg:#15301F;--warn:#F0B040;--warnbg:#3A2C10;--bad:#FF6B7A;--badbg:#3A1519;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1600px;margin:0 auto;padding:24px 20px 60px}
+h1{font-size:26px;line-height:1.15;margin:0 0 6px;letter-spacing:-.01em;overflow-wrap:anywhere}
+.sub{color:var(--muted);margin:0 0 14px}
+.legend{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted);font-size:14px;margin:0 0 18px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+section{background:var(--surface);border:1px solid var(--line);border-radius:14px;margin:0 0 16px;overflow:hidden}
+section h2{display:flex;gap:10px;align-items:baseline;margin:0;padding:12px 16px;font-size:17px;border-bottom:1px solid var(--line)}
+section h2 small{font-weight:500;color:var(--muted);font-size:13.5px}
+.canvas{overflow-x:auto;padding:8px}
+.canvas svg{display:block;width:100%;height:auto}
+.empty{padding:22px 16px;color:var(--muted)}
+.words{padding:14px 18px 18px}
+.words h3{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
+.words h3:first-child{margin-top:0}
+.words ul{margin:0;padding-left:20px}
+.words li{margin:3px 0}
+.words code{font:13px ui-monospace,Menlo,Consolas,monospace;background:var(--surface2);border-radius:5px;padding:1px 5px}
+svg .e{stroke:var(--muted);stroke-width:1.4;fill:none}
+svg .e.new{stroke:var(--ok);stroke-width:2}
+svg .e.removed{stroke:var(--bad);stroke-width:2;stroke-dasharray:5 4}
+svg .ah{fill:var(--muted)} svg .ah-new{fill:var(--ok)} svg .ah-removed{fill:var(--bad)}
+svg .el{font:600 11px ui-monospace,Menlo,Consolas,monospace;fill:var(--muted)}
+svg .box{fill:var(--surface);stroke:var(--line);stroke-width:1.3}
+svg .loop{fill:var(--surface2);fill-opacity:.55;stroke:var(--line);stroke-width:1.3;stroke-dasharray:6 5}
+svg .new .box{fill:var(--okbg);stroke:var(--ok);stroke-width:2}
+svg .changed .box{fill:var(--warnbg);stroke:var(--warn);stroke-width:2}
+svg .removed .box{fill:var(--badbg);stroke:var(--bad);stroke-width:2;stroke-dasharray:5 4}
+svg .start{fill:var(--surface);stroke:var(--ok);stroke-width:3}
+svg .end{fill:var(--surface);stroke:var(--bad);stroke-width:6}
+svg .brk{fill:var(--surface);stroke:var(--muted);stroke-width:2;stroke-dasharray:3 3}
+svg .cap{font:600 11px system-ui,sans-serif;fill:var(--muted)}
+.n{width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:3px 5px;overflow:hidden;color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+.n small{font-size:7.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--steel);white-space:nowrap;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.n b{font-size:11px;line-height:1.1;overflow-wrap:anywhere;font-weight:600}
+.n i{font-style:normal;font-size:9px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.n.d b{font-size:10px}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+/* The one line the server fills in: the compare_document data in compact form (format "html"). */
+const DATA = /*DATA*/null;
+
+const TXT = {
+  pl:{before:'Przed',after:'Po',ver:'wersja',neu:'nowe',removed:'usunięte',changed:'zmienione',words:'Zmiany w słowach',none:'Nic się nie zmieniło w krokach tego dokumentu.',
+      nodata:'Brak danych. Ten plik wypełnia przepis mendix-compare.',unknown:'Tej postaci dokumentu serwer nie zachował.',missing:'W tej wersji dokument nie istniał.',loop:'Pętla',steps:'aktywności',was:'było',is:'jest'},
+  en:{before:'Before',after:'After',ver:'version',neu:'new',removed:'removed',changed:'changed',words:'Changes in words',none:'No step of this document changed.',
+      nodata:'No data. This file is filled in by the mendix-compare skill.',unknown:'The server did not keep this form of the document.',missing:'The document did not exist in this version.',loop:'Loop',steps:'activities',was:'was',is:'is'}
+};
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function build(v){
+  const m = new Map();
+  if(!v || !v.nodes) return m;
+  for(const a of v.nodes){ const [id,kind,k,t,meta,x,y,w,h,parent] = a; m.set(id,{id,kind,k:k||'',t:t||'',meta:meta||'',x:+x,y:+y,w:+w||20,h:+h||20,parent:parent||''}); }
+  const abs = n => { if(n.ax !== undefined) return n;
+    const p = n.parent && m.get(n.parent);
+    if(p){ abs(p); n.ax = p.ax - p.w/2 + n.x; n.ay = p.ay - p.h/2 + n.y; } else { n.ax = n.x; n.ay = n.y; }
+    return n; };
+  m.forEach(abs);
+  return m;
+}
+const sig = n => [n.kind,n.k,n.t,n.meta].join('|');
+function bbox(m){ let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  m.forEach(n => { x0=Math.min(x0,n.ax-n.w/2-50); x1=Math.max(x1,n.ax+n.w/2+50); y0=Math.min(y0,n.ay-n.h/2-12); y1=Math.max(y1,n.ay+n.h/2+26); });
+  return m.size ? {x0,y0,x1,y1} : null; }
+function port(n,s){ return s===0?[n.ax,n.ay-n.h/2]:s===1?[n.ax+n.w/2,n.ay]:s===2?[n.ax,n.ay+n.h/2]:[n.ax-n.w/2,n.ay]; }
+
+function draw(m, edges, other, otherEdges, mark, width, t){
+  const b = bbox(m); if(!b) return '';
+  const w = Math.max(width, b.x1-b.x0), cx = (b.x0+b.x1)/2, vb = [cx-w/2, b.y0-8, w, b.y1-b.y0+16];
+  const st = n => { const o = other.get(n.id); return !o ? mark : (sig(o)!==sig(n) ? 'changed' : ''); };
+  const okeys = new Set((otherEdges||[]).map(e => e[0]+'>'+e[1]));
+  let s = '<svg style="min-width:'+Math.round(w*0.82)+'px" viewBox="'+vb.join(' ')+'" xmlns="http://www.w3.org/2000/svg"><defs>'+
+    ['','-new','-removed'].map(k => '<marker id="ah'+k+'" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="ah'+k+'" d="M0 1l10 4-10 4z"/></marker>').join('')+'</defs>';
+  // pętle pod spodem
+  m.forEach(n => { if(n.kind==='loop'){ const c = st(n);
+    s += '<g class="'+c+'"><rect class="loop'+(c?' box':'')+'" x="'+(n.ax-n.w/2)+'" y="'+(n.ay-n.h/2)+'" width="'+n.w+'" height="'+n.h+'" rx="10"/>'+
+         '<text class="cap" x="'+(n.ax-n.w/2+10)+'" y="'+(n.ay-n.h/2+16)+'">'+esc(t.loop+(n.t?' · '+n.t:'')+(n.meta?' ← '+n.meta:''))+'</text></g>'; } });
+  // krawędzie
+  for(const e of (edges||[])){ const A = m.get(e[0]), B = m.get(e[1]); if(!A||!B) continue;
+    const fs = e[2]==null?1:+e[2], ts = e[3]==null?3:+e[3], p = port(A,fs), q = port(B,ts), fh = fs%2===1, th = ts%2===1; let d, lx = p[0]+4, ly = p[1]-6;
+    if(fh && th){
+      if(Math.abs(p[1]-q[1])<2) d = 'M'+p+'L'+q;
+      else if(B.kind==='merge'){ d = 'M'+p+'H'+B.ax+'V'+(B.ay+(p[1]<B.ay?-13:13)); }   // do złączenia wchodzi się z góry albo z dołu
+      else { const mid = (p[0]+q[0])/2; d = 'M'+p+'H'+mid+'V'+q[1]+'H'+q[0]; lx = mid+5; ly = q[1]-5; }
+    }
+    else if(!fh && th){ d = 'M'+p+'V'+q[1]+'H'+q[0]; lx = p[0]+6; ly = fs===0 ? p[1]-8 : p[1]+14; }
+    else if(fh && !th) d = 'M'+p+'H'+q[0]+'V'+q[1];
+    else { d = Math.abs(p[0]-q[0])<2 ? 'M'+p+'L'+q : 'M'+p+'V'+((p[1]+q[1])/2)+'H'+q[0]+'V'+q[1]; lx = p[0]+6; ly = fs===0 ? p[1]-8 : p[1]+14; }
+    const c = okeys.has(e[0]+'>'+e[1]) ? '' : mark;
+    s += '<path class="e '+c+'" d="'+d+'" marker-end="url(#ah'+(c?'-'+c:'')+')"/>';
+    if(e[4]) s += '<text class="el" x="'+lx+'" y="'+ly+'">'+esc(e[4])+'</text>'; }
+  // kroki
+  m.forEach(n => { if(n.kind==='loop') return; const c = st(n), x = n.ax-n.w/2, y = n.ay-n.h/2;
+    const fo = (cls, html) => '<foreignObject x="'+x+'" y="'+y+'" width="'+n.w+'" height="'+n.h+'"><div xmlns="http://www.w3.org/1999/xhtml" class="n '+cls+'">'+html+'</div></foreignObject>';
+    s += '<g class="'+c+'">';
+    if(n.kind==='start') s += '<circle class="start" cx="'+n.ax+'" cy="'+n.ay+'" r="9"/>';
+    else if(n.kind==='end'||n.kind==='error') s += '<circle class="end" cx="'+n.ax+'" cy="'+n.ay+'" r="8"/>'+(n.meta?'<text class="cap" text-anchor="middle" x="'+n.ax+'" y="'+(n.ay+26)+'">'+esc(n.meta)+'</text>':'');
+    else if(n.kind==='break'||n.kind==='continue') s += '<circle class="brk" cx="'+n.ax+'" cy="'+n.ay+'" r="9"/>';
+    else if(n.kind==='merge') s += '<polygon class="box" points="'+[n.ax,n.ay-13,n.ax+13,n.ay,n.ax,n.ay+13,n.ax-13,n.ay].join(',')+'"/>';
+    else if(n.kind==='decision'||n.kind==='split') s += '<polygon class="box" points="'+[n.ax,y,n.ax+n.w/2,n.ay,n.ax,y+n.h,x,n.ay].join(',')+'"/>'+fo('d','<b>'+esc(n.t||n.meta)+'</b>');
+    else if(n.kind==='parameter') s += '<rect class="box" x="'+x+'" y="'+y+'" width="'+n.w+'" height="'+n.h+'" rx="8"/><text class="cap" text-anchor="middle" x="'+n.ax+'" y="'+(y+n.h+15)+'">'+esc(n.t)+'</text>';
+    else s += '<rect class="box" x="'+x+'" y="'+y+'" width="'+n.w+'" height="'+n.h+'" rx="9"/>'+fo('','<small>'+esc(n.k||n.kind)+'</small><b>'+esc(n.t)+'</b>'+(n.meta?'<i>'+esc(n.meta)+'</i>':''));
+    s += '</g>'; });
+  return s + '</svg>';
+}
+
+(function(){
+  const app = document.getElementById('app');
+  const t = TXT[(DATA && DATA.lang) || 'pl'] || TXT.pl;
+  if(!DATA){ app.innerHTML = '<p class="empty">'+t.nodata+'</p>'; return; }
+  document.title = (DATA.title||'') + ' · ' + t.before + ' / ' + t.after;
+  const B = build(DATA.before), A = build(DATA.after), bb = bbox(B), ab = bbox(A);
+  const width = Math.max(bb ? bb.x1-bb.x0 : 0, ab ? ab.x1-ab.x0 : 0);
+  const v = x => x ? t.ver+' '+(x.version==null?'?':x.version)+(x.commit?' · '+x.commit:'')+(x.date?' · '+x.date:'') : '';
+  const steps = m => [...m.values()].filter(n => n.kind==='activity').length;
+  const panel = (name, m, edges, other, oedges, mark, ver, unknown) =>
+    '<section><h2>'+name+' <small>'+esc(v(ver))+(m.size?' · '+steps(m)+' '+t.steps:'')+'</small></h2>'+
+    (m.size ? '<div class="canvas">'+draw(m, edges, other, oedges, mark, width, t)+'</div>' : '<p class="empty">'+(unknown?t.unknown:t.missing)+'</p>')+'</section>';
+  const name = n => (n.k?n.k+' ':'')+'<code>'+esc(n.t||n.kind)+'</code>'+(n.meta?' ('+esc(n.meta)+')':'');
+  const added = [...A.values()].filter(n => B.size && !B.has(n.id)), removed = [...B.values()].filter(n => A.size && !A.has(n.id));
+  const changed = [...A.values()].filter(n => B.has(n.id) && sig(B.get(n.id))!==sig(n));
+  let words = '';
+  if(added.length) words += '<h3>'+t.neu+' ('+added.length+')</h3><ul>'+added.map(n => '<li>'+name(n)+'</li>').join('')+'</ul>';
+  if(removed.length) words += '<h3>'+t.removed+' ('+removed.length+')</h3><ul>'+removed.map(n => '<li>'+name(n)+'</li>').join('')+'</ul>';
+  if(changed.length) words += '<h3>'+t.changed+' ('+changed.length+')</h3><ul>'+changed.map(n => '<li>'+t.was+': '+name(B.get(n.id))+' → '+t.is+': '+name(n)+'</li>').join('')+'</ul>';
+  app.innerHTML = '<h1>'+esc(DATA.title||'')+'</h1><p class="sub">'+esc([DATA.project, DATA.kind].filter(Boolean).join(' · '))+'</p>'+
+    '<div class="legend"><span><i style="background:var(--ok)"></i>'+t.neu+'</span><span><i style="background:var(--warn)"></i>'+t.changed+'</span><span><i style="background:var(--bad)"></i>'+t.removed+'</span></div>'+
+    panel(t.before, B, DATA.before && DATA.before.edges, A.size?A:B, DATA.after && DATA.after.edges || (DATA.before && DATA.before.edges), 'removed', DATA.from, DATA.beforeUnknown)+
+    panel(t.after, A, DATA.after && DATA.after.edges, B.size?B:A, DATA.before && DATA.before.edges || (DATA.after && DATA.after.edges), 'new', DATA.to, DATA.afterUnknown)+
+    '<section><h2>'+t.words+'</h2><div class="words">'+(words || '<p class="empty" style="padding:0">'+t.none+'</p>')+(DATA.summary?'<h3>&nbsp;</h3><p style="margin:0">'+esc(DATA.summary)+'</p>':'')+'</div></section>';
+})();
+</script>
+</body>
+</html>
