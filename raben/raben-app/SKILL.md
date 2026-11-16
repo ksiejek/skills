@@ -131,6 +131,15 @@ daje własny moduł aplikacji), `Administration.AppUser`, własne dokumenty w `A
      (stopka data view albo layout `RabenDesign_PopUp_Footer`); bez osobnego pola „Ostatnia zmiana” i akapitu o źródle;
    - błąd wyglądu, który zepsułby to samo każdemu (zakładki, Data grid 2, pola), poprawiasz w RDS
      (`~/Mendix/RabenDesignSystem-main`), potem paczka do Marketplace i podmiana modułu we wszystkich aplikacjach (pkt 8).
+7b. Standardy tabel i pól (Karol, 2026-11-16, konta w License):
+   - tabela (Data grid 2) ma filtr pod każdym nagłówkiem (tekst, drop-down, data) i na końcu wiersza kolumnę z okiem;
+     oko **i dwuklik na wierszu** otwierają szczegóły (Data grid 2 *On click* z wyzwalaczem dwuklik);
+   - szczegóły rekordu to popup (wzór 7a), nie osobna strona; to, czego aplikacja nie zmienia (dane z HQ, role z ARM),
+     jest tylko do podglądu, role jako chipy (`rb-chips`);
+   - pole w focusie ma tylko ciemniejszą ramkę, bez drugiego obramowania (RabenDesign 1.10.1);
+   - kody powiązanych rekordów w komórce tabeli (np. jednostki kraju) to chipy w jednej linii (`rb-chips`);
+   - strony kont i MDM pochodzą z HeadQuarters: zmiana ich wyglądu w aplikacji wraca do HQ (MDM_Generic / MDM), żeby
+     każda aplikacja Raben dostała tę samą postać.
 8. RabenDesign w aplikacji jest tylko do odczytu, jak każdy moduł z Marketplace (Karol, 2026-11-16). Nie zmieniasz
    `themesource/rabendesign/**` ani dokumentów modułu RabenDesign w aplikacji, także przy drobnej poprawce z komentarza
    testera. RDS to rodzic aplikacji. Kolejność przy każdej stronie i każdej poprawce wyglądu:
