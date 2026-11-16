@@ -121,8 +121,13 @@ daje własny moduł aplikacji), `Administration.AppUser`, własne dokumenty w `A
    aplikacji (klasa w `CustomStyling`). Bez przesady w drugą stronę, ale przed dopisaniem klasy sprawdź selektor Atlasa.
 8. RabenDesign w aplikacji jest tylko do odczytu, jak każdy moduł z Marketplace (Karol, 2026-11-16). Nie zmieniasz
    `themesource/rabendesign/**` ani dokumentów modułu RabenDesign w aplikacji, także przy drobnej poprawce z komentarza
-   testera. Wygląd jednej aplikacji poprawiasz w `CustomStyling` (zmienna Atlasa, `--rb-*` albo selektor w module).
-   Błąd samego RabenDesign idzie jako ticket RDS do projektu raben-design-system: poprawka w
+   testera. RDS to rodzic aplikacji. Kolejność przy każdej stronie i każdej poprawce wyglądu:
+   - najpierw RDS taki, jaki jest: strona z klas Atlasa, building blocków i szablonów RabenDesign (pkt 6 i 7); to priorytet;
+   - dopiero gdy tak się nie da, `CustomStyling` tej aplikacji (zmienna Atlasa, `--rb-*` albo selektor w module);
+   - poprawka w RDS tylko wtedy, gdy błąd jest naprawdę w RDS, czyli zepsułby stronę każdemu, kto użyje tego samego
+     elementu RDS zgodnie z jego zasadami (sprawdź na stronie showcase RDS albo w drugiej aplikacji). Błąd z tego, jak
+     ta jedna strona jest złożona, albo potrzeba tylko tej aplikacji to nie błąd RDS: poprawiasz stronę albo `CustomStyling`.
+   RDS jest jeszcze w budowie, więc prawdziwe błędy się zdarzą. Taki błąd idzie jako ticket RDS do projektu raben-design-system: poprawka w
    `~/Mendix/RabenDesignSystem-main`, nowa paczka na Marketplace, potem osobny ticket aplikacji „RabenDesign X.Y.Z”,
    który podmienia moduł w całości i niczego w nim nie dopisuje. Commit aplikacji zmieniający `themesource/rabendesign`
    musi być w całości równy paczce danej wersji. Wzór błędu: Intercom INT-89, INT-95–102 i INT-107 poprawiały style
