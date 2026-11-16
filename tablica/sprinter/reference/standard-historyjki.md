@@ -115,6 +115,14 @@ kontekst mały i każdą sprawdza się osobno.
   historyjki, nie jedna (LIC-24 „Sprint Zero 1/3” robiła wszystkie trzy naraz: 590 nowych
   elementów, 15,5 mln tokenów, zatrzymanie na samoocenie). Na start to próg z doświadczenia,
   nie pomiar.
+- **Wygląd wielu stron, dane demo, nowy język**: przebudowa wyglądu to najwyżej 3–4 strony
+  na historyjkę (każda strona z pop-upami to kilka dokumentów); dane demo i dodanie języka
+  aplikacji to osobne, pierwsze historyjki, a strony idą za nimi przez `dependsOn`. Dzielisz
+  od razu, także gdy Karol prosi „wszystkie strony z menu jak w prototypie” i kryteriów
+  wychodzi tylko 6: licznik kryteriów tego nie złapie. LIC-32 robiła naraz 11 stron, dane
+  demo i język polski: ponad 5 mln tokenów (5,1× mediany), sesja padła na limicie 5 h
+  w połowie i druga sesja zapłaciła ok. 2 mln za samo odtworzenie stanu (Karol, 2026-11-16:
+  „rozbij następne takie historyjki od razu na mniejsze”).
 - **Ręce Karola osobno**: krok, który robi Karol (Studio Pro, telefon, logowanie, link,
   konto), nie leży w środku budowy. Pytasz o niego na starcie (TAN-105) albo robisz z niego
   pierwszą, małą historyjkę, a resztę przez `dependsOn` za nią. ML-145 i ML-147 stały
