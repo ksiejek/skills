@@ -41,13 +41,19 @@ to "what changed" needs none.
 4. Tell it in a few lines per version: the date, the commit and who sent it, then
    what is new, changed and removed, grouped by kind (microflow, nanoflow, page,
    snippet, entity), the documents named `Module.Name`. If the version has a
-   summary written by an agent, you may quote it and say so.
+   summary written by an agent, you may quote it and say so. Documents in
+   `reread` did **not** change in the application: a newer MxScout reads more of
+   them (a setting empty before, filled now). Say so in one line with their
+   number ("33 nanoflowy tylko nowo odczytane przez nowszy MxScout, bez zmian w
+   aplikacji"); never list them as changes and never count them among the
+   changed.
 5. Then **ask** whether to prepare the change page and show it here, in the
    person's language: "Przygotować stronę zmian i pokazać ją tutaj?" / "Shall I
    prepare the change page and show it here?". Ask even when the person only
    asked what changed: most people will not open MxScout to look.
    If none of those versions changed a microflow, nanoflow, page, snippet or
-   entity (only modules, say), say so and do not offer the page.
+   entity (only modules, say, or only documents in `reread`), say so and do not
+   offer the page.
 
 If there is only one version, or no version that changed anything, say so: there
 is nothing to compare yet.
