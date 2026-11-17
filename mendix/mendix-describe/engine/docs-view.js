@@ -186,7 +186,7 @@
       arch: ['M2.5 2.5h4v4h-4zM9.5 2.5h4v4h-4zM6 9.5h4v4H6z', 'M4.5 6.5v1.5h7V6.5M8 8v1.5'],
       risk: ['M8 2l6 11H2z', 'M8 6.5v3M8 11.5h.01'],
       quality: ['M3 8.5l3 3 7-7'],
-      perf: ['M2.5 11.5a5.5 5.5 0 0 1 11 0', 'M8 11.5l3-4'], codeq: ['M3 4.5h10M3 8h7M3 11.5h4', 'M11 10.5l1.5 1.5 2-2.5'],
+      lead: ['M6.5 6.5a1.5 1.5 0 1 1 2.2 1.3c-.5.3-.7.7-.7 1.2', 'M8 11.5h.01', 'M2.5 8a5.5 5.5 0 1 0 11 0 5.5 5.5 0 1 0-11 0'], perf: ['M2.5 11.5a5.5 5.5 0 0 1 11 0', 'M8 11.5l3-4'], codeq: ['M3 4.5h10M3 8h7M3 11.5h4', 'M11 10.5l1.5 1.5 2-2.5'],
       nano: ['M5.3 4.5h5.4a3.5 3.5 0 0 1 0 7H5.3a3.5 3.5 0 0 1 0-7z', 'M5.5 8h4.5M8.5 6.3L10.2 8l-1.7 1.7'],
       page: ['M3 2h10v12H3z', 'M5.5 5.5h5M5.5 8h5M5.5 10.5h3'],
       dev: ['M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5'],
@@ -1240,7 +1240,7 @@
       var PRIV = (data.modelFindings || []).filter(function (r) { return r.list === 'privacy'; });
       var LEADS = sec && sec.leads ? sec.leads : [], LC = sec && sec.leadCounts ? sec.leadCounts : null;
       // What the reader opened on these pages: the leads line, their order, a group shown in full; a list page's filters.
-      var lst = { open: false, mode: 'check', more: {} }, lf = { perf: { lv: null, ck: null, mod: null }, codeq: { lv: null, ck: null, mod: null } };
+      var lst = { open: false, mode: 'check', more: {} }, lf = { perf: { lv: null, ck: null, mod: null }, codeq: { lv: null, ck: null, mod: null } }, srf = { reg: null, cat: null, mod: null }, ldf = { dec: null, ck: null, mod: null };
       function assistOpen() { return (assist.items() || []).filter(function (x) { return x.status === 'open' || x.status === 'in-progress' || x.status === 'waiting'; }).length; }
       // The application's full description lives on Processes (as its item 0), so the page is there when either is.
       var procPage = !!(data.ai && data.ai.app && (procs.length || data.ai.app.story || data.ai.app.summary));
@@ -1251,12 +1251,12 @@
       var GROUPS = [
         ['Application', [['start', 'Overview', 'home'], procPage ? ['processes', 'Processes', 'proc'] : null, ['modules', 'Modules', 'module'], ['arch', 'Architecture', 'arch']]],
         ['Model', [['domain', 'Entities', 'entity'], ['refs:microflow', 'Microflows', 'flow'], ['refs:nanoflow', 'Nanoflows', 'nano'], ['refs:page', 'Pages', 'page']]],
-        ['Review', [allRisks.length ? ['risks', 'Risks', 'risk'] : null, PERF.length ? ['perf', 'Performance', 'perf'] : null, CODEQ.length ? ['codeq', 'Code quality', 'codeq'] : null, sec ? ['security', 'Security review', 'shield'] : null, assist ? ['assist', 'Assist', 'ticket'] : null, cases ? ['cases', 'Solved cases', 'case'] : null, ['quality', 'Model quality', 'quality'], devCtx ? ['dev', 'For developers', 'dev'] : null]]
+        ['Review', [allRisks.length ? ['risks', 'Risks', 'risk'] : null, LEADS.length ? ['leads', 'Leads', 'lead'] : null, PERF.length ? ['perf', 'Performance', 'perf'] : null, CODEQ.length ? ['codeq', 'Code quality', 'codeq'] : null, sec ? ['security', 'Security review', 'shield'] : null, assist ? ['assist', 'Assist', 'ticket'] : null, cases ? ['cases', 'Solved cases', 'case'] : null, ['quality', 'Model quality', 'quality'], devCtx ? ['dev', 'For developers', 'dev'] : null]]
       ].map(function (g) { return [g[0], g[1].filter(Boolean)]; });
       var NAV = [];
       GROUPS.forEach(function (g) { g[1].forEach(function (r) { var v = r[0].split(':')[0]; if (!NAV.some(function (x) { return x[0] === v; })) NAV.push([v, r[1], r[2]]); }); });
       var counts = { processes: procs.length, modules: data.kpi.modules, 'refs:microflow': data.kpi.microflows, 'refs:nanoflow': data.kpi.nanoflows, 'refs:page': data.kpi.pages, domain: data.kpi.entities,
-        quality: data.quality.unreached.length, risks: risks.length, perf: PERF.length, codeq: CODEQ.length, security: sec ? sec.counts.finding : 0, dev: devCount, cases: cases ? (cases.items() || []).length : 0 };
+        quality: data.quality.unreached.length, risks: risks.length, leads: LEADS.length, perf: PERF.length, codeq: CODEQ.length, security: sec ? sec.counts.finding : 0, dev: devCount, cases: cases ? (cases.items() || []).length : 0 };
       var navBtns = {};
       var initial = String(data.project || '?').charAt(0).toUpperCase();
       var side = h('nav', { class: 'dx-side', 'aria-label': _('Documentation') }, [
@@ -1306,6 +1306,9 @@
         if (patch.view !== undefined) { if (patch.view !== st.view) st.sub = null; st.sec = null; }
         // Risks reached from another page start unfiltered, so the finding it names is on the list.
         if (patch.view === 'risks' && st.view !== 'risks') { rf = { lv: null, th: null, mod: null, q: '', group: rf.group, st: null, or: null }; rkY = 0; }
+        // The Security review reached from another page starts unfiltered too.
+        if (patch.view === 'security' && st.view !== 'security') { srf.reg = null; srf.cat = null; srf.mod = null; }
+        if (patch.view === 'leads' && st.view !== 'leads') { ldf.dec = null; ldf.ck = null; ldf.mod = null; }
         // A link to a risk that no longer counts opens it under All, where it is listed.
         if (patch.view === 'risks' && patch.sub && !rf.st && riskIndexOf(patch.sub) >= risks.length) rf.st = 'all';
         if (patch.view !== undefined && patch.view !== st.view) { st.dmod = null; st.dq = ''; }
@@ -1343,7 +1346,7 @@
       //   #/flows/{Module.Name}   ?seg=all|mf|nf|pg the list, ?step=N the step, ?var=Name the trace
       //   #/domain/{Module}/{Entity}
       //   #/architecture?s={section}  #/risks/{R-012}  #/quality/{check}  #/developers/{tab}
-      var ROUTE_OF = { start: '', processes: 'processes', assist: 'assist', cases: 'cases', modules: 'modules', refs: 'flows', domain: 'domain', arch: 'architecture', risks: 'risks', perf: 'performance', codeq: 'code-quality', security: 'security', quality: 'quality', dev: 'developers' };
+      var ROUTE_OF = { start: '', processes: 'processes', assist: 'assist', cases: 'cases', modules: 'modules', refs: 'flows', domain: 'domain', arch: 'architecture', risks: 'risks', leads: 'leads', perf: 'performance', codeq: 'code-quality', security: 'security', quality: 'quality', dev: 'developers' };
       var VIEW_OF = {};
       Object.keys(ROUTE_OF).forEach(function (k) { VIEW_OF[ROUTE_OF[k]] = k; });
       // Addresses written before these routes existed still open.
@@ -1383,7 +1386,7 @@
           var ak = m[1] === 'tickets' ? ['ticket'].concat(arg ? [arg] : []) : m[1] === 'changes' ? ['idea'].concat(arg ? [arg] : []) : String(arg || '').split('/');
           st.akind = ak[0] || null; st.aid = ak[1] || null;
         }
-        if (st.view === 'risks' || st.view === 'quality' || st.view === 'dev' || st.view === 'security' || st.view === 'perf' || st.view === 'codeq') st.sub = arg;
+        if (st.view === 'risks' || st.view === 'quality' || st.view === 'dev' || st.view === 'security' || st.view === 'perf' || st.view === 'codeq' || st.view === 'leads') st.sub = arg;
         if (st.view === 'cases') st.cid = arg ? 'knowledge/' + arg + '.md' : null;
         if (st.view === 'risks') rf = { lv: /^P[123]$/.test(q.lv) ? q.lv : null, th: PAT[q.th] ? q.th : null, mod: q.mod || null, q: q.q || '', group: q.group === 'mod' ? 'mod' : 'sev',
           st: /^(fixed|verified|fp|gone|all)$/.test(q.st || '') ? q.st : null, or: q.by === 'ai' || q.by === 'person' ? q.by : null };
@@ -1408,7 +1411,7 @@
         if (s.view === 'processes') arg = String(s.proc || 0);
         if (s.view === 'assist' && s.akind) arg = s.akind + (s.aid ? '/' + s.aid : '');
         if (s.view === 'cases' && s.cid) arg = String(s.cid).replace(/^knowledge\//, '').replace(/\.md$/, '');
-        if ((s.view === 'risks' || s.view === 'quality' || s.view === 'dev' || s.view === 'security' || s.view === 'perf' || s.view === 'codeq') && s.sub) arg = s.sub;
+        if ((s.view === 'risks' || s.view === 'quality' || s.view === 'dev' || s.view === 'security' || s.view === 'perf' || s.view === 'codeq' || s.view === 'leads') && s.sub) arg = s.sub;
         if ((s.view === 'start' || s.view === 'arch') && s.sec) q = 's=' + encodeURIComponent(s.sec);
         if (s.view === 'modules' || s.view === 'arch' || s.view === 'dev') {
           var mq = q ? [q] : [];
@@ -1599,12 +1602,18 @@
 
       // ---------- drawing ----------
       // A page this data has no drawing for — an address of the Tickets or Changes pages there were — is the Overview.
-      var DRAW = { start: drawStart, processes: drawProcesses, assist: drawAssist, cases: drawCases, modules: drawModules, refs: drawRefs, domain: drawDomain, quality: drawQuality, risks: drawRisks, perf: function () { drawList('perf'); }, codeq: function () { drawList('codeq'); }, dev: drawDev, arch: drawArch, security: function () { window.MxDocsSecurity.draw({ h: h, ln: ln, main: main, setTitle: setTitle, plural: plural, _: _, countOf: countOf, statusLabel: TRI.label || null, data: data, sec: sec, st: st, flowKey: flowKey, modelRead: modelRead, fmtDate: fmtDate }); } };
+      var DRAW = { start: drawStart, processes: drawProcesses, assist: drawAssist, cases: drawCases, modules: drawModules, refs: drawRefs, domain: drawDomain, quality: drawQuality, risks: drawRisks, leads: drawLeads, perf: function () { drawList('perf'); }, codeq: function () { drawList('codeq'); }, dev: drawDev, arch: drawArch, security: function () {
+        // Drawn with the Risks page's pieces (2026-11-15), handed over: docs-security.js keeps the data and the words.
+        tools([opts.hash ? copyLink() : null], null);
+        window.MxDocsSecurity.draw({ h: h, ln: ln, main: main, setTitle: setTitle, plural: plural, _: _, countOf: countOf, statusLabel: TRI.label || null, data: data, sec: sec, st: st, flowKey: flowKey, modelRead: modelRead, fmtDate: fmtDate,
+          go: go, add: add, rf: srf, levelName: levelName, levelWhen: levelWhen, modLabel: modLabel, OTHER: RISK_OTHER, places: places, inModules: inModules, kindTag: kindTag, navIcon: navIcon,
+          brk: brk, whereOf: whereOf, fcBars: fcBars, fcMods: fcMods, rkListHead: rkListHead, rkGroup: rkGroup, rkRow: rkRow, rkTop: rkTop, rkPlace: rkPlace, rkFrame: rkFrame });
+      } };
       function draw() {
         Object.keys(navBtns).forEach(function (k) { navBtns[k].classList.toggle('on', k === st.view || (st.view === 'refs' && k === 'refs:' + (st.seg === 'nanoflow' || st.seg === 'page' ? st.seg : 'microflow'))); });
         var kept = scrollsOf(root);
         clear(list); clear(main); clear(headTools);
-        if ((st.view === 'risks' && !allRisks.length) || (st.view === 'dev' && !devCtx) || (st.view === 'processes' && !procPage) || (st.view === 'assist' && !assist) || (st.view === 'cases' && !cases) || (st.view === 'security' && !sec) || (st.view === 'perf' && !PERF.length) || (st.view === 'codeq' && !CODEQ.length) || !DRAW[st.view]) st.view = 'start';
+        if ((st.view === 'risks' && !allRisks.length) || (st.view === 'dev' && !devCtx) || (st.view === 'processes' && !procPage) || (st.view === 'assist' && !assist) || (st.view === 'cases' && !cases) || (st.view === 'security' && !sec) || (st.view === 'perf' && !PERF.length) || (st.view === 'codeq' && !CODEQ.length) || (st.view === 'leads' && !LEADS.length) || !DRAW[st.view]) st.view = 'start';
         onScroll = null;
         root.setAttribute('data-view', st.view);
         // The page's own scrolling boxes keep their place while it is the same page and the same item on it —
@@ -1614,7 +1623,7 @@
         var place = (opts.only || (opts.preview ? 'preview' : 'file')) + '|' + hashOf(st).split('?')[0];
         main.setAttribute('data-keep-scroll', 'dx-main|' + place);
         list.setAttribute('data-keep-scroll', 'dx-list|' + (opts.only || (opts.preview ? 'preview' : 'file')) + '|' + st.view + '|' + (st.view === 'assist' ? st.akind || '' : ''));
-        root.classList.toggle('no-list', st.view === 'refs' || st.view === 'domain' || st.view === 'start' || st.view === 'quality' || st.view === 'risks' || st.view === 'cases' || st.view === 'dev' || st.view === 'arch' || st.view === 'security' || st.view === 'perf' || st.view === 'codeq');
+        root.classList.toggle('no-list', st.view === 'refs' || st.view === 'domain' || st.view === 'start' || st.view === 'quality' || st.view === 'risks' || st.view === 'cases' || st.view === 'dev' || st.view === 'arch' || st.view === 'security' || st.view === 'perf' || st.view === 'codeq' || st.view === 'leads');
         DRAW[st.view]();
         putScrolls(root, kept);
       }
@@ -3060,8 +3069,9 @@
             var on = active === p.key;
             var cls = (wide ? 'dx-fc-pat' : 'dx-pat') + (on ? ' on' : '') + ((active && !on) || !p.n ? ' dim' : '');
             var click = function () { pick(on ? null : p.key); };
-            if (!wide) return h('button', { type: 'button', class: cls, 'aria-pressed': on ? 'true' : 'false', onclick: click },
-              [p.p1 ? h('span', { class: 'dx-p1dot', 'aria-label': _('has P1') }) : null, p.label, h('span', { class: 'dx-fc-n', text: String(p.n) })]);
+            // A chip keeps to one line, a long name cut short (its whole name in the tooltip).
+            if (!wide) return h('button', { type: 'button', class: cls, title: p.label, 'aria-pressed': on ? 'true' : 'false', onclick: click },
+              [p.p1 ? h('span', { class: 'dx-p1dot', 'aria-label': _('has P1') }) : null, h('span', { class: 'dx-pat-t', text: p.label }), h('span', { class: 'dx-fc-n', text: String(p.n) })]);
             var bar = h('span', { class: 'dx-fc-bar' }, [h('span')]); bar.firstChild.style.width = Math.round(p.n / max * 100) + '%';
             return h('button', { type: 'button', class: cls, 'aria-pressed': on ? 'true' : 'false', onclick: click },
               [h('span', { class: 'dx-fc-t row' }, [h('span', { text: p.label }), p.p1 ? h('span', { class: 'dx-fc-p1', text: p.p1 + ' P1' }) : null]), h('span', { class: 'dx-fc-n', text: String(p.n) }), bar]);
@@ -3092,8 +3102,8 @@
       }
       // A heading of the list: a level (badge, name, when) or a module (in code font), and how many under it.
       function rkGroup(lv, name, when, n) {
-        return h('div', { class: 'dx-rk-g' + (lv ? '' : ' mono') }, lv ? [h('span', { class: 'dx-lv ' + lv.toLowerCase(), text: lv }), h('b', { text: name }), h('small', { text: when }), h('span', { class: 'dx-fc-n', text: String(n) })]
-          : [h('b', { text: name }), h('span', { class: 'dx-fc-n', text: String(n) })]);
+        return h('div', { class: 'dx-rk-g' + (lv || when ? '' : ' mono') }, lv ? [h('span', { class: 'dx-lv ' + lv.toLowerCase(), text: lv }), h('b', { text: name }), h('small', { text: when }), h('span', { class: 'dx-fc-n', text: String(n) })]
+          : when ? [h('b', { class: 'mono', text: name }), h('small', { text: when }), h('span', { class: 'dx-fc-n', text: String(n) })] : [h('b', { text: name }), h('span', { class: 'dx-fc-n', text: String(n) })]);
       }
       // One row of the list: its level, its title (two lines at most) and one muted line under it.
       function rkRow(to, on, lv, title, meta, extra, onClick) {
@@ -3125,6 +3135,102 @@
         ]);
       }
 
+      // ---------- leads (2026-11-15) ----------
+      // What the security checks compute and the model cannot prove, for the risk skill to confirm or drop: a page of its
+      // own, drawn like the Risks page. The leads of one check are one item in plain words (docs-security.js CHECK_TEXT),
+      // with its places in rank order and what the risk skill decided about each; the program's own words folded under it.
+      var LD_DEC = { open: [N_('Still open'), N_('Not decided yet')], stale: [N_('Changed since'), N_('Decided before the lead changed: read it again')], confirmed: [N_('Confirmed'), N_('The risk skill made a risk of it')], dropped: [N_('Dropped'), N_('The risk skill dropped it, with why')] };
+      function ldDec(l) { var d = l.decision; return l.stale ? 'stale' : !d || d.verdict === 'undecided' ? 'open' : d.verdict === 'confirmed' ? 'confirmed' : d.verdict === 'dropped' ? 'dropped' : 'open'; }
+      function ldMod(l) { var w = (l.where || [])[0]; return w ? whereOf(w).qn.split('.')[0] : RISK_OTHER; }
+      function drawLeads() {
+        var F = ldf, CT = window.MxDocsSecurity && window.MxDocsSecurity.CHECK_TEXT || {};
+        function setF(patch) { Object.keys(patch).forEach(function (k) { F[k] = patch[k]; }); go({ view: 'leads', sub: st.sub }); }
+        function match(l, skip) { return (skip === 'dec' || !F.dec || ldDec(l) === F.dec) && (skip === 'ck' || !F.ck || l.check === F.ck) && (skip === 'mod' || !F.mod || ldMod(l) === F.mod); }
+        function ckName(c) { var T = CT[c], l = LEADS.filter(function (x) { return x.check === c; })[0]; return T ? _(T[0]) : l ? l.checkName || c : c; }
+        var c = LC || { open: LEADS.length, confirmed: 0, dropped: 0, stale: 0 };
+        var nm = function (n) { return countOf(n, ['{0} lead', '{0} leads'], ['{0} trop', '{0} tropy', '{0} tropów'], ['{0} Hinweis', '{0} Hinweise']); };
+        setTitle(_('Leads'), _('{0} for the risk skill: computed from the model, not proven, not risks. {1} open, {2} confirmed, {3} dropped.', [nm(LEADS.length), c.open, c.confirmed, c.dropped]));
+        tools([opts.hash ? copyLink() : null], null);
+        var shown = LEADS.filter(function (l) { return match(l); });
+        // ---- the filters ----
+        var decRows = ['open', 'stale', 'confirmed', 'dropped'].map(function (k) { return { key: k, label: _(LD_DEC[k][0]), n: LEADS.filter(function (l) { return ldDec(l) === k && match(l, 'dec'); }).length }; }).filter(function (r) { return r.n || r.key === F.dec || r.key === 'open'; });
+        var ckRows = tally(LEADS.filter(function (l) { return match(l, 'ck'); }), function (l) { return l.check; }).map(function (x) { return { key: x.key, label: ckName(x.key), n: x.n }; });
+        if (F.ck && !ckRows.some(function (x) { return x.key === F.ck; })) ckRows.push({ key: F.ck, label: ckName(F.ck), n: 0 });
+        var byM = {};
+        LEADS.forEach(function (l) { if (!match(l, 'mod')) return; var mo = ldMod(l), m = byM[mo] || (byM[mo] = { name: mo, n: 0, P1: 0, P2: 0, P3: 0, N: 0 }); m.n++; m.N++; });
+        if (F.mod && !byM[F.mod]) byM[F.mod] = { name: F.mod, n: 0, P1: 0, P2: 0, P3: 0, N: 0 };
+        var modRows = Object.keys(byM).map(function (k) { return byM[k]; }).sort(function (a, b) { return b.n - a.n || a.name.localeCompare(b.name); });
+        var pDec = function (v) { setF({ dec: v }); }, pCk = function (v) { setF({ ck: v }); }, pMod = function (v) { setF({ mod: v }); };
+        var strip = [fcMods(_('Where they gather'), modRows, F.mod, pMod, false), fcBars(_('Decision'), decRows, F.dec, pDec, false), fcBars(_('By check'), ckRows, F.ck, pCk, false)];
+        var facets = [fcBars(_('Decision'), decRows, F.dec, pDec, true), fcBars(_('By check'), ckRows, F.ck, pCk, true), fcMods(_('Modules'), modRows, F.mod, pMod, true)];
+        // ---- the list: one item per check, the one with the first-ranked lead first ----
+        var groups = [], byK = {};
+        shown.forEach(function (l) { var k = l.check || 'other'; if (!byK[k]) groups.push(byK[k] = { key: k, check: l.check, items: [] }); byK[k].items.push(l); });
+        groups.forEach(function (g) {
+          var T = CT[g.check];
+          g.items.sort(function (a, b) { return a.n - b.n; });
+          g.title = T ? _(T[0]) : g.items[0].checkName || g.check; g.why = T ? _(T[1]) : ''; g.fix = T ? _(T[2]) : '';
+          g.mods = tally(g.items, ldMod); g.dec = {}; g.items.forEach(function (l) { var d = ldDec(l); g.dec[d] = (g.dec[d] || 0) + 1; });
+        });
+        groups.sort(function (a, b) { return a.items[0].n - b.items[0].n; });
+        var cur = groups.filter(function (g) { return g.key === st.sub; })[0] || groups.filter(function (g) { return g.items.some(function (l) { return l.id === st.sub; }); })[0] || groups[0] || null;
+        var decLine = function (g) { return ['open', 'stale', 'confirmed', 'dropped'].filter(function (k) { return g.dec[k]; }).map(function (k) { return g.dec[k] + ' ' + _(LD_DEC[k][0]).toLowerCase(); }).join(', '); };
+        var rows = groups.map(function (g) {
+          var to = { view: 'leads', sub: g.key };
+          var row = rkRow(to, cur === g, null, brk(g.title), [_('{0} in {1}', [places(g.items.length), inModules(g.mods.length)]), decLine(g)].filter(Boolean).join(' · '), null, function () { go(to); });
+          row.setAttribute('data-check', g.check || ''); row.setAttribute('data-n', String(g.items.length));
+          return row;
+        });
+        var chips = [];
+        if (F.dec) chips.push([_(LD_DEC[F.dec][0]), function () { setF({ dec: null }); }]);
+        if (F.ck) chips.push([ckName(F.ck), function () { setF({ ck: null }); }]);
+        if (F.mod) chips.push([modLabel(F.mod), function () { setF({ mod: null }); }]);
+        var listCol = h('section', { class: 'dx-rk-list', 'aria-label': _('Leads'), 'data-keep-scroll': 'ld-list' }, [
+          rkListHead(chips.length ? _('{0} of {1}', [shown.length, nm(LEADS.length)]) : nm(LEADS.length), null, chips),
+          shown.length ? null : h('div', { class: 'dx-empty pad', text: _('No lead matches these filters.') })
+        ].concat(rows));
+        // ---- the item ----
+        var detail = h('article', { class: 'dx-rk-detail', 'aria-label': _('Lead'), 'data-keep-scroll': 'ld-detail:' + (cur ? cur.key : '') });
+        if (cur) {
+          var g = cur, idx = groups.indexOf(g), n = g.items.length;
+          var step = function (d) { var y = groups[idx + d]; return y ? function () { go({ view: 'leads', sub: y.key }); } : null; };
+          var decText = function (l) {
+            var d = l.decision, k = ldDec(l);
+            if (k === 'confirmed') return d.risk ? _('confirmed → {0}', [d.risk]) : _('confirmed');
+            if (k === 'dropped') return _('dropped') + (d.reason ? ' — ' + d.reason : '');
+            return k === 'stale' ? _('open · changed since') : _('open');
+          };
+          var place = function (l) {
+            var others = (l.where || []).slice(1).map(function (w) { return whereOf(w).qn; });
+            var sub = ['#' + l.n, decText(l), others.slice(0, 3).join(', ') + (others.length > 3 ? _(' and {0} more', [others.length - 3]) : '')].filter(Boolean).join(' · ');
+            var row = (l.where || []).length ? rkPlace(whereOf(l.where[0]), sub) : h('div', { class: 'dx-rk-where' }, [kindTag('··'), h('span', { class: 'dx-rk-wq' }, [h('span', { text: l.title }), h('small', { text: sub })]), null]);
+            var d = l.decision, words = [l.title, l.detail, l.fix, d && d.reason ? (d.verdict === 'dropped' ? _('Dropped because') : _('Decided')) + ' ' + d.reason + (d.by ? ' — ' + d.by + (d.at ? ', ' + fmtDate(d.at) : '') : '') : null].filter(Boolean);
+            return h('div', { class: 'dx-rk-wset', 'data-id': l.id, 'data-decision': ldDec(l) }, [row, h('details', { class: 'dx-rk-wall' }, [h('summary', { text: _('The program’s own words (English)') })].concat(words.map(function (t) { return h('p', { text: t }); })))]);
+          };
+          var whereBody = n > 8 && g.mods.length > 1 ? g.mods.map(function (m) {
+            return h('section', { class: 'dx-rk-pm' }, [h('div', { class: 'dx-rk-pmh' }, [h('b', { text: modLabel(m.key) }), h('span', { class: 'dx-fc-n', text: String(m.n) })]),
+              h('div', { class: 'dx-pd-rows' }, g.items.filter(function (l) { return ldMod(l) === m.key; }).map(place))]);
+          }) : [h('div', { class: 'dx-pd-rows' }, g.items.map(place))];
+          var main2 = h('div', { class: 'dx-rk-main', 'data-key': g.key }, [
+            rkTop(step(-1), step(1), _('{0} of {1}', [idx + 1, groups.length]), g.check || ''),
+            h('div', { class: 'dx-rk-head' }, [
+              h('div', { class: 'dx-rk-pills' }, [
+                h('span', { class: 'dx-rk-pill dx-sr-reg-suspect', text: _('Lead') }),
+                h('span', { class: 'dx-rk-pill mono', text: _('first #{0}', [g.items[0].n]) })
+              ]),
+              h('h2', null, brk(g.title)),
+              h('span', { class: 'dx-rk-when', text: [_('{0} in {1}', [places(n), inModules(g.mods.length)]), decLine(g)].filter(Boolean).join(' · ') })
+            ]),
+            g.why ? h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: _('Why it matters') }), h('p', { class: 'dx-rk-p', text: g.why })]) : null,
+            g.fix ? h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: _('What to do') }), h('div', { class: 'dx-rk-fix' }, [h('p', { class: 'dx-rk-p', text: g.fix })])]) : null,
+            h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: _('Where · {0}', [places(n)]) })].concat(whereBody)),
+            h('p', { class: 'dx-rk-foot' }, [navIcon('info', 14), _('A lead is something MxScout worked out from the model but cannot prove on its own. The risk skill takes them in rank order and either confirms a lead (it then appears on the Risks page, with a level) or drops it. Nothing here needs action from you.')])
+          ]);
+          add(detail, h('div', { class: 'dx-rk-wrap' }, [main2]));
+        }
+        main.appendChild(rkFrame(strip, facets, listCol, detail));
+      }
+
       // ---------- performance and code quality (layout A, 2026-11-15) ----------
       // Two lists that are not risks, each a page of its own with its counter and filters, drawn like the Risks page.
       // The findings of one check (and one level, on Performance) say the same thing about different places, so they
@@ -3132,31 +3238,31 @@
       // are many — not one sentence per place. The item's name and why are the reader's language; the engine's own
       // text (what to do, a place's sentence) stays English like a risk's own text (docs-risktext.js).
       var LIST_CHECK = {
-        'perf-retrieve-in-loop': [N_('Retrieve inside a loop'), N_('Reads from the database once per item of a loop'), N_('A hundred items mean a hundred queries where one would do, so the flow gets slower as the list grows.')],
-        'perf-commit-in-loop': [N_('Commit inside a loop'), N_('Saves one object at a time inside a loop'), N_('Every item is a database write with its commit events: slow on a long list, and a failure halfway leaves part of it saved.')],
-        'perf-delete-in-loop': [N_('Delete inside a loop'), N_('Deletes one object at a time inside a loop'), N_('Every item runs a delete with its events and the delete rules of its associations, where one delete of the list would do.')],
-        'perf-call-in-loop': [N_('Call inside a loop'), N_('Calls a flow that reads or saves data once per item of a loop'), N_('The called flow’s queries run again for every item; how much that costs depends on how long the list gets.')],
-        'perf-no-index': [N_('Sort or filter with no index'), N_('Filters or sorts on an attribute with no index'), N_('The database reads every row to find a few: unnoticed on a small table, slow once it grows.')],
-        'perf-heavy-page': [N_('Heavy page'), N_('A page asks the server for data many times when it opens'), N_('Every list and data view on it is a trip to the server, and people wait for the slowest one.')],
-        'perf-row-query': [N_('A query per row of a list'), N_('Each row of a list starts a query of its own'), N_('A list of fifty rows asks the database fifty more times every time it is shown.')],
-        'perf-xpath': [N_('Costly XPath'), N_('An XPath the database cannot answer from an index'), N_('The constraint makes the database read the table before it can narrow it down.')],
-        'perf-calculated': [N_('Calculated attribute in a list'), N_('An attribute worked out by a microflow on every read'), N_('The microflow runs each time an object is read, so once for every row of a list that shows it.')],
-        'perf-view-entity': [N_('View entity'), N_('Work a view entity could do in one query'), N_('The model works the figure out object by object; a view entity lets the database do it at once.')],
-        'perf-held-objects': [N_('Objects held in the client'), N_('Temporary objects stay in the browser until a reload'), N_('They pile up in the browser’s memory while the application is open, and a list over them grows with use.')],
-        'perf-retrieve-all': [N_('Retrieve of every row'), N_('Retrieves every row of a table that keeps growing'), N_('With no limit the list grows with the data, and so do the time and the memory it takes.')],
-        'shape-flow-size': [N_('Flow too large'), N_('Flows too large to read at once'), N_('A flow with that many activities is hard to follow and easy to break when it is changed.')],
-        'shape-error-handler': [N_('Call with no error handler'), N_('Calls to Java or a service with no error handler'), N_('When the call fails, the flow stops with a system error the user cannot do anything about.')],
-        'naming-prefix': [N_('Names against the convention'), N_('Names against Mendix’s convention'), N_('The prefix does not say what starts the document, so it is harder to find and to judge.')],
-        'logic-note': [N_('REST call with no error handler'), N_('REST calls with no error handler'), N_('When the call fails, the flow stops with a system error the user cannot do anything about.')],
-        'access-fails': [N_('Fails for a role'), N_('Flows that fail for a role allowed to start them'), N_('The role reaches the flow but not something it calls, so it ends in an error.')],
-        'access-finds-nothing': [N_('Finds nothing for a role'), N_('Retrieves that find nothing for a role allowed to run them'), N_('The role’s access rules always leave the list empty, so the flow works on nothing.')]
+        'perf-retrieve-in-loop': [N_('Retrieve inside a loop'), N_('Reads from the database once per item of a loop'), N_('A hundred items mean a hundred queries where one would do, so the flow gets slower as the list grows.'), N_('Retrieve everything the loop needs once, before the loop, and inside it find each object in that list with Find or Filter.')],
+        'perf-commit-in-loop': [N_('Commit inside a loop'), N_('Saves one object at a time inside a loop'), N_('Every item is a database write with its commit events: slow on a long list, and a failure halfway leaves part of it saved.'), N_('Change the objects in the loop without committing, collect them in a list, and commit the list once after the loop.')],
+        'perf-delete-in-loop': [N_('Delete inside a loop'), N_('Deletes one object at a time inside a loop'), N_('Every item runs a delete with its events and the delete rules of its associations, where one delete of the list would do.'), N_('Collect the objects in a list, or retrieve them in one query, and delete the list once after the loop.')],
+        'perf-call-in-loop': [N_('Call inside a loop'), N_('Calls a flow that reads or saves data once per item of a loop'), N_('The called flow’s queries run again for every item; how much that costs depends on how long the list gets.'), N_('Give the called flow the whole list instead of one item, or retrieve what it needs once before the loop and pass it in.')],
+        'perf-no-index': [N_('Sort or filter with no index'), N_('Filters or sorts on an attribute with no index'), N_('The database reads every row to find a few: unnoticed on a small table, slow once it grows.'), N_('Add an index to the entity whose first attribute is the one filtered or sorted on.')],
+        'perf-heavy-page': [N_('Heavy page'), N_('A page asks the server for data many times when it opens'), N_('Every list and data view on it is a trip to the server, and people wait for the slowest one.'), N_('Show less at once: move what is not needed first to tabs or a page of its own, and feed several widgets from one data source.')],
+        'perf-row-query': [N_('A query per row of a list'), N_('Each row of a list starts a query of its own'), N_('A list of fifty rows asks the database fifty more times every time it is shown.'), N_('Show the value in the list itself, an attribute over the association or a view entity, instead of a data source in every row.')],
+        'perf-xpath': [N_('Costly XPath'), N_('An XPath the database cannot answer from an index'), N_('The constraint makes the database read the table before it can narrow it down.'), N_('Filter on a stored, indexed attribute: starts-with() instead of contains(), a positive condition instead of not(), an attribute copied onto the entity instead of a long path.')],
+        'perf-calculated': [N_('Calculated attribute in a list'), N_('An attribute worked out by a microflow on every read'), N_('The microflow runs each time an object is read, so once for every row of a list that shows it.'), N_('Store the value when what it depends on changes, or work it out in a view entity for the page that needs it.')],
+        'perf-view-entity': [N_('View entity'), N_('Work a view entity could do in one query'), N_('The model works the figure out object by object; a view entity lets the database do it at once.'), N_('Create a view entity from the OQL in the program’s own words below, and use it instead of the work done object by object.')],
+        'perf-held-objects': [N_('Objects held in the client'), N_('Temporary objects stay in the browser until a reload'), N_('They pile up in the browser’s memory while the application is open, and a list over them grows with use.'), N_('Remove the temporary objects when the flow is done with them, with the JavaScript or Java action named in the program’s own words, or drop the association to the session or the user that keeps them.')],
+        'perf-retrieve-all': [N_('Retrieve of every row'), N_('Retrieves every row of a table that keeps growing'), N_('With no limit the list grows with the data, and so do the time and the memory it takes.'), N_('Retrieve only what is used: the range First for one object, or an Aggregate list (Count) instead of loading every row to count them.')],
+        'shape-flow-size': [N_('Flow too large'), N_('Flows too large to read at once'), N_('A flow with that many activities is hard to follow and easy to break when it is changed.'), N_('Split the flow into sub-microflows by what each part does, so the main flow reads as a list of steps.')],
+        'shape-error-handler': [N_('Call with no error handler'), N_('Calls to Java or a service with no error handler'), N_('When the call fails, the flow stops with a system error the user cannot do anything about.'), N_('Give the call a custom error handler that logs the error and ends the flow in a known way: a message for the user, a rollback or a retry.')],
+        'naming-prefix': [N_('Names against the convention'), N_('Names against Mendix’s convention'), N_('The prefix does not say what starts the document, so it is harder to find and to judge.'), N_('Rename with the prefix of what the document does (ACT_, SUB_, DS_ …) using Studio Pro’s rename, which updates every caller.')],
+        'logic-note': [N_('REST call with no error handler'), N_('REST calls with no error handler'), N_('When the call fails, the flow stops with a system error the user cannot do anything about.'), N_('Give the REST call a custom error handler that logs the error and tells the user what failed.')],
+        'access-fails': [N_('Fails for a role'), N_('Flows that fail for a role allowed to start them'), N_('The role reaches the flow but not something it calls, so it ends in an error.'), N_('Give the role the access the flow needs, or stop offering the flow to that role.')],
+        'access-finds-nothing': [N_('Finds nothing for a role'), N_('Retrieves that find nothing for a role allowed to run them'), N_('The role’s access rules always leave the list empty, so the flow works on nothing.'), N_('Give the role read access to what the flow reads, or stop offering the flow to that role.')]
       };
       var LIST_LV = { P2: [N_('Felt by users'), N_('Pages and actions people wait on')], P3: [N_('Later, with more data'), N_('Background work, rare paths')] };
       function ckOf(r) { return String(r.check || '').replace(/^model:/, ''); }
-      // A check's name (the filter), the item's title in plain words and why it matters.
+      // A check's name (the filter), the item's title in plain words, why it matters and what to do, in the reader's language.
       function listCheck(r, items) {
         var L = LIST_CHECK[ckOf(r)];
-        if (L) return { name: _(L[0]), title: _(L[1]), why: _(L[2]), known: true };
+        if (L) return { name: _(L[0]), title: _(L[1]), why: _(L[2]), fix: _(L[3]), known: true };
         var nm = r.checkName || ckOf(r) || _('Other'), one = items && items.every(function (x) { return x.title === items[0].title; });
         return { name: nm, title: one ? String(items[0].title || nm).replace(/^Worth knowing: /, '') : nm, why: '', known: false };
       }
@@ -3244,8 +3350,11 @@
           var place = function (r) {
             var wh = r.where || [];
             if (!wh.length) return h('div', { class: 'dx-rk-where' }, [kindTag('··'), h('span', { class: 'dx-rk-wq' }, [h('span', { text: String(r.title || '').replace(/^Worth knowing: /, '') })]), null]);
-            var also = wh.slice(1).map(function (w) { return whereOf(w).qn; }).join(', ');
-            return rkPlace(whereOf(wh[0]), cur.c.known ? also : [String(r.title || '').replace(/^Worth knowing: /, ''), also].filter(Boolean).join(' · '), cur.c.known ? String(r.title || '').replace(/^Worth knowing: /, '') : null);
+            // The other names (what it reads, which pages hold it): three, and the rest behind "Show all N" under the row.
+            var names = wh.slice(1).map(function (w) { return whereOf(w).qn; }), also = names.slice(0, 3).join(', ') + (names.length > 3 ? _(' and {0} more', [names.length - 3]) : '');
+            var row = rkPlace(whereOf(wh[0]), cur.c.known ? also : [String(r.title || '').replace(/^Worth knowing: /, ''), also].filter(Boolean).join(' · '), cur.c.known ? String(r.title || '').replace(/^Worth knowing: /, '') : null);
+            if (names.length <= 3) return row;
+            return h('div', { class: 'dx-rk-wset' }, [row, h('details', { class: 'dx-rk-wall' }, [h('summary', { text: _('Show all {0}', [names.length]) }), h('p', { class: 'mono', text: names.join(', ') })])]);
           };
           var byName = function (a, b) { return String((a.where || [])[0] || '').localeCompare(String((b.where || [])[0] || '')); };
           var whereBody = n > 8 && M.length > 1 ? M.map(function (m) {
@@ -3264,8 +3373,12 @@
               h('span', { class: 'dx-rk-when', text: _('{0} in {1}', [places(n), inModules(M.length)]) + (cur.lv && LIST_LV[cur.lv] ? ' · ' + _(LIST_LV[cur.lv][1]) : '') })
             ]),
             cur.c.why ? h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: _('Why it matters') }), h('p', { class: 'dx-rk-p', text: cur.c.why })]) : null,
-            details.length === 1 ? h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: _('What happens') }), h('p', { class: 'dx-rk-p', text: details[0] })]) : null,
-            fixes.length ? h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: _('What to do') }), h('div', { class: 'dx-rk-fix' }, fixes.slice(0, 3).map(function (f) { return h('p', { class: 'dx-rk-p', text: f }); }))]) : null,
+            details.length === 1 && !cur.c.fix ? h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: _('What happens') }), h('p', { class: 'dx-rk-p', text: details[0] })]) : null,
+            // What to do: the check's own sentence in the reader's language; the program's text (English, with the names
+            // and the exact action) folded under it, as a risk's own text stays as written (docs-risktext.js).
+            cur.c.fix ? h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: _('What to do') }), h('div', { class: 'dx-rk-fix' }, [h('p', { class: 'dx-rk-p', text: cur.c.fix })]),
+              fixes.length || details.length === 1 ? h('details', { class: 'dx-rk-prog' }, [h('summary', { text: _('The program’s own words (English)') })].concat((details.length === 1 ? [details[0]] : []).concat(fixes.slice(0, 3)).map(function (f) { return h('p', { class: 'dx-rk-p', text: f }); }))) : null])
+              : fixes.length ? h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: _('What to do') }), h('div', { class: 'dx-rk-fix' }, fixes.slice(0, 3).map(function (f) { return h('p', { class: 'dx-rk-p', text: f }); }))]) : null,
             h('section', { class: 'dx-rk-sec' }, [h('h3', { class: 'dx-cap', text: _('Where · {0}', [places(n)]) })].concat(whereBody)),
             h('p', { class: 'dx-rk-foot' }, [navIcon('info', 14), _('MxScout worked this out from the model itself, the same on every load. Not a risk: it is not counted on the Risks page.')])
           ]);
@@ -3489,7 +3602,7 @@
         if (data.derived) return data.derived;
         return window.MxReportData ? (data.derived = window.MxReportData.derive(data)) : null;
       }
-      function riskIndexOf(id) { for (var i = 0; i < allRisks.length; i++) if (riskId(i) === id) return i; return -1; }
+      function riskIndexOf(id) { for (var i = 0; i < allRisks.length; i++) if (riskId(i) === id || allRisks[i].id === id) return i; return -1; }
 
       function originMark(r) { return TRI.originMark(triKit, r); }
       function statusMark(st0) { return TRI.statusMark(h, st0); }
@@ -3551,7 +3664,7 @@
         // ---- what is not a risk (layout A): the other lists, one link each, and the leads behind one grey line ----
         function notRisks() {
           var links = [[_('Performance'), PERF.length, { view: 'perf' }], [_('Code quality'), CODEQ.length, { view: 'codeq' }], [_('Personal data'), PRIV.length, null, 'gdpr'],
-            [_('Cleanup · on Security review'), sec ? sec.counts.cleanup || 0 : 0, sec ? { view: 'security' } : null]].filter(function (x) { return x[1]; });
+            [_('Cleanup · on Security review'), sec ? sec.counts.cleanup || 0 : 0, sec ? { view: 'security', sub: 'cleanup' } : null]].filter(function (x) { return x[1]; });
           var nav = links.length ? h('div', { class: 'dx-nr-links' }, [h('span', { class: 'dx-cap', text: _('Not risks — on their own pages') })].concat(links.map(function (x) {
             var kids = [h('span', { text: x[0] }), h('span', { class: 'dx-fc-n', text: String(x[1]) }), navIcon('arrow', 12)];
             // Personal data is MxScout's own screen, not a page of this reader: a link only where MxScout can open it.
@@ -3559,55 +3672,14 @@
             return ln(x[2], { class: 'dx-nr-link' }, kids);
           }))) : null;
           if (!LEADS.length) return nav;
-          var c = LC || { open: LEADS.length, confirmed: 0, dropped: 0, stale: 0 };
-          var line = h('button', { type: 'button', class: 'dx-ld-line', 'aria-expanded': lst.open ? 'true' : 'false', onclick: function () { lst.open = !lst.open; lst.top = true; rkY = 0; draw(); } }, [
+          // The leads have a page of their own (2026-11-15: opened here, hundreds of them read badly); the grey line leads there.
+          var line = ln({ view: 'leads' }, { class: 'dx-ld-line' }, [
             h('span', { class: 'dx-ld-q', 'aria-hidden': 'true', text: '?' }),
             h('span', { class: 'dx-ld-t' }, [h('b', { text: countOf(LEADS.length, ['{0} lead for the risk skill — not a risk.', '{0} leads for the risk skill — not risks.'], ['{0} trop dla skilla ryzyk — nie ryzyko.', '{0} tropy dla skilla ryzyk — nie ryzyka.', '{0} tropów dla skilla ryzyk — nie ryzyka.'], ['{0} Hinweis für den Risiko-Skill — kein Risiko.', '{0} Hinweise für den Risiko-Skill — keine Risiken.']) }),
               h('small', { text: _('Computed from the model, not proven; not counted above.') })]),
-            h('span', { class: 'dx-ld-tog', text: lst.open ? _('Hide leads') + ' ▴' : _('Show leads') + ' ▾' })
+            h('span', { class: 'dx-ld-tog' }, [_('Open the leads'), ' ', navIcon('arrow', 12)])
           ]);
-          if (!lst.open) return h('div', { class: 'dx-nr' }, [nav, line]);
-          function decision(l) {
-            var d = l.decision;
-            if (!d || l.stale || d.verdict === 'undecided') return h('span', { class: 'dx-ld-d open', title: l.stale ? _('Decided before the lead changed: read it again.') : d && d.reason ? d.reason : '', text: l.stale ? _('open · changed since') : d && d.verdict === 'undecided' ? _('undecided') : _('open') });
-            if (d.verdict === 'confirmed') return h('span', { class: 'dx-ld-d conf', title: d.reason || '', text: d.risk ? _('confirmed → {0}', [d.risk]) : _('confirmed') });
-            return h('span', { class: 'dx-ld-d drop', title: d.reason || '', text: _('dropped') });
-          }
-          function row(l) {
-            return h('details', { class: 'dx-ld-row', 'data-id': l.id }, [
-              h('summary', null, [h('span', { class: 'dx-ld-n mono', text: '#' + l.n }), h('span', { class: 'dx-ld-rt' }, [h('b', { text: l.title }), l.where.length ? h('small', { class: 'mono', text: String(l.where[0]).split('|')[0] }) : null]), decision(l)]),
-              h('div', { class: 'dx-ld-body' }, [
-                l.decision && l.decision.reason ? h('p', { class: 'dx-ld-why' }, [h('span', { class: 'dx-cap', text: l.decision.verdict === 'dropped' ? _('Dropped because') : _('Decided') }), ' ', l.decision.reason, l.decision.by ? ' — ' + l.decision.by + (l.decision.at ? ', ' + fmtDate(l.decision.at) : '') : '']) : null,
-                l.detail ? h('p', { text: l.detail }) : null,
-                l.fix ? h('p', { class: 'dx-ls-fix' }, [h('span', { class: 'dx-cap acc', text: _('What to do') }), ' ', l.fix]) : null,
-                l.where.length ? h('div', { class: 'dx-ls-where' }, [h('span', { class: 'dx-cap', text: _('Where') })].concat(l.where.map(qnLink))) : null
-              ])
-            ]);
-          }
-          var groups = [];
-          if (lst.mode === 'rank') groups.push({ key: 'rank', name: _('Ranked, one list'), sub: '', items: LEADS });
-          else {
-            var seen = {};
-            LEADS.forEach(function (l) { if (!seen[l.check]) { seen[l.check] = { key: l.check, name: l.checkName || l.check, items: [] }; groups.push(seen[l.check]); } seen[l.check].items.push(l); });
-          }
-          var panel = h('div', { class: 'dx-ld-panel' }, [
-            h('p', { class: 'dx-ld-intro', text: _('A lead is something MxScout worked out from the model but cannot prove on its own. The risk skill takes them in rank order and either confirms a lead (it then appears below as a risk, with a level) or drops it. Nothing here needs action from you.') }),
-            h('div', { class: 'dx-ld-bar' }, [
-              h('span', { class: 'dx-ld-sum', text: _('{0} open · {1} confirmed · {2} dropped', [c.open, c.confirmed, c.dropped]) + (c.stale ? ' · ' + _('{0} changed since a decision', [c.stale]) : '') }),
-              h('div', { class: 'dx-seg2', role: 'group', 'aria-label': _('Show') }, [h('span', { text: _('Show') })].concat([['check', _('By check')], ['rank', _('Ranked, one list')]].map(function (m) {
-                var on = lst.mode === m[0];
-                return h('button', { type: 'button', class: on ? 'on' : '', 'aria-pressed': on ? 'true' : 'false', text: m[1], onclick: function () { lst.mode = m[0]; draw(); } });
-              })))
-            ])
-          ].concat(groups.map(function (g) {
-            var full = !!lst.more[g.key], cut = lst.mode === 'rank' ? 25 : 3;
-            return h('section', { class: 'dx-ld-g' }, [
-              lst.mode === 'rank' ? null : h('div', { class: 'dx-ld-gh' }, [h('b', { text: g.name }), h('span', { class: 'dx-fc-n', text: String(g.items.length) })]),
-              h('div', null, (full ? g.items : g.items.slice(0, cut)).map(row)),
-              g.items.length > cut && !full ? h('button', { type: 'button', class: 'dx-ls-more', text: _('Show {0} more', [g.items.length - cut]), onclick: function () { lst.more[g.key] = true; draw(); } }) : null
-            ]);
-          })));
-          return h('div', { class: 'dx-nr' }, [nav, line, panel]);
+          return h('div', { class: 'dx-nr' }, [nav, line]);
         }
 
         // ---- the list ----
@@ -3696,7 +3768,8 @@
                 h('button', { type: 'button', class: 'dx-rk-pill mono', text: modLabel(cur.mod), title: _('Show only {0}', [modLabel(cur.mod)]), onclick: function () { setF({ mod: cur.mod }); } }),
                 // Whose it is, when some are a person's or MxScout's own: every risk is an agent's otherwise, as the foot says.
                 people || fromModel ? h('span', { class: 'dx-rk-pill dx-rk-origin' }, [originMark(cur.r)]) : null,
-                statusMark(cur.s)
+                statusMark(cur.s),
+                window.MxFeedback ? window.MxFeedback.riskMark(cur.r.id) : null
               ]),
               h('h2', null, brk(cur.r.title)),
               h('span', { class: 'dx-rk-when', text: RS_GROUP[cur.s] === 'open' ? _('Fix {0}.', [lower1(levelWhen(cur.lv))]) : _('Not counted as a risk: {0}.', [(TRI.label ? TRI.label(cur.s) : _(RS[cur.s])).toLowerCase()]) }),

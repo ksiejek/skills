@@ -1,6 +1,6 @@
 {
   "MxScout/skills/mendix-assist": "e558620e60465fceaecdbcefef3542d4dd6725a694de93c50d309995079df688",
-  "MxScout/skills/mendix-describe": "f993d000bb7143df1ea7d1d6af8038661b8f2c76a6cca76c8cedea7c6a36b020",
+  "MxScout/skills/mendix-describe": "7a823b71187bbfbb9cbba3790b94f29cf6bae8d90189f1b101d4da5d9d9f89df",
   "MxScout/skills/mendix-brief": "0c8a1c11676b78eb3ad9311e447e744045285f122579a542941a85cb0088bc2b",
   "MxScout/skills/mendix-change-proposal": "e438355c8e0ab3075844099b5085b7a4123076c8db833b77a6279063809bedea",
   "MxScout/skills/mendix-testcases": "7ce2e3ed5354c51d8b5549b0f354f275ff58b87fe7cbd9041227f49eac78803a",
@@ -17,5 +17,5 @@
   "MxScout/skills/mendix-nightly": "db22777ed598514f8a0fb326cc1e9e0bca6079576cea17af6176f466b0e7763f",
   "MxScout/skills/mendix-comments": "689510285cd10072a8469115eb653d3ae8f75b0e52e0f3d0d3e629ff7c576b0f",
   "MxScout/skills/mendix-risk": "aef138934b90f25ae4083f0b1bb0f49cfacdc0d3152e67aaba5c671c3f7ed476",
-  "MxScout/skills/mendix-compare": "76ceef97d413173423ebd3c55e3c2a54e23534772e2596863ee64437fb7652eb"
+  "MxScout/skills/mendix-compare": "f5f86abf86f93a13b2432770dcdc3f42f38e4024a761b2452fef3b57a8bd24f8"
 }

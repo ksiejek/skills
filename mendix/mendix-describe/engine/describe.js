@@ -50,7 +50,7 @@
   // The chat assistant's card works out every flow's text when the
   // Documentation section is drawn; the pack, made when it is asked for,
   // takes the same lines from here instead of writing them again.
-  var memo = typeof WeakMap === 'function' ? { hash: new WeakMap(), text: new WeakMap(), lines: new WeakMap() } : null;
+  var memo = typeof WeakMap === 'function' ? { hash: new WeakMap(), text: new WeakMap(), lines: new WeakMap(), shape: new WeakMap() } : null;
   // A copy of an entry (docs-data.js flowEntry) shares what is worked out with the entry it copies.
   function remembered(kind, f, make) {
     if (!memo || !f || typeof f !== 'object') return make(f);
@@ -63,6 +63,24 @@
   function hashOfNow(f) {
     if (f.kind === 'page') return fnv(JSON.stringify([f.params, f.roles]));
     return fnv(JSON.stringify([f.params, f.returns, f.workflow]));
+  }
+  // A page's or a snippet's widget tree as one fingerprint (MXS-239): every widget with its settings — a data grid's
+  // columns too — without the element ids. Written after a page's own fingerprint as "~xxxxxxxx" and on every
+  // snippet's "### SN" line. It is not the description's fingerprint (hashOf): a description says what the page is for,
+  // and a column added does not make it wrong, so no page description went out of date when this was added. A Team
+  // server compares it between two versions to tell which pages and snippets changed (server/team-projects.js shapes).
+  function stripIds(v) {
+    if (Array.isArray(v)) return v.map(stripIds);
+    if (!v || typeof v !== 'object') return v;
+    var o = {};
+    Object.keys(v).forEach(function (k) { if (k !== 'id') o[k] = stripIds(v[k]); });
+    return o;
+  }
+  function shapeOf(structure) {
+    if (!structure || typeof structure !== 'object') return null;
+    return remembered('shape', structure, function (st) {
+      return fnv(JSON.stringify([st.layout || null, st.title || null, st.url || null, st.popupWidth || null, stripIds(st.regions || [])]));
+    });
   }
   // An entity's fingerprint is its members and associations only — not its access rules or its
   // validation rules, which the pack lists under it (accessLines, validationLines). A description of
@@ -127,7 +145,8 @@
 
   function flowBlock(f, out) {
     var tag = f.kind === 'page' ? 'PG' : f.kind === 'nanoflow' ? 'NF' : 'MF';
-    out.push('### ' + tag + ' ' + f.qn + ' #' + hashOf(f));
+    var shape = f.kind === 'page' && f.preview ? shapeOf(f.preview.structure) : null;
+    out.push('### ' + tag + ' ' + f.qn + ' #' + hashOf(f) + (shape ? ' ~' + shape : ''));
     if (f.roles.length) out.push('roles: ' + f.roles.map(short).join(', '));
     if (f.params.length) out.push('in: ' + f.params.map(function (p) { return p.name + ': ' + p.type; }).join('; '));
     if (f.calledBy.length) {
@@ -276,11 +295,11 @@
     own.forEach(function (m) { names[m.name] = true; });
     var blocks = {};
     order.sort().forEach(function (q) {
-      var s = all[q], lines = s && s.structure ? conditionLines(s.structure, all, [q]) : [];
-      if (!lines.length) return;
+      var s = all[q], lines = s && s.structure ? conditionLines(s.structure, all, [q]) : [], shape = s ? shapeOf(s.structure) : null;
+      if (!lines.length && !shape) return;
       var mod = q.split('.')[0], at = names[mod] ? mod : found[q].home, pages = found[q].pages;
       var out = blocks[at] = blocks[at] || [];
-      out.push('', '### SN ' + q);
+      out.push('', '### SN ' + q + (shape ? ' ~' + shape : ''));
       out.push('on pages: ' + pages.slice(0, 6).join(', ') + (pages.length > 6 ? ' +' + (pages.length - 6) : ''));
       lines.slice(0, WIDGET_LINES_MAX).forEach(function (l) { out.push(l); });
       if (lines.length > WIDGET_LINES_MAX) out.push('  … ' + (lines.length - WIDGET_LINES_MAX) + ' more widgets shown or editable on a condition');
@@ -456,7 +475,7 @@
       data.scheduled.length ? 'scheduled events: ' + data.scheduled.map(function (s) { return short(s.name) + ' → ' + (s.microflow || '?') + (s.enabled ? '' : ' (off)'); }).join('; ') : null,
       data.services.length ? 'published services: ' + data.services.map(function (s) { return s.name + (s.kind ? ' (' + s.kind + ')' : ''); }).join('; ') : null,
       market.length ? 'marketplace: ' + market.length + ' Marketplace modules, each a short "## module <Name> (Marketplace)" block after the own modules — describe each in a sentence or two from it and reference/marketplace-modules.md; their flows are not listed' : null,
-      'legend: MF microflow, NF nanoflow, PG page, SN snippet, E entity; #xxxxxxxx is a fingerprint — copy it into the description; {member=value} is the data a step sets or passes; → owns an association to, ← is owned by; under an entity, "access <module role>:" is what that role may read, write, create and delete, and on which rows, and "valid <attribute>:" a validation rule that refuses a save; under a page or a snippet, "shows <widget>" is a widget visible only on a condition, "editable <widget>" one editable never or only on a condition, "read-only <widget>" an input inside a data view or list view that is not editable, and "places <snippet>" a snippet whose widgets have such lines under its SN block',
+      'legend: MF microflow, NF nanoflow, PG page, SN snippet, E entity; #xxxxxxxx is a fingerprint — copy it into the description; ~xxxxxxxx after a page or on a snippet is its widget tree\'s fingerprint (any widget, column or setting moves it; never copy it into a description); {member=value} is the data a step sets or passes; → owns an association to, ← is owned by; under an entity, "access <module role>:" is what that role may read, write, create and delete, and on which rows, and "valid <attribute>:" a validation rule that refuses a save; under a page or a snippet, "shows <widget>" is a widget visible only on a condition, "editable <widget>" one editable never or only on a condition, "read-only <widget>" an input inside a data view or list view that is not editable, and "places <snippet>" a snippet whose widgets have such lines under its SN block',
       ''
     ].filter(function (l) { return l !== null; }).concat(triageLines(data));
     var indexHead = ['## index', 'module | lines | microflows | nanoflows | pages | entities'];

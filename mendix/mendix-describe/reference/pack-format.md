@@ -256,10 +256,18 @@ At most 200 lines a page or a snippet, then `… N more widgets shown or
 editable on a condition`. These lines are **not** part of the page's
 fingerprint: they were added without moving any.
 
-`### SN Module.Snippet` — a snippet whose widgets are shown or editable on a
-condition, in its module's section after the pages, with `on pages:` the
-pages that place it (six, then `+N`). It has no fingerprint and nothing is
-described for it; it is there to be read with the pages that place it.
+`### SN Module.Snippet ~1f2e3d4c` — every snippet a page of the module places,
+in its module's section after the pages, with `on pages:` the pages that place
+it (six, then `+N`) and the lines of its widgets shown or editable on a
+condition, if any. It has no description fingerprint and nothing is described
+for it; it is there to be read with the pages that place it.
+
+`~1f2e3d4c` after a page's fingerprint (`### PG Orders.Order_Edit #5c0e7d21
+~1f2e3d4c`) and on a snippet's line is the **widget tree's** fingerprint
+(MXS-239): it moves with any widget, column, caption or setting. A Team server
+compares it between two versions, so a column added to a data grid makes the
+page or snippet changed. It is not the description's fingerprint: never copy
+it into a description; `#5c0e7d21` is the one a description keeps.
 
 **For "I can't see …" and "I can't edit …":** find the page, then `grep` its
 block for `shows`, `editable`, `read-only` and the widget's caption — and the

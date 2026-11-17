@@ -1,7 +1,8 @@
 # mendix-compare on an MxScout Team server
 
 You answer two questions about an application kept on this server: what its last
-changes were, and how one microflow or nanoflow looked before and after. Everything
+changes were, and what they look like, as **the change page**: one file with a tile
+for every changed document that opens its drawing before and after. Everything
 comes from the MCP tools of the server `mxscout` the person is already connected
 to. Do not ask for git access, a Mendix project folder or Studio Pro: the server
 keeps the versions. Answer in the language the person writes in.
@@ -41,15 +42,57 @@ to "what changed" needs none.
    what is new, changed and removed, grouped by kind (microflow, nanoflow, page,
    snippet, entity), the documents named `Module.Name`. If the version has a
    summary written by an agent, you may quote it and say so.
-5. End with the changed microflows and nanoflows and offer to draw one before and
-   after.
+5. Then **ask** whether to prepare the change page and show it here, in the
+   person's language: "Przygotować stronę zmian i pokazać ją tutaj?" / "Shall I
+   prepare the change page and show it here?". Ask even when the person only
+   asked what changed: most people will not open MxScout to look.
+   If none of those versions changed a microflow, nanoflow, page, snippet or
+   entity (only modules, say), say so and do not offer the page.
 
 If there is only one version, or no version that changed anything, say so: there
 is nothing to compare yet.
 
-## 3. One flow before and after
+## 3. The change page
 
-1. Ask for the page: `compare_document` with `project`, `kind` (`microflow` or
+When the person says yes (or asked for the page, the drawings or "show me"):
+
+1. `change_page` with `project`, `from` and `to` (the versions you told; without
+   them, the newest version against the one before it) and `lang`, the person's
+   language (`pl` or `en`). It answers a short one-time link, never the page:
+   `{ url, fileName, expiresInSeconds, drawable }`. The link works once and for
+   ten minutes.
+2. Download it with ONE command, in the person's working folder (or a scratch
+   folder when there is none): `curl -sS -o <fileName> "<url>"`. Do not open the
+   link in a browser, do not read the file back and do not print it: it is a
+   large self-contained page (its scripts and fonts inside), and reading it costs
+   tokens for nothing. If curl gets a 404 the link was used or expired: ask
+   `change_page` once more.
+3. Show it here, in the conversation, not in MxScout: the person will not go there
+   to look. If your client can show a file in the conversation (a file card or a
+   side panel in Claude Desktop, a preview pane, an artifact on claude.ai), show
+   the downloaded file that way. Only when it cannot, open it in the browser
+   (`open <file>` on macOS, `xdg-open` on Linux, `start "" <file>` on Windows).
+   Give the path either way. It opens from disk with no network and no server.
+4. Add two or three sentences: what to click first (the document with the most
+   changes) and what changed for the people who use the application. The page
+   already lists every document, so do not repeat the list.
+
+What the page shows: a block per kind (entities, microflows, nanoflows, pages with
+their snippets, other), in each a row of tiles for the new, the changed and the
+removed documents. A click opens a microflow or nanoflow as a diagram like Studio
+Pro's, before and after, with + / − / Fit / Show changes (new steps green, changed
+amber, removed red; a click on a step shows its settings and what they were); a
+page or snippet as a wireframe before and after, with the changed widgets and
+columns marked; an entity in its module's domain model, the entity picked and its
+changes listed on the right. Light and dark theme.
+
+If `change_page` answers `url: null` (`drawable: 0`), nothing with a drawing
+changed: say so in words.
+
+## 4. One flow alone, before and after
+
+Only when the person asks for one microflow or nanoflow and not the page: ask for its
+own page: `compare_document` with `project`, `kind` (`microflow` or
    `nanoflow`), `name` (`Module.Name`), `from`, `to` and **`format: "html"`**.
    `lang` is the language of the page's labels: `pl` or `en`, the person's
    language (the default is `en`). Without `from` and `to` it compares the newest
@@ -59,9 +102,8 @@ is nothing to compare yet.
    shorten it or rewrite any of it. The server filled the page with the stored
    before and after, so nothing needs retyping and nothing can be left out. If
    the answer is large, still save all of it; a page cut short does not open.
-3. Open it (`open <file>` on macOS, `xdg-open` on Linux, `start "" <file>` on
-   Windows) and give the path. It is one self-contained file and opens from disk
-   with no server.
+3. Show it here the same way as the change page (step 3 of section 3). It is one
+   self-contained file and opens from disk with no server.
 4. Add three or four sentences in plain words: what the flow does now that it did
    not do before. The page already lists the new, removed and changed steps and
    counts the activities before and after, so do not repeat that list.
@@ -77,15 +119,17 @@ count of activities on each side, and under them the changes in words.
 `afterUnknown` is true when that version's form of the document was not kept (the
 server keeps the earlier form only of documents that changed or were removed
 since it started keeping versions). The page then says "the server did not keep
-this form of the document" on that side and draws the other one. Say the same in
+this form of the document" on that side and draws the other one; on the change
+page that tile says there is nothing to draw. Say the same in
 your own words. `before: null` without the flag means the document is new in
 `to`, `after: null` that it was removed: the page says it did not exist in that
 version.
 
-### Pages, snippets and entities
+### Pages, snippets and entities in words
 
-There is no drawing for them. Call `compare_document` without `format` and
-describe the difference in words from `before` and `after`: what a person sees or
+The change page draws them. When the person asks about one in words, call
+`compare_document` without `format` and describe the difference from `before`
+and `after`: what a person sees or
 can do now that they could not, or the other way round. Use only what the two
 forms show.
 
@@ -93,6 +137,9 @@ forms show.
 
 - The drawing follows the positions stored in the model, like Studio Pro, but the
   lines are simplified.
+- The change page draws at most 120 microflows, nanoflows, pages and snippets and
+  the domain models of 8 modules; the tiles beyond that say there is nothing to
+  draw, and the page says it was cut.
 - "Changed" means the step's action, name or summary line differs. A change deeper
   inside a step (one argument of a call) shows only if it changes that line; read
   the document with `read_document` or `read_raw` when the person asks about one
