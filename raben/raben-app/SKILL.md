@@ -133,6 +133,10 @@ daje własny moduł aplikacji), `Administration.AppUser`, własne dokumenty w `A
      (`~/Mendix/RabenDesignSystem-main`), potem paczka do Marketplace i podmiana modułu we wszystkich aplikacjach (pkt 8).
 7b. Standardy tabel i pól (Karol, 2026-11-16, konta w License):
    - tabela (Data grid 2) ma filtr pod każdym nagłówkiem (tekst, drop-down, data) i na końcu wiersza kolumnę z okiem;
+     zasada bez wyjątków (Karol, 2026-11-19, LIC-47 „Kupione” bez filtra): każda kolumna, która pokazuje wartość, ma filtr
+     – tekst, liczba (filtr liczbowy z operatorem), data, drop-down dla enumeracji i powiązań; bez filtra tylko kolumna
+     ikon/akcji. Brak filtra w narzędziach budowy to luka narzędzia do nauczenia, nie powód, żeby kolumnę zostawić bez filtra;
+   - pusta tabela („Nie ma jeszcze…”) ma pod nagłówkiem jedną linię, jak tabela z wierszami;
      oko **i dwuklik na wierszu** otwierają szczegóły (Data grid 2 *On click* z wyzwalaczem dwuklik);
    - szczegóły rekordu to popup (wzór 7a), nie osobna strona; to, czego aplikacja nie zmienia (dane z HQ, role z ARM),
      jest tylko do podglądu, role jako chipy (`rb-chips`);
