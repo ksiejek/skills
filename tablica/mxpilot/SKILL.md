@@ -62,17 +62,32 @@ z `op://Praca/mxpilot-agent-token/credential`; tokenu nie wypisujesz):
 
 - `sprint`: klucz sprintu z tablicy (`s4`) albo numer;
 - `steps` (1–7): `title`, `do[]` (krótkie zdania), `expect`, `role`, `account` (NAZWA konta testowego, nigdy hasło),
-  `case` (TC-n), `rules` (BR-n), `tested` (true albo czas ISO) **tylko** dla kroku przejścia z pkt 4, który przeszedł;
+  `case` (TC-n, tylko numer przypadku, który MxPilot ma w Przypadkach testowych; numerów z ticketów nie podawaj), `rules` (BR-n),
+  `tested` (true albo czas ISO) **tylko** dla kroku przejścia z pkt 4, który przeszedł, `key` (stały klucz kroku; przy
+  przepisaniu kroku zostaw ten sam, żeby jego oś czasu została);
 - `summary`: jedno–dwa zdania po polsku, co sprint dał biznesowi;
 - `url`: https adres demo (przycisk „Otwórz aplikację”).
 
 Teksty muszą być po polsku (MxPilot odrzuca angielskie i hasła). Nowy zapis to nowa wersja; liczy się najnowsza.
 
-## 6. Po odbiorze
+## 6. Po odbiorze: „Mam uwagi” przy kroku
 
-1. `read_sprint_verdicts { sprint }`: przy każdym kroku „accepted”, „rejected” z notatką testera albo nic.
-2. Odrzucony krok to uwaga do poprawy: diagnoza, ticket z przyczyną i zmianą, po poprawce cykl od pkt 2.
-3. Karolowi mówisz w kilku liniach: co przyjęte, co odrzucone, jakie tickety powstały.
+Tester przy każdym kroku klika „Akceptuję” albo „Mam uwagi” (tekst i zrzuty ekranu, wklejone Ctrl+V albo upuszczone).
+Uwagi trafiają do kolejki Claude: `list_ready` zwraca zdarzenie `type: step_feedback`, `id: "step-<n>"` z krokiem
+(numer, key, tytuł, czynności, rola, konto), notatką i zrzutami (z pinezkami). Na każde takie zdarzenie (Karol, 2026-11-19):
+
+1. `write_step_status { sprint, step, status: "working", text }`: jedno zdanie, co znalazłeś. Tester widzi „Claude pracuje”.
+2. Zrzuty czytasz `read_document` (kind `attachment`), potem diagnoza. Poprawka aplikacji Mendix idzie ticketem na tablicę
+   aplikacji („nic bokiem”); ticket do To do.
+3. Gdy poprawka jest na demo: `write_step_status … "testing"`, przechodzisz krok w przeglądarce jako ta rola, razem z tym,
+   co opisał tester. Nie przechodzi: wracasz do pkt 2.
+4. Przechodzi: `write_sprint_demo` z tym krokiem `tested` (ten sam `key`), poprawionym opisem, gdy był niejasny, i **nowym
+   krokiem**, gdy uwaga pokazała przypadek, którego kroki nie obejmowały.
+5. `write_step_status … "ready"`, potem `ack_ready ["step-<n>"]`. Tester widzi „Poprawione · sprawdź ponownie”, a cała droga
+   (uwagi, zrzuty, Twoje statusy, przejścia, nowe kroki) jest pod przyciskiem „Oś czasu” kroku.
+
+`read_sprint_verdicts { sprint }` daje przegląd: przy każdym kroku „accepted”, „rejected” (uwagi) albo nic. Karolowi mówisz
+w kilku liniach: co przyjęte, jakie uwagi, jakie tickety powstały.
 
 ## 7. Przykład: License 2.0 (Raben)
 
