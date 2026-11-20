@@ -38,9 +38,10 @@ skill and by MxScout's Security screen) finds them in the model by rule — the
 same model gives the same risks under the same ids (`mx-…`), every time. A
 finding about data or accounts is P1 (or the P1 or P2 its check gives), a
 finding about a setting — Prototype security, a weak demo password, a user
-role with no module role — is P2, what a check suspects and the model does
-not prove is P2, its title beginning "To verify:", and what is worth knowing
-is P3, its title beginning "Worth knowing:". **From an agent**: everything a rule cannot see —
+role with no module role — is P2, and what is worth knowing is P3, its title
+beginning "Worth knowing:". What a check suspects and the model does not prove
+is not a risk at all but a **lead** (rules 6): no level, not counted, listed
+apart, for the risk skill to confirm — then it becomes a risk — or drop. **From an agent**: everything a rule cannot see —
 logic, error handling, commits in loops, dead code, values written into flows
 — judged by the levels below. An agent hands the worked-out risks over as
 they are and never writes its own about what they cover; a second risk on the

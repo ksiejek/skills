@@ -12,8 +12,9 @@
  *
  * Every finding is a risk with a fixed id ('mx-' + the check + what it is about): the same model gives the
  * same ids, every time, here and in MxScout. FINDING → P1 or P2, with the scenario, the evidence and the effect
- * in its detail; TO VERIFY → P2 ("To verify: …"), what a check suspects and the model does not prove, with what
- * to look at; WORTH KNOWING → P3 ("Worth knowing: …"). A risk the rules before gave and these do not, on the
+ * in its detail; WORTH KNOWING → P3 ("Worth knowing: …"). What a check suspects and the model does not prove
+ * is a LEAD (rules 6): no level, not counted, never a risk — --json lists the leads apart, for the risk skill to
+ * confirm or drop. A risk the rules before gave and these do not, on the
  * same model, is withdrawn — "verify" says so ("withdrawn": true), and MxScout never takes it for a fix.
  *
  *   --md (the default)  a summary to read: the counts, the findings, what is worth knowing, what was not checked
