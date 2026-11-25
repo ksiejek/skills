@@ -22,6 +22,9 @@ Na tickecie widać tylko imiona: Claude, Karol (ról ani punktów nie ma).
 - Kolumny: **To do · Running · Done** (Backlog poza tablicą). Kolejność w To do ustala Karol w Tandem („Następne w sprincie”): mniejsze `order` pierwsze, potem numer; mały błąd (trywialny wg orkiestratora) idzie przed resztą, chyba że Karol ustawił kolejność ręcznie (`orderManual`, TAN-208).
 - Historyjka: `key`, `title`, `type` (story, bug, task, refinement), `prompt`, `intent`, `acceptance`, `questions`, `decisions`, `changes`, `assignee`, `log`.
 - Projekt z pipeline: Draft · To do · Running · Automated Testing · Done · Acceptance (`prod`). Draft przesuwa Karol; To do = „buduj”; Running: oceniasz kryteria i `story_move` do `autotest` (ticket planistyczny prosto do Done); Automated Testing to pipeline (fail = `halt`, czerwona ramka, zatrzymanej nie przesuwasz sam; po zielonych testach pipeline sam daje Done, w trybie partiami testy idą raz na partię); Done: skrypt commituje historyjkę (temat „KLUCZ: …”); Acceptance przesuwa Karol, Claude nie. Jeden job na projekt: Running i Automated Testing (Done i karta „Partia testów” nie blokują). Pełna tabela, partie, układ rodzinny, orkiestrator, dwie drogi Mendix: `reference/tablica-pipeline.md`.
+- Koniec sprintu (wszystkie historyjki w Done, partia testów zielona) to jeszcze nie koniec: biznes dostaje sprint do
+  odbioru w MxPilot dopiero, gdy Claude napisze kroki „Sprawdź w 5 minut”, sam je przejdzie na demo i zapisze (skill
+  `mxpilot`). Sesja, która zamyka ostatnią historyjkę sprintu, uruchamia ten cykl albo mówi o nim Karolowi (2026-11-25).
 - Wydanie na prod blokuje swoje historyjki (przeniesienie, edycja, usunięcie); komentarz przechodzi: `reference/wydanie-blok.md`.
 - Ekran pokazuje polskie nazwy (`todo` Do zrobienia, `running` Claude buduje, `autotest` Testy, `done` Gotowe); w `story_move` podajesz zawsze id. Słownik: `reference/nazwy-na-ekranie.md`.
 

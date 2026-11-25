@@ -18,6 +18,13 @@ Zasady obok: `sprinter` (tablica, kolumny, kto co robi), `raben-app` pkt 8 (demo
 - Wszystkie historyjki sprintu są w Done (pipeline) albo Karol mówi „oddaj sprint” / „wystaw do odbioru”.
 - Po poprawkach zrobionych w sesji, zanim powiesz Karolowi „gotowe do testów”.
 - Gdy biznes odrzucił krok i poprawka już jest: ten sam cykl od kroku 2.
+- Kto zaczyna (Karol, 2026-11-25: „mialo byc tak: robisz scenariusz, potem testujesz, potem ja to dostaję”): pipeline ani
+  Tandem nie robią tego same. Każda sesja, która widzi, że ostatnia historyjka sprintu przeszła do Done (albo że sprint
+  jest skończony, a w MxPilot nie ma kroków „Sprawdź w 5 minut” dla niego), sama zaczyna ten cykl albo w podsumowaniu
+  mówi Karolowi wprost: „Sprint N bez kroków odbioru: uruchomić /mxpilot?”. Sprint nie jest skończony, dopóki kroki nie
+  są zapisane z `tested`.
+- Przypadki testowe ticketów w Tandem (`testCases`, krok „Test ekranu”) to test automatyczny pipeline, nie odbiór:
+  zielona partia testów nie zastępuje kroków w MxPilot.
 
 ## 2. Model w repozytorium
 
