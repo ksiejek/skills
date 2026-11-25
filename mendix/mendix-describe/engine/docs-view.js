@@ -1668,6 +1668,8 @@
           // Which version of the app, from the Mendix project's git: "main @ a1b2c3d · 14.10.2026 · “Fix order status”".
           ver ? [_('Version'), (ver.branch ? ver.branch + ' @ ' : '') + ver.short, [ver.date ? fmtDate(ver.date).slice(0, 10) : null, ver.message ? '“' + ver.message + '”' : null].filter(Boolean).join(' · ') || null] : null,
           [_('Model read'), data.modelReadAt ? modelRead(data) : _('unknown')],
+          // Team: when the watcher last looked at the repository, so a project checked with nothing new still says so.
+          data.scan ? [_('Last scan')].concat(lastScan(data)) : null,
           [_('Modules'), k.modules, k.marketplace ? '+' + k.marketplace + ' Marketplace' : _('all own'), { view: 'modules' }, null, pk.modules],
           [_('Microflows'), k.microflows, null, { view: 'refs', seg: 'microflow', key: null }, null, pk.microflows],
           [_('Nanoflows'), k.nanoflows, null, { view: 'refs', seg: 'nanoflow', key: null }, null, pk.nanoflows],
@@ -3865,6 +3867,15 @@
       return String(data.project || 'documentation').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') + '-documentation-' + String(data.generatedAt || '').slice(0, 10) + '.md';
     }
     function modelRead(data, of) { return data.modelReadAt ? (of ? 'model of ' : '') + fmtDate(data.modelReadAt) : of ? 'model date unknown' : 'unknown'; } // when it was read, never when this was drawn
+    // data.scan (a Team server's watcher, docs-data.js) in words: [when, what it found].
+    function lastScan(data) {
+      var s = data.scan;
+      if (s.none) return [_('not watched'), _('no watcher follows this project')];
+      var note = s.status === 'error' && s.error ? _('failed: {0}', [s.error])
+        : s.found === 0 ? (s.version ? _('no changes since version {0}', [s.version + (s.short ? ' · ' + s.short : '')]) : _('no changes'))
+        : s.found > 0 ? _('{0} new commit(s) found', [s.found]) : null;
+      return [s.at ? fmtDate(s.at) : _('not yet'), note];
+    }
     function fmtDate(iso) {
       var d = new Date(iso);
       if (isNaN(d)) return String(iso || '');

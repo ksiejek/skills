@@ -564,6 +564,10 @@
       // When the model was read from the Mendix project, which is what "Model read" and "model of …" say: a model read
       // in January and exported today is a model of January. null when the model does not say (the reader shows "unknown").
       modelReadAt: (model.meta && typeof model.meta.generatedAt === 'string' && model.meta.generatedAt) || null,
+      // When the model's repository was last looked at, on a Team server whose watcher follows it ("Last scan"): { at,
+      // found (new commits), version, short, status, error }, or { none: true } when no watcher follows the project.
+      // null anywhere else (a project in this browser has no scan).
+      scan: (project && project.source && project.source.scan) || null,
       drawings: Object.keys(flows).some(function (k) { return flows[k].drawn; }),
       kpi: {
         modules: own.length, marketplace: marketplace.length,
