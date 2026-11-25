@@ -183,3 +183,25 @@ daje własny moduł aplikacji), `Administration.AppUser`, własne dokumenty w `A
 - Sprawdzasz, że demo serwuje nową wersję (reguła lub tekst ze zmiany) i że adres publiczny kieruje do logowania
   Access. Aplikacja bez wpisu w rejestrze dostaje go przez `demo-domain.js add` (zasady wejścia: Raben przez
   Access, Karol bezpośrednio).
+- **Karol nie podaje maila ani kodu** (Karol, 2026-11-25, myClaim: „ja nie muszę podawać maila, musimy to mieć
+  w skillu”). Każde demo, które mu pokazujesz, kończysz jego linkiem wejściowym: `node bin/demo-domain.js login <host>
+  --print` w `~/Projects/Tandem` daje `https://<host>/_gate/owner#<bilet>`: bilet działa 2 minuty i otwiera 90-dniową
+  sesję właściciela tylko dla tego hosta (bez kodu z maila bramki testerów, `lib/demo-owner.js`). Wygeneruj go na końcu,
+  gdy Karol ma go otworzyć, i podaj jako link; nie pisz mu „wejdź i zaloguj się mailem”. Konta per rola: ten sam
+  `demo_user`/`test.<rola>` co niżej, hasła tylko z `~/Mx/secrets/tester-users.json` (nie drukuj).
+- **Nowe demo aplikacji Raben, kolejność** (myClaim 2026-11-25, `myclaim-demo.seajack.dev`):
+  1. Paczka: `~/Mendix/<App>-TEST/app/*.mda`, a gdy jej nie ma (myClaim), ostatni build pipeline
+     (`$TMPDIR/mxcraft-build/<projekt>/run-1/app.mda`, kopiuj) do `~/Mx/demo/_packages/<App>.mda`.
+  2. `node bin/demo-domain.js add <host> <projekt> --port N --admin-port N+1 --db <url …_demo> --mda <plik>
+     --tester-domains raben-group.com --tester-emails ksiejek@gmail.com` (porty wolne w `demo-domains.json`, krok 10;
+     baza z tym samym wzorcem co inne demo). Stałe runtime w rejestrze ręcznie: `"constants": {…}` (myClaim:
+     `MyClaim.Environment`=`Test`, żeby dane testowe się załadowały).
+  3. Tunel: wpis `hostname → http://127.0.0.1:4294` przed regułą 404 w `~/Mx/cloudflared/config.yml` (najpierw kopia
+     `.bak-RRRR-MM-DD-<temat>`, `cloudflared tunnel --config … ingress validate`), potem
+     `launchctl kickstart -k gui/$(id -u)/pl.maclab.cloudflared` (na chwilę zrywa Atlas, Tandem, Trio: zapytaj Karola).
+  4. DNS: `cloudflared tunnel route dns 275f5946-59a8-453e-abdd-d13da31e4f8c <host>` (cert.pem jest w `~/.cloudflared`).
+  5. Access (brak tokenu API): panel Cloudflare One → Access controls → Applications → „HQ i OneVerse demo (testerzy)”
+     → Add public hostname (subdomena + seajack.dev) → Save; przez Claude in Chrome, za zgodą Karola.
+  6. `node bin/demo-domain.js roles <host>` (konta per rola, sprawdza logowania i startuje runtime), potem
+     `login <host> --print` dla Karola. Adres sprawdź przez `curl --resolve <host>:443:<IP z dig @1.1.1.1>`: lokalny
+     resolver trzyma negatywny cache; oczekiwane 302 do `…cloudflareaccess.com`.
