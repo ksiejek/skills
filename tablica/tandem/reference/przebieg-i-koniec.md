@@ -134,6 +134,7 @@ około dziesięć razy (Karol, 2026-10-18).
 5. `run_report` z `summary` (najwyżej 3 zdania po polsku dla Karola, bez nazw plików i narzędzi; technikalia
    w `summaryTech`, „Jak pisać do Karola”; nazwy z modelu w nawiasach monospace nie są potrzebne, Tandem je
    wyróżni) i `result`:
+   - **„Do Braina”** (TAN-351): w `summaryTech` linia `Do Braina` i pod nią punkty z faktami, które zmieniły stan projektu (wersja, port, ścieżka, adres, stos, jak uruchomić, nowa pułapka „nie rób X, bo Y”), każdy ze źródłem (sha commita albo plik); gdy nic się nie zmieniło, samo `brak`. Bez sekretów (tylko nazwa wpisu w 1Password). Sesja nie pisze do Braina; bibliotekarz przenosi sekcję.
    - `model`: `["ServiceDesk.SE_Ticket_Escalate · nowe zdarzenie co 60 min", …]`
    - `sprinter`: `["SD-15 · Running → Done"]` (z pipeline: `"SD-15 · Running → Automated Testing"`)
    - `files`: `["descriptions.json · 1 nowy opis"]` – ścieżka od korzenia repo przed „ · ”, każdy

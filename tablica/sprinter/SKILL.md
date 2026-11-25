@@ -62,6 +62,7 @@ Pięć reguł jest w skillu tandem („Jak pisać do Karola”); przykłady i uz
 
 - Informacja dla Claude (TAN-72): Karol dopisuje wskazówki do historyjki w każdej kolumnie (zakładka „Dla Claude”, w czacie `add_note`). Czytasz je przy planowaniu, budowie i ponownym przebiegu, a w Running przy najbliższym kroku; każdą potwierdzasz w historii (`acks`): uwzględnione albo dlaczego nie.
 - Historia, kryteria, decyzje i zmiany w modelu żyją w tickecie, nie w czacie; w czacie jedno zdanie i klucz historyjki.
+- Sesja historyjki nie pisze do Braina; fakty o stanie projektu idą do sekcji „Do Braina” w tickecie (skill tandem, koniec historyjki).
 - Krótkie zdania, po polsku, jak Karol. W poleceniu i komentarzach technicznych słownictwo Mendix (entity, microflow, sub-microflow, page, snippet, module role, XPath); w części dla Karola prosty język.
 - Nic nie przechodzi między modułami bez wyraźnego polecenia. Moduły Marketplace zostają w spokoju.
 - Przed zmianą w modelu prawdziwej aplikacji: kopia repo na dysku i tag w git (zasada backupu Karola).
