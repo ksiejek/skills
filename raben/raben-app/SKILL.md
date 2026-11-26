@@ -184,20 +184,16 @@ daje własny moduł aplikacji), `Administration.AppUser`, własne dokumenty w `A
   Access. Aplikacja bez wpisu w rejestrze dostaje go przez `demo-domain.js add` (zasady wejścia: Raben przez
   Access, Karol bezpośrednio).
 - **Karol nie podaje maila ani kodu** (Karol, 2026-11-25, myClaim: „ja nie muszę podawać maila, musimy to mieć
-  w skillu”). Przed każdym hostem `*.seajack.dev` stoi Cloudflare Access (kod z maila), a za nim bramka testerów
-  Tandem; link właściciela `login <host> --print` (`/_gate/owner#<bilet>`, 2 minuty) omija **tylko bramkę testerów, nie
-  Access** (2026-11-26: `/_gate/owner` też dostaje 302 do `…cloudflareaccess.com`). Dlatego każde demo dostaje
-  **drzwi Karola przez Tailscale** i to ten adres mu dajesz:
-  1. wolny port 84xx (`tailscale serve status`; 8443 servicedesk-test, 8444 myclaim-demo):
-     `tailscale serve --bg --https=<port> http://127.0.0.1:4294`;
-  2. w `~/Mx/demo-domains.json` (najpierw kopia `.bak-RRRR-MM-DD-tailnet`) wpis hosta dostaje
-     `"tailnet": {"port": <port>, "owners": [<mail Karola jak w servicedesk-test>]}` (`lib/demo-gateway.js`, gateway czyta
-     rejestr na bieżąco, restart niepotrzebny);
-  3. sprawdzenie: `curl https://mac-studio-karol.tailaf34e0.ts.net:<port>/` daje 200 i tytuł „<App> · zaloguj jako”
-     (503 = runtime śpi po `idleHours`: `node bin/demo-domain.js start <host>`);
-  4. Karolowi podajesz `https://mac-studio-karol.tailaf34e0.ts.net:<port>/` (działa z jego urządzeń w tailnecie, bez
-     maila i bez kodu, z listą „Zaloguj jako” per rola). Link `/_gate/owner` tylko jako zapas, gdy ma już sesję Access.
-  Nie pisz mu „wejdź i zaloguj się mailem”. Konta per rola: ten sam `demo_user`/`test.<rola>` co niżej, hasła tylko
+  w skillu”). Karol wchodzi zawsze przez adres dema (`https://<host>`), jak na licence-demo. Przed hostem stoi
+  Cloudflare Access (jego sesję Karol już ma), a za nim bramka testerów Tandem z kodem z maila (`lib/tester-gate.js`;
+  wysyłka maili nie jest skonfigurowana, więc kod nie przyjdzie). Bramka przepuszcza bez kodu, gdy wpis hosta w
+  `~/Mx/demo-domains.json` ma **`cfAccess: {app, team, aud}`**: gateway ufa wtedy mailowi z tokenu Access
+  (`accessEmail` w `lib/demo-gateway.js`). `cfAccess` zapisuje `node bin/demo-domain.js sync <host>` dopiero wtedy,
+  gdy adres już kieruje do Access, czyli **po** dodaniu hosta w panelu Access (krok 5 niżej). Bez tego `add` zostawia
+  `cloudflare: pending` i bramka pyta o mail (myClaim 2026-11-26). Sprawdzenie: wpis ma `cfAccess` z tym samym `aud`
+  co licence-demo, `cloudflare.state` = `done`. Link `login <host> --print` (`/_gate/owner#<bilet>`) omija tylko bramkę
+  testerów, a nie Access; to zapas. Drzwi przez Tailscale (`tailnet: {port, owners}`, `tailscale serve`, np. 8444 dla
+  myclaim-demo) to też tylko zapas. Nie pisz mu „wejdź i zaloguj się mailem”. Konta per rola: ten sam `demo_user`/`test.<rola>` co niżej, hasła tylko
   z `~/Mx/secrets/tester-users.json` (nie drukuj).
 - **Nowe demo aplikacji Raben, kolejność** (myClaim 2026-11-25, `myclaim-demo.seajack.dev`):
   1. Paczka: `~/Mendix/<App>-TEST/app/*.mda`, a gdy jej nie ma (myClaim), ostatni build pipeline
@@ -213,5 +209,6 @@ daje własny moduł aplikacji), `Administration.AppUser`, własne dokumenty w `A
   5. Access (brak tokenu API): panel Cloudflare One → Access controls → Applications → „HQ i OneVerse demo (testerzy)”
      → Add public hostname (subdomena + seajack.dev) → Save; przez Claude in Chrome, za zgodą Karola.
   6. `node bin/demo-domain.js roles <host>` (konta per rola, sprawdza logowania i startuje runtime), potem
-     drzwi Tailscale dla Karola (wyżej) i ten adres w odpowiedzi. Adres sprawdź przez `curl --resolve <host>:443:<IP z dig @1.1.1.1>`: lokalny
+     `node bin/demo-domain.js sync <host>` (zapisuje `cfAccess`, bez tego bramka pyta Karola o mail) i adres dema
+     w odpowiedzi. Adres sprawdź przez `curl --resolve <host>:443:<IP z dig @1.1.1.1>`: lokalny
      resolver trzyma negatywny cache; oczekiwane 302 do `…cloudflareaccess.com`.
