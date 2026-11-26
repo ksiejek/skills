@@ -79,6 +79,13 @@ calling `write_story` again with the same `number` — never a second story.
     what they see, what they can do, BR numbers at the end. Never a
     non-persistent copy, a popup, a validation or an entity name; those go in
     `changes` and `widgets`.
+    The plan is drawn on the same card as a change in a built model, so
+    write what the card needs: on a changed entity's attribute `was` (the
+    type it has now, the card shows was → type); on a decision (or loop)
+    step `yes` / `no` as a sentence, or as a list of steps when a branch has
+    several (the branch is drawn box by box); `action` names as listed in
+    `write_story`; on a widget of a page that exists `state`
+    (`new` | `changed` | `removed`) and `note`, so the card colours it.
   - `checks` — how to tell the built thing works.
 
 Nothing in `guide` may be a field the server does not know: unknown keys on a

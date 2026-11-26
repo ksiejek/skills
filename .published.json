@@ -1,6 +1,6 @@
 {
-  "MxScout/skills/mendix-assist": "e558620e60465fceaecdbcefef3542d4dd6725a694de93c50d309995079df688",
-  "MxScout/skills/mendix-describe": "db95080e3cd015450af28156991679e18dc0edf8bf4c38cadc9c13b951ffe432",
+  "MxScout/skills/mendix-assist": "bffdb459507cba80ecfac10cb4d297ec77de33948f5f02d1579e2e2e66b5ec4e",
+  "MxScout/skills/mendix-describe": "2f185656293e5db4004e2b2183bd578946f0fcf62646d5497d1264ccef18a042",
   "MxScout/skills/mendix-brief": "0c8a1c11676b78eb3ad9311e447e744045285f122579a542941a85cb0088bc2b",
   "MxScout/skills/mendix-change-proposal": "e438355c8e0ab3075844099b5085b7a4123076c8db833b77a6279063809bedea",
   "MxScout/skills/mendix-testcases": "7ce2e3ed5354c51d8b5549b0f354f275ff58b87fe7cbd9041227f49eac78803a",
@@ -13,9 +13,9 @@
   "Tandem/skills/lean-context": "33bbcf3e539e67742eca57bd020a7f159c055c778da0daa8146047cc262473fc",
   "Tandem/skills/instrukcja-testow": "1d24b35ad831450e8877bbca4127fc1dd70d10566db3b7f3fa7ea71c5832ff0f",
   "Tandem/skills/dokumentacja": "733eb086ab680d87a36d15584d48b18039796afa9335c76b9fa75c3d94949b52",
-  "MxScout/skills/mendix-plan": "173e9c950e170f924d0f039674f6adc5c299c5f9ff3fb903967666bf0d9b9776",
-  "MxScout/skills/mendix-nightly": "db22777ed598514f8a0fb326cc1e9e0bca6079576cea17af6176f466b0e7763f",
+  "MxScout/skills/mendix-plan": "babe3a20080a579b41f7c6df57cb47eeb69a49690a5b06e77cc74090bcd40ef9",
+  "MxScout/skills/mendix-nightly": "db7fb1c7638a0d2670e9e8505a8bfed8fdf489cc25dfeb505480298ce11f846b",
   "MxScout/skills/mendix-comments": "689510285cd10072a8469115eb653d3ae8f75b0e52e0f3d0d3e629ff7c576b0f",
-  "MxScout/skills/mendix-risk": "aef138934b90f25ae4083f0b1bb0f49cfacdc0d3152e67aaba5c671c3f7ed476",
+  "MxScout/skills/mendix-risk": "656c3ddac7f872c5ba6e778d0de56101ca07d2c2a773be0cd28f51985f672082",
   "MxScout/skills/mendix-compare": "c23dbc33b493d5025a902961494157337d9195f158f7d7dd93e8ea04f1138224"
 }

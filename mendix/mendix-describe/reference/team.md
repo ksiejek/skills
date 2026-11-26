@@ -51,6 +51,11 @@ write is kept on the server under the name of the person whose token you use.
    and tell the person what it will cost; `start_task` before the work, and
    `report_usage` with your model and real token counts after it. Then tell
    the person what it cost (next section).
+   **Billing** (both calls): `billing: "subscription"` when you run in Claude
+   Code signed in on a subscription (Pro, Max, Team, Enterprise), `"api"` when
+   you run on an API key (the default). The ledger keeps them apart: a
+   subscription's tokens are priced at API prices as an estimate and shown as
+   one on the projects page. When you cannot tell which, ask the person once.
 
 ## After a task: tell what it cost
 
@@ -63,7 +68,9 @@ not an option and not only for the large ones.
    person's language, with its numbers exactly as given.
 2. What `status` means:
    - `priced`: the tokens in and out, the model and the cost by the price
-     list, and the project's budget for the month when it has a limit.
+     list, and the project's budget for the month when it has a limit. On a
+     subscription (`estimated: true`) the cost is what the tokens would cost
+     on the API: say it is an estimate, nothing extra to pay.
    - `local`: a model on the team's own machine; say the tokens and that the
      cost is 0.
    - `no-price`: the tokens, and that the model has no price in the price list

@@ -77,7 +77,9 @@ module.
    1. A project with `watch.following: false` is still described (what is there
       is there), but put "no Git watcher follows this project" in its `note`:
       nobody pulls its main line, so the admin should know.
-   2. `start_task` with `kind: "documentation"` and your model's id. If it is
+   2. `start_task` with `kind: "documentation"`, your model's id and `billing`
+      (`"subscription"` when this job runs Claude Code signed in on a
+      subscription, `"api"` when it runs on an API key). If it is
       refused (the budget is used up), skip the project, count it in `skipped`
       and note "budget used up"; go on to the next project, which may have its
       own budget.
@@ -106,7 +108,7 @@ module.
    5. After the modules: the application overview (`app`) and the architecture
       (`c4`) are written **only when the project has none yet** (`read_descriptions`
       without a module shows `app: null`). Otherwise leave them as they are.
-   6. `report_usage` with the task number, your model, and the real
+   6. `report_usage` with the task number, your model, the same `billing`, and the real
       `tokensIn` (every token read, cache reads included) and `tokensOut` of the
       work on this project. If you have no counts, call it without tokens - the
       task then shows as no data, never as zero.
