@@ -69,7 +69,10 @@ z `op://Praca/mxpilot-agent-token/credential`; tokenu nie wypisujesz):
 
 - `sprint`: klucz sprintu z tablicy (`s4`) albo numer;
 - `steps` (1–7): `title`, `do[]` (krótkie zdania), `expect`, `role`, `account` (NAZWA konta testowego, nigdy hasło),
-  `case` (TC-n, tylko numer przypadku, który MxPilot ma w Przypadkach testowych; numerów z ticketów nie podawaj), `rules` (BR-n),
+  `case` (TC-n, tylko numer przypadku, który MxPilot ma w Przypadkach testowych; numerów z ticketów nie podawaj),
+  `rules` (BR-n) **przy każdym kroku**: numery reguł z `read_brief`, które ten krok sprawdza (Karol, 2026-11-27: bez nich
+  Odbiór pokazuje „z krokami 0”, a reguły wyglądają na niesprawdzone); reguła sprintu, której żaden krok nie sprawdza
+  (odpowiedź `uncheckedRules` po PIL-88), dostaje nowy krok przejścia z pkt 4 albo zostaje świadomie bez kroku,
   `tested` (true albo czas ISO) **tylko** dla kroku przejścia z pkt 4, który przeszedł, `key` (stały klucz kroku; przy
   przepisaniu kroku zostaw ten sam, żeby jego oś czasu została);
 - `summary`: jedno–dwa zdania po polsku, co sprint dał biznesowi;
