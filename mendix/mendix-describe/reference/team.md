@@ -49,7 +49,7 @@ write is kept on the server under the name of the person whose token you use.
    overwrite what is right.
 4. Before a large task (the whole application, a translation), `estimate_task`
    and tell the person what it will cost; `start_task` before the work, and
-   `report_usage` with your model and real token counts after it. Then tell
+   `report_usage` with your model and real token counts after it: the split of your session's usage: `tokensIn` only the uncached input (`input_tokens`), `cacheRead` (`cache_read_input_tokens`), `cacheWrite` (`cache_creation_input_tokens`) and `tokensOut` (`output_tokens`), summed from the transcript's usage lines (each message once). Cache reads cost a fraction of the input price, so the split makes the cost close to the real bill; without `cacheRead`/`cacheWrite` the task is marked as an estimate. Then tell
    the person what it cost (next section).
    **Billing** (both calls): `billing: "subscription"` when you run in Claude
    Code signed in on a subscription (Pro, Max, Team, Enterprise), `"api"` when

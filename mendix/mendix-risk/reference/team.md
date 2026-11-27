@@ -76,7 +76,7 @@ stage and hand over its result in the form below.
    earlier run. Keep a copy; you need it in stage D. Tell the person how many
    leads are open, per check, with the estimate.
 4. `estimate_task`, tell the person, `start_task`. After the work
-   `report_usage` with your model and real token counts, and say the line it
+   `report_usage` with your model and real token counts split into `tokensIn` (uncached), `cacheRead`, `cacheWrite` and `tokensOut`, and say the line it
    answers. In both, `billing: "subscription"` when you run in Claude Code on a
    subscription, `"api"` on an API key (`mendix-describe`, `reference/team.md`). A model with no price has no cost to give: say so, never 0.
 5. Read the parts `checks`, `pitfalls` and `risk-format` once.

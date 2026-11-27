@@ -109,8 +109,8 @@ module.
       (`c4`) are written **only when the project has none yet** (`read_descriptions`
       without a module shows `app: null`). Otherwise leave them as they are.
    6. `report_usage` with the task number, your model, the same `billing`, and the real
-      `tokensIn` (every token read, cache reads included) and `tokensOut` of the
-      work on this project. If you have no counts, call it without tokens - the
+      counts of the work on this project, split: `tokensIn` (only the uncached input), `cacheRead`, `cacheWrite` and `tokensOut`
+      (summed from the session transcript's usage; `mendix-describe`, `reference/team.md`). If you have no counts, call it without tokens - the
       task then shows as no data, never as zero.
       Nobody reads this run as it happens, so there is no cost line to say (that
       rule is for a conversation); the cost reaches the server through

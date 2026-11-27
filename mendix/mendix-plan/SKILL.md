@@ -36,7 +36,7 @@ It is one artefact, not four documents, so it cannot drift apart.
 - **Say what it cost.** A plan written through MCP ends with one line on the
   tokens and cost of the work, as `report_usage` answers it; `start_task` and
   `report_usage` carry `billing: "subscription"` in Claude Code on a subscription,
-  `"api"` on an API key
+  `"api"` on an API key; `report_usage` also passes `cacheRead` and `cacheWrite` split from `tokensIn`
   (`mendix-describe`, `reference/team.md`, "After a task: tell what it cost").
 - **In a Raben application, load `raben-app` first.** The starting modules,
   `MDM_Generic` + `MDM`, `MDM.Account`, OIDC, the Raben Design System and the
